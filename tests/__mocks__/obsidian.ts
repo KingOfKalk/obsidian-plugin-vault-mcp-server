@@ -58,13 +58,15 @@ export class Setting {
   settingName = '';
   settingDesc = '';
   settingClass = '';
+  container: any;
   buttons: Array<{ text: string; disabled: boolean; callback: (() => void) | null }> = [];
   extraButtons: Array<{ icon: string; tooltip: string; callback: (() => void) | null }> = [];
   toggles: Array<{ value: boolean; tooltip: string; callback: ((value: boolean) => void) | null }> = [];
   settingEl: { classList: { add: (cls: string) => void } };
 
-  constructor(_containerEl: any) {
+  constructor(containerEl: any) {
     Setting.instances.push(this);
+    this.container = containerEl;
     this.settingEl = {
       classList: {
         add: (cls: string): void => {

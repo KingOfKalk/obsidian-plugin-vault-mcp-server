@@ -456,6 +456,7 @@ describe('McpSettingsTab module rows read-only rendering', () => {
     settingName: string;
     settingDesc: string;
     settingClass: string;
+    container: unknown;
     toggles: ToggleInfo[];
   };
 
@@ -488,7 +489,10 @@ describe('McpSettingsTab module rows read-only rendering', () => {
     };
   }
 
-  function renderModules(modules: ModuleRegistration[]): ReturnType<typeof createRegistry> {
+  function renderModules(modules: ModuleRegistration[]): {
+    registry: ReturnType<typeof createRegistry>;
+    container: TrackingEl;
+  } {
     const registry = createRegistry(modules);
     const plugin = {
       settings: { ...DEFAULT_SETTINGS, accessKey: 'k' },
@@ -499,8 +503,20 @@ describe('McpSettingsTab module rows read-only rendering', () => {
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
     const tab = new McpSettingsTab({} as any, plugin as any);
+    const container = createTrackingEl();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+    (tab as any).containerEl = container;
     tab.display();
-    return registry;
+    return { registry, container };
+  }
+
+  function findAllByClass(root: TrackingEl, cls: string): TrackingEl[] {
+    const results: TrackingEl[] = [];
+    for (const child of root.children) {
+      if (child.className === cls) results.push(child);
+      results.push(...findAllByClass(child, cls));
+    }
+    return results;
   }
 
   function getSetting(name: string): ModuleSettingInstance | undefined {
@@ -509,35 +525,27 @@ describe('McpSettingsTab module rows read-only rendering', () => {
     );
   }
 
+  const vaultModule: ModuleRegistration = {
+    enabled: true,
+    readOnly: false,
+    module: {
+      metadata: { id: 'vault', name: 'Vault', description: 'Vault ops', supportsReadOnly: true },
+    },
+  };
+
   beforeEach(() => {
     (Setting as unknown as { instances: unknown[] }).instances = [];
   });
 
   it('renders the module enable-toggle with exactly one toggle on the module row', () => {
-    renderModules([
-      {
-        enabled: true,
-        readOnly: false,
-        module: {
-          metadata: { id: 'vault', name: 'Vault', description: 'Vault ops', supportsReadOnly: true },
-        },
-      },
-    ]);
+    renderModules([vaultModule]);
     const moduleRow = getSetting('Vault');
     expect(moduleRow).toBeDefined();
     expect(moduleRow!.toggles).toHaveLength(1);
   });
 
   it('renders a dedicated Read-only sub-row with its own name, description and toggle', () => {
-    renderModules([
-      {
-        enabled: true,
-        readOnly: false,
-        module: {
-          metadata: { id: 'vault', name: 'Vault', description: 'Vault ops', supportsReadOnly: true },
-        },
-      },
-    ]);
+    renderModules([vaultModule]);
     const readOnlyRow = getSetting('Read-only');
     expect(readOnlyRow).toBeDefined();
     expect(readOnlyRow!.settingDesc.length).toBeGreaterThan(0);
@@ -559,19 +567,39 @@ describe('McpSettingsTab module rows read-only rendering', () => {
   });
 
   it('toggling the Read-only sub-row calls registry.setReadOnly', async () => {
-    const registry = renderModules([
-      {
-        enabled: true,
-        readOnly: false,
-        module: {
-          metadata: { id: 'vault', name: 'Vault', description: 'Vault ops', supportsReadOnly: true },
-        },
-      },
-    ]);
+    const { registry } = renderModules([vaultModule]);
     const readOnlyRow = getSetting('Read-only')!;
     readOnlyRow.toggles[0].callback!(true);
     await vi.waitFor(() => {
       expect(registry.setReadOnly).toHaveBeenCalledWith('vault', true);
     });
+  });
+
+  it('wraps each module in its own .mcp-module-card container', () => {
+    const { container } = renderModules([
+      vaultModule,
+      {
+        enabled: false,
+        readOnly: false,
+        module: {
+          metadata: { id: 'ui', name: 'UI', description: 'UI ops', supportsReadOnly: false },
+        },
+      },
+    ]);
+    const cards = findAllByClass(container, 'mcp-module-card');
+    expect(cards).toHaveLength(2);
+  });
+
+  it('places the module row and its Read-only sub-row inside the same card', () => {
+    const { container } = renderModules([vaultModule]);
+    const card = findAllByClass(container, 'mcp-module-card')[0];
+    expect(card).toBeDefined();
+    expect(getSetting('Vault')!.container).toBe(card);
+    expect(getSetting('Read-only')!.container).toBe(card);
+  });
+
+  it('marks the module header row with the mcp-module-card-header class', () => {
+    renderModules([vaultModule]);
+    expect(getSetting('Vault')!.settingClass).toContain('mcp-module-card-header');
   });
 });
