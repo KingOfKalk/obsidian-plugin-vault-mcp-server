@@ -34,14 +34,6 @@ export class McpSettingsTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName('Status')
       .setDesc(statusText)
-      .addButton((btn) =>
-        btn.setButtonText('Copy URL').onClick(() => {
-          const url = `http://127.0.0.1:${String(port)}/mcp`;
-          void navigator.clipboard.writeText(url).then(() => {
-            new Notice('MCP server URL copied to clipboard');
-          });
-        }),
-      )
       .addButton((btn) => {
         btn.setButtonText('Start').onClick(() => {
           void this.plugin.startServer().then(() => {
@@ -85,6 +77,18 @@ export class McpSettingsTab extends PluginSettingTab {
               await this.plugin.saveSettings();
             }
           }),
+      );
+
+    new Setting(containerEl)
+      .setName('Server URL')
+      .setDesc(`http://127.0.0.1:${String(this.plugin.settings.port)}/mcp`)
+      .addButton((btn) =>
+        btn.setButtonText('Copy URL').onClick(() => {
+          const url = `http://127.0.0.1:${String(this.plugin.settings.port)}/mcp`;
+          void navigator.clipboard.writeText(url).then(() => {
+            new Notice('MCP server URL copied to clipboard');
+          });
+        }),
       );
 
     new Setting(containerEl)

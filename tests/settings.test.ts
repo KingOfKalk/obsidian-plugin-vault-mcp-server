@@ -84,11 +84,18 @@ describe('McpSettingsTab server controls', () => {
     };
   }
 
-  function getStatusButtons(): Array<{ text: string; disabled: boolean; callback: (() => void) | null }> {
-    const statusSetting = (Setting as unknown as { instances: Array<{ settingName: string; buttons: Array<{ text: string; disabled: boolean; callback: (() => void) | null }> }> }).instances.find(
-      (s) => s.settingName === 'Status',
+  type ButtonInfo = { text: string; disabled: boolean; callback: (() => void) | null };
+  type SettingInstance = { settingName: string; buttons: ButtonInfo[] };
+
+  function getSettingButtons(name: string): ButtonInfo[] {
+    const setting = (Setting as unknown as { instances: SettingInstance[] }).instances.find(
+      (s) => s.settingName === name,
     );
-    return statusSetting?.buttons ?? [];
+    return setting?.buttons ?? [];
+  }
+
+  function getStatusButtons(): ButtonInfo[] {
+    return getSettingButtons('Status');
   }
 
   beforeEach(() => {
@@ -102,11 +109,18 @@ describe('McpSettingsTab server controls', () => {
     tab.display();
   }
 
-  it('should render four buttons (Copy URL, Start, Stop, Restart)', () => {
+  it('should render three status buttons (Start, Stop, Restart)', () => {
     renderTab(false);
     const buttons = getStatusButtons();
-    expect(buttons).toHaveLength(4);
-    expect(buttons.map((b) => b.text)).toEqual(['Copy URL', 'Start', 'Stop', 'Restart']);
+    expect(buttons).toHaveLength(3);
+    expect(buttons.map((b) => b.text)).toEqual(['Start', 'Stop', 'Restart']);
+  });
+
+  it('should render Copy URL button in Server URL setting', () => {
+    renderTab(false);
+    const buttons = getSettingButtons('Server URL');
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0].text).toBe('Copy URL');
   });
 
   it('should disable Stop and Restart when server is stopped', () => {
