@@ -14,3 +14,26 @@
 - Strict TypeScript ESLint rules are enforced: no `any` types, explicit return types, no unsafe returns/assignments
 - The mock file `tests/__mocks__/obsidian.ts` has eslint-disable for `any`-related rules since Obsidian API mocks require loose typing
 - The `tests/settings.test.ts` has pre-existing warnings for missing return types on local helpers — do not introduce new warnings
+
+## Development Workflow
+
+Follow these steps for every new feature or change:
+
+### 1. Plan first, then create a GitHub issue
+- Discuss and plan the feature with the user before writing code
+- Once the user approves the plan, create a GitHub issue describing the work
+
+### 2. Work on a branch, tests before and after
+- Create a feature branch for the work
+- Run `npm test` **before** making changes to confirm the baseline is green
+- Use a TDD approach when possible: write tests first, then implement
+- Run `npm test` (and `npm run lint`, `npm run typecheck`) **after** changes to confirm nothing is broken
+
+### 3. Create a PR when done
+- Push the branch and create a pull request
+- Use a good Conventional Commits title (e.g. `feat: add document workflow`)
+- The PR triggers CI — make sure it passes
+
+### 4. The user decides when to merge
+- Never merge a PR yourself — the user will decide
+- In the PR description, include `Closes #<issue-number>` so the linked issue is closed automatically when the PR is merged
