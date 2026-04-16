@@ -1,0 +1,46 @@
+services:
+  visual-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        OBSIDIAN_VERSION: "1.8.9"
+        NODE_MAJOR: "20"
+    environment:
+      - DISPLAY=:99
+      - SCREEN_WIDTH=1920
+      - SCREEN_HEIGHT=1080
+      - SCREEN_DEPTH=24
+    volumes:
+      # Mount the built plugin artifacts (read-only)
+      - ../main.js:/home/obsidian/plugin/main.js:ro
+      - ../manifest.json:/home/obsidian/plugin/manifest.json:ro
+      - ../styles.css:/home/obsidian/plugin/styles.css:ro
+      # Mount the test vault
+      - ./test-vault:/home/obsidian/vault
+      # Persist screenshots on host for review
+      - ./screenshots:/home/obsidian/screenshots
+    # Shared memory — Electron/Chromium needs this
+    shm_size: "2gb"
+    # Prevent container from running indefinitely
+    stop_grace_period: 10s
+
+  # One-shot: update baseline screenshots
+  update-baseline:
+    extends:
+      service: visual-test
+    command: /home/obsidian/scripts/run-visual-test.sh --update-baseline
+
+  # One-shot: compare current vs baseline
+  compare:
+    extends:
+      service: visual-test
+    command: /home/obsidian/scripts/run-visual-test.sh
+
+  # Interactive: shell into the container for debugging
+  shell:
+    extends:
+      service: visual-test
+    command: bash
+    stdin_open: true
+    tty: true

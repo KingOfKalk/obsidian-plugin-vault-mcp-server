@@ -24,3 +24,7 @@ Thumbs.db
 
 # Obsidian plugin dev
 data.json
+
+# Docker visual test — current/diff screenshots (baseline is committed)
+docker/screenshots/current/*.png
+docker/screenshots/diff/*.png
