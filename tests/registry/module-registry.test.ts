@@ -206,6 +206,117 @@ describe('ModuleRegistry', () => {
     });
   });
 
+  describe('extras group per-tool toggles', () => {
+    function createExtrasModule(
+      id: string,
+      tools: ToolDefinition[],
+    ): ToolModule {
+      return {
+        metadata: {
+          id,
+          name: `Mock ${id}`,
+          description: `Mock extras: ${id}`,
+          supportsReadOnly: true,
+          group: 'extras',
+          defaultEnabled: false,
+        },
+        tools: () => tools,
+      };
+    }
+
+    it('initializes tool states to disabled on registration', () => {
+      const mod = createExtrasModule('extras', [
+        createMockTool('get_date', true),
+      ]);
+      registry.registerModule(mod);
+      expect(registry.isToolEnabled('extras', 'get_date')).toBe(false);
+    });
+
+    it('setToolEnabled toggles a single tool', () => {
+      const mod = createExtrasModule('extras', [
+        createMockTool('get_date', true),
+        createMockTool('get_uuid', true),
+      ]);
+      registry.registerModule(mod);
+      registry.setToolEnabled('extras', 'get_date', true);
+      expect(registry.isToolEnabled('extras', 'get_date')).toBe(true);
+      expect(registry.isToolEnabled('extras', 'get_uuid')).toBe(false);
+    });
+
+    it('setToolEnabled throws for non-extras modules', () => {
+      registry.registerModule(
+        createMockModule('vault', [createMockTool('vault_read', true)]),
+      );
+      expect(() =>
+        registry.setToolEnabled('vault', 'vault_read', true),
+      ).toThrow('does not support per-tool');
+    });
+
+    it('setToolEnabled throws for unknown tool names', () => {
+      registry.registerModule(
+        createExtrasModule('extras', [createMockTool('get_date', true)]),
+      );
+      expect(() =>
+        registry.setToolEnabled('extras', 'nope', true),
+      ).toThrow('is not defined by');
+    });
+
+    it('getActiveTools excludes disabled extras tools', () => {
+      const mod = createExtrasModule('extras', [
+        createMockTool('get_date', true),
+        createMockTool('get_uuid', true),
+      ]);
+      registry.registerModule(mod);
+      registry.setToolEnabled('extras', 'get_date', true);
+      const active = registry.getActiveTools();
+      expect(active.map((t) => t.name)).toEqual(['get_date']);
+    });
+
+    it('getActiveTools returns nothing when no extras tool is enabled', () => {
+      registry.registerModule(
+        createExtrasModule('extras', [createMockTool('get_date', true)]),
+      );
+      expect(registry.getActiveTools()).toHaveLength(0);
+    });
+
+    it('getState includes per-tool states for extras', () => {
+      registry.registerModule(
+        createExtrasModule('extras', [createMockTool('get_date', true)]),
+      );
+      registry.setToolEnabled('extras', 'get_date', true);
+      const state = registry.getState();
+      expect(state.extras.toolStates).toEqual({ get_date: true });
+    });
+
+    it('applyState restores per-tool states', () => {
+      registry.registerModule(
+        createExtrasModule('extras', [
+          createMockTool('get_date', true),
+          createMockTool('get_uuid', true),
+        ]),
+      );
+      registry.applyState({
+        extras: {
+          enabled: true,
+          readOnly: false,
+          toolStates: { get_date: true },
+        },
+      });
+      expect(registry.isToolEnabled('extras', 'get_date')).toBe(true);
+      expect(registry.isToolEnabled('extras', 'get_uuid')).toBe(false);
+    });
+
+    it('applyState without toolStates leaves extras tools disabled', () => {
+      registry.registerModule(
+        createExtrasModule('extras', [createMockTool('get_date', true)]),
+      );
+      registry.applyState({
+        extras: { enabled: true, readOnly: false },
+      });
+      expect(registry.isToolEnabled('extras', 'get_date')).toBe(false);
+    });
+  });
+
   describe('onChange', () => {
     it('should notify on module registration', () => {
       const handler = vi.fn();

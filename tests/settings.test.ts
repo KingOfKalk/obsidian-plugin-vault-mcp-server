@@ -4,10 +4,10 @@ import { migrateSettings, generateAccessKey, isValidIPv4, McpSettingsTab } from 
 import { DEFAULT_SETTINGS } from '../src/types';
 
 describe('migrateSettings', () => {
-  it('should migrate v0 (no schemaVersion) to v3', () => {
+  it('should migrate v0 (no schemaVersion) to v4', () => {
     const data: Record<string, unknown> = {};
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(3);
+    expect(result.schemaVersion).toBe(4);
     expect(result.port).toBe(28741);
     expect(result.accessKey).toBe('');
     expect(result.httpsEnabled).toBe(false);
@@ -24,7 +24,7 @@ describe('migrateSettings', () => {
       debugMode: true,
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(3);
+    expect(result.schemaVersion).toBe(4);
     expect(result.port).toBe(9999);
     expect(result.accessKey).toBe('my-key');
     expect(result.debugMode).toBe(true);
@@ -32,7 +32,7 @@ describe('migrateSettings', () => {
     expect(result.autoStart).toBe(false);
   });
 
-  it('should migrate v1 data to v3 by adding serverAddress and autoStart', () => {
+  it('should migrate v1 data to v4 by adding serverAddress and autoStart', () => {
     const data: Record<string, unknown> = {
       schemaVersion: 1,
       port: 28741,
@@ -42,12 +42,12 @@ describe('migrateSettings', () => {
       moduleStates: {},
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(3);
+    expect(result.schemaVersion).toBe(4);
     expect(result.serverAddress).toBe('127.0.0.1');
     expect(result.autoStart).toBe(false);
   });
 
-  it('should migrate v2 data to v3 by adding autoStart=false', () => {
+  it('should migrate v2 data to v4 by adding autoStart=false', () => {
     const data: Record<string, unknown> = {
       schemaVersion: 2,
       serverAddress: '192.168.1.100',
@@ -58,13 +58,13 @@ describe('migrateSettings', () => {
       moduleStates: {},
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(3);
+    expect(result.schemaVersion).toBe(4);
     expect(result.autoStart).toBe(false);
   });
 
-  it('should not modify data already at v3', () => {
+  it('should not modify data already at v4', () => {
     const data: Record<string, unknown> = {
-      schemaVersion: 3,
+      schemaVersion: 4,
       serverAddress: '192.168.1.100',
       port: 28741,
       accessKey: 'test',
@@ -82,12 +82,67 @@ describe('migrateSettings', () => {
       port: 3000,
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(3);
+    expect(result.schemaVersion).toBe(4);
     expect(result.port).toBe(3000);
     expect(result.accessKey).toBe('');
     expect(result.moduleStates).toEqual({});
     expect(result.serverAddress).toBe('127.0.0.1');
     expect(result.autoStart).toBe(false);
+  });
+
+  it('should migrate v3 extras state to per-tool states (enabled -> get_date on)', () => {
+    const data: Record<string, unknown> = {
+      schemaVersion: 3,
+      serverAddress: '127.0.0.1',
+      port: 28741,
+      accessKey: 'k',
+      httpsEnabled: false,
+      debugMode: false,
+      autoStart: false,
+      moduleStates: { extras: { enabled: true, readOnly: false } },
+    };
+    const result = migrateSettings(data);
+    expect(result.schemaVersion).toBe(4);
+    const states = result.moduleStates as Record<
+      string,
+      { enabled: boolean; readOnly: boolean; toolStates?: Record<string, boolean> }
+    >;
+    expect(states.extras.toolStates).toEqual({ get_date: true });
+  });
+
+  it('should migrate v3 extras state to per-tool states (disabled -> empty)', () => {
+    const data: Record<string, unknown> = {
+      schemaVersion: 3,
+      moduleStates: { extras: { enabled: false, readOnly: false } },
+    };
+    const result = migrateSettings(data);
+    const states = result.moduleStates as Record<
+      string,
+      { enabled: boolean; readOnly: boolean; toolStates?: Record<string, boolean> }
+    >;
+    expect(states.extras.toolStates).toEqual({});
+  });
+
+  it('should leave existing v4 toolStates untouched', () => {
+    const data: Record<string, unknown> = {
+      schemaVersion: 4,
+      moduleStates: {
+        extras: {
+          enabled: true,
+          readOnly: false,
+          toolStates: { get_date: true, something_else: false },
+        },
+      },
+    };
+    const result = migrateSettings(data);
+    const states = result.moduleStates as Record<
+      string,
+      { enabled: boolean; readOnly: boolean; toolStates?: Record<string, boolean> }
+    >;
+    expect(states.extras.toolStates).toEqual({
+      get_date: true,
+      something_else: false,
+    });
   });
 });
 
@@ -508,16 +563,25 @@ describe('McpSettingsTab module rows read-only rendering', () => {
     toggles: ToggleInfo[];
   };
 
+  interface ToolEntry {
+    name: string;
+    description: string;
+    isReadOnly: boolean;
+  }
+
   interface ModuleRegistration {
     enabled: boolean;
     readOnly: boolean;
+    toolStates: Record<string, boolean>;
     module: {
       metadata: {
         id: string;
         name: string;
         description: string;
         supportsReadOnly: boolean;
+        group?: 'extras';
       };
+      tools?: () => ToolEntry[];
     };
   }
 
@@ -526,6 +590,7 @@ describe('McpSettingsTab module rows read-only rendering', () => {
     enableModule: ReturnType<typeof vi.fn>;
     disableModule: ReturnType<typeof vi.fn>;
     setReadOnly: ReturnType<typeof vi.fn>;
+    setToolEnabled: ReturnType<typeof vi.fn>;
     getState: () => Record<string, unknown>;
   } {
     return {
@@ -533,6 +598,7 @@ describe('McpSettingsTab module rows read-only rendering', () => {
       enableModule: vi.fn(),
       disableModule: vi.fn(),
       setReadOnly: vi.fn(),
+      setToolEnabled: vi.fn(),
       getState: () => ({}),
     };
   }
@@ -576,6 +642,7 @@ describe('McpSettingsTab module rows read-only rendering', () => {
   const vaultModule: ModuleRegistration = {
     enabled: true,
     readOnly: false,
+    toolStates: {},
     module: {
       metadata: { id: 'vault', name: 'Vault', description: 'Vault ops', supportsReadOnly: true },
     },
@@ -606,6 +673,7 @@ describe('McpSettingsTab module rows read-only rendering', () => {
       {
         enabled: true,
         readOnly: false,
+        toolStates: {},
         module: {
           metadata: { id: 'ui', name: 'UI', description: 'UI ops', supportsReadOnly: false },
         },
@@ -629,6 +697,7 @@ describe('McpSettingsTab module rows read-only rendering', () => {
       {
         enabled: false,
         readOnly: false,
+        toolStates: {},
         module: {
           metadata: { id: 'ui', name: 'UI', description: 'UI ops', supportsReadOnly: false },
         },
@@ -649,5 +718,81 @@ describe('McpSettingsTab module rows read-only rendering', () => {
   it('marks the module header row with the mcp-module-card-header class', () => {
     renderModules([vaultModule]);
     expect(getSetting('Vault')!.settingClass).toContain('mcp-module-card-header');
+  });
+
+  describe('extras group per-tool rendering', () => {
+    const extrasModule: ModuleRegistration = {
+      enabled: true,
+      readOnly: false,
+      toolStates: { get_date: false },
+      module: {
+        metadata: {
+          id: 'extras',
+          name: 'Extras',
+          description: 'Utility tools',
+          supportsReadOnly: true,
+          group: 'extras',
+        },
+        tools: () => [
+          { name: 'get_date', description: 'Get the current date', isReadOnly: true },
+        ],
+      },
+    };
+
+    it('renders one toggle row per extras tool (not a module-level row)', () => {
+      renderModules([extrasModule]);
+      expect(getSetting('get_date')).toBeDefined();
+      expect(getSetting('Extras')).toBeUndefined();
+    });
+
+    it('uses the tool description on the per-tool row', () => {
+      renderModules([extrasModule]);
+      const row = getSetting('get_date')!;
+      expect(row.settingDesc).toBe('Get the current date');
+    });
+
+    it('does not render a Read-only sub-row for the extras group', () => {
+      renderModules([extrasModule]);
+      expect(getSetting('Read-only')).toBeUndefined();
+    });
+
+    it('reflects the stored per-tool state in the toggle value', () => {
+      const mod: ModuleRegistration = {
+        ...extrasModule,
+        toolStates: { get_date: true },
+      };
+      renderModules([mod]);
+      expect(getSetting('get_date')!.toggles[0].value).toBe(true);
+    });
+
+    it('toggling a tool row calls registry.setToolEnabled', async () => {
+      const { registry } = renderModules([extrasModule]);
+      const row = getSetting('get_date')!;
+      row.toggles[0].callback!(true);
+      await vi.waitFor(() => {
+        expect(registry.setToolEnabled).toHaveBeenCalledWith(
+          'extras',
+          'get_date',
+          true,
+        );
+      });
+    });
+
+    it('renders one card per tool', () => {
+      const two: ModuleRegistration = {
+        ...extrasModule,
+        toolStates: { get_date: false, get_uuid: false },
+        module: {
+          ...extrasModule.module,
+          tools: () => [
+            { name: 'get_date', description: 'd1', isReadOnly: true },
+            { name: 'get_uuid', description: 'd2', isReadOnly: true },
+          ],
+        },
+      };
+      const { container } = renderModules([two]);
+      const cards = findAllByClass(container, 'mcp-module-card');
+      expect(cards).toHaveLength(2);
+    });
   });
 });
