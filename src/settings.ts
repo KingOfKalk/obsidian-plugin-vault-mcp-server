@@ -220,9 +220,15 @@ export class McpSettingsTab extends PluginSettingTab {
 
   private renderModuleToggles(containerEl: HTMLElement): void {
     const modules = this.plugin.registry.getModules();
-    if (modules.length === 0) return;
 
     containerEl.createEl('h2', { text: 'Feature Modules' });
+
+    if (modules.length === 0) {
+      containerEl.createEl('p', {
+        text: 'No modules registered. Click "Refresh Modules" to re-run discovery.',
+        cls: 'setting-item-description',
+      });
+    }
 
     for (const registration of modules) {
       const { metadata } = registration.module;
@@ -258,6 +264,7 @@ export class McpSettingsTab extends PluginSettingTab {
 
     new Setting(containerEl).addButton((btn) =>
       btn.setButtonText('Refresh Modules').onClick(() => {
+        this.plugin.refreshModules();
         this.display();
       }),
     );
