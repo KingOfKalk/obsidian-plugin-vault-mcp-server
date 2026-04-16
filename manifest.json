@@ -1,7 +1,7 @@
 {
   "id": "obsidian-mcp",
   "name": "MCP Server",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "minAppVersion": "1.5.0",
   "description": "Runs an MCP server inside Obsidian, exposing vault operations as tools over Streamable HTTP.",
   "author": "KingOfKalk",
