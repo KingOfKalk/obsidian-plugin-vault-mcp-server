@@ -60,3 +60,22 @@ Read the PNG files with the `Read` tool — they render inline. Screenshots
 published to users land on the GitHub release page: `release.yml` captures
 `release-main.png`, `release-plugin-settings.png`, and `release-server-running.png`
 via `docker/scripts/release_screenshots.py` and attaches them as release assets.
+
+### Mandatory before/after screenshots for UI work
+
+For **any** change that affects the plugin UI (layout, styles, copy, new
+modals, settings tab, status bar, command palette entries, ribbon icons,
+notices, etc.), you MUST:
+
+1. **Before** making the change, capture a "before" screenshot of the
+   affected surface and show it to the user inline (via the `Read` tool).
+2. **After** implementing the change, capture an "after" screenshot of the
+   same surface under the same conditions (same vault, same theme, same
+   viewport) and show it to the user inline.
+3. Present both screenshots in the same reply so the user can visually diff
+   the change before approving the commit or PR.
+4. Do NOT commit the PNGs to git (see Rule 4). Attach them to the GitHub
+   issue or PR instead if they need to be preserved.
+5. If a screenshot cannot be captured (e.g. the host pipeline is broken),
+   say so explicitly and ask the user how to proceed rather than silently
+   skipping the visual check.
