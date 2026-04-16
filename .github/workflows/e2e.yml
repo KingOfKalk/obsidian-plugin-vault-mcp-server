@@ -34,8 +34,11 @@ jobs:
       - name: Build Docker image
         run: docker compose -f docker/docker-compose.yml build visual-test
 
-      - name: Run visual comparison
-        run: docker compose -f docker/docker-compose.yml run --rm compare
+      - name: Capture current screenshots
+        run: docker compose -f docker/docker-compose.yml run --rm capture-after
+
+      - name: Diff against baseline
+        run: docker compose -f docker/docker-compose.yml run --rm diff-baseline
 
       - name: Upload screenshots on failure
         if: failure()
@@ -43,7 +46,7 @@ jobs:
         with:
           name: visual-regression-screenshots
           path: |
-            docker/screenshots/current/
+            docker/screenshots/after/
             docker/screenshots/diff/
           retention-days: 30
 
