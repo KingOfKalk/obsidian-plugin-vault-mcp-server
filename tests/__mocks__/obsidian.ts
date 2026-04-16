@@ -57,6 +57,8 @@ export class Setting {
   static instances: Setting[] = [];
   settingName = '';
   buttons: Array<{ text: string; disabled: boolean; callback: (() => void) | null }> = [];
+  extraButtons: Array<{ icon: string; tooltip: string; callback: (() => void) | null }> = [];
+  toggles: Array<{ value: boolean; tooltip: string; callback: ((value: boolean) => void) | null }> = [];
 
   constructor(_containerEl: any) {
     Setting.instances.push(this);
@@ -65,13 +67,21 @@ export class Setting {
     this.settingName = name;
     return this;
   }
-  setDesc(_desc: string): this {
+  setDesc(_desc: any): this {
     return this;
   }
   addText(_cb: (text: any) => void): this {
     return this;
   }
-  addToggle(_cb: (toggle: any) => void): this {
+  addToggle(cb: (toggle: any) => void): this {
+    const record = { value: false, tooltip: '', callback: null as ((value: boolean) => void) | null };
+    const toggle = {
+      setValue(v: boolean) { record.value = v; return toggle; },
+      setTooltip(t: string) { record.tooltip = t; return toggle; },
+      onChange(fn: (value: boolean) => void) { record.callback = fn; return toggle; },
+    };
+    cb(toggle);
+    this.toggles.push(record);
     return this;
   }
   addButton(cb: (btn: any) => void): this {
@@ -85,6 +95,17 @@ export class Setting {
     cb(btn);
     record.disabled = btn.buttonEl.disabled;
     this.buttons.push(record);
+    return this;
+  }
+  addExtraButton(cb: (btn: any) => void): this {
+    const record = { icon: '', tooltip: '', callback: null as (() => void) | null };
+    const btn = {
+      setIcon(icon: string) { record.icon = icon; return btn; },
+      setTooltip(t: string) { record.tooltip = t; return btn; },
+      onClick(fn: () => void) { record.callback = fn; return btn; },
+    };
+    cb(btn);
+    this.extraButtons.push(record);
     return this;
   }
 }

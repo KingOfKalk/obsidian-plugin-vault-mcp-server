@@ -126,6 +126,18 @@ export class McpSettingsTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           }),
       )
+      .addExtraButton((btn) =>
+        btn
+          .setIcon('copy')
+          .setTooltip('Copy access key')
+          .onClick(() => {
+            void navigator.clipboard
+              .writeText(this.plugin.settings.accessKey)
+              .then(() => {
+                new Notice('Access key copied to clipboard');
+              });
+          }),
+      )
       .addButton((btn) =>
         btn.setButtonText('Generate').onClick(async () => {
           this.plugin.settings.accessKey = generateAccessKey();

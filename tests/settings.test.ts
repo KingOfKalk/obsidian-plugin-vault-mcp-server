@@ -319,6 +319,33 @@ describe('McpSettingsTab server controls', () => {
     expect(buttons[0].text).toBe('Copy URL');
   });
 
+  it('should render a copy icon extra button on the Access Key setting', () => {
+    renderTab(false);
+    const setting = (Setting as unknown as { instances: SettingInstance[] }).instances.find(
+      (s) => s.settingName === 'Access Key',
+    ) as unknown as { extraButtons: Array<{ icon: string; tooltip: string; callback: (() => void) | null }> };
+    expect(setting).toBeDefined();
+    expect(setting.extraButtons).toHaveLength(1);
+    expect(setting.extraButtons[0].icon).toBe('copy');
+    expect(setting.extraButtons[0].tooltip).toBe('Copy access key');
+  });
+
+  it('Access Key copy button copies accessKey to clipboard', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { clipboard: { writeText } },
+      configurable: true,
+    });
+    renderTab(false);
+    const setting = (Setting as unknown as { instances: SettingInstance[] }).instances.find(
+      (s) => s.settingName === 'Access Key',
+    ) as unknown as { extraButtons: Array<{ icon: string; tooltip: string; callback: (() => void) | null }> };
+    setting.extraButtons[0].callback!();
+    await vi.waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith('test-key');
+    });
+  });
+
   it('should disable Stop and Restart when server is stopped', () => {
     renderTab(false);
     const buttons = getStatusButtons();
