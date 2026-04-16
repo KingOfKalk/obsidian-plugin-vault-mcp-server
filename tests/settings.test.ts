@@ -449,3 +449,129 @@ describe('McpSettingsTab server controls', () => {
     });
   });
 });
+
+describe('McpSettingsTab module rows read-only rendering', () => {
+  type ToggleInfo = { value: boolean; tooltip: string; callback: ((value: boolean) => void) | null };
+  type ModuleSettingInstance = {
+    settingName: string;
+    settingDesc: string;
+    settingClass: string;
+    toggles: ToggleInfo[];
+  };
+
+  interface ModuleRegistration {
+    enabled: boolean;
+    readOnly: boolean;
+    module: {
+      metadata: {
+        id: string;
+        name: string;
+        description: string;
+        supportsReadOnly: boolean;
+      };
+    };
+  }
+
+  function createRegistry(modules: ModuleRegistration[]): {
+    getModules: () => ModuleRegistration[];
+    enableModule: ReturnType<typeof vi.fn>;
+    disableModule: ReturnType<typeof vi.fn>;
+    setReadOnly: ReturnType<typeof vi.fn>;
+    getState: () => Record<string, unknown>;
+  } {
+    return {
+      getModules: () => modules,
+      enableModule: vi.fn(),
+      disableModule: vi.fn(),
+      setReadOnly: vi.fn(),
+      getState: () => ({}),
+    };
+  }
+
+  function renderModules(modules: ModuleRegistration[]): ReturnType<typeof createRegistry> {
+    const registry = createRegistry(modules);
+    const plugin = {
+      settings: { ...DEFAULT_SETTINGS, accessKey: 'k' },
+      httpServer: null,
+      registry,
+      saveSettings: vi.fn().mockResolvedValue(undefined),
+      logger: { updateOptions: (): void => {} },
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+    const tab = new McpSettingsTab({} as any, plugin as any);
+    tab.display();
+    return registry;
+  }
+
+  function getSetting(name: string): ModuleSettingInstance | undefined {
+    return (Setting as unknown as { instances: ModuleSettingInstance[] }).instances.find(
+      (s) => s.settingName === name,
+    );
+  }
+
+  beforeEach(() => {
+    (Setting as unknown as { instances: unknown[] }).instances = [];
+  });
+
+  it('renders the module enable-toggle with exactly one toggle on the module row', () => {
+    renderModules([
+      {
+        enabled: true,
+        readOnly: false,
+        module: {
+          metadata: { id: 'vault', name: 'Vault', description: 'Vault ops', supportsReadOnly: true },
+        },
+      },
+    ]);
+    const moduleRow = getSetting('Vault');
+    expect(moduleRow).toBeDefined();
+    expect(moduleRow!.toggles).toHaveLength(1);
+  });
+
+  it('renders a dedicated Read-only sub-row with its own name, description and toggle', () => {
+    renderModules([
+      {
+        enabled: true,
+        readOnly: false,
+        module: {
+          metadata: { id: 'vault', name: 'Vault', description: 'Vault ops', supportsReadOnly: true },
+        },
+      },
+    ]);
+    const readOnlyRow = getSetting('Read-only');
+    expect(readOnlyRow).toBeDefined();
+    expect(readOnlyRow!.settingDesc.length).toBeGreaterThan(0);
+    expect(readOnlyRow!.toggles).toHaveLength(1);
+    expect(readOnlyRow!.settingClass).toContain('mcp-module-readonly-row');
+  });
+
+  it('does not render a Read-only sub-row for modules that do not support it', () => {
+    renderModules([
+      {
+        enabled: true,
+        readOnly: false,
+        module: {
+          metadata: { id: 'ui', name: 'UI', description: 'UI ops', supportsReadOnly: false },
+        },
+      },
+    ]);
+    expect(getSetting('Read-only')).toBeUndefined();
+  });
+
+  it('toggling the Read-only sub-row calls registry.setReadOnly', async () => {
+    const registry = renderModules([
+      {
+        enabled: true,
+        readOnly: false,
+        module: {
+          metadata: { id: 'vault', name: 'Vault', description: 'Vault ops', supportsReadOnly: true },
+        },
+      },
+    ]);
+    const readOnlyRow = getSetting('Read-only')!;
+    readOnlyRow.toggles[0].callback!(true);
+    await vi.waitFor(() => {
+      expect(registry.setReadOnly).toHaveBeenCalledWith('vault', true);
+    });
+  });
+});
