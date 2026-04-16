@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.3.1...v1.4.0) (2026-04-16)
+
+
+### Features
+
+* **docker:** add CDP-based visual regression testing for the plugin UI ([#77](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/77)) ([f722027](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/f722027b10eb827c67b641d415fcecfa399a059d))
+
 ## [1.3.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.3.0...v1.3.1) (2026-04-16)
 
 
