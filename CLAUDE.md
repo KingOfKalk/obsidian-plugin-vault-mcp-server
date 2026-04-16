@@ -20,21 +20,29 @@
 
 Follow these steps for every new feature or change:
 
-### 1. Plan first, then create a GitHub issue
+### 1. Plan
 - Discuss and plan the feature with the user before writing code
-- Once the user approves the plan, create a GitHub issue describing the work
+- Do not proceed until the user approves the plan
 
-### 2. Work on a branch, tests before and after
-- Create a feature branch for the work
+### 2. Create a GitHub issue
+- Once the plan is approved, create a GitHub issue describing the work
+
+### 3. Create a branch
+- Create a feature branch for the work off the latest `main`
+
+### 4. Work on the issue
 - Run `npm test` **before** making changes to confirm the baseline is green
 - Use a TDD approach when possible: write tests first, then implement
 - Run `npm test` (and `npm run lint`, `npm run typecheck`) **after** changes to confirm nothing is broken
+- Use Conventional Commits for every commit
 
-### 3. Create a PR when done
-- Push the branch and create a pull request
-- Use a good Conventional Commits title (e.g. `feat: add document workflow`)
+### 5. Push
+- Push the branch to the remote with `git push -u origin <branch-name>`
+
+### 6. Create a PR
+- Open a pull request with a Conventional Commits title (e.g. `feat: add document workflow`)
+- In the PR description, include `Closes #<issue-number>` so the linked issue is closed automatically when the PR is merged
 - The PR triggers CI — make sure it passes
 
-### 4. The user decides when to merge
-- Never merge a PR yourself — the user will decide
-- In the PR description, include `Closes #<issue-number>` so the linked issue is closed automatically when the PR is merged
+### 7. The user merges the PR
+- Never merge a PR yourself — the user will decide when to merge
