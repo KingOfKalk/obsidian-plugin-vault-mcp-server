@@ -65,6 +65,7 @@ claude mcp add obsidian --transport http --url http://127.0.0.1:28741 --header "
 
 | Setting | Default | Description |
 |---------|---------|-------------|
+| Server Address | 127.0.0.1 | IP address the server binds to (localhost only by default) |
 | Port | 28741 | HTTP port for the MCP server |
 | Access Key | (empty) | Bearer token for authentication |
 | HTTPS | Off | Enable HTTPS with self-signed certificate |

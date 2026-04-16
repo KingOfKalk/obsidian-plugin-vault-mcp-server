@@ -27,8 +27,9 @@ export class McpSettingsTab extends PluginSettingTab {
     const port = this.plugin.settings.port;
     const clients = this.plugin.httpServer?.connectedClients ?? 0;
 
+    const address = this.plugin.settings.serverAddress;
     const statusText = isRunning
-      ? `Running on http://127.0.0.1:${String(port)} (${String(clients)} connection${clients !== 1 ? 's' : ''})`
+      ? `Running on http://${address}:${String(port)} (${String(clients)} connection${clients !== 1 ? 's' : ''})`
       : 'Stopped';
 
     new Setting(containerEl)
@@ -63,6 +64,28 @@ export class McpSettingsTab extends PluginSettingTab {
   private renderServerSettings(containerEl: HTMLElement): void {
     containerEl.createEl('h2', { text: 'Server Settings' });
 
+    const addressSetting = new Setting(containerEl)
+      .setName('Server Address')
+      .setDesc('IP address the server binds to (default: 127.0.0.1). Requires restart.')
+      .addText((text) =>
+        text
+          .setPlaceholder('127.0.0.1')
+          .setValue(this.plugin.settings.serverAddress)
+          .onChange(async (value) => {
+            if (isValidIPv4(value)) {
+              this.plugin.settings.serverAddress = value;
+              await this.plugin.saveSettings();
+            }
+          }),
+      );
+
+    if (this.plugin.settings.serverAddress !== '127.0.0.1') {
+      addressSetting.descEl.createEl('br');
+      addressSetting.descEl.createEl('strong', {
+        text: 'Warning: Non-localhost address exposes the server to the network. Ensure an access key is set.',
+      });
+    }
+
     new Setting(containerEl)
       .setName('Port')
       .setDesc('HTTP port for the MCP server (default: 28741)')
@@ -81,10 +104,10 @@ export class McpSettingsTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Server URL')
-      .setDesc(`http://127.0.0.1:${String(this.plugin.settings.port)}/mcp`)
+      .setDesc(`http://${this.plugin.settings.serverAddress}:${String(this.plugin.settings.port)}/mcp`)
       .addButton((btn) =>
         btn.setButtonText('Copy URL').onClick(() => {
-          const url = `http://127.0.0.1:${String(this.plugin.settings.port)}/mcp`;
+          const url = `http://${this.plugin.settings.serverAddress}:${String(this.plugin.settings.port)}/mcp`;
           void navigator.clipboard.writeText(url).then(() => {
             new Notice('MCP server URL copied to clipboard');
           });
@@ -156,9 +179,10 @@ export class McpSettingsTab extends PluginSettingTab {
   }
 
   private buildMcpConfigJson(): string {
+    const address = this.plugin.settings.serverAddress;
     const port = this.plugin.settings.port;
     const accessKey = this.plugin.settings.accessKey;
-    const url = `http://127.0.0.1:${String(port)}/mcp`;
+    const url = `http://${address}:${String(port)}/mcp`;
 
     const config: Record<string, unknown> = { url };
 
@@ -226,6 +250,15 @@ export function generateAccessKey(): string {
   return randomBytes(32).toString('hex');
 }
 
+export function isValidIPv4(value: string): boolean {
+  const parts = value.split('.');
+  if (parts.length !== 4) return false;
+  return parts.every((part) => {
+    const num = Number(part);
+    return /^\d{1,3}$/.test(part) && num >= 0 && num <= 255;
+  });
+}
+
 export function migrateSettings(
   data: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -239,6 +272,12 @@ export function migrateSettings(
     if (data.httpsEnabled === undefined) data.httpsEnabled = false;
     if (data.debugMode === undefined) data.debugMode = false;
     if (!data.moduleStates) data.moduleStates = {};
+  }
+
+  if ((data.schemaVersion as number) < 2) {
+    data.schemaVersion = 2;
+    // V1 -> V2: add serverAddress
+    if (!data.serverAddress) data.serverAddress = '127.0.0.1';
   }
 
   return data;

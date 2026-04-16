@@ -98,6 +98,7 @@ Each category is a toggleable module. Modules self-register. The settings UI aut
 - **CR2** — Access key field for authentication (user-provided, with a "Generate" button for convenience)
 - **CR3** — Toggle between HTTP and HTTPS (self-signed certificate), HTTP by default
 - **CR4** — Debug mode toggle that enables verbose logging
+- **CR17** — Configurable server IP address (default `127.0.0.1`). Must validate IPv4 format. Settings UI shows a security warning when bound to a non-localhost address. Requires server restart to take effect.
 
 ### Feature Access Control
 

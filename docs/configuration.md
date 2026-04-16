@@ -2,6 +2,11 @@
 
 ## Server Settings
 
+### Server Address (`serverAddress`)
+- **Default**: `127.0.0.1`
+- **Description**: IP address the MCP server binds to. The default `127.0.0.1` restricts access to the local machine only. Changing this to `0.0.0.0` will expose the server on all network interfaces — **use with caution** and ensure an access key is configured.
+- **Validation**: Must be a valid IPv4 address
+
 ### Port (`port`)
 - **Default**: `28741`
 - **Description**: HTTP port the MCP server listens on
