@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.3.0...v1.3.1) (2026-04-16)
+
+
+### Bug Fixes
+
+* create per-session McpServer and transport pairs ([#75](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/75)) ([2e69c77](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/2e69c7784bdac9f73473a35bb472ca4d8772529a)), closes [#74](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/74)
+
 ## [1.3.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.2.0...v1.3.0) (2026-04-16)
 
 
