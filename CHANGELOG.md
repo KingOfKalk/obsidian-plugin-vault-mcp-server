@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.4.0...v1.4.1) (2026-04-16)
+
+
+### Bug Fixes
+
+* auto-register discovered tool modules on plugin load ([#80](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/80)) ([383c761](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/383c761e4479a0c902c1ae379668057a9925ed4d))
+
 ## [1.4.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.3.1...v1.4.0) (2026-04-16)
 
 
