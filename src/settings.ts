@@ -126,8 +126,8 @@ export class McpSettingsTab extends PluginSettingTab {
 
     const desc = containerEl.createEl('p', {
       text: 'Add this to the mcpServers section of your MCP client configuration.',
+      cls: 'setting-item-description',
     });
-    desc.addClass('setting-item-description');
     desc.style.marginBottom = '8px';
 
     const config = this.buildMcpConfigJson();

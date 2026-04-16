@@ -23,11 +23,24 @@ export class Plugin {
   }
 }
 
+function mockEl(): any {
+  return {
+    setText: () => {},
+    style: {},
+    textContent: '',
+    classList: { add: () => {}, remove: () => {} },
+    addEventListener: () => {},
+    createEl: () => mockEl(),
+    createDiv: (_opts?: any) => mockEl(),
+  };
+}
+
 export class PluginSettingTab {
   app: any;
   containerEl: any = {
     empty: () => {},
-    createEl: () => ({ setText: () => {} }),
+    createEl: () => mockEl(),
+    createDiv: (_opts?: any) => mockEl(),
   };
   constructor(_app: any, _plugin: any) {
     this.app = _app;
