@@ -32,33 +32,32 @@ export class McpSettingsTab extends PluginSettingTab {
       ? `Running on http://${address}:${String(port)} (${String(clients)} connection${clients !== 1 ? 's' : ''})`
       : 'Stopped';
 
-    new Setting(containerEl)
+    const setting = new Setting(containerEl)
       .setName('Status')
       .setDesc(statusText)
-      .addButton((btn) => {
-        btn.setButtonText('Start').onClick(() => {
-          void this.plugin.startServer().then(() => {
-            this.display();
-          });
-        });
-        btn.buttonEl.disabled = isRunning;
-      })
-      .addButton((btn) => {
-        btn.setButtonText('Stop').onClick(() => {
-          void this.plugin.stopServer().then(() => {
-            this.display();
-          });
-        });
-        btn.buttonEl.disabled = !isRunning;
-      })
-      .addButton((btn) => {
+      .addToggle((toggle) =>
+        toggle
+          .setValue(isRunning)
+          .setTooltip(isRunning ? 'Stop MCP server' : 'Start MCP server')
+          .onChange((value) => {
+            const action = value
+              ? this.plugin.startServer()
+              : this.plugin.stopServer();
+            void action.then(() => {
+              this.display();
+            });
+          }),
+      );
+
+    if (isRunning) {
+      setting.addButton((btn) =>
         btn.setButtonText('Restart').onClick(() => {
           void this.plugin.restartServer().then(() => {
             this.display();
           });
-        });
-        btn.buttonEl.disabled = !isRunning;
-      });
+        }),
+      );
+    }
   }
 
   private renderServerSettings(containerEl: HTMLElement): void {
