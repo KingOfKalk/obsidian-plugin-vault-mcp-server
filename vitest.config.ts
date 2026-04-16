@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import path from 'path';
 
 export default defineConfig({
   test: {
@@ -8,13 +9,18 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
-      exclude: ['src/main.ts'],
+      exclude: ['src/main.ts', 'src/settings.ts'],
       thresholds: {
         statements: 80,
         branches: 80,
         functions: 80,
         lines: 80,
       },
+    },
+  },
+  resolve: {
+    alias: {
+      obsidian: path.resolve(__dirname, 'tests/__mocks__/obsidian.ts'),
     },
   },
 });

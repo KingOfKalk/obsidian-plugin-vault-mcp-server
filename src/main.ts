@@ -4,6 +4,7 @@ import { createLogger, Logger } from './utils/logger';
 import { ModuleRegistry } from './registry/module-registry';
 import { createMcpServer } from './server/mcp-server';
 import { HttpMcpServer } from './server/http-server';
+import { McpSettingsTab, migrateSettings } from './settings';
 
 export default class McpPlugin extends Plugin {
   settings: McpPluginSettings = DEFAULT_SETTINGS;
@@ -23,6 +24,9 @@ export default class McpPlugin extends Plugin {
 
     // Apply saved module states
     this.registry.applyState(this.settings.moduleStates);
+
+    // Add settings tab
+    this.addSettingTab(new McpSettingsTab(this.app, this));
 
     // Start server if access key is configured
     if (this.settings.accessKey) {
@@ -63,8 +67,9 @@ export default class McpPlugin extends Plugin {
   }
 
   async loadSettings(): Promise<void> {
-    const data = (await this.loadData()) as Partial<McpPluginSettings> | null;
-    this.settings = { ...DEFAULT_SETTINGS, ...data };
+    const raw = (await this.loadData()) as Record<string, unknown> | null;
+    const migrated = raw ? migrateSettings(raw) : {};
+    this.settings = { ...DEFAULT_SETTINGS, ...migrated } as McpPluginSettings;
   }
 
   async saveSettings(): Promise<void> {
