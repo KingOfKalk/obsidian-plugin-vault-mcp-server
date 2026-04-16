@@ -41,8 +41,15 @@ export class PluginSettingTab {
 }
 
 export class Setting {
-  constructor(_containerEl: any) {}
-  setName(_name: string): this {
+  static instances: Setting[] = [];
+  settingName = '';
+  buttons: Array<{ text: string; disabled: boolean; callback: (() => void) | null }> = [];
+
+  constructor(_containerEl: any) {
+    Setting.instances.push(this);
+  }
+  setName(name: string): this {
+    this.settingName = name;
     return this;
   }
   setDesc(_desc: string): this {
@@ -54,7 +61,17 @@ export class Setting {
   addToggle(_cb: (toggle: any) => void): this {
     return this;
   }
-  addButton(_cb: (btn: any) => void): this {
+  addButton(cb: (btn: any) => void): this {
+    const record = { text: '', disabled: false, callback: null as (() => void) | null };
+    const btn = {
+      buttonEl: { disabled: false },
+      setButtonText(t: string) { record.text = t; return btn; },
+      setCta() { return btn; },
+      onClick(fn: () => void) { record.callback = fn; return btn; },
+    };
+    cb(btn);
+    record.disabled = btn.buttonEl.disabled;
+    this.buttons.push(record);
     return this;
   }
 }

@@ -42,15 +42,30 @@ export class McpSettingsTab extends PluginSettingTab {
           });
         }),
       )
-      .addButton((btn) =>
-        btn
-          .setButtonText(isRunning ? 'Restart' : 'Start')
-          .onClick(() => {
-            void this.plugin.restartServer().then(() => {
-              this.display();
-            });
-          }),
-      );
+      .addButton((btn) => {
+        btn.setButtonText('Start').onClick(() => {
+          void this.plugin.startServer().then(() => {
+            this.display();
+          });
+        });
+        btn.buttonEl.disabled = isRunning;
+      })
+      .addButton((btn) => {
+        btn.setButtonText('Stop').onClick(() => {
+          void this.plugin.stopServer().then(() => {
+            this.display();
+          });
+        });
+        btn.buttonEl.disabled = !isRunning;
+      })
+      .addButton((btn) => {
+        btn.setButtonText('Restart').onClick(() => {
+          void this.plugin.restartServer().then(() => {
+            this.display();
+          });
+        });
+        btn.buttonEl.disabled = !isRunning;
+      });
   }
 
   private renderServerSettings(containerEl: HTMLElement): void {

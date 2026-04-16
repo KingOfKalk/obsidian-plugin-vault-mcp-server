@@ -110,6 +110,10 @@ Each category is a toggleable module. Modules self-register. The settings UI aut
 - ~~CR11~~ — ~~Toggle to enable/disable Plugin Interop~~
 - **CR12** — Dynamic feature toggle system: modules self-register with metadata (name, description, tool list), settings UI auto-discovers and renders toggles, "Refresh" button to re-discover without restart. Includes per-module read-only mode where applicable. Replaces ~~CR5~~–~~CR11~~, consolidated into dynamic system.
 
+### Server Controls
+
+- **CR16** — Settings UI provides dedicated Start, Stop, and Restart buttons for MCP server lifecycle management. The Stop button is only enabled when the server is running. The Start button is only enabled when the server is stopped. The Restart button is only enabled when the server is running.
+
 ### Settings Persistence
 
 - **CR13** — All settings persisted in Obsidian's plugin data.json
