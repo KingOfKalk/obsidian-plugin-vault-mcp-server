@@ -1,0 +1,67 @@
+services:
+  visual-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        OBSIDIAN_VERSION: "1.8.9"
+        NODE_MAJOR: "20"
+    environment:
+      - DISPLAY=:99
+      - SCREEN_WIDTH=1920
+      - SCREEN_HEIGHT=1080
+      - SCREEN_DEPTH=24
+      - OBSIDIAN_DEBUG_PORT=9222
+    volumes:
+      # Built plugin artifacts (read-only)
+      - ../main.js:/home/obsidian/plugin/main.js:ro
+      - ../manifest.json:/home/obsidian/plugin/manifest.json:ro
+      - ../styles.css:/home/obsidian/plugin/styles.css:ro
+      # Vault is regenerated on every run (writable scratch space)
+      - obsidian-vault:/home/obsidian/vault
+      # Screenshots — host-visible at docker/screenshots/
+      - ./screenshots:/home/obsidian/screenshots
+    shm_size: "2gb"
+    stop_grace_period: 10s
+
+  # Capture screenshots into docker/screenshots/before/ — agent runs this BEFORE
+  # making any code changes
+  capture-before:
+    extends:
+      service: visual-test
+    command: python3 /home/obsidian/scripts/run_visual_test.py capture before
+
+  # Capture screenshots into docker/screenshots/after/ — agent runs this AFTER
+  # changes, then reads docker/screenshots/{before,after,diff}/*.png to inspect
+  capture-after:
+    extends:
+      service: visual-test
+    command: python3 /home/obsidian/scripts/run_visual_test.py capture after
+
+  # Capture / refresh long-lived baseline screenshots
+  capture-baseline:
+    extends:
+      service: visual-test
+    command: python3 /home/obsidian/scripts/run_visual_test.py capture baseline
+
+  # Compute pixel diffs: after vs before (default) or after vs baseline
+  diff:
+    extends:
+      service: visual-test
+    command: python3 /home/obsidian/scripts/run_visual_test.py diff --against before
+
+  diff-baseline:
+    extends:
+      service: visual-test
+    command: python3 /home/obsidian/scripts/run_visual_test.py diff --against baseline
+
+  # Interactive shell for debugging
+  shell:
+    extends:
+      service: visual-test
+    command: bash
+    stdin_open: true
+    tty: true
+
+volumes:
+  obsidian-vault:

@@ -24,3 +24,14 @@ Thumbs.db
 
 # Obsidian plugin dev
 data.json
+
+# Docker visual test — only baseline is committed; before/after/diff are scratch
+docker/screenshots/before/
+docker/screenshots/after/
+docker/screenshots/diff/
+!docker/screenshots/before/.gitkeep
+!docker/screenshots/after/.gitkeep
+!docker/screenshots/diff/.gitkeep
+
+# Python bytecode caches in docker/scripts
+docker/scripts/__pycache__/

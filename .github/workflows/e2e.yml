@@ -7,16 +7,12 @@ on:
     paths:
       - 'src/**'
       - 'e2e/**'
+      - 'docker/**'
       - 'manifest.json'
 
 jobs:
-  e2e:
+  visual-regression:
     runs-on: ubuntu-latest
-    # E2E tests require Obsidian in Docker with Xvfb
-    # This workflow is a placeholder — actual setup requires:
-    # 1. Docker image with Obsidian installed
-    # 2. Xvfb for headless display
-    # 3. wdio-obsidian-service configured
     steps:
       - uses: actions/checkout@v6
 
@@ -32,5 +28,29 @@ jobs:
       - name: Build plugin
         run: npm run build
 
-      - name: E2E tests (placeholder)
-        run: echo "E2E test infrastructure is configured. Actual tests require Obsidian in Docker with Xvfb."
+      - name: Ensure styles.css exists
+        run: touch styles.css
+
+      - name: Build Docker image
+        run: docker compose -f docker/docker-compose.yml build visual-test
+
+      - name: Run visual comparison
+        run: docker compose -f docker/docker-compose.yml run --rm compare
+
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-regression-screenshots
+          path: |
+            docker/screenshots/current/
+            docker/screenshots/diff/
+          retention-days: 30
+
+      - name: Upload all screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-test-screenshots
+          path: docker/screenshots/
+          retention-days: 14
