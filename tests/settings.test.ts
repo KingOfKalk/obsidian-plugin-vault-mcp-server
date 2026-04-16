@@ -62,6 +62,28 @@ describe('migrateSettings', () => {
     expect(result.autoStart).toBe(false);
   });
 
+  it('should migrate v3 data to v4 by stripping per-module readOnly flags', () => {
+    const data: Record<string, unknown> = {
+      schemaVersion: 3,
+      serverAddress: '127.0.0.1',
+      port: 28741,
+      accessKey: 'test',
+      httpsEnabled: false,
+      debugMode: false,
+      autoStart: false,
+      moduleStates: {
+        vault: { enabled: true, readOnly: true },
+        editor: { enabled: false, readOnly: false },
+      },
+    };
+    const result = migrateSettings(data);
+    expect(result.schemaVersion).toBe(4);
+    expect(result.moduleStates).toEqual({
+      vault: { enabled: true },
+      editor: { enabled: false },
+    });
+  });
+
   it('should not modify data already at v4', () => {
     const data: Record<string, unknown> = {
       schemaVersion: 4,
@@ -553,7 +575,7 @@ describe('McpSettingsTab server controls', () => {
   });
 });
 
-describe('McpSettingsTab module rows read-only rendering', () => {
+describe('McpSettingsTab module rows rendering', () => {
   type ToggleInfo = { value: boolean; tooltip: string; callback: ((value: boolean) => void) | null };
   type ModuleSettingInstance = {
     settingName: string;
@@ -571,14 +593,12 @@ describe('McpSettingsTab module rows read-only rendering', () => {
 
   interface ModuleRegistration {
     enabled: boolean;
-    readOnly: boolean;
     toolStates: Record<string, boolean>;
     module: {
       metadata: {
         id: string;
         name: string;
         description: string;
-        supportsReadOnly: boolean;
         group?: 'extras';
       };
       tools?: () => ToolEntry[];
@@ -589,7 +609,6 @@ describe('McpSettingsTab module rows read-only rendering', () => {
     getModules: () => ModuleRegistration[];
     enableModule: ReturnType<typeof vi.fn>;
     disableModule: ReturnType<typeof vi.fn>;
-    setReadOnly: ReturnType<typeof vi.fn>;
     setToolEnabled: ReturnType<typeof vi.fn>;
     getState: () => Record<string, unknown>;
   } {
@@ -597,7 +616,6 @@ describe('McpSettingsTab module rows read-only rendering', () => {
       getModules: () => modules,
       enableModule: vi.fn(),
       disableModule: vi.fn(),
-      setReadOnly: vi.fn(),
       setToolEnabled: vi.fn(),
       getState: () => ({}),
     };
@@ -641,10 +659,9 @@ describe('McpSettingsTab module rows read-only rendering', () => {
 
   const vaultModule: ModuleRegistration = {
     enabled: true,
-    readOnly: false,
     toolStates: {},
     module: {
-      metadata: { id: 'vault', name: 'Vault', description: 'Vault ops', supportsReadOnly: true },
+      metadata: { id: 'vault', name: 'Vault', description: 'Vault ops' },
     },
   };
 
@@ -659,36 +676,9 @@ describe('McpSettingsTab module rows read-only rendering', () => {
     expect(moduleRow!.toggles).toHaveLength(1);
   });
 
-  it('renders a dedicated Read-only sub-row with its own name, description and toggle', () => {
+  it('does not render a Read-only sub-row for any module', () => {
     renderModules([vaultModule]);
-    const readOnlyRow = getSetting('Read-only');
-    expect(readOnlyRow).toBeDefined();
-    expect(readOnlyRow!.settingDesc.length).toBeGreaterThan(0);
-    expect(readOnlyRow!.toggles).toHaveLength(1);
-    expect(readOnlyRow!.settingClass).toContain('mcp-module-readonly-row');
-  });
-
-  it('does not render a Read-only sub-row for modules that do not support it', () => {
-    renderModules([
-      {
-        enabled: true,
-        readOnly: false,
-        toolStates: {},
-        module: {
-          metadata: { id: 'ui', name: 'UI', description: 'UI ops', supportsReadOnly: false },
-        },
-      },
-    ]);
     expect(getSetting('Read-only')).toBeUndefined();
-  });
-
-  it('toggling the Read-only sub-row calls registry.setReadOnly', async () => {
-    const { registry } = renderModules([vaultModule]);
-    const readOnlyRow = getSetting('Read-only')!;
-    readOnlyRow.toggles[0].callback!(true);
-    await vi.waitFor(() => {
-      expect(registry.setReadOnly).toHaveBeenCalledWith('vault', true);
-    });
   });
 
   it('wraps each module in its own .mcp-module-card container', () => {
@@ -696,23 +686,14 @@ describe('McpSettingsTab module rows read-only rendering', () => {
       vaultModule,
       {
         enabled: false,
-        readOnly: false,
         toolStates: {},
         module: {
-          metadata: { id: 'ui', name: 'UI', description: 'UI ops', supportsReadOnly: false },
+          metadata: { id: 'ui', name: 'UI', description: 'UI ops' },
         },
       },
     ]);
     const cards = findAllByClass(container, 'mcp-module-card');
     expect(cards).toHaveLength(2);
-  });
-
-  it('places the module row and its Read-only sub-row inside the same card', () => {
-    const { container } = renderModules([vaultModule]);
-    const card = findAllByClass(container, 'mcp-module-card')[0];
-    expect(card).toBeDefined();
-    expect(getSetting('Vault')!.container).toBe(card);
-    expect(getSetting('Read-only')!.container).toBe(card);
   });
 
   it('marks the module header row with the mcp-module-card-header class', () => {
@@ -723,14 +704,12 @@ describe('McpSettingsTab module rows read-only rendering', () => {
   describe('extras group per-tool rendering', () => {
     const extrasModule: ModuleRegistration = {
       enabled: true,
-      readOnly: false,
       toolStates: { get_date: false },
       module: {
         metadata: {
           id: 'extras',
           name: 'Extras',
           description: 'Utility tools',
-          supportsReadOnly: true,
           group: 'extras',
         },
         tools: () => [

@@ -16,7 +16,6 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
       id: 'search',
       name: 'Search and Metadata',
       description: 'Search vault contents and query file metadata, tags, links, and frontmatter',
-      supportsReadOnly: false,
     },
 
     tools(): ToolDefinition[] {

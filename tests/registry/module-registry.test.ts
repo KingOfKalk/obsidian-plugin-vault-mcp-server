@@ -28,7 +28,6 @@ function createMockTool(name: string, isReadOnly: boolean): ToolDefinition {
 function createMockModule(
   id: string,
   tools: ToolDefinition[],
-  supportsReadOnly = false,
   defaultEnabled?: boolean,
 ): ToolModule {
   return {
@@ -36,7 +35,6 @@ function createMockModule(
       id,
       name: `Mock ${id}`,
       description: `Mock module: ${id}`,
-      supportsReadOnly,
       ...(defaultEnabled !== undefined ? { defaultEnabled } : {}),
     },
     tools: () => tools,
@@ -67,7 +65,7 @@ describe('ModuleRegistry', () => {
     });
 
     it('should honor defaultEnabled: false on registration', () => {
-      const module = createMockModule('extras', [], true, false);
+      const module = createMockModule('extras', [], false);
       registry.registerModule(module);
       expect(registry.isModuleEnabled('extras')).toBe(false);
     });
@@ -118,26 +116,6 @@ describe('ModuleRegistry', () => {
     });
   });
 
-  describe('setReadOnly', () => {
-    it('should set a module to read-only', () => {
-      const module = createMockModule('vault', [], true);
-      registry.registerModule(module);
-      registry.setReadOnly('vault', true);
-      const reg = registry.getModule('vault');
-      expect(reg?.readOnly).toBe(true);
-    });
-
-    it('should throw when module does not support read-only', () => {
-      const module = createMockModule('search', [], false);
-      registry.registerModule(module);
-      expect(() => registry.setReadOnly('search', true)).toThrow('does not support read-only');
-    });
-
-    it('should throw for non-existent module', () => {
-      expect(() => registry.setReadOnly('missing', true)).toThrow('not registered');
-    });
-  });
-
   describe('getActiveTools', () => {
     it('should return tools from enabled modules', () => {
       const tools = [createMockTool('vault_read', true), createMockTool('vault_create', false)];
@@ -153,21 +131,13 @@ describe('ModuleRegistry', () => {
       expect(registry.getActiveTools()).toHaveLength(0);
     });
 
-    it('should exclude write tools in read-only mode', () => {
+    it('should expose mutating tools from enabled modules regardless of isReadOnly metadata', () => {
       const tools = [createMockTool('vault_read', true), createMockTool('vault_create', false)];
-      const module = createMockModule('vault', tools, true);
+      const module = createMockModule('vault', tools);
       registry.registerModule(module);
-      registry.setReadOnly('vault', true);
       const active = registry.getActiveTools();
-      expect(active).toHaveLength(1);
-      expect(active[0].name).toBe('vault_read');
-    });
-
-    it('should include all tools when read-only is off', () => {
-      const tools = [createMockTool('vault_read', true), createMockTool('vault_create', false)];
-      const module = createMockModule('vault', tools, true);
-      registry.registerModule(module);
-      expect(registry.getActiveTools()).toHaveLength(2);
+      expect(active).toHaveLength(2);
+      expect(active.map((t) => t.name).sort()).toEqual(['vault_create', 'vault_read']);
     });
 
     it('should aggregate tools from multiple modules', () => {
@@ -183,26 +153,25 @@ describe('ModuleRegistry', () => {
 
   describe('applyState / getState', () => {
     it('should apply state from settings', () => {
-      const module = createMockModule('vault', [], true);
+      const module = createMockModule('vault', []);
       registry.registerModule(module);
       registry.applyState({
-        vault: { enabled: false, readOnly: true },
+        vault: { enabled: false },
       });
       expect(registry.isModuleEnabled('vault')).toBe(false);
-      expect(registry.getModule('vault')?.readOnly).toBe(true);
     });
 
     it('should ignore state for unregistered modules', () => {
-      registry.applyState({ missing: { enabled: false, readOnly: false } });
+      registry.applyState({ missing: { enabled: false } });
       expect(registry.getModules()).toHaveLength(0);
     });
 
     it('should return current state', () => {
-      const module = createMockModule('vault', [], true);
+      const module = createMockModule('vault', []);
       registry.registerModule(module);
       registry.disableModule('vault');
       const state = registry.getState();
-      expect(state.vault).toEqual({ enabled: false, readOnly: false });
+      expect(state.vault).toEqual({ enabled: false });
     });
   });
 
@@ -216,7 +185,6 @@ describe('ModuleRegistry', () => {
           id,
           name: `Mock ${id}`,
           description: `Mock extras: ${id}`,
-          supportsReadOnly: true,
           group: 'extras',
           defaultEnabled: false,
         },
@@ -298,7 +266,6 @@ describe('ModuleRegistry', () => {
       registry.applyState({
         extras: {
           enabled: true,
-          readOnly: false,
           toolStates: { get_date: true },
         },
       });
@@ -311,7 +278,7 @@ describe('ModuleRegistry', () => {
         createExtrasModule('extras', [createMockTool('get_date', true)]),
       );
       registry.applyState({
-        extras: { enabled: true, readOnly: false },
+        extras: { enabled: true },
       });
       expect(registry.isToolEnabled('extras', 'get_date')).toBe(false);
     });

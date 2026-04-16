@@ -53,7 +53,6 @@ export function createExtrasModule(adapter: ObsidianAdapter): ToolModule {
       id: 'extras',
       name: 'Extras',
       description: 'Utility tools that do not mirror an Obsidian API (disabled by default).',
-      supportsReadOnly: true,
       group: 'extras',
       defaultEnabled: false,
     },

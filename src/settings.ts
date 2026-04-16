@@ -335,20 +335,6 @@ export class McpSettingsTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         }),
       );
-
-    if (metadata.supportsReadOnly) {
-      new Setting(card)
-        .setName('Read-only')
-        .setDesc('Expose only read tools for this module; hide mutating tools.')
-        .setClass('mcp-module-readonly-row')
-        .addToggle((toggle) =>
-          toggle.setValue(registration.readOnly).onChange(async (value) => {
-            this.plugin.registry.setReadOnly(metadata.id, value);
-            this.plugin.settings.moduleStates = this.plugin.registry.getState();
-            await this.plugin.saveSettings();
-          }),
-        );
-    }
   }
 }
 
@@ -394,13 +380,21 @@ export function migrateSettings(
 
   if ((data.schemaVersion as number) < 4) {
     data.schemaVersion = 4;
-    // V3 -> V4: extras moves from module-level enable to per-tool enable.
-    // Preserve behavior: if the extras module was previously enabled, enable
-    // its known tools; otherwise leave them off.
+    // V3 -> V4:
+    //   - drop per-module readOnly flag; keep only `enabled`
+    //   - extras moves from module-level enable to per-tool enable. Preserve
+    //     behavior: if the extras module was previously enabled, enable its
+    //     known tools; otherwise leave them off.
     const moduleStates = (data.moduleStates ?? {}) as Record<
       string,
       { enabled?: boolean; readOnly?: boolean; toolStates?: Record<string, boolean> }
     >;
+    for (const id of Object.keys(moduleStates)) {
+      const entry = moduleStates[id];
+      if (entry && typeof entry === 'object') {
+        delete entry.readOnly;
+      }
+    }
     const extras = moduleStates.extras;
     if (extras && extras.toolStates === undefined) {
       extras.toolStates = extras.enabled ? { get_date: true } : {};

@@ -65,15 +65,6 @@
   border-top: none;
 }
 
-.mcp-module-card .setting-item + .setting-item {
-  border-top: 1px solid var(--background-modifier-border);
-}
-
 .mcp-module-card-header .setting-item-name {
   font-weight: 600;
-}
-
-.mcp-module-readonly-row {
-  padding-left: 2em;
-  border-top: none;
 }

@@ -13,7 +13,7 @@ This Obsidian plugin runs an MCP (Model Context Protocol) server inside Obsidian
 
 ## Feature Categories
 
-Each category is a toggleable module. Modules self-register. The settings UI auto-discovers them. A "Refresh" button re-discovers modules without restarting Obsidian. Each category can be set to read-only where applicable.
+Each category is a toggleable module. Modules self-register. The settings UI auto-discovers them. A "Refresh" button re-discovers modules without restarting Obsidian. Toggling a module is all-or-nothing — when on, every tool the module ships is exposed.
 
 ### Vault and File Operations
 
@@ -115,7 +115,7 @@ Utility tools that do not mirror an Obsidian API. Modules in this group render u
 - ~~CR9~~ — ~~Toggle to enable/disable UI Interactions~~
 - ~~CR10~~ — ~~Toggle to enable/disable Templates and Content Generation~~
 - ~~CR11~~ — ~~Toggle to enable/disable Plugin Interop~~
-- **CR12** — Dynamic feature toggle system: modules self-register with metadata (name, description, tool list), settings UI auto-discovers and renders toggles, "Refresh" button to re-discover without restart. Includes per-module read-only mode where applicable. Replaces ~~CR5~~–~~CR11~~, consolidated into dynamic system.
+- **CR12** — Dynamic feature toggle system: modules self-register with metadata (name, description, tool list), settings UI auto-discovers and renders one enable/disable toggle per module, "Refresh" button to re-discover without restart. Replaces ~~CR5~~–~~CR11~~, consolidated into dynamic system. (Per-module read-only mode was removed in v4 settings — see schema migration.)
 
 ### Server Controls
 

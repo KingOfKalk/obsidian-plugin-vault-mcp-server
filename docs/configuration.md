@@ -27,17 +27,17 @@
 
 ## Feature Modules
 
-Each module can be individually enabled/disabled. Modules that support read-only mode can be restricted to only expose read operations.
+Each module can be individually enabled or disabled. When a module is enabled, all of its tools are exposed; there is no per-module read-only mode. Tools still advertise an `isReadOnly` hint in their MCP metadata so clients can present them appropriately.
 
-| Module | Tools | Read-Only Support |
-|--------|-------|-------------------|
-| Vault and File Operations | 16 | Yes |
-| Search and Metadata | 12 | No (all read-only) |
-| Editor Operations | 10 | Yes |
-| Workspace and Navigation | 5 | No |
-| UI Interactions | 3 | No |
-| Templates | 3 | Yes |
-| Plugin Interop | 5 | No |
+| Module | Tools |
+|--------|-------|
+| Vault and File Operations | 16 |
+| Search and Metadata | 12 |
+| Editor Operations | 10 |
+| Workspace and Navigation | 5 |
+| UI Interactions | 3 |
+| Templates | 3 |
+| Plugin Interop | 5 |
 
 ## Settings Persistence
 

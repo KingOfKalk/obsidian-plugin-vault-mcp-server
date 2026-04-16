@@ -8,7 +8,6 @@ describe('vault module', () => {
     const module = createVaultModule(adapter);
     expect(module.metadata.id).toBe('vault');
     expect(module.metadata.name).toBe('Vault and File Operations');
-    expect(module.metadata.supportsReadOnly).toBe(true);
   });
 
   it('should register 16 tools', () => {
