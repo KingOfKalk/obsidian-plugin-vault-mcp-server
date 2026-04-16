@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ModuleRegistry } from '../../src/registry/module-registry';
-import { ToolModule, ToolDefinition, ToolResult } from '../../src/registry/types';
+import { ToolModule, ToolDefinition } from '../../src/registry/types';
+import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { Logger } from '../../src/utils/logger';
-import { z } from 'zod';
 
 function createMockLogger(): Logger {
   const logger = new Logger('test', { debugMode: false, accessKey: '' });
@@ -16,10 +16,10 @@ function createMockTool(name: string, isReadOnly: boolean): ToolDefinition {
   return {
     name,
     description: `Mock tool: ${name}`,
-    schema: z.object({}),
-    handler: (): Promise<ToolResult> =>
+    schema: {},
+    handler: (): Promise<CallToolResult> =>
       Promise.resolve({
-        content: [{ type: 'text', text: 'ok' }],
+        content: [{ type: 'text' as const, text: 'ok' }],
       }),
     isReadOnly,
   };

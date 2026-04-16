@@ -1,16 +1,12 @@
 import { z } from 'zod';
+import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 export interface ToolDefinition {
   name: string;
   description: string;
-  schema: z.ZodType;
-  handler: (params: unknown) => Promise<ToolResult>;
+  schema: Record<string, z.ZodType>;
+  handler: (params: Record<string, unknown>) => Promise<CallToolResult>;
   isReadOnly: boolean;
-}
-
-export interface ToolResult {
-  content: Array<{ type: 'text'; text: string }>;
-  isError?: boolean;
 }
 
 export interface ModuleMetadata {
