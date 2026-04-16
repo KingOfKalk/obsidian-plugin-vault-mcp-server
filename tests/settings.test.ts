@@ -338,11 +338,31 @@ describe('McpSettingsTab server controls', () => {
     expect(buttons.map((b) => b.text)).toEqual(['Start', 'Stop', 'Restart']);
   });
 
-  it('should render Copy URL button in Server URL setting', () => {
+  it('should render a copy icon extra button on the Server URL setting', () => {
     renderTab(false);
-    const buttons = getSettingButtons('Server URL');
-    expect(buttons).toHaveLength(1);
-    expect(buttons[0].text).toBe('Copy URL');
+    const setting = (Setting as unknown as { instances: SettingInstance[] }).instances.find(
+      (s) => s.settingName === 'Server URL',
+    ) as unknown as { extraButtons: Array<{ icon: string; tooltip: string; callback: (() => void) | null }> };
+    expect(setting).toBeDefined();
+    expect(setting.extraButtons).toHaveLength(1);
+    expect(setting.extraButtons[0].icon).toBe('copy');
+    expect(setting.extraButtons[0].tooltip).toBe('Copy server URL');
+  });
+
+  it('Server URL copy button copies the URL to clipboard', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { clipboard: { writeText } },
+      configurable: true,
+    });
+    renderTab(false);
+    const setting = (Setting as unknown as { instances: SettingInstance[] }).instances.find(
+      (s) => s.settingName === 'Server URL',
+    ) as unknown as { extraButtons: Array<{ icon: string; tooltip: string; callback: (() => void) | null }> };
+    setting.extraButtons[0].callback!();
+    await vi.waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith('http://127.0.0.1:28741/mcp');
+    });
   });
 
   it('should render a copy icon extra button on the Access Key setting', () => {
