@@ -71,8 +71,8 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
     tools(): ToolDefinition[] {
       return [
         { name: 'template_list', description: 'List available templates', schema: {}, handler: h.listTemplates, isReadOnly: true },
-        { name: 'template_create_from', description: 'Create a file from a template with variable substitution', schema: { templatePath: z.string().min(1), destPath: z.string().min(1), variables: z.record(z.string()).optional() }, handler: h.createFromTemplate, isReadOnly: false },
-        { name: 'template_expand', description: 'Expand template variables in a string', schema: { template: z.string(), variables: z.record(z.string()).optional() }, handler: h.expandVariables, isReadOnly: true },
+        { name: 'template_create_from', description: 'Create a file from a template with variable substitution', schema: { templatePath: z.string().min(1), destPath: z.string().min(1), variables: z.record(z.string(), z.string()).optional() }, handler: h.createFromTemplate, isReadOnly: false },
+        { name: 'template_expand', description: 'Expand template variables in a string', schema: { template: z.string(), variables: z.record(z.string(), z.string()).optional() }, handler: h.expandVariables, isReadOnly: true },
       ];
     },
   };
