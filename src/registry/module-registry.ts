@@ -22,7 +22,7 @@ export class ModuleRegistry {
     }
     this.modules.set(id, {
       module,
-      enabled: true,
+      enabled: module.metadata.defaultEnabled ?? true,
       readOnly: false,
     });
     this.logger.info(`Registered module: ${module.metadata.name}`, { id });

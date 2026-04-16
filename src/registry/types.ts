@@ -9,11 +9,15 @@ export interface ToolDefinition {
   isReadOnly: boolean;
 }
 
+export type ModuleGroup = 'extras';
+
 export interface ModuleMetadata {
   id: string;
   name: string;
   description: string;
   supportsReadOnly: boolean;
+  group?: ModuleGroup;
+  defaultEnabled?: boolean;
 }
 
 export interface ToolModule {

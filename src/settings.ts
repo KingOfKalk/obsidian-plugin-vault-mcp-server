@@ -1,6 +1,7 @@
 import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
 import { randomBytes } from 'crypto';
 import type McpPlugin from './main';
+import type { ModuleRegistration } from './registry/types';
 
 export class McpSettingsTab extends PluginSettingTab {
   plugin: McpPlugin;
@@ -246,6 +247,10 @@ export class McpSettingsTab extends PluginSettingTab {
 
   private renderModuleToggles(containerEl: HTMLElement): void {
     const modules = this.plugin.registry.getModules();
+    const coreModules = modules.filter((r) => !r.module.metadata.group);
+    const extrasModules = modules.filter(
+      (r) => r.module.metadata.group === 'extras',
+    );
 
     containerEl.createEl('h2', { text: 'Feature Modules' });
 
@@ -256,35 +261,18 @@ export class McpSettingsTab extends PluginSettingTab {
       });
     }
 
-    for (const registration of modules) {
-      const { metadata } = registration.module;
+    for (const registration of coreModules) {
+      this.renderModuleRow(containerEl, registration);
+    }
 
-      const setting = new Setting(containerEl)
-        .setName(metadata.name)
-        .setDesc(metadata.description)
-        .addToggle((toggle) =>
-          toggle.setValue(registration.enabled).onChange(async (value) => {
-            if (value) {
-              this.plugin.registry.enableModule(metadata.id);
-            } else {
-              this.plugin.registry.disableModule(metadata.id);
-            }
-            this.plugin.settings.moduleStates = this.plugin.registry.getState();
-            await this.plugin.saveSettings();
-          }),
-        );
-
-      if (metadata.supportsReadOnly) {
-        setting.addToggle((toggle) =>
-          toggle
-            .setValue(registration.readOnly)
-            .setTooltip('Read-only mode')
-            .onChange(async (value) => {
-              this.plugin.registry.setReadOnly(metadata.id, value);
-              this.plugin.settings.moduleStates = this.plugin.registry.getState();
-              await this.plugin.saveSettings();
-            }),
-        );
+    if (extrasModules.length > 0) {
+      containerEl.createEl('h2', { text: 'Extras' });
+      containerEl.createEl('p', {
+        text: 'Utility tools that do not mirror an Obsidian API. Disabled by default — enable individually as needed.',
+        cls: 'setting-item-description',
+      });
+      for (const registration of extrasModules) {
+        this.renderModuleRow(containerEl, registration);
       }
     }
 
@@ -294,6 +282,41 @@ export class McpSettingsTab extends PluginSettingTab {
         this.display();
       }),
     );
+  }
+
+  private renderModuleRow(
+    containerEl: HTMLElement,
+    registration: ModuleRegistration,
+  ): void {
+    const { metadata } = registration.module;
+
+    const setting = new Setting(containerEl)
+      .setName(metadata.name)
+      .setDesc(metadata.description)
+      .addToggle((toggle) =>
+        toggle.setValue(registration.enabled).onChange(async (value) => {
+          if (value) {
+            this.plugin.registry.enableModule(metadata.id);
+          } else {
+            this.plugin.registry.disableModule(metadata.id);
+          }
+          this.plugin.settings.moduleStates = this.plugin.registry.getState();
+          await this.plugin.saveSettings();
+        }),
+      );
+
+    if (metadata.supportsReadOnly) {
+      setting.addToggle((toggle) =>
+        toggle
+          .setValue(registration.readOnly)
+          .setTooltip('Read-only mode')
+          .onChange(async (value) => {
+            this.plugin.registry.setReadOnly(metadata.id, value);
+            this.plugin.settings.moduleStates = this.plugin.registry.getState();
+            await this.plugin.saveSettings();
+          }),
+      );
+    }
   }
 }
 

@@ -12,8 +12,8 @@ function createSilentLogger(): Logger {
 }
 
 describe('tool discovery', () => {
-  it('exposes all seven module factories', () => {
-    expect(MODULE_FACTORIES).toHaveLength(7);
+  it('exposes all module factories', () => {
+    expect(MODULE_FACTORIES).toHaveLength(8);
   });
 
   it('discovers modules with unique ids', () => {
@@ -29,6 +29,7 @@ describe('tool discovery', () => {
         'ui',
         'templates',
         'plugin-interop',
+        'extras',
       ]),
     );
     expect(new Set(ids).size).toBe(ids.length);

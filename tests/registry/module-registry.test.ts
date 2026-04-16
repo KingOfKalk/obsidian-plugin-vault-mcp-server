@@ -29,6 +29,7 @@ function createMockModule(
   id: string,
   tools: ToolDefinition[],
   supportsReadOnly = false,
+  defaultEnabled?: boolean,
 ): ToolModule {
   return {
     metadata: {
@@ -36,6 +37,7 @@ function createMockModule(
       name: `Mock ${id}`,
       description: `Mock module: ${id}`,
       supportsReadOnly,
+      ...(defaultEnabled !== undefined ? { defaultEnabled } : {}),
     },
     tools: () => tools,
   };
@@ -62,6 +64,12 @@ describe('ModuleRegistry', () => {
       const module = createMockModule('vault', []);
       registry.registerModule(module);
       expect(registry.getModules()[0].enabled).toBe(true);
+    });
+
+    it('should honor defaultEnabled: false on registration', () => {
+      const module = createMockModule('extras', [], true, false);
+      registry.registerModule(module);
+      expect(registry.isModuleEnabled('extras')).toBe(false);
     });
 
     it('should skip duplicate module registration', () => {
