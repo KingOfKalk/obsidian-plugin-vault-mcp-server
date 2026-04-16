@@ -6,9 +6,8 @@ do tricks. Python take picture.
 
 This guide for future Claude. Read this. Do steps. Get screenshot. Done.
 
-For Docker way (on real machine with Docker), see `docker/AGENT-GUIDE.md`.
-Everything here reuses the Python scripts in `docker/scripts/` — they work
-just fine without the container.
+Python scripts under `docker/scripts/` do all the real work. Ignore the
+`docker/` prefix — that's historical, nothing Docker runs here.
 
 ---
 
@@ -228,8 +227,7 @@ with ObsidianCDP(port=9222) as cdp:
 
 ## Driving Obsidian from Python
 
-Same `ObsidianCDP` API described in `docker/AGENT-GUIDE.md` — full
-Obsidian `app.*` API is reachable through `cdp.eval(js)`:
+The full Obsidian `app.*` API is reachable through `cdp.eval(js)`:
 
 ```python
 from docker.scripts.obsidian_cdp import ObsidianCDP
@@ -238,36 +236,14 @@ with ObsidianCDP(port=9222) as cdp:
     cdp.open_file("Welcome.md")
     cdp.execute_command("obsidian-mcp:start-server")
     cdp.open_settings(tab_id="obsidian-mcp")
-    cdp.wait_for("document.querySelector('.mcp-server-status')")
-    cdp.screenshot("/tmp/shots/server-running.png")
-
-    running = cdp.eval(
-        "app.plugins.plugins['obsidian-mcp'].server?.isRunning ?? false"
+    cdp.wait_for(
+        "app.plugins.plugins['obsidian-mcp']?.httpServer?.isRunning === true"
     )
+    cdp.screenshot("/tmp/shots/server-running.png")
 ```
 
----
-
-## Running the full visual-regression pipeline
-
-`run_visual_test.py` orchestrates bootstrap + scenarios + screenshots +
-diff. It was written to shell out to `docker compose`, so on the host
-invoke the individual scripts directly:
-
-```bash
-# Bootstrap once (assumes Obsidian already launched as above)
-python3 docker/scripts/bootstrap.py --no-launch --port 9222
-
-# Then run each scenario from docker/scripts/scenarios.py yourself,
-# capturing to docker/screenshots/{before,after}/ then:
-python3 docker/scripts/visual_diff.py \
-    docker/screenshots/before docker/screenshots/after \
-    --diff-dir docker/screenshots/diff
-```
-
-For most UI tasks, a single ad-hoc screenshot is enough — only reach for
-the full before/after/diff pipeline when verifying a visual regression
-across many scenarios.
+For the curated three-shot set that ships with each GitHub release, see
+`docker/scripts/release_screenshots.py`.
 
 ---
 
