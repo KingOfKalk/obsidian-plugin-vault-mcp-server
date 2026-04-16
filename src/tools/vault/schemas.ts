@@ -26,3 +26,18 @@ export const appendFileSchema = {
 export const getMetadataSchema = {
   path: z.string().min(1).describe('File path relative to vault root'),
 };
+
+export const renameFileSchema = {
+  path: z.string().min(1).describe('Current file path'),
+  newName: z.string().min(1).describe('New file name (within the same folder)'),
+};
+
+export const moveFileSchema = {
+  path: z.string().min(1).describe('Current file path'),
+  newPath: z.string().min(1).describe('New file path (different folder)'),
+};
+
+export const copyFileSchema = {
+  sourcePath: z.string().min(1).describe('Source file path'),
+  destPath: z.string().min(1).describe('Destination file path'),
+};

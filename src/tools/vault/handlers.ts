@@ -42,6 +42,9 @@ export function createHandlers(
   updateFile: (params: Record<string, unknown>) => Promise<CallToolResult>;
   deleteFile: (params: Record<string, unknown>) => Promise<CallToolResult>;
   appendFile: (params: Record<string, unknown>) => Promise<CallToolResult>;
+  renameFile: (params: Record<string, unknown>) => Promise<CallToolResult>;
+  moveFile: (params: Record<string, unknown>) => Promise<CallToolResult>;
+  copyFile: (params: Record<string, unknown>) => Promise<CallToolResult>;
   getMetadata: (params: Record<string, unknown>) => Promise<CallToolResult>;
 } {
   const vaultPath = adapter.getVaultPath();
@@ -124,6 +127,47 @@ export function createHandlers(
             modified: new Date(stat.mtime).toISOString(),
           }),
         );
+      } catch (error) {
+        return errorResult(error instanceof Error ? error.message : String(error));
+      }
+    },
+
+    async renameFile(params): Promise<CallToolResult> {
+      try {
+        const path = validateVaultPath(params.path as string, vaultPath);
+        const newName = params.newName as string;
+        const parts = path.split('/');
+        parts[parts.length - 1] = newName;
+        const newPath = parts.join('/');
+        validateVaultPath(newPath, vaultPath);
+        return await mutex.acquire(path, async () => {
+          await adapter.renameFile(path, newPath);
+          return textResult(`Renamed file: ${path} → ${newPath}`);
+        });
+      } catch (error) {
+        return errorResult(error instanceof Error ? error.message : String(error));
+      }
+    },
+
+    async moveFile(params): Promise<CallToolResult> {
+      try {
+        const path = validateVaultPath(params.path as string, vaultPath);
+        const newPath = validateVaultPath(params.newPath as string, vaultPath);
+        return await mutex.acquire(path, async () => {
+          await adapter.renameFile(path, newPath);
+          return textResult(`Moved file: ${path} → ${newPath}`);
+        });
+      } catch (error) {
+        return errorResult(error instanceof Error ? error.message : String(error));
+      }
+    },
+
+    async copyFile(params): Promise<CallToolResult> {
+      try {
+        const sourcePath = validateVaultPath(params.sourcePath as string, vaultPath);
+        const destPath = validateVaultPath(params.destPath as string, vaultPath);
+        await adapter.copyFile(sourcePath, destPath);
+        return textResult(`Copied file: ${sourcePath} → ${destPath}`);
       } catch (error) {
         return errorResult(error instanceof Error ? error.message : String(error));
       }
