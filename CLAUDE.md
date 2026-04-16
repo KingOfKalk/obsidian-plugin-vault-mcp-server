@@ -46,3 +46,16 @@ Follow these steps for every new feature or change:
 
 ### 7. The user merges the PR
 - Never merge a PR yourself — the user will decide when to merge
+
+## Screenshots of the plugin UI
+
+You can drive Obsidian on this host (Xvfb + CDP + Python) and capture real
+PNGs — no Docker needed. Use this whenever you need to verify a UI change
+visually.
+
+- Host workflow (caveman steps, copy-paste script): [`docs/screenshots-on-host.md`](docs/screenshots-on-host.md)
+- Docker workflow (for machines where Docker works): [`docker/AGENT-GUIDE.md`](docker/AGENT-GUIDE.md)
+
+Both reuse the same Python scripts under `docker/scripts/` (`obsidian_cdp.py`,
+`bootstrap.py`, `create_vault.py`, `screenshot.py`). Read the PNG files with
+the `Read` tool — they render inline.
