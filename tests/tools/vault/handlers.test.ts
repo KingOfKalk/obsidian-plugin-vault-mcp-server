@@ -165,6 +165,87 @@ describe('vault handlers', () => {
       expect(result.isError).toBe(true);
     });
   });
+
+  describe('createFolder', () => {
+    it('should create a folder', async () => {
+      const result = await handlers.createFolder({ path: 'notes' });
+      expect(result.isError).toBeUndefined();
+      expect(await adapter.exists('notes')).toBe(true);
+    });
+  });
+
+  describe('deleteFolder', () => {
+    it('should delete an empty folder', async () => {
+      adapter.addFolder('notes');
+      const result = await handlers.deleteFolder({ path: 'notes', recursive: false });
+      expect(result.isError).toBeUndefined();
+    });
+
+    it('should reject deleting non-empty folder without recursive', async () => {
+      adapter.addFolder('notes');
+      adapter.addFile('notes/test.md', 'content');
+      const result = await handlers.deleteFolder({ path: 'notes', recursive: false });
+      expect(result.isError).toBe(true);
+    });
+
+    it('should delete non-empty folder with recursive', async () => {
+      adapter.addFolder('notes');
+      adapter.addFile('notes/test.md', 'content');
+      const result = await handlers.deleteFolder({ path: 'notes', recursive: true });
+      expect(result.isError).toBeUndefined();
+    });
+  });
+
+  describe('renameFolder', () => {
+    it('should rename a folder', async () => {
+      adapter.addFolder('old');
+      const result = await handlers.renameFolder({ path: 'old', newPath: 'new' });
+      expect(result.isError).toBeUndefined();
+    });
+  });
+
+  describe('listFolder', () => {
+    it('should list folder contents', async () => {
+      adapter.addFolder('notes');
+      adapter.addFile('notes/a.md', 'a');
+      adapter.addFile('notes/b.md', 'b');
+      const result = await handlers.listFolder({ path: 'notes' });
+      const data = JSON.parse(getText(result)) as { files: string[]; folders: string[] };
+      expect(data.files).toHaveLength(2);
+    });
+  });
+
+  describe('listRecursive', () => {
+    it('should list folder contents recursively', async () => {
+      adapter.addFolder('notes');
+      adapter.addFolder('notes/sub');
+      adapter.addFile('notes/a.md', 'a');
+      adapter.addFile('notes/sub/b.md', 'b');
+      const result = await handlers.listRecursive({ path: 'notes' });
+      const data = JSON.parse(getText(result)) as { files: string[]; folders: string[] };
+      expect(data.files).toHaveLength(2);
+      expect(data.folders).toHaveLength(1);
+    });
+  });
+
+  describe('readBinary', () => {
+    it('should read a binary file as base64', async () => {
+      const data = new Uint8Array([72, 101, 108, 108, 111]).buffer; // "Hello"
+      await adapter.writeBinary('test.bin', data);
+      const result = await handlers.readBinary({ path: 'test.bin' });
+      expect(getText(result)).toBe(Buffer.from('Hello').toString('base64'));
+    });
+  });
+
+  describe('writeBinary', () => {
+    it('should write a binary file from base64', async () => {
+      const base64 = Buffer.from('Hello').toString('base64');
+      const result = await handlers.writeBinary({ path: 'test.bin', data: base64 });
+      expect(result.isError).toBeUndefined();
+      const data = await adapter.readBinary('test.bin');
+      expect(Buffer.from(data).toString()).toBe('Hello');
+    });
+  });
 });
 
 describe('WriteMutex', () => {

@@ -46,6 +46,13 @@ export function createHandlers(
   moveFile: (params: Record<string, unknown>) => Promise<CallToolResult>;
   copyFile: (params: Record<string, unknown>) => Promise<CallToolResult>;
   getMetadata: (params: Record<string, unknown>) => Promise<CallToolResult>;
+  createFolder: (params: Record<string, unknown>) => Promise<CallToolResult>;
+  deleteFolder: (params: Record<string, unknown>) => Promise<CallToolResult>;
+  renameFolder: (params: Record<string, unknown>) => Promise<CallToolResult>;
+  listFolder: (params: Record<string, unknown>) => Promise<CallToolResult>;
+  listRecursive: (params: Record<string, unknown>) => Promise<CallToolResult>;
+  readBinary: (params: Record<string, unknown>) => Promise<CallToolResult>;
+  writeBinary: (params: Record<string, unknown>) => Promise<CallToolResult>;
 } {
   const vaultPath = adapter.getVaultPath();
 
@@ -168,6 +175,83 @@ export function createHandlers(
         const destPath = validateVaultPath(params.destPath as string, vaultPath);
         await adapter.copyFile(sourcePath, destPath);
         return textResult(`Copied file: ${sourcePath} → ${destPath}`);
+      } catch (error) {
+        return errorResult(error instanceof Error ? error.message : String(error));
+      }
+    },
+
+    async createFolder(params): Promise<CallToolResult> {
+      try {
+        const path = validateVaultPath(params.path as string, vaultPath);
+        await adapter.createFolder(path);
+        return textResult(`Created folder: ${path}`);
+      } catch (error) {
+        return errorResult(error instanceof Error ? error.message : String(error));
+      }
+    },
+
+    async deleteFolder(params): Promise<CallToolResult> {
+      try {
+        const path = validateVaultPath(params.path as string, vaultPath);
+        const recursive = (params.recursive as boolean) ?? false;
+        await adapter.deleteFolder(path, recursive);
+        return textResult(`Deleted folder: ${path}`);
+      } catch (error) {
+        return errorResult(error instanceof Error ? error.message : String(error));
+      }
+    },
+
+    async renameFolder(params): Promise<CallToolResult> {
+      try {
+        const path = validateVaultPath(params.path as string, vaultPath);
+        const newPath = validateVaultPath(params.newPath as string, vaultPath);
+        await adapter.renameFile(path, newPath);
+        return textResult(`Renamed folder: ${path} → ${newPath}`);
+      } catch (error) {
+        return errorResult(error instanceof Error ? error.message : String(error));
+      }
+    },
+
+    listFolder(params): Promise<CallToolResult> {
+      try {
+        const path = validateVaultPath(params.path as string, vaultPath);
+        const result = adapter.list(path);
+        return Promise.resolve(textResult(JSON.stringify(result)));
+      } catch (error) {
+        return Promise.resolve(errorResult(error instanceof Error ? error.message : String(error)));
+      }
+    },
+
+    listRecursive(params): Promise<CallToolResult> {
+      try {
+        const path = validateVaultPath(params.path as string, vaultPath);
+        const result = adapter.listRecursive(path);
+        return Promise.resolve(textResult(JSON.stringify(result)));
+      } catch (error) {
+        return Promise.resolve(errorResult(error instanceof Error ? error.message : String(error)));
+      }
+    },
+
+    async readBinary(params): Promise<CallToolResult> {
+      try {
+        const path = validateVaultPath(params.path as string, vaultPath);
+        const data = await adapter.readBinary(path);
+        const base64 = Buffer.from(data).toString('base64');
+        return textResult(base64);
+      } catch (error) {
+        return errorResult(error instanceof Error ? error.message : String(error));
+      }
+    },
+
+    async writeBinary(params): Promise<CallToolResult> {
+      try {
+        const path = validateVaultPath(params.path as string, vaultPath);
+        const base64 = params.data as string;
+        const buffer = Buffer.from(base64, 'base64');
+        return await mutex.acquire(path, async () => {
+          await adapter.writeBinary(path, buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength));
+          return textResult(`Wrote binary file: ${path}`);
+        });
       } catch (error) {
         return errorResult(error instanceof Error ? error.message : String(error));
       }
