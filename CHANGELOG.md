@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.6.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.5.1...v1.6.0) (2026-04-16)
+
+
+### Features
+
+* **settings:** use refresh icon buttons for Generate and Restart ([#100](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/100)) ([837b2c3](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/837b2c3ffc1b65953456404b9644aa9f1e9d19e8)), closes [#99](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/99)
+* **tools:** add get_date tool in new "Extras" module group ([#101](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/101)) ([1ee5f84](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/1ee5f84061030611fce884e218a2dd89705d6d81)), closes [#95](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/95)
+
+
+### Bug Fixes
+
+* **settings:** full-width MCP config textarea + icon buttons with tooltips ([#104](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/104)) ([328f678](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/328f67837c66919289d01b55c4a053499693fc52))
+
 ## [1.5.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.5.0...v1.5.1) (2026-04-16)
 
 
