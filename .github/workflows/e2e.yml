@@ -1,0 +1,36 @@
+name: E2E Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'e2e/**'
+      - 'manifest.json'
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    # E2E tests require Obsidian in Docker with Xvfb
+    # This workflow is a placeholder — actual setup requires:
+    # 1. Docker image with Obsidian installed
+    # 2. Xvfb for headless display
+    # 3. wdio-obsidian-service configured
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build plugin
+        run: npm run build
+
+      - name: E2E tests (placeholder)
+        run: echo "E2E test infrastructure is configured. Actual tests require Obsidian in Docker with Xvfb."
