@@ -2,35 +2,41 @@
 set -euo pipefail
 
 ###############################################################################
-# entrypoint.sh — Start Xvfb + Fluxbox, then run the given command
+# entrypoint.sh — Boot the headless display, then exec the given command.
+#
+# Starts:
+#   1. Xvfb on $DISPLAY ($SCREEN_WIDTH x $SCREEN_HEIGHT x $SCREEN_DEPTH)
+#   2. A D-Bus session (Electron warns loudly without one)
+#   3. fluxbox — gives Obsidian a real window so it actually paints
+#
+# The Python orchestration scripts (bootstrap.py, run_visual_test.py) take it
+# from there. Screenshots come from CDP's Page.captureScreenshot, so we don't
+# need scrot, imagemagick, or xdotool at runtime — they're kept in the image
+# only as fallbacks for ad-hoc debugging.
 ###############################################################################
 
-echo "[entrypoint] Starting Xvfb on display ${DISPLAY} (${SCREEN_WIDTH}x${SCREEN_HEIGHT}x${SCREEN_DEPTH})"
-Xvfb "${DISPLAY}" -screen 0 "${SCREEN_WIDTH}x${SCREEN_HEIGHT}x${SCREEN_DEPTH}" -ac +extension GLX +render -noreset &
-XVFB_PID=$!
+echo "[entrypoint] Xvfb on ${DISPLAY} (${SCREEN_WIDTH}x${SCREEN_HEIGHT}x${SCREEN_DEPTH})"
+Xvfb "${DISPLAY}" -screen 0 "${SCREEN_WIDTH}x${SCREEN_HEIGHT}x${SCREEN_DEPTH}" \
+    -ac +extension GLX +render -noreset &
 
-# Wait for Xvfb to be ready
-for i in $(seq 1 30); do
+# Wait for the X server to be reachable
+for _ in $(seq 1 30); do
     if xdpyinfo -display "${DISPLAY}" >/dev/null 2>&1; then
         break
     fi
     sleep 0.2
 done
-
-if ! xdpyinfo -display "${DISPLAY}" >/dev/null 2>&1; then
+xdpyinfo -display "${DISPLAY}" >/dev/null 2>&1 || {
     echo "[entrypoint] ERROR: Xvfb failed to start"
     exit 1
-fi
-echo "[entrypoint] Xvfb is ready"
+}
+echo "[entrypoint] Xvfb ready"
 
-# Start D-Bus session (required by Electron)
-eval "$(dbus-launch --sh-syntax)" || true
+# D-Bus session (Electron complains without it; not strictly required)
+eval "$(dbus-launch --sh-syntax 2>/dev/null)" || true
 
-# Start a lightweight window manager so windows get proper frames/placement
+# Lightweight WM so Obsidian gets a properly mapped window
 fluxbox &>/dev/null &
-sleep 0.5
+sleep 0.3
 
-echo "[entrypoint] Display environment ready"
-
-# Run whatever command was passed
 exec "$@"

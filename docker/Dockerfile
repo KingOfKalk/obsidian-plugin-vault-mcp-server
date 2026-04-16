@@ -7,16 +7,24 @@ ENV DEBIAN_FRONTEND=noninteractive \
     DISPLAY=:99 \
     SCREEN_WIDTH=1920 \
     SCREEN_HEIGHT=1080 \
-    SCREEN_DEPTH=24
+    SCREEN_DEPTH=24 \
+    OBSIDIAN_DEBUG_PORT=9222
 
-# System packages: Xvfb, window manager, screenshot & diff tools, Electron deps
+# System packages: Xvfb, window manager, screenshot tools, Electron deps,
+# Python (for our CDP-based orchestration scripts)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # Virtual framebuffer & window manager
     xvfb \
     fluxbox \
-    # Screenshot & image comparison
+    # Screenshot fallback tools (Python is the primary path)
     imagemagick \
     scrot \
+    # Python for CDP orchestration & screenshot capture
+    python3 \
+    python3-pip \
+    python3-xlib \
+    python3-pil \
+    python3-websocket \
     # Electron / Obsidian runtime dependencies
     libgtk-3-0 \
     libnotify4 \
@@ -43,20 +51,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     x11-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js
+# Install Node.js (used for building the plugin inside the container if needed)
 RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_MAJOR}.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Download Obsidian AppImage
+# Download Obsidian AppImage and extract (FUSE is unavailable in Docker)
 RUN wget -q "https://github.com/obsidianmd/obsidian-releases/releases/download/v${OBSIDIAN_VERSION}/Obsidian-${OBSIDIAN_VERSION}.AppImage" \
         -O /opt/Obsidian.AppImage \
     && chmod +x /opt/Obsidian.AppImage \
-    # Extract AppImage (FUSE is unavailable in Docker)
     && cd /opt && /opt/Obsidian.AppImage --appimage-extract \
     && ln -s /opt/squashfs-root/obsidian /usr/local/bin/obsidian
 
-# Create non-root user
+# Run as non-root for Electron sandbox safety (still uses --no-sandbox for AppImage)
 RUN useradd -ms /bin/bash obsidian
 USER obsidian
 WORKDIR /home/obsidian
@@ -65,15 +72,18 @@ WORKDIR /home/obsidian
 RUN mkdir -p /home/obsidian/.config/obsidian \
     && echo '{}' > /home/obsidian/.config/obsidian/obsidian.json
 
-# Working directories
+# Working directories — these are the contract with the host (mounted via volumes)
 RUN mkdir -p /home/obsidian/plugin \
              /home/obsidian/vault \
+             /home/obsidian/screenshots/before \
+             /home/obsidian/screenshots/after \
              /home/obsidian/screenshots/baseline \
-             /home/obsidian/screenshots/current \
              /home/obsidian/screenshots/diff
 
 COPY --chown=obsidian:obsidian entrypoint.sh /home/obsidian/entrypoint.sh
 COPY --chown=obsidian:obsidian scripts/ /home/obsidian/scripts/
+
+ENV PATH="/home/obsidian/scripts:${PATH}"
 
 ENTRYPOINT ["/home/obsidian/entrypoint.sh"]
 CMD ["bash"]

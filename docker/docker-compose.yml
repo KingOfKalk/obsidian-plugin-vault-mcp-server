@@ -11,36 +11,57 @@ services:
       - SCREEN_WIDTH=1920
       - SCREEN_HEIGHT=1080
       - SCREEN_DEPTH=24
+      - OBSIDIAN_DEBUG_PORT=9222
     volumes:
-      # Mount the built plugin artifacts (read-only)
+      # Built plugin artifacts (read-only)
       - ../main.js:/home/obsidian/plugin/main.js:ro
       - ../manifest.json:/home/obsidian/plugin/manifest.json:ro
       - ../styles.css:/home/obsidian/plugin/styles.css:ro
-      # Mount the test vault
-      - ./test-vault:/home/obsidian/vault
-      # Persist screenshots on host for review
+      # Vault is regenerated on every run (writable scratch space)
+      - obsidian-vault:/home/obsidian/vault
+      # Screenshots — host-visible at docker/screenshots/
       - ./screenshots:/home/obsidian/screenshots
-    # Shared memory — Electron/Chromium needs this
     shm_size: "2gb"
-    # Prevent container from running indefinitely
     stop_grace_period: 10s
 
-  # One-shot: update baseline screenshots
-  update-baseline:
+  # Capture screenshots into docker/screenshots/before/ — agent runs this BEFORE
+  # making any code changes
+  capture-before:
     extends:
       service: visual-test
-    command: /home/obsidian/scripts/run-visual-test.sh --update-baseline
+    command: python3 /home/obsidian/scripts/run_visual_test.py capture before
 
-  # One-shot: compare current vs baseline
-  compare:
+  # Capture screenshots into docker/screenshots/after/ — agent runs this AFTER
+  # changes, then reads docker/screenshots/{before,after,diff}/*.png to inspect
+  capture-after:
     extends:
       service: visual-test
-    command: /home/obsidian/scripts/run-visual-test.sh
+    command: python3 /home/obsidian/scripts/run_visual_test.py capture after
 
-  # Interactive: shell into the container for debugging
+  # Capture / refresh long-lived baseline screenshots
+  capture-baseline:
+    extends:
+      service: visual-test
+    command: python3 /home/obsidian/scripts/run_visual_test.py capture baseline
+
+  # Compute pixel diffs: after vs before (default) or after vs baseline
+  diff:
+    extends:
+      service: visual-test
+    command: python3 /home/obsidian/scripts/run_visual_test.py diff --against before
+
+  diff-baseline:
+    extends:
+      service: visual-test
+    command: python3 /home/obsidian/scripts/run_visual_test.py diff --against baseline
+
+  # Interactive shell for debugging
   shell:
     extends:
       service: visual-test
     command: bash
     stdin_open: true
     tty: true
+
+volumes:
+  obsidian-vault:
