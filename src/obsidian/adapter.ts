@@ -34,6 +34,20 @@ export interface ObsidianAdapter {
 
   // Vault info
   getVaultPath(): string;
+
+  // Metadata operations
+  getFileContent(path: string): Promise<string>;
+  getFrontmatter(path: string): Record<string, unknown> | null;
+  getTags(path: string): string[];
+  getAllTags(): Record<string, string[]>;
+  getHeadings(path: string): Array<{ heading: string; level: number }>;
+  getLinks(path: string): Array<{ link: string; displayText?: string }>;
+  getEmbeds(path: string): Array<{ link: string; displayText?: string }>;
+  getBacklinks(path: string): string[];
+  getResolvedLinks(): Record<string, Record<string, number>>;
+  getUnresolvedLinks(): Record<string, Record<string, number>>;
+  getAllFiles(): string[];
+  searchContent(query: string): Promise<Array<{ path: string; matches: string[] }>>;
 }
 
 export class RealObsidianAdapter implements ObsidianAdapter {
@@ -138,6 +152,104 @@ export class RealObsidianAdapter implements ObsidianAdapter {
 
   getVaultPath(): string {
     return (this.app.vault.adapter as { basePath?: string }).basePath ?? '';
+  }
+
+  async getFileContent(path: string): Promise<string> {
+    return this.readFile(path);
+  }
+
+  getFrontmatter(path: string): Record<string, unknown> | null {
+    const file = this.getFile(path);
+    const cache = this.app.metadataCache.getFileCache(file);
+    return (cache?.frontmatter as Record<string, unknown>) ?? null;
+  }
+
+  getTags(path: string): string[] {
+    const file = this.getFile(path);
+    const cache = this.app.metadataCache.getFileCache(file);
+    if (!cache?.tags) return [];
+    return cache.tags.map((t: { tag: string }) => t.tag);
+  }
+
+  getAllTags(): Record<string, string[]> {
+    const result: Record<string, string[]> = {};
+    const files = this.app.vault.getMarkdownFiles();
+    for (const file of files) {
+      const tags = this.getTags(file.path);
+      for (const tag of tags) {
+        if (!result[tag]) result[tag] = [];
+        result[tag].push(file.path);
+      }
+    }
+    return result;
+  }
+
+  getHeadings(path: string): Array<{ heading: string; level: number }> {
+    const file = this.getFile(path);
+    const cache = this.app.metadataCache.getFileCache(file);
+    if (!cache?.headings) return [];
+    return cache.headings.map((h: { heading: string; level: number }) => ({
+      heading: h.heading,
+      level: h.level,
+    }));
+  }
+
+  getLinks(path: string): Array<{ link: string; displayText?: string }> {
+    const file = this.getFile(path);
+    const cache = this.app.metadataCache.getFileCache(file);
+    if (!cache?.links) return [];
+    return cache.links.map((l: { link: string; displayText?: string }) => ({
+      link: l.link,
+      displayText: l.displayText,
+    }));
+  }
+
+  getEmbeds(path: string): Array<{ link: string; displayText?: string }> {
+    const file = this.getFile(path);
+    const cache = this.app.metadataCache.getFileCache(file);
+    if (!cache?.embeds) return [];
+    return cache.embeds.map((e: { link: string; displayText?: string }) => ({
+      link: e.link,
+      displayText: e.displayText,
+    }));
+  }
+
+  getBacklinks(path: string): string[] {
+    const resolved = this.getResolvedLinks();
+    const backlinks: string[] = [];
+    for (const [sourcePath, links] of Object.entries(resolved)) {
+      if (path in links) {
+        backlinks.push(sourcePath);
+      }
+    }
+    return backlinks;
+  }
+
+  getResolvedLinks(): Record<string, Record<string, number>> {
+    return this.app.metadataCache.resolvedLinks;
+  }
+
+  getUnresolvedLinks(): Record<string, Record<string, number>> {
+    return this.app.metadataCache.unresolvedLinks;
+  }
+
+  getAllFiles(): string[] {
+    return (this.app.vault.getMarkdownFiles()).map((f) => f.path);
+  }
+
+  async searchContent(query: string): Promise<Array<{ path: string; matches: string[] }>> {
+    const results: Array<{ path: string; matches: string[] }> = [];
+    const files = this.app.vault.getMarkdownFiles();
+    const lowerQuery = query.toLowerCase();
+    for (const file of files) {
+      const content = await this.app.vault.read(file);
+      if (content.toLowerCase().includes(lowerQuery)) {
+        const lines = content.split('\n');
+        const matches = lines.filter((line) => line.toLowerCase().includes(lowerQuery));
+        results.push({ path: file.path, matches });
+      }
+    }
+    return results;
   }
 
   private getFile(path: string): TFile {

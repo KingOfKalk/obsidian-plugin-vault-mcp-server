@@ -1,9 +1,18 @@
 import { FileStat, ListResult, ObsidianAdapter } from './adapter';
 
+interface MockFileMetadata {
+  frontmatter?: Record<string, unknown>;
+  tags?: string[];
+  headings?: Array<{ heading: string; level: number }>;
+  links?: Array<{ link: string; displayText?: string }>;
+  embeds?: Array<{ link: string; displayText?: string }>;
+}
+
 interface MockFile {
   content: string;
   binary?: ArrayBuffer;
   stat: FileStat;
+  metadata?: MockFileMetadata;
 }
 
 /* eslint-disable @typescript-eslint/require-await */
@@ -191,7 +200,120 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     return this.vaultPath;
   }
 
+  async getFileContent(path: string): Promise<string> {
+    return this.readFile(path);
+  }
+
+  getFrontmatter(path: string): Record<string, unknown> | null {
+    const file = this.files.get(path);
+    if (!file) return null;
+    return file.metadata?.frontmatter ?? null;
+  }
+
+  getTags(path: string): string[] {
+    const file = this.files.get(path);
+    if (!file) return [];
+    return file.metadata?.tags ?? [];
+  }
+
+  getAllTags(): Record<string, string[]> {
+    const result: Record<string, string[]> = {};
+    for (const [filePath, file] of this.files.entries()) {
+      const tags = file.metadata?.tags ?? [];
+      for (const tag of tags) {
+        if (!result[tag]) result[tag] = [];
+        result[tag].push(filePath);
+      }
+    }
+    return result;
+  }
+
+  getHeadings(path: string): Array<{ heading: string; level: number }> {
+    const file = this.files.get(path);
+    if (!file) return [];
+    return file.metadata?.headings ?? [];
+  }
+
+  getLinks(path: string): Array<{ link: string; displayText?: string }> {
+    const file = this.files.get(path);
+    if (!file) return [];
+    return file.metadata?.links ?? [];
+  }
+
+  getEmbeds(path: string): Array<{ link: string; displayText?: string }> {
+    const file = this.files.get(path);
+    if (!file) return [];
+    return file.metadata?.embeds ?? [];
+  }
+
+  getBacklinks(path: string): string[] {
+    const backlinks: string[] = [];
+    for (const [filePath, file] of this.files.entries()) {
+      const links = file.metadata?.links ?? [];
+      if (links.some((l) => l.link === path || l.link + '.md' === path)) {
+        backlinks.push(filePath);
+      }
+    }
+    return backlinks;
+  }
+
+  getResolvedLinks(): Record<string, Record<string, number>> {
+    const result: Record<string, Record<string, number>> = {};
+    for (const [filePath, file] of this.files.entries()) {
+      const links = file.metadata?.links ?? [];
+      if (links.length > 0) {
+        result[filePath] = {};
+        for (const link of links) {
+          const target = this.files.has(link.link) ? link.link : link.link + '.md';
+          if (this.files.has(target)) {
+            result[filePath][target] = (result[filePath][target] ?? 0) + 1;
+          }
+        }
+      }
+    }
+    return result;
+  }
+
+  getUnresolvedLinks(): Record<string, Record<string, number>> {
+    const result: Record<string, Record<string, number>> = {};
+    for (const [filePath, file] of this.files.entries()) {
+      const links = file.metadata?.links ?? [];
+      for (const link of links) {
+        const target = link.link;
+        if (!this.files.has(target) && !this.files.has(target + '.md')) {
+          if (!result[filePath]) result[filePath] = {};
+          result[filePath][target] = (result[filePath][target] ?? 0) + 1;
+        }
+      }
+    }
+    return result;
+  }
+
+  getAllFiles(): string[] {
+    return Array.from(this.files.keys()).filter((p) => p.endsWith('.md'));
+  }
+
+  async searchContent(query: string): Promise<Array<{ path: string; matches: string[] }>> {
+    const results: Array<{ path: string; matches: string[] }> = [];
+    const lowerQuery = query.toLowerCase();
+    for (const [filePath, file] of this.files.entries()) {
+      if (file.content.toLowerCase().includes(lowerQuery)) {
+        const lines = file.content.split('\n');
+        const matches = lines.filter((line) => line.toLowerCase().includes(lowerQuery));
+        results.push({ path: filePath, matches });
+      }
+    }
+    return results;
+  }
+
   // Test helpers
+  setMetadata(path: string, metadata: MockFileMetadata): void {
+    const file = this.files.get(path);
+    if (file) {
+      file.metadata = metadata;
+    }
+  }
+
   setVaultPath(path: string): void {
     this.vaultPath = path;
   }
