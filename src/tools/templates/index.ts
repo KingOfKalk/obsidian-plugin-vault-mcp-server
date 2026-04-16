@@ -30,7 +30,7 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
   const templatesFolder = 'templates';
 
   return {
-    listTemplates: () => {
+    listTemplates: (): Promise<CallToolResult> => {
       try {
         const result = adapter.list(templatesFolder);
         return Promise.resolve(text(JSON.stringify(result.files)));
@@ -38,7 +38,7 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
         return Promise.resolve(text('[]'));
       }
     },
-    async createFromTemplate(params) {
+    async createFromTemplate(params): Promise<CallToolResult> {
       try {
         const templatePath = validateVaultPath(params.templatePath as string, vaultPath);
         const destPath = validateVaultPath(params.destPath as string, vaultPath);
@@ -51,7 +51,7 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
         return err(error instanceof Error ? error.message : String(error));
       }
     },
-    expandVariables: (params) => {
+    expandVariables: (params): Promise<CallToolResult> => {
       try {
         const template = params.template as string;
         const variables = (params.variables as Record<string, string>) ?? {};
@@ -71,8 +71,8 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
     tools(): ToolDefinition[] {
       return [
         { name: 'template_list', description: 'List available templates', schema: {}, handler: h.listTemplates, isReadOnly: true },
-        { name: 'template_create_from', description: 'Create a file from a template with variable substitution', schema: { templatePath: z.string().min(1), destPath: z.string().min(1), variables: z.record(z.string()).optional() }, handler: h.createFromTemplate, isReadOnly: false },
-        { name: 'template_expand', description: 'Expand template variables in a string', schema: { template: z.string(), variables: z.record(z.string()).optional() }, handler: h.expandVariables, isReadOnly: true },
+        { name: 'template_create_from', description: 'Create a file from a template with variable substitution', schema: { templatePath: z.string().min(1), destPath: z.string().min(1), variables: z.record(z.string(), z.string()).optional() }, handler: h.createFromTemplate, isReadOnly: false },
+        { name: 'template_expand', description: 'Expand template variables in a string', schema: { template: z.string(), variables: z.record(z.string(), z.string()).optional() }, handler: h.expandVariables, isReadOnly: true },
       ];
     },
   };

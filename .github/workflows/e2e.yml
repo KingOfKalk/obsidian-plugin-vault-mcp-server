@@ -18,10 +18,10 @@ jobs:
     # 2. Xvfb for headless display
     # 3. wdio-obsidian-service configured
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Use Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm

@@ -19,8 +19,8 @@ export function generateSelfSignedCert(): TlsCertificate {
 
   // Use Node.js crypto to create a self-signed cert
   // For simplicity in a local-only context, we generate PEM-encoded key pair
-  const pubPem = publicKey.export({ type: 'spki', format: 'pem' }) as string;
-  const privPem = privateKey.export({ type: 'pkcs8', format: 'pem' }) as string;
+  const pubPem = publicKey.export({ type: 'spki', format: 'pem' });
+  const privPem = privateKey.export({ type: 'pkcs8', format: 'pem' });
 
   // Create a minimal self-signed certificate using the sign API
   const sign = createSign('SHA256');

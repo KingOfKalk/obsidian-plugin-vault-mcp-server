@@ -10,18 +10,18 @@ function err(m: string): CallToolResult { return { content: [{ type: 'text', tex
 
 function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
   return {
-    listPlugins: () => {
+    listPlugins: (): Promise<CallToolResult> => {
       const plugins = adapter.getInstalledPlugins();
       return Promise.resolve(text(JSON.stringify(plugins)));
     },
-    checkPlugin: (params) => {
+    checkPlugin: (params): Promise<CallToolResult> => {
       const pluginId = params.pluginId as string;
       const enabled = adapter.isPluginEnabled(pluginId);
       const plugins = adapter.getInstalledPlugins();
       const installed = plugins.some((p) => p.id === pluginId);
       return Promise.resolve(text(JSON.stringify({ pluginId, installed, enabled })));
     },
-    dataviewQuery: (params) => {
+    dataviewQuery: (params): Promise<CallToolResult> => {
       if (!adapter.isPluginEnabled('dataview')) {
         return Promise.resolve(err('Dataview plugin is not installed or enabled'));
       }
@@ -31,7 +31,7 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
         query: params.query as string,
       })));
     },
-    templaterExecute: (params) => {
+    templaterExecute: (params): Promise<CallToolResult> => {
       if (!adapter.isPluginEnabled('templater-obsidian')) {
         return Promise.resolve(err('Templater plugin is not installed or enabled'));
       }
@@ -40,7 +40,7 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
         templatePath: params.templatePath as string,
       })));
     },
-    executeCommand: (params) => {
+    executeCommand: (params): Promise<CallToolResult> => {
       const commandId = params.commandId as string;
       const ok = adapter.executeCommand(commandId);
       return Promise.resolve(ok ? text(`Executed command: ${commandId}`) : err(`Command not found: ${commandId}`));

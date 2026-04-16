@@ -23,20 +23,19 @@
   "author": "KingOfKalk",
   "license": "GPL-3.0-only",
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^8.0.0",
-    "@typescript-eslint/parser": "^8.0.0",
-    "builtin-modules": "^4.0.0",
-    "esbuild": "^0.24.0",
-    "eslint": "^8.57.0",
+    "typescript-eslint": "^8.0.0",
+    "builtin-modules": "^5.1.0",
+    "esbuild": "^0.28.0",
+    "eslint": "^10.2.0",
     "prettier": "^3.4.0",
-    "typescript": "^5.6.0",
-    "vitest": "^2.1.0",
-    "@vitest/coverage-v8": "^2.1.0",
-    "@types/node": "^22.0.0"
+    "typescript": "^6.0.0",
+    "vitest": "^4.1.0",
+    "@vitest/coverage-v8": "^4.1.0",
+    "@types/node": "^25.6.0"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
     "obsidian": "^1.7.2",
-    "zod": "^3.24.0"
+    "zod": "^4.3.0"
   }
 }
