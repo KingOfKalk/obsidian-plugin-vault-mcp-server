@@ -307,13 +307,21 @@ describe('McpSettingsTab server controls', () => {
   }
 
   type ButtonInfo = { text: string; disabled: boolean; callback: (() => void) | null };
-  type SettingInstance = { settingName: string; buttons: ButtonInfo[] };
+  type ToggleInfo = { value: boolean; tooltip: string; callback: ((value: boolean) => void) | null };
+  type SettingInstance = { settingName: string; buttons: ButtonInfo[]; toggles: ToggleInfo[] };
 
   function getSettingButtons(name: string): ButtonInfo[] {
     const setting = (Setting as unknown as { instances: SettingInstance[] }).instances.find(
       (s) => s.settingName === name,
     );
     return setting?.buttons ?? [];
+  }
+
+  function getStatusToggle(): ToggleInfo {
+    const setting = (Setting as unknown as { instances: SettingInstance[] }).instances.find(
+      (s) => s.settingName === 'Status',
+    )!;
+    return setting.toggles[0];
   }
 
   function getStatusButtons(): ButtonInfo[] {
@@ -331,11 +339,28 @@ describe('McpSettingsTab server controls', () => {
     tab.display();
   }
 
-  it('should render three status buttons (Start, Stop, Restart)', () => {
+  it('should render a single toggle on the Status row', () => {
+    renderTab(false);
+    const setting = (Setting as unknown as { instances: SettingInstance[] }).instances.find(
+      (s) => s.settingName === 'Status',
+    )!;
+    expect(setting.toggles).toHaveLength(1);
+  });
+
+  it('toggle reflects stopped state when server is stopped', () => {
+    renderTab(false);
+    expect(getStatusToggle().value).toBe(false);
+  });
+
+  it('toggle reflects running state when server is running', () => {
+    renderTab(true);
+    expect(getStatusToggle().value).toBe(true);
+  });
+
+  it('should not render Restart button when server is stopped', () => {
     renderTab(false);
     const buttons = getStatusButtons();
-    expect(buttons).toHaveLength(3);
-    expect(buttons.map((b) => b.text)).toEqual(['Start', 'Stop', 'Restart']);
+    expect(buttons.find((b) => b.text === 'Restart')).toBeUndefined();
   });
 
   it('should render a copy icon extra button on the Server URL setting', () => {
@@ -392,41 +417,24 @@ describe('McpSettingsTab server controls', () => {
     });
   });
 
-  it('should disable Stop and Restart when server is stopped', () => {
-    renderTab(false);
-    const buttons = getStatusButtons();
-    const start = buttons.find((b) => b.text === 'Start')!;
-    const stop = buttons.find((b) => b.text === 'Stop')!;
-    const restart = buttons.find((b) => b.text === 'Restart')!;
-    expect(start.disabled).toBe(false);
-    expect(stop.disabled).toBe(true);
-    expect(restart.disabled).toBe(true);
-  });
-
-  it('should disable Start when server is running', () => {
+  it('should render Restart button only when server is running', () => {
     renderTab(true);
     const buttons = getStatusButtons();
-    const start = buttons.find((b) => b.text === 'Start')!;
-    const stop = buttons.find((b) => b.text === 'Stop')!;
-    const restart = buttons.find((b) => b.text === 'Restart')!;
-    expect(start.disabled).toBe(true);
-    expect(stop.disabled).toBe(false);
-    expect(restart.disabled).toBe(false);
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0].text).toBe('Restart');
   });
 
-  it('Start button calls startServer()', async () => {
+  it('turning the toggle on calls startServer()', async () => {
     renderTab(false);
-    const start = getStatusButtons().find((b) => b.text === 'Start')!;
-    start.callback!();
+    getStatusToggle().callback!(true);
     await vi.waitFor(() => {
       expect(mockPlugin.startServer).toHaveBeenCalled();
     });
   });
 
-  it('Stop button calls stopServer()', async () => {
+  it('turning the toggle off calls stopServer()', async () => {
     renderTab(true);
-    const stop = getStatusButtons().find((b) => b.text === 'Stop')!;
-    stop.callback!();
+    getStatusToggle().callback!(false);
     await vi.waitFor(() => {
       expect(mockPlugin.stopServer).toHaveBeenCalled();
     });
