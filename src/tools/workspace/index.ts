@@ -10,12 +10,12 @@ function err(m: string): CallToolResult { return { content: [{ type: 'text', tex
 
 function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
   return {
-    getActiveLeaf: () => {
+    getActiveLeaf: (): Promise<CallToolResult> => {
       const info = adapter.getActiveLeafInfo();
       if (!info) return Promise.resolve(err('No active leaf'));
       return Promise.resolve(text(JSON.stringify(info)));
     },
-    async openFile(params) {
+    async openFile(params): Promise<CallToolResult> {
       try {
         await adapter.openFile(params.path as string, params.mode as string | undefined);
         return text(`Opened: ${params.path as string}`);
@@ -23,15 +23,15 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
         return err(error instanceof Error ? error.message : String(error));
       }
     },
-    listLeaves: () => {
+    listLeaves: (): Promise<CallToolResult> => {
       const files = adapter.getOpenFiles();
       return Promise.resolve(text(JSON.stringify(files)));
     },
-    setActiveLeaf: (params) => {
+    setActiveLeaf: (params): Promise<CallToolResult> => {
       const ok = adapter.setActiveLeaf(params.leafId as string);
       return Promise.resolve(ok ? text('Active leaf set') : err('Leaf not found'));
     },
-    getLayout: () => {
+    getLayout: (): Promise<CallToolResult> => {
       const layout = adapter.getWorkspaceLayout();
       return Promise.resolve(text(JSON.stringify(layout)));
     },

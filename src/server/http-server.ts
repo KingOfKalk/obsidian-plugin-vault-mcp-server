@@ -45,7 +45,7 @@ export class HttpMcpServer {
     }
 
     this.transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => randomUUID(),
+      sessionIdGenerator: (): string => randomUUID(),
     });
 
     await this.mcpServer.connect(this.transport);

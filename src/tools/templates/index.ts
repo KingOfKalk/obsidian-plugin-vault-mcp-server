@@ -30,7 +30,7 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
   const templatesFolder = 'templates';
 
   return {
-    listTemplates: () => {
+    listTemplates: (): Promise<CallToolResult> => {
       try {
         const result = adapter.list(templatesFolder);
         return Promise.resolve(text(JSON.stringify(result.files)));
@@ -38,7 +38,7 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
         return Promise.resolve(text('[]'));
       }
     },
-    async createFromTemplate(params) {
+    async createFromTemplate(params): Promise<CallToolResult> {
       try {
         const templatePath = validateVaultPath(params.templatePath as string, vaultPath);
         const destPath = validateVaultPath(params.destPath as string, vaultPath);
@@ -51,7 +51,7 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
         return err(error instanceof Error ? error.message : String(error));
       }
     },
-    expandVariables: (params) => {
+    expandVariables: (params): Promise<CallToolResult> => {
       try {
         const template = params.template as string;
         const variables = (params.variables as Record<string, string>) ?? {};

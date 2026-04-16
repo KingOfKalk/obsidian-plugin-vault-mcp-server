@@ -9,21 +9,21 @@ function text(t: string): CallToolResult { return { content: [{ type: 'text', te
 
 function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
   return {
-    showNotice: (params) => {
+    showNotice: (params): Promise<CallToolResult> => {
       adapter.showNotice(params.message as string, params.duration as number | undefined);
       return Promise.resolve(text('Notice shown'));
     },
     // Confirmation modals and input prompts require Obsidian UI interaction
     // that can't be easily automated via MCP. We implement them as stubs
     // that return a structured response indicating they need user interaction.
-    showConfirm: (params) => {
+    showConfirm: (params): Promise<CallToolResult> => {
       return Promise.resolve(text(JSON.stringify({
         type: 'confirm',
         message: params.message as string,
         note: 'Confirmation modals require user interaction in the Obsidian UI',
       })));
     },
-    showPrompt: (params) => {
+    showPrompt: (params): Promise<CallToolResult> => {
       return Promise.resolve(text(JSON.stringify({
         type: 'prompt',
         message: params.message as string,

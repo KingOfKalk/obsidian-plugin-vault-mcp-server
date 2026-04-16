@@ -10,56 +10,56 @@ function err(m: string): CallToolResult { return { content: [{ type: 'text', tex
 
 function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
   return {
-    getContent: () => {
+    getContent: (): Promise<CallToolResult> => {
       const content = adapter.getActiveFileContent();
       if (content === null) return Promise.resolve(err('No active editor'));
       return Promise.resolve(text(content));
     },
-    getActivePath: () => {
+    getActivePath: (): Promise<CallToolResult> => {
       const path = adapter.getActiveFilePath();
       if (path === null) return Promise.resolve(err('No active file'));
       return Promise.resolve(text(path));
     },
-    insert: (params) => {
+    insert: (params): Promise<CallToolResult> => {
       const ok = adapter.insertTextAt(params.line as number, params.ch as number, params.text as string);
       return Promise.resolve(ok ? text('Text inserted') : err('No active editor'));
     },
-    replace: (params) => {
+    replace: (params): Promise<CallToolResult> => {
       const ok = adapter.replaceRange(
         params.fromLine as number, params.fromCh as number,
         params.toLine as number, params.toCh as number, params.text as string,
       );
       return Promise.resolve(ok ? text('Text replaced') : err('No active editor'));
     },
-    deleteRange: (params) => {
+    deleteRange: (params): Promise<CallToolResult> => {
       const ok = adapter.deleteRange(
         params.fromLine as number, params.fromCh as number,
         params.toLine as number, params.toCh as number,
       );
       return Promise.resolve(ok ? text('Text deleted') : err('No active editor'));
     },
-    getCursor: () => {
+    getCursor: (): Promise<CallToolResult> => {
       const pos = adapter.getCursorPosition();
       if (!pos) return Promise.resolve(err('No active editor'));
       return Promise.resolve(text(JSON.stringify(pos)));
     },
-    setCursor: (params) => {
+    setCursor: (params): Promise<CallToolResult> => {
       const ok = adapter.setCursorPosition(params.line as number, params.ch as number);
       return Promise.resolve(ok ? text('Cursor set') : err('No active editor'));
     },
-    getSelection: () => {
+    getSelection: (): Promise<CallToolResult> => {
       const sel = adapter.getSelection();
       if (!sel) return Promise.resolve(err('No active editor or selection'));
       return Promise.resolve(text(JSON.stringify(sel)));
     },
-    setSelection: (params) => {
+    setSelection: (params): Promise<CallToolResult> => {
       const ok = adapter.setSelection(
         params.fromLine as number, params.fromCh as number,
         params.toLine as number, params.toCh as number,
       );
       return Promise.resolve(ok ? text('Selection set') : err('No active editor'));
     },
-    getLineCount: () => {
+    getLineCount: (): Promise<CallToolResult> => {
       const count = adapter.getActiveLineCount();
       if (count === null) return Promise.resolve(err('No active editor'));
       return Promise.resolve(text(String(count)));
