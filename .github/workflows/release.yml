@@ -15,8 +15,6 @@ jobs:
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
-        with:
-          release-type: node
 
       - uses: actions/checkout@v6
         if: ${{ steps.release.outputs.release_created }}
@@ -40,6 +38,18 @@ jobs:
         if: ${{ steps.release.outputs.release_created }}
         run: echo "/* obsidian-mcp-plugin styles */" > styles.css
 
+      - name: Update versions.json
+        if: ${{ steps.release.outputs.release_created }}
+        run: |
+          VERSION="${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.${{ steps.release.outputs.patch }}"
+          MIN_APP_VERSION=$(node -p "require('./manifest.json').minAppVersion")
+          node -e "
+            const fs = require('fs');
+            const versions = JSON.parse(fs.readFileSync('versions.json', 'utf8'));
+            versions['${VERSION}'] = '${MIN_APP_VERSION}';
+            fs.writeFileSync('versions.json', JSON.stringify(versions, null, '\t') + '\n');
+          "
+
       - name: Upload release assets
         if: ${{ steps.release.outputs.release_created }}
         env:
@@ -48,4 +58,5 @@ jobs:
           gh release upload ${{ steps.release.outputs.tag_name }} \
             main.js \
             manifest.json \
-            styles.css
+            styles.css \
+            versions.json
