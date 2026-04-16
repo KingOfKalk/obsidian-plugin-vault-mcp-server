@@ -83,6 +83,7 @@ describe('Integration: HTTP Server Authentication', () => {
     registry.registerModule(vaultModule);
     const mcpServer = createMcpServer(registry, logger);
     server = new HttpMcpServer(mcpServer, logger, {
+      host: '127.0.0.1',
       port: TEST_PORT,
       accessKey: ACCESS_KEY,
     });

@@ -100,6 +100,7 @@ export default class McpPlugin extends Plugin {
     try {
       const mcpServer = createMcpServer(this.registry, this.logger);
       this.httpServer = new HttpMcpServer(mcpServer, this.logger, {
+        host: this.settings.serverAddress,
         port: this.settings.port,
         accessKey: this.settings.accessKey,
       });
