@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.0.0...v1.0.1) (2026-04-16)
+
+
+### Bug Fixes
+
+* **ci:** write non-empty styles.css placeholder for release upload ([#57](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/57)) ([4811075](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/4811075f3bc6cc3886b3641be04f0e3b80d63ef7))
+
 ## 1.0.0 (2026-04-16)
 
 
