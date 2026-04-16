@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.5.0...v1.5.1) (2026-04-16)
+
+
+### Bug Fixes
+
+* **settings:** group module + read-only toggles into a bordered card ([#97](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/97)) ([10faf56](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/10faf56ce12f945cbe4f64aef265d5aa92f3efe0)), closes [#96](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/96)
+
 ## [1.5.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.4.1...v1.5.0) (2026-04-16)
 
 
