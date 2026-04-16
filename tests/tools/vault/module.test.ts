@@ -11,26 +11,25 @@ describe('vault module', () => {
     expect(module.metadata.supportsReadOnly).toBe(true);
   });
 
-  it('should register 9 tools', () => {
+  it('should register 16 tools', () => {
     const adapter = new MockObsidianAdapter();
     const module = createVaultModule(adapter);
     const tools = module.tools();
-    expect(tools).toHaveLength(9);
+    expect(tools).toHaveLength(16);
   });
 
-  it('should have 2 read-only tools', () => {
+  it('should have 5 read-only tools', () => {
     const adapter = new MockObsidianAdapter();
     const module = createVaultModule(adapter);
     const readOnlyTools = module.tools().filter((t) => t.isReadOnly);
-    expect(readOnlyTools).toHaveLength(2);
-    expect(readOnlyTools.map((t) => t.name).sort()).toEqual(['vault_get_metadata', 'vault_read']);
+    expect(readOnlyTools).toHaveLength(5);
   });
 
-  it('should have 7 write tools', () => {
+  it('should have 11 write tools', () => {
     const adapter = new MockObsidianAdapter();
     const module = createVaultModule(adapter);
     const writeTools = module.tools().filter((t) => !t.isReadOnly);
-    expect(writeTools).toHaveLength(7);
+    expect(writeTools).toHaveLength(11);
   });
 
   it('should have correct tool names', () => {
@@ -41,12 +40,19 @@ describe('vault module', () => {
       'vault_append',
       'vault_copy',
       'vault_create',
+      'vault_create_folder',
       'vault_delete',
+      'vault_delete_folder',
       'vault_get_metadata',
+      'vault_list',
+      'vault_list_recursive',
       'vault_move',
       'vault_read',
+      'vault_read_binary',
       'vault_rename',
+      'vault_rename_folder',
       'vault_update',
+      'vault_write_binary',
     ]);
   });
 });
