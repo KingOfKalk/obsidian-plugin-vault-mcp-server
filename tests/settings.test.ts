@@ -102,11 +102,11 @@ describe('McpSettingsTab server controls', () => {
     tab.display();
   }
 
-  it('should render three buttons (Start, Stop, Restart)', () => {
+  it('should render four buttons (Copy URL, Start, Stop, Restart)', () => {
     renderTab(false);
     const buttons = getStatusButtons();
-    expect(buttons).toHaveLength(3);
-    expect(buttons.map((b) => b.text)).toEqual(['Start', 'Stop', 'Restart']);
+    expect(buttons).toHaveLength(4);
+    expect(buttons.map((b) => b.text)).toEqual(['Copy URL', 'Start', 'Stop', 'Restart']);
   });
 
   it('should disable Stop and Restart when server is stopped', () => {

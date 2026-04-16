@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
+import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
 import { randomBytes } from 'crypto';
 import type McpPlugin from './main';
 
@@ -16,6 +16,7 @@ export class McpSettingsTab extends PluginSettingTab {
 
     this.renderServerStatus(containerEl);
     this.renderServerSettings(containerEl);
+    this.renderMcpConfig(containerEl);
     this.renderModuleToggles(containerEl);
   }
 
@@ -33,6 +34,14 @@ export class McpSettingsTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName('Status')
       .setDesc(statusText)
+      .addButton((btn) =>
+        btn.setButtonText('Copy URL').onClick(() => {
+          const url = `http://127.0.0.1:${String(port)}/mcp`;
+          void navigator.clipboard.writeText(url).then(() => {
+            new Notice('MCP server URL copied to clipboard');
+          });
+        }),
+      )
       .addButton((btn) => {
         btn.setButtonText('Start').onClick(() => {
           void this.plugin.startServer().then(() => {
@@ -110,6 +119,57 @@ export class McpSettingsTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           }),
       );
+  }
+
+  private renderMcpConfig(containerEl: HTMLElement): void {
+    containerEl.createEl('h2', { text: 'MCP Client Configuration' });
+
+    const desc = containerEl.createEl('p', {
+      text: 'Add this to the mcpServers section of your MCP client configuration.',
+      cls: 'setting-item-description',
+    });
+    desc.style.marginBottom = '8px';
+
+    const config = this.buildMcpConfigJson();
+
+    const wrapper = containerEl.createDiv({ cls: 'mcp-config-preview' });
+
+    const pre = wrapper.createEl('pre');
+    const code = pre.createEl('code');
+    code.textContent = config;
+
+    const copyBtn = wrapper.createEl('button', { text: 'Copy', cls: 'mcp-config-copy-btn' });
+    copyBtn.addEventListener('click', () => {
+      void navigator.clipboard.writeText(config).then(() => {
+        copyBtn.textContent = 'Copied!';
+        copyBtn.classList.add('mcp-config-copy-btn--copied');
+        setTimeout(() => {
+          copyBtn.textContent = 'Copy';
+          copyBtn.classList.remove('mcp-config-copy-btn--copied');
+        }, 2000);
+      });
+    });
+  }
+
+  private buildMcpConfigJson(): string {
+    const port = this.plugin.settings.port;
+    const accessKey = this.plugin.settings.accessKey;
+    const url = `http://127.0.0.1:${String(port)}/mcp`;
+
+    const config: Record<string, unknown> = { url };
+
+    if (accessKey) {
+      config.headers = {
+        Authorization: `Bearer ${accessKey}`,
+      };
+    }
+
+    const full = JSON.stringify({ obsidian: config }, null, 2);
+    const lines = full.split('\n');
+    return lines
+      .slice(1, -1)
+      .map((line) => line.slice(2))
+      .join('\n');
   }
 
   private renderModuleToggles(containerEl: HTMLElement): void {
