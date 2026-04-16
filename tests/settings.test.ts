@@ -4,16 +4,17 @@ import { migrateSettings, generateAccessKey, isValidIPv4, McpSettingsTab } from 
 import { DEFAULT_SETTINGS } from '../src/types';
 
 describe('migrateSettings', () => {
-  it('should migrate v0 (no schemaVersion) to v2', () => {
+  it('should migrate v0 (no schemaVersion) to v3', () => {
     const data: Record<string, unknown> = {};
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(2);
+    expect(result.schemaVersion).toBe(3);
     expect(result.port).toBe(28741);
     expect(result.accessKey).toBe('');
     expect(result.httpsEnabled).toBe(false);
     expect(result.debugMode).toBe(false);
     expect(result.moduleStates).toEqual({});
     expect(result.serverAddress).toBe('127.0.0.1');
+    expect(result.autoStart).toBe(false);
   });
 
   it('should preserve existing values during migration', () => {
@@ -23,14 +24,15 @@ describe('migrateSettings', () => {
       debugMode: true,
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(2);
+    expect(result.schemaVersion).toBe(3);
     expect(result.port).toBe(9999);
     expect(result.accessKey).toBe('my-key');
     expect(result.debugMode).toBe(true);
     expect(result.serverAddress).toBe('127.0.0.1');
+    expect(result.autoStart).toBe(false);
   });
 
-  it('should migrate v1 data to v2 by adding serverAddress', () => {
+  it('should migrate v1 data to v3 by adding serverAddress and autoStart', () => {
     const data: Record<string, unknown> = {
       schemaVersion: 1,
       port: 28741,
@@ -40,11 +42,12 @@ describe('migrateSettings', () => {
       moduleStates: {},
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(2);
+    expect(result.schemaVersion).toBe(3);
     expect(result.serverAddress).toBe('127.0.0.1');
+    expect(result.autoStart).toBe(false);
   });
 
-  it('should not modify data already at v2', () => {
+  it('should migrate v2 data to v3 by adding autoStart=false', () => {
     const data: Record<string, unknown> = {
       schemaVersion: 2,
       serverAddress: '192.168.1.100',
@@ -52,6 +55,22 @@ describe('migrateSettings', () => {
       accessKey: 'test',
       httpsEnabled: false,
       debugMode: false,
+      moduleStates: {},
+    };
+    const result = migrateSettings(data);
+    expect(result.schemaVersion).toBe(3);
+    expect(result.autoStart).toBe(false);
+  });
+
+  it('should not modify data already at v3', () => {
+    const data: Record<string, unknown> = {
+      schemaVersion: 3,
+      serverAddress: '192.168.1.100',
+      port: 28741,
+      accessKey: 'test',
+      httpsEnabled: false,
+      debugMode: false,
+      autoStart: true,
       moduleStates: {},
     };
     const result = migrateSettings(data);
@@ -63,11 +82,18 @@ describe('migrateSettings', () => {
       port: 3000,
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(2);
+    expect(result.schemaVersion).toBe(3);
     expect(result.port).toBe(3000);
     expect(result.accessKey).toBe('');
     expect(result.moduleStates).toEqual({});
     expect(result.serverAddress).toBe('127.0.0.1');
+    expect(result.autoStart).toBe(false);
+  });
+});
+
+describe('DEFAULT_SETTINGS', () => {
+  it('should default autoStart to false', () => {
+    expect(DEFAULT_SETTINGS.autoStart).toBe(false);
   });
 });
 

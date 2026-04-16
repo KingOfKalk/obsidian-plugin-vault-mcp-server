@@ -147,6 +147,18 @@ export class McpSettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
+      .setName('Auto-start on launch')
+      .setDesc('Start MCP server automatically when Obsidian launches')
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.autoStart)
+          .onChange(async (value) => {
+            this.plugin.settings.autoStart = value;
+            await this.plugin.saveSettings();
+          }),
+      );
+
+    new Setting(containerEl)
       .setName('Debug Mode')
       .setDesc('Enable verbose logging of MCP requests and responses')
       .addToggle((toggle) =>
@@ -315,6 +327,12 @@ export function migrateSettings(
     data.schemaVersion = 2;
     // V1 -> V2: add serverAddress
     if (!data.serverAddress) data.serverAddress = '127.0.0.1';
+  }
+
+  if ((data.schemaVersion as number) < 3) {
+    data.schemaVersion = 3;
+    // V2 -> V3: add autoStart, default off for existing installs (explicit opt-in)
+    if (data.autoStart === undefined) data.autoStart = false;
   }
 
   return data;

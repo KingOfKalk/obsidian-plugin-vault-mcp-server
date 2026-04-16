@@ -11,6 +11,8 @@ export interface McpPluginSettings {
   httpsEnabled: boolean;
   /** Enable verbose debug logging */
   debugMode: boolean;
+  /** Auto-start the MCP server when Obsidian launches */
+  autoStart: boolean;
   /** Per-module enabled/disabled state, keyed by module ID */
   moduleStates: Record<string, ModuleState>;
 }
@@ -21,11 +23,12 @@ export interface ModuleState {
 }
 
 export const DEFAULT_SETTINGS: McpPluginSettings = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   serverAddress: '127.0.0.1',
   port: 28741,
   accessKey: '',
   httpsEnabled: false,
   debugMode: false,
+  autoStart: false,
   moduleStates: {},
 };

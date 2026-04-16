@@ -86,11 +86,15 @@ export default class McpPlugin extends Plugin {
       },
     });
 
-    // Start server if access key is configured
-    if (this.settings.accessKey) {
+    // Start server only when explicitly opted in and an access key is set
+    if (this.settings.autoStart && this.settings.accessKey) {
       await this.startServer();
     } else {
-      this.logger.info('MCP server not started: no access key configured');
+      if (!this.settings.accessKey) {
+        this.logger.info('MCP server not started: no access key configured');
+      } else {
+        this.logger.info('MCP server not started: auto-start is disabled');
+      }
       this.updateStatusDisplay();
     }
   }
