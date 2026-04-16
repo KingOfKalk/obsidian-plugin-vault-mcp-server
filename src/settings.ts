@@ -195,12 +195,8 @@ export class McpSettingsTab extends PluginSettingTab {
 
     const wrapper = containerEl.createDiv({ cls: 'mcp-config-preview' });
 
-    const textarea = wrapper.createEl('textarea', {
-      cls: 'mcp-config-textarea',
-    });
-    textarea.value = config;
-    textarea.rows = config.split('\n').length + 1;
-    textarea.spellcheck = false;
+    const pre = wrapper.createEl('pre', { cls: 'mcp-config-code' });
+    const code = pre.createEl('code', { text: config });
 
     const actions = wrapper.createDiv({ cls: 'mcp-config-actions' });
 
@@ -210,7 +206,7 @@ export class McpSettingsTab extends PluginSettingTab {
     });
     setIcon(copyBtn, 'copy');
     copyBtn.addEventListener('click', () => {
-      void navigator.clipboard.writeText(textarea.value).then(() => {
+      void navigator.clipboard.writeText(code.textContent ?? '').then(() => {
         setIcon(copyBtn, 'check');
         copyBtn.classList.add('mcp-config-btn--copied');
         setTimeout(() => {
@@ -226,9 +222,7 @@ export class McpSettingsTab extends PluginSettingTab {
     });
     setIcon(regenBtn, 'refresh-cw');
     regenBtn.addEventListener('click', () => {
-      const newConfig = this.buildMcpConfigJson();
-      textarea.value = newConfig;
-      textarea.rows = newConfig.split('\n').length + 1;
+      code.textContent = this.buildMcpConfigJson();
     });
   }
 

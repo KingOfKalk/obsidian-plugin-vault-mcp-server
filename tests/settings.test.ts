@@ -246,18 +246,19 @@ describe('McpSettingsTab MCP config display', () => {
     };
   }
 
-  it('should render a textarea with the MCP config JSON', () => {
+  it('should render a <pre><code> card with the MCP config JSON', () => {
     const { container } = renderWithTracking();
-    const textarea = findByClass(container, 'mcp-config-textarea');
-    expect(textarea).toBeDefined();
-    expect(textarea!.tagName).toBe('textarea');
-    expect(textarea!.value).toContain('"url"');
-    expect(textarea!.value).toContain('28741');
-    expect(textarea!.value).toContain('Bearer test-key-abc');
-    expect(textarea!.spellcheck).toBe(false);
+    const pre = findByClass(container, 'mcp-config-code');
+    expect(pre).toBeDefined();
+    expect(pre!.tagName).toBe('pre');
+    const code = pre!.children[0];
+    expect(code.tagName).toBe('code');
+    expect(code.textContent).toContain('"url"');
+    expect(code.textContent).toContain('28741');
+    expect(code.textContent).toContain('Bearer test-key-abc');
   });
 
-  it('should render Copy and Regenerate as icon buttons with tooltips', () => {
+  it('should render Copy and Regenerate as icon buttons on one line', () => {
     const { container } = renderWithTracking();
     const actions = findByClass(container, 'mcp-config-actions');
     expect(actions).toBeDefined();
@@ -274,36 +275,29 @@ describe('McpSettingsTab MCP config display', () => {
     expect(regenBtn._icon).toBe('refresh-cw');
   });
 
-  it('Regenerate button should update textarea with current settings', () => {
+  it('Regenerate button should update the code block with current settings', () => {
     const { container, plugin } = renderWithTracking();
-    const textarea = findByClass(container, 'mcp-config-textarea')!;
+    const code = findByClass(container, 'mcp-config-code')!.children[0];
     const actions = findByClass(container, 'mcp-config-actions')!;
     const regenBtn = actions.children[1];
 
-    expect(textarea.value).toContain('28741');
+    expect(code.textContent).toContain('28741');
 
     plugin.settings.port = 9999;
     plugin.settings.accessKey = 'new-key-xyz';
     regenBtn.handlers['click'][0]();
 
-    expect(textarea.value).toContain('9999');
-    expect(textarea.value).toContain('Bearer new-key-xyz');
-    expect(textarea.value).not.toContain('28741');
-  });
-
-  it('should set textarea rows based on config line count', () => {
-    const { container } = renderWithTracking();
-    const textarea = findByClass(container, 'mcp-config-textarea')!;
-    const lineCount = textarea.value.split('\n').length;
-    expect(textarea.rows).toBe(lineCount + 1);
+    expect(code.textContent).toContain('9999');
+    expect(code.textContent).toContain('Bearer new-key-xyz');
+    expect(code.textContent).not.toContain('28741');
   });
 
   it('should omit headers when access key is empty', () => {
     const { container } = renderWithTracking({ accessKey: '' });
-    const textarea = findByClass(container, 'mcp-config-textarea')!;
-    expect(textarea.value).toContain('"url"');
-    expect(textarea.value).not.toContain('Authorization');
-    expect(textarea.value).not.toContain('headers');
+    const code = findByClass(container, 'mcp-config-code')!.children[0];
+    expect(code.textContent).toContain('"url"');
+    expect(code.textContent).not.toContain('Authorization');
+    expect(code.textContent).not.toContain('headers');
   });
 });
 

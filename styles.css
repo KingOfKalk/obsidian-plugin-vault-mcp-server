@@ -2,30 +2,32 @@
   margin-bottom: 1em;
 }
 
-.mcp-config-textarea {
+.mcp-config-code {
   display: block;
   width: 100%;
+  margin: 0;
   padding: 12px;
   border-radius: 8px;
   background-color: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
+  box-sizing: border-box;
+  overflow-x: auto;
+}
+
+.mcp-config-code code {
   font-family: var(--font-monospace);
   font-size: var(--font-smaller);
   line-height: 1.5;
   color: var(--text-normal);
-  resize: vertical;
-  box-sizing: border-box;
   white-space: pre;
-  overflow-x: auto;
-}
-
-.mcp-config-textarea:focus {
-  border-color: var(--interactive-accent);
-  outline: none;
+  background: transparent;
+  padding: 0;
 }
 
 .mcp-config-actions {
   display: flex;
+  flex-direction: row;
+  align-items: center;
   gap: 4px;
   margin-top: 8px;
 }
