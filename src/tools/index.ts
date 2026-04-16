@@ -1,6 +1,7 @@
 import { ObsidianAdapter } from '../obsidian/adapter';
 import { ToolModule } from '../registry/types';
 import { createEditorModule } from './editor';
+import { createExtrasModule } from './extras';
 import { createPluginInteropModule } from './plugin-interop';
 import { createSearchModule } from './search';
 import { createTemplatesModule } from './templates';
@@ -18,6 +19,7 @@ export const MODULE_FACTORIES: ModuleFactory[] = [
   createUiModule,
   createTemplatesModule,
   createPluginInteropModule,
+  createExtrasModule,
 ];
 
 export function discoverModules(adapter: ObsidianAdapter): ToolModule[] {
