@@ -52,6 +52,18 @@ src/
 
 See existing modules (e.g., `src/tools/vault/`) for examples.
 
+## UI Requirements
+
+### MCP Client Configuration Display
+
+The MCP Client Configuration section in the settings tab must:
+
+- Display the generated JSON configuration in an **editable textarea** (not a read-only `<pre><code>` block)
+- Allow users to select, copy, and interact with the configuration text directly
+- Provide a **Copy** button to copy the configuration to the clipboard
+- Provide a **Regenerate** button to rebuild the configuration from current settings (port, access key)
+- Use clean, professional alignment consistent with Obsidian's native settings UI
+
 ## Commit Conventions
 
 This project uses [Conventional Commits](https://www.conventionalcommits.org/):
