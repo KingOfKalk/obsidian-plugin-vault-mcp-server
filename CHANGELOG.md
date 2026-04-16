@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.2.0...v1.3.0) (2026-04-16)
+
+
+### Features
+
+* configurable MCP server IP address (CR17) ([#70](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/70)) ([af42c44](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/af42c442558886f39b6a62dc4406ceb15c4e9db9))
+* replace MCP config code block with textarea and action buttons ([#71](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/71)) ([5cc0a6b](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/5cc0a6b6e4d84fe26a1d4cdbe6595995e2937ad7))
+
 ## [1.2.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.1.0...v1.2.0) (2026-04-16)
 
 
