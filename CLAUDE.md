@@ -50,12 +50,13 @@ Follow these steps for every new feature or change:
 ## Screenshots of the plugin UI
 
 You can drive Obsidian on this host (Xvfb + CDP + Python) and capture real
-PNGs — no Docker needed. Use this whenever you need to verify a UI change
-visually.
+PNGs. Use this whenever you need to verify a UI change visually.
 
 - Host workflow (caveman steps, copy-paste script): [`docs/screenshots-on-host.md`](docs/screenshots-on-host.md)
-- Docker workflow (for machines where Docker works): [`docker/AGENT-GUIDE.md`](docker/AGENT-GUIDE.md)
+- Python building blocks under `docker/scripts/`: `obsidian_cdp.py`,
+  `bootstrap.py`, `create_vault.py`, `screenshot.py`, `scenarios.py`.
 
-Both reuse the same Python scripts under `docker/scripts/` (`obsidian_cdp.py`,
-`bootstrap.py`, `create_vault.py`, `screenshot.py`). Read the PNG files with
-the `Read` tool — they render inline.
+Read the PNG files with the `Read` tool — they render inline. Screenshots
+published to users land on the GitHub release page: `release.yml` captures
+`release-main.png`, `release-plugin-settings.png`, and `release-server-running.png`
+via `docker/scripts/release_screenshots.py` and attaches them as release assets.
