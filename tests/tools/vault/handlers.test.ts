@@ -118,6 +118,53 @@ describe('vault handlers', () => {
       expect(result.isError).toBe(true);
     });
   });
+
+  describe('renameFile', () => {
+    it('should rename a file', async () => {
+      adapter.addFile('notes/old.md', 'content');
+      const result = await handlers.renameFile({ path: 'notes/old.md', newName: 'new.md' });
+      expect(result.isError).toBeUndefined();
+      expect(getText(result)).toContain('Renamed');
+      const content = await adapter.readFile('notes/new.md');
+      expect(content).toBe('content');
+    });
+
+    it('should reject path traversal in rename', async () => {
+      adapter.addFile('test.md', 'content');
+      const result = await handlers.renameFile({ path: '../test.md', newName: 'new.md' });
+      expect(result.isError).toBe(true);
+    });
+  });
+
+  describe('moveFile', () => {
+    it('should move a file', async () => {
+      adapter.addFile('old/test.md', 'content');
+      adapter.addFolder('new');
+      const result = await handlers.moveFile({ path: 'old/test.md', newPath: 'new/test.md' });
+      expect(result.isError).toBeUndefined();
+      expect(getText(result)).toContain('Moved');
+    });
+
+    it('should reject path traversal in move', async () => {
+      const result = await handlers.moveFile({ path: '../test.md', newPath: 'safe.md' });
+      expect(result.isError).toBe(true);
+    });
+  });
+
+  describe('copyFile', () => {
+    it('should copy a file', async () => {
+      adapter.addFile('source.md', 'content');
+      const result = await handlers.copyFile({ sourcePath: 'source.md', destPath: 'dest.md' });
+      expect(result.isError).toBeUndefined();
+      expect(await adapter.readFile('source.md')).toBe('content');
+      expect(await adapter.readFile('dest.md')).toBe('content');
+    });
+
+    it('should reject path traversal in copy', async () => {
+      const result = await handlers.copyFile({ sourcePath: '../etc/passwd', destPath: 'dest.md' });
+      expect(result.isError).toBe(true);
+    });
+  });
 });
 
 describe('WriteMutex', () => {

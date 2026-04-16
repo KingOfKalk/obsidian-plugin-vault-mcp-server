@@ -8,6 +8,9 @@ import {
   deleteFileSchema,
   appendFileSchema,
   getMetadataSchema,
+  renameFileSchema,
+  moveFileSchema,
+  copyFileSchema,
 } from './schemas';
 
 export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
@@ -65,6 +68,27 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           schema: getMetadataSchema,
           handler: handlers.getMetadata,
           isReadOnly: true,
+        },
+        {
+          name: 'vault_rename',
+          description: 'Rename a file within the same folder',
+          schema: renameFileSchema,
+          handler: handlers.renameFile,
+          isReadOnly: false,
+        },
+        {
+          name: 'vault_move',
+          description: 'Move a file to a different folder',
+          schema: moveFileSchema,
+          handler: handlers.moveFile,
+          isReadOnly: false,
+        },
+        {
+          name: 'vault_copy',
+          description: 'Copy a file to a new path',
+          schema: copyFileSchema,
+          handler: handlers.copyFile,
+          isReadOnly: false,
         },
       ];
     },
