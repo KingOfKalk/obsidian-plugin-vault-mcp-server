@@ -259,9 +259,12 @@ export class McpSettingsTab extends PluginSettingTab {
     for (const registration of modules) {
       const { metadata } = registration.module;
 
-      new Setting(containerEl)
+      const card = containerEl.createDiv({ cls: 'mcp-module-card' });
+
+      new Setting(card)
         .setName(metadata.name)
         .setDesc(metadata.description)
+        .setClass('mcp-module-card-header')
         .addToggle((toggle) =>
           toggle.setValue(registration.enabled).onChange(async (value) => {
             if (value) {
@@ -275,7 +278,7 @@ export class McpSettingsTab extends PluginSettingTab {
         );
 
       if (metadata.supportsReadOnly) {
-        new Setting(containerEl)
+        new Setting(card)
           .setName('Read-only')
           .setDesc('Expose only read tools for this module; hide mutating tools.')
           .setClass('mcp-module-readonly-row')
