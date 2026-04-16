@@ -134,20 +134,38 @@ export class McpSettingsTab extends PluginSettingTab {
 
     const wrapper = containerEl.createDiv({ cls: 'mcp-config-preview' });
 
-    const pre = wrapper.createEl('pre');
-    const code = pre.createEl('code');
-    code.textContent = config;
+    const textarea = wrapper.createEl('textarea', {
+      cls: 'mcp-config-textarea',
+    });
+    textarea.value = config;
+    textarea.rows = config.split('\n').length + 1;
+    textarea.spellcheck = false;
 
-    const copyBtn = wrapper.createEl('button', { text: 'Copy', cls: 'mcp-config-copy-btn' });
+    const actions = wrapper.createDiv({ cls: 'mcp-config-actions' });
+
+    const copyBtn = actions.createEl('button', {
+      text: 'Copy',
+      cls: 'mcp-config-btn',
+    });
     copyBtn.addEventListener('click', () => {
-      void navigator.clipboard.writeText(config).then(() => {
+      void navigator.clipboard.writeText(textarea.value).then(() => {
         copyBtn.textContent = 'Copied!';
-        copyBtn.classList.add('mcp-config-copy-btn--copied');
+        copyBtn.classList.add('mcp-config-btn--copied');
         setTimeout(() => {
           copyBtn.textContent = 'Copy';
-          copyBtn.classList.remove('mcp-config-copy-btn--copied');
+          copyBtn.classList.remove('mcp-config-btn--copied');
         }, 2000);
       });
+    });
+
+    const regenBtn = actions.createEl('button', {
+      text: 'Regenerate',
+      cls: 'mcp-config-btn',
+    });
+    regenBtn.addEventListener('click', () => {
+      const newConfig = this.buildMcpConfigJson();
+      textarea.value = newConfig;
+      textarea.rows = newConfig.split('\n').length + 1;
     });
   }
 
