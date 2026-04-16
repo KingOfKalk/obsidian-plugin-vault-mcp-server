@@ -4,9 +4,7 @@
 
 .mcp-config-textarea {
   display: block;
-  width: auto;
-  min-width: 12rem;
-  max-width: 100%;
+  width: 100%;
   padding: 12px;
   border-radius: 8px;
   background-color: var(--background-secondary);
@@ -28,29 +26,29 @@
 
 .mcp-config-actions {
   display: flex;
-  gap: 8px;
+  gap: 4px;
   margin-top: 8px;
 }
 
 .mcp-config-btn {
-  padding: 6px 16px;
-  font-size: var(--font-smallest);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   border-radius: 4px;
-  border: 1px solid var(--background-modifier-border);
-  background-color: var(--interactive-normal);
   color: var(--text-muted);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: color 0.15s ease;
 }
 
 .mcp-config-btn:hover {
-  background-color: var(--interactive-hover);
   color: var(--text-normal);
 }
 
 .mcp-config-btn--copied {
   color: var(--text-success);
-  border-color: var(--text-success);
 }
 
 .mcp-module-card {
