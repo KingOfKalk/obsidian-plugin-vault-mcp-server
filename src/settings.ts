@@ -1,4 +1,4 @@
-import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
+import { App, Notice, PluginSettingTab, Setting, setIcon } from 'obsidian';
 import { randomBytes } from 'crypto';
 import type McpPlugin from './main';
 import type { ModuleRegistration } from './registry/types';
@@ -205,24 +205,26 @@ export class McpSettingsTab extends PluginSettingTab {
     const actions = wrapper.createDiv({ cls: 'mcp-config-actions' });
 
     const copyBtn = actions.createEl('button', {
-      text: 'Copy',
-      cls: 'mcp-config-btn',
+      cls: 'mcp-config-btn clickable-icon',
+      attr: { 'aria-label': 'Copy configuration', type: 'button' },
     });
+    setIcon(copyBtn, 'copy');
     copyBtn.addEventListener('click', () => {
       void navigator.clipboard.writeText(textarea.value).then(() => {
-        copyBtn.textContent = 'Copied!';
+        setIcon(copyBtn, 'check');
         copyBtn.classList.add('mcp-config-btn--copied');
         setTimeout(() => {
-          copyBtn.textContent = 'Copy';
+          setIcon(copyBtn, 'copy');
           copyBtn.classList.remove('mcp-config-btn--copied');
         }, 2000);
       });
     });
 
     const regenBtn = actions.createEl('button', {
-      text: 'Regenerate',
-      cls: 'mcp-config-btn',
+      cls: 'mcp-config-btn clickable-icon',
+      attr: { 'aria-label': 'Regenerate configuration', type: 'button' },
     });
+    setIcon(regenBtn, 'refresh-cw');
     regenBtn.addEventListener('click', () => {
       const newConfig = this.buildMcpConfigJson();
       textarea.value = newConfig;

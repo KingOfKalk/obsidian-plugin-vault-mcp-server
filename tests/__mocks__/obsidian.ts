@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/require-await, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/explicit-function-return-type */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/require-await, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/explicit-function-return-type */
 
 export class Plugin {
   app: any;
@@ -168,6 +168,10 @@ export class App {
 
 export class Notice {
   constructor(_message: string, _timeout?: number) {}
+}
+
+export function setIcon(el: any, icon: string): void {
+  if (el) el._icon = icon;
 }
 
 export class Modal {

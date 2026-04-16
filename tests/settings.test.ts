@@ -140,13 +140,18 @@ interface TrackingEl {
   rows: number;
   spellcheck: boolean;
   style: Record<string, string>;
+  attributes: Record<string, string>;
+  _icon?: string;
   classList: { add: () => void; remove: () => void };
   handlers: Record<string, Array<() => void>>;
   children: TrackingEl[];
   empty: () => void;
   setText: () => void;
   addEventListener: (event: string, handler: () => void) => void;
-  createEl: (tag?: string, opts?: { text?: string; cls?: string }) => TrackingEl;
+  createEl: (
+    tag?: string,
+    opts?: { text?: string; cls?: string; attr?: Record<string, string> },
+  ) => TrackingEl;
   createDiv: (opts?: { cls?: string }) => TrackingEl;
 }
 
@@ -159,6 +164,7 @@ function createTrackingEl(): TrackingEl {
     rows: 0,
     spellcheck: true,
     style: {},
+    attributes: {},
     classList: { add: (): void => {}, remove: (): void => {} },
     handlers: {},
     children: [],
@@ -170,11 +176,15 @@ function createTrackingEl(): TrackingEl {
       if (!el.handlers[event]) el.handlers[event] = [];
       el.handlers[event].push(handler);
     },
-    createEl: (tag?: string, opts?: { text?: string; cls?: string }): TrackingEl => {
+    createEl: (
+      tag?: string,
+      opts?: { text?: string; cls?: string; attr?: Record<string, string> },
+    ): TrackingEl => {
       const child = createTrackingEl();
       if (tag) child.tagName = tag;
       if (opts?.text) child.textContent = opts.text;
       if (opts?.cls) child.className = opts.cls;
+      if (opts?.attr) Object.assign(child.attributes, opts.attr);
       el.children.push(child);
       return child;
     },
@@ -247,13 +257,21 @@ describe('McpSettingsTab MCP config display', () => {
     expect(textarea!.spellcheck).toBe(false);
   });
 
-  it('should render Copy and Regenerate buttons', () => {
+  it('should render Copy and Regenerate as icon buttons with tooltips', () => {
     const { container } = renderWithTracking();
     const actions = findByClass(container, 'mcp-config-actions');
     expect(actions).toBeDefined();
     expect(actions!.children).toHaveLength(2);
-    expect(actions!.children[0].textContent).toBe('Copy');
-    expect(actions!.children[1].textContent).toBe('Regenerate');
+
+    const copyBtn = actions!.children[0];
+    expect(copyBtn.tagName).toBe('button');
+    expect(copyBtn.attributes['aria-label']).toBe('Copy configuration');
+    expect(copyBtn._icon).toBe('copy');
+
+    const regenBtn = actions!.children[1];
+    expect(regenBtn.tagName).toBe('button');
+    expect(regenBtn.attributes['aria-label']).toBe('Regenerate configuration');
+    expect(regenBtn._icon).toBe('refresh-cw');
   });
 
   it('Regenerate button should update textarea with current settings', () => {
