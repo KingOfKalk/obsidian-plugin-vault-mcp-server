@@ -18,9 +18,6 @@ just fine without the container.
   Xvfb :99        fake screen, no monitor needed
     |
     v
-  fluxbox         window manager, so Obsidian paints real window
-    |
-    v
   obsidian --remote-debugging-port=9222
     |
     v
@@ -33,8 +30,15 @@ just fine without the container.
   PNG file        Page.captureScreenshot dumps pixels
 ```
 
-Same three layers as the Docker setup, just running straight on the host
-instead of inside a container.
+No window manager needed. `Page.captureScreenshot` reads Electron's
+renderer surface directly (the compositor output), so fluxbox / X11 window
+mapping doesn't matter for what ends up in the PNG. Xvfb is still
+required because Electron won't initialize its GL context without *some*
+display.
+
+Same layers as the Docker setup, just running straight on the host
+instead of inside a container. (The Docker image does launch fluxbox,
+but only as a carryover — screenshots there are also CDP-based.)
 
 ---
 
@@ -48,7 +52,7 @@ Most things are already on Ubuntu 24.04. Fill the gaps:
 
 ```bash
 apt-get install -y --no-install-recommends \
-    xvfb fluxbox x11-utils \
+    xvfb x11-utils \
     dbus dbus-x11 \
     libgtk-3-0 libnotify4 libnss3 libxss1 libasound2t64 \
     libsecret-1-0 xdg-utils libgbm1 libdrm2 libx11-xcb1 \
@@ -90,17 +94,17 @@ npm run build       # produces main.js + styles.css at repo root
 
 ## Each run
 
-### 1. Start Xvfb + D-Bus + fluxbox
+### 1. Start Xvfb + D-Bus
 
 Xvfb gives a fake 1920x1080 screen on display `:99`. D-Bus stops Electron
-complaining. fluxbox gives Obsidian a mapped window.
+complaining about missing session bus. No window manager needed — CDP
+captures the renderer surface directly.
 
 ```bash
 export DISPLAY=:99
 Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset \
     >/tmp/xvfb.log 2>&1 &
 eval "$(dbus-launch --sh-syntax)"
-DISPLAY=:99 fluxbox >/tmp/fluxbox.log 2>&1 &
 sleep 1
 DISPLAY=:99 xdpyinfo >/dev/null && echo "X is up"
 ```
@@ -187,7 +191,6 @@ pgrep -f 'Xvfb :99' >/dev/null || \
     Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset \
         >/tmp/xvfb.log 2>&1 &
 eval "$(dbus-launch --sh-syntax)"
-pgrep -f fluxbox >/dev/null || fluxbox >/tmp/fluxbox.log 2>&1 &
 sleep 1
 
 # 2. vault
@@ -284,8 +287,9 @@ dialog" but the dialog is still in the screenshot, the click landed before
 the dialog was mounted — rerun bootstrap or `sleep 2` before screenshotting.
 
 **Screenshot is black**
-Fluxbox not running, or Obsidian crashed. Check `pgrep fluxbox` and
-`pgrep -f squashfs-root/obsidian`.
+Obsidian crashed or Xvfb died before the renderer warmed up. Check
+`pgrep -f squashfs-root/obsidian` and `cat /tmp/obsidian.log`. CDP returns
+a black bitmap if the page never finished loading.
 
 **Shell state resets between turns**
 Background processes persist across turns for the same shell, but a fresh
