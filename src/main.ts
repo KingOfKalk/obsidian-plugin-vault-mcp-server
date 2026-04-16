@@ -98,12 +98,15 @@ export default class McpPlugin extends Plugin {
 
   async startServer(): Promise<void> {
     try {
-      const mcpServer = createMcpServer(this.registry, this.logger);
-      this.httpServer = new HttpMcpServer(mcpServer, this.logger, {
-        host: this.settings.serverAddress,
-        port: this.settings.port,
-        accessKey: this.settings.accessKey,
-      });
+      this.httpServer = new HttpMcpServer(
+        () => createMcpServer(this.registry, this.logger),
+        this.logger,
+        {
+          host: this.settings.serverAddress,
+          port: this.settings.port,
+          accessKey: this.settings.accessKey,
+        },
+      );
       await this.httpServer.start();
       this.updateStatusDisplay();
       new Notice(`MCP server started on port ${String(this.settings.port)}`);

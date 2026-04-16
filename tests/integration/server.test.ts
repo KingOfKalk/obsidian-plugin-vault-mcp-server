@@ -81,12 +81,15 @@ describe('Integration: HTTP Server Authentication', () => {
     const adapter = new MockObsidianAdapter();
     const vaultModule = createVaultModule(adapter);
     registry.registerModule(vaultModule);
-    const mcpServer = createMcpServer(registry, logger);
-    server = new HttpMcpServer(mcpServer, logger, {
-      host: '127.0.0.1',
-      port: TEST_PORT,
-      accessKey: ACCESS_KEY,
-    });
+    server = new HttpMcpServer(
+      () => createMcpServer(registry, logger),
+      logger,
+      {
+        host: '127.0.0.1',
+        port: TEST_PORT,
+        accessKey: ACCESS_KEY,
+      },
+    );
     await server.start();
   });
 
@@ -152,6 +155,70 @@ describe('Integration: HTTP Server Authentication', () => {
     expect(data.jsonrpc).toBe('2.0');
     expect(data.id).toBe(1);
     expect(data.result).toBeDefined();
+    expect(res.headers['mcp-session-id']).toBeDefined();
+  });
+
+  it('should allow multiple independent clients to initialize', async () => {
+    // Regression for LM Studio "Server already initialized" error (#74).
+    // Each new client without a session ID must be able to initialize.
+    const makeInitRequest = async (
+      clientName: string,
+    ): Promise<{ status: number; headers: Record<string, string>; body: string }> => {
+      const body = JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'initialize',
+        params: {
+          protocolVersion: '2025-03-26',
+          capabilities: {},
+          clientInfo: { name: clientName, version: '1.0.0' },
+        },
+      });
+      return makeRequest('POST', '/', {
+        Authorization: `Bearer ${ACCESS_KEY}`,
+        Accept: 'application/json, text/event-stream',
+      }, body);
+    };
+
+    const first = await makeInitRequest('client-a');
+    const second = await makeInitRequest('client-b');
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(first.headers['mcp-session-id']).toBeDefined();
+    expect(second.headers['mcp-session-id']).toBeDefined();
+    expect(first.headers['mcp-session-id']).not.toBe(second.headers['mcp-session-id']);
+  });
+
+  it('should reject non-initialize POST without session ID', async () => {
+    const body = JSON.stringify({
+      jsonrpc: '2.0',
+      id: 99,
+      method: 'tools/list',
+      params: {},
+    });
+    const res = await makeRequest('POST', '/', {
+      Authorization: `Bearer ${ACCESS_KEY}`,
+      Accept: 'application/json, text/event-stream',
+    }, body);
+    expect(res.status).toBe(400);
+    const data = JSON.parse(res.body) as { error?: { message?: string } };
+    expect(data.error?.message).toContain('session ID');
+  });
+
+  it('should return 404 for requests with unknown session ID', async () => {
+    const body = JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/list',
+      params: {},
+    });
+    const res = await makeRequest('POST', '/', {
+      Authorization: `Bearer ${ACCESS_KEY}`,
+      Accept: 'application/json, text/event-stream',
+      'Mcp-Session-Id': 'nonexistent-session-id',
+    }, body);
+    expect(res.status).toBe(404);
   });
 
   it('should report server as running', () => {
