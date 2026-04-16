@@ -106,6 +106,163 @@ describe('isValidIPv4', () => {
   });
 });
 
+interface TrackingEl {
+  tagName: string;
+  className: string;
+  textContent: string;
+  value: string;
+  rows: number;
+  spellcheck: boolean;
+  style: Record<string, string>;
+  classList: { add: () => void; remove: () => void };
+  handlers: Record<string, Array<() => void>>;
+  children: TrackingEl[];
+  empty: () => void;
+  setText: () => void;
+  addEventListener: (event: string, handler: () => void) => void;
+  createEl: (tag?: string, opts?: { text?: string; cls?: string }) => TrackingEl;
+  createDiv: (opts?: { cls?: string }) => TrackingEl;
+}
+
+function createTrackingEl(): TrackingEl {
+  const el: TrackingEl = {
+    tagName: '',
+    className: '',
+    textContent: '',
+    value: '',
+    rows: 0,
+    spellcheck: true,
+    style: {},
+    classList: { add: (): void => {}, remove: (): void => {} },
+    handlers: {},
+    children: [],
+    empty: (): void => {
+      el.children.length = 0;
+    },
+    setText: (): void => {},
+    addEventListener: (event: string, handler: () => void): void => {
+      if (!el.handlers[event]) el.handlers[event] = [];
+      el.handlers[event].push(handler);
+    },
+    createEl: (tag?: string, opts?: { text?: string; cls?: string }): TrackingEl => {
+      const child = createTrackingEl();
+      if (tag) child.tagName = tag;
+      if (opts?.text) child.textContent = opts.text;
+      if (opts?.cls) child.className = opts.cls;
+      el.children.push(child);
+      return child;
+    },
+    createDiv: (opts?: { cls?: string }): TrackingEl => {
+      const child = createTrackingEl();
+      child.tagName = 'div';
+      if (opts?.cls) child.className = opts.cls;
+      el.children.push(child);
+      return child;
+    },
+  };
+  return el;
+}
+
+function findByClass(root: TrackingEl, cls: string): TrackingEl | undefined {
+  for (const child of root.children) {
+    if (child.className === cls) return child;
+    const found = findByClass(child, cls);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+describe('McpSettingsTab MCP config display', () => {
+  beforeEach(() => {
+    (Setting as unknown as { instances: unknown[] }).instances = [];
+  });
+
+  function renderWithTracking(
+    overrides?: Partial<{ port: number; accessKey: string }>,
+  ): { tab: McpSettingsTab; container: TrackingEl; plugin: ReturnType<typeof createConfigMockPlugin> } {
+    const plugin = createConfigMockPlugin(overrides);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+    const tab = new McpSettingsTab({} as any, plugin as any);
+    const container = createTrackingEl();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+    (tab as any).containerEl = container;
+    tab.display();
+    return { tab, container, plugin };
+  }
+
+  function createConfigMockPlugin(overrides?: Partial<{ port: number; accessKey: string }>): {
+    settings: { serverAddress: string; port: number; accessKey: string; httpsEnabled: boolean; debugMode: boolean; moduleStates: Record<string, unknown>; schemaVersion: number };
+    httpServer: null;
+    registry: { getModules: () => [] };
+    logger: { updateOptions: () => void };
+    saveSettings: ReturnType<typeof vi.fn>;
+  } {
+    return {
+      settings: {
+        ...DEFAULT_SETTINGS,
+        accessKey: 'test-key-abc',
+        ...overrides,
+      },
+      httpServer: null,
+      registry: { getModules: () => [] },
+      logger: { updateOptions: (): void => {} },
+      saveSettings: vi.fn().mockResolvedValue(undefined),
+    };
+  }
+
+  it('should render a textarea with the MCP config JSON', () => {
+    const { container } = renderWithTracking();
+    const textarea = findByClass(container, 'mcp-config-textarea');
+    expect(textarea).toBeDefined();
+    expect(textarea!.tagName).toBe('textarea');
+    expect(textarea!.value).toContain('"url"');
+    expect(textarea!.value).toContain('28741');
+    expect(textarea!.value).toContain('Bearer test-key-abc');
+    expect(textarea!.spellcheck).toBe(false);
+  });
+
+  it('should render Copy and Regenerate buttons', () => {
+    const { container } = renderWithTracking();
+    const actions = findByClass(container, 'mcp-config-actions');
+    expect(actions).toBeDefined();
+    expect(actions!.children).toHaveLength(2);
+    expect(actions!.children[0].textContent).toBe('Copy');
+    expect(actions!.children[1].textContent).toBe('Regenerate');
+  });
+
+  it('Regenerate button should update textarea with current settings', () => {
+    const { container, plugin } = renderWithTracking();
+    const textarea = findByClass(container, 'mcp-config-textarea')!;
+    const actions = findByClass(container, 'mcp-config-actions')!;
+    const regenBtn = actions.children[1];
+
+    expect(textarea.value).toContain('28741');
+
+    plugin.settings.port = 9999;
+    plugin.settings.accessKey = 'new-key-xyz';
+    regenBtn.handlers['click'][0]();
+
+    expect(textarea.value).toContain('9999');
+    expect(textarea.value).toContain('Bearer new-key-xyz');
+    expect(textarea.value).not.toContain('28741');
+  });
+
+  it('should set textarea rows based on config line count', () => {
+    const { container } = renderWithTracking();
+    const textarea = findByClass(container, 'mcp-config-textarea')!;
+    const lineCount = textarea.value.split('\n').length;
+    expect(textarea.rows).toBe(lineCount + 1);
+  });
+
+  it('should omit headers when access key is empty', () => {
+    const { container } = renderWithTracking({ accessKey: '' });
+    const textarea = findByClass(container, 'mcp-config-textarea')!;
+    expect(textarea.value).toContain('"url"');
+    expect(textarea.value).not.toContain('Authorization');
+    expect(textarea.value).not.toContain('headers');
+  });
+});
+
 describe('McpSettingsTab server controls', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockPlugin: Record<string, any>;
