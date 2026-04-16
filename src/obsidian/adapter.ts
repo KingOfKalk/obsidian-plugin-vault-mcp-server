@@ -1,4 +1,5 @@
-import { App, TFile, TFolder, TAbstractFile, Vault } from 'obsidian';
+/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-require-imports */
+import { App, Notice, TFile, TFolder, TAbstractFile, Vault } from 'obsidian';
 
 export interface FileStat {
   size: number;
@@ -48,6 +49,33 @@ export interface ObsidianAdapter {
   getUnresolvedLinks(): Record<string, Record<string, number>>;
   getAllFiles(): string[];
   searchContent(query: string): Promise<Array<{ path: string; matches: string[] }>>;
+
+  // Editor operations
+  getActiveFileContent(): string | null;
+  getActiveFilePath(): string | null;
+  getActiveLineCount(): number | null;
+  insertTextAt(line: number, ch: number, text: string): boolean;
+  replaceRange(fromLine: number, fromCh: number, toLine: number, toCh: number, text: string): boolean;
+  deleteRange(fromLine: number, fromCh: number, toLine: number, toCh: number): boolean;
+  getCursorPosition(): { line: number; ch: number } | null;
+  setCursorPosition(line: number, ch: number): boolean;
+  getSelection(): { from: { line: number; ch: number }; to: { line: number; ch: number }; text: string } | null;
+  setSelection(fromLine: number, fromCh: number, toLine: number, toCh: number): boolean;
+
+  // Workspace operations
+  getActiveLeafInfo(): Record<string, unknown> | null;
+  openFile(path: string, mode?: string): Promise<void>;
+  getOpenFiles(): Array<{ path: string; leafId: string }>;
+  setActiveLeaf(leafId: string): boolean;
+  getWorkspaceLayout(): Record<string, unknown>;
+
+  // UI operations
+  showNotice(message: string, duration?: number): void;
+
+  // Plugin operations
+  getInstalledPlugins(): Array<{ id: string; name: string; enabled: boolean }>;
+  isPluginEnabled(pluginId: string): boolean;
+  executeCommand(commandId: string): boolean;
 }
 
 export class RealObsidianAdapter implements ObsidianAdapter {
@@ -250,6 +278,149 @@ export class RealObsidianAdapter implements ObsidianAdapter {
       }
     }
     return results;
+  }
+
+  getActiveFileContent(): string | null {
+    const editor = this.app.workspace.activeEditor?.editor;
+    if (!editor) return null;
+    return editor.getValue();
+  }
+
+  getActiveFilePath(): string | null {
+    const file = this.app.workspace.getActiveFile();
+    return file?.path ?? null;
+  }
+
+  getActiveLineCount(): number | null {
+    const editor = this.app.workspace.activeEditor?.editor;
+    if (!editor) return null;
+    return editor.lineCount();
+  }
+
+  insertTextAt(line: number, ch: number, text: string): boolean {
+    const editor = this.app.workspace.activeEditor?.editor;
+    if (!editor) return false;
+    editor.replaceRange(text, { line, ch });
+    return true;
+  }
+
+  replaceRange(fromLine: number, fromCh: number, toLine: number, toCh: number, text: string): boolean {
+    const editor = this.app.workspace.activeEditor?.editor;
+    if (!editor) return false;
+    editor.replaceRange(text, { line: fromLine, ch: fromCh }, { line: toLine, ch: toCh });
+    return true;
+  }
+
+  deleteRange(fromLine: number, fromCh: number, toLine: number, toCh: number): boolean {
+    return this.replaceRange(fromLine, fromCh, toLine, toCh, '');
+  }
+
+  getCursorPosition(): { line: number; ch: number } | null {
+    const editor = this.app.workspace.activeEditor?.editor;
+    if (!editor) return null;
+    const cursor = editor.getCursor();
+    return { line: cursor.line, ch: cursor.ch };
+  }
+
+  setCursorPosition(line: number, ch: number): boolean {
+    const editor = this.app.workspace.activeEditor?.editor;
+    if (!editor) return false;
+    editor.setCursor({ line, ch });
+    return true;
+  }
+
+  getSelection(): { from: { line: number; ch: number }; to: { line: number; ch: number }; text: string } | null {
+    const editor = this.app.workspace.activeEditor?.editor;
+    if (!editor) return null;
+    const selection = editor.getSelection();
+    const from = editor.getCursor('from');
+    const to = editor.getCursor('to');
+    return {
+      from: { line: from.line, ch: from.ch },
+      to: { line: to.line, ch: to.ch },
+      text: selection,
+    };
+  }
+
+  setSelection(fromLine: number, fromCh: number, toLine: number, toCh: number): boolean {
+    const editor = this.app.workspace.activeEditor?.editor;
+    if (!editor) return false;
+    editor.setSelection({ line: fromLine, ch: fromCh }, { line: toLine, ch: toCh });
+    return true;
+  }
+
+  getActiveLeafInfo(): Record<string, unknown> | null {
+    const leaf = this.app.workspace.activeLeaf;
+    if (!leaf) return null;
+    const leafAny = leaf as any;
+    return {
+      id: leafAny.id ?? 'unknown',
+      type: leaf.view?.getViewType?.() ?? 'unknown',
+      filePath: (leaf.view as any)?.file?.path ?? null,
+    };
+  }
+
+  async openFile(path: string, _mode?: string): Promise<void> {
+    const file = this.getFile(path);
+    await this.app.workspace.openLinkText(file.path, '', false);
+  }
+
+  getOpenFiles(): Array<{ path: string; leafId: string }> {
+    const result: Array<{ path: string; leafId: string }> = [];
+    this.app.workspace.iterateAllLeaves((leaf) => {
+      const leafAny = leaf as any;
+      const file = leafAny.view?.file as TFile | undefined;
+      if (file) {
+        result.push({ path: file.path, leafId: leafAny.id ?? 'unknown' });
+      }
+    });
+    return result;
+  }
+
+  setActiveLeaf(leafId: string): boolean {
+    let found = false;
+    this.app.workspace.iterateAllLeaves((leaf) => {
+      const leafAny = leaf as any;
+      if (leafAny.id === leafId) {
+        this.app.workspace.setActiveLeaf(leaf, { focus: true });
+        found = true;
+      }
+    });
+    return found;
+  }
+
+  getWorkspaceLayout(): Record<string, unknown> {
+    return this.app.workspace.getLayout() as Record<string, unknown>;
+  }
+
+  showNotice(message: string, duration?: number): void {
+    new Notice(message, duration);
+  }
+
+  getInstalledPlugins(): Array<{ id: string; name: string; enabled: boolean }> {
+    const appAny = this.app as any;
+    const plugins = appAny.plugins;
+    const result: Array<{ id: string; name: string; enabled: boolean }> = [];
+    if (plugins?.manifests) {
+      for (const [id, manifest] of Object.entries(plugins.manifests as Record<string, { name: string }>)) {
+        result.push({
+          id,
+          name: manifest.name,
+          enabled: !!(plugins.enabledPlugins as Set<string>)?.has(id),
+        });
+      }
+    }
+    return result;
+  }
+
+  isPluginEnabled(pluginId: string): boolean {
+    const appAny = this.app as any;
+    return !!(appAny.plugins?.enabledPlugins as Set<string>)?.has(pluginId);
+  }
+
+  executeCommand(commandId: string): boolean {
+    const appAny = this.app as any;
+    return !!appAny.commands?.executeCommandById(commandId);
   }
 
   private getFile(path: string): TFile {

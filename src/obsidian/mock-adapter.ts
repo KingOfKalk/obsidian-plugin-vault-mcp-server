@@ -306,7 +306,164 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     return results;
   }
 
+  // Editor operations (mock state)
+  private activeFile: string | null = null;
+  private editorContent: string | null = null;
+  private cursor: { line: number; ch: number } = { line: 0, ch: 0 };
+  private selection: { from: { line: number; ch: number }; to: { line: number; ch: number } } | null = null;
+
+  // Workspace operations (mock state)
+  private openLeaves: Array<{ path: string; leafId: string }> = [];
+  private activeLeafId: string | null = null;
+
+  // Plugin operations (mock state)
+  private installedPlugins: Array<{ id: string; name: string; enabled: boolean }> = [];
+  private executedCommands: string[] = [];
+
+  getActiveFileContent(): string | null {
+    return this.editorContent;
+  }
+
+  getActiveFilePath(): string | null {
+    return this.activeFile;
+  }
+
+  getActiveLineCount(): number | null {
+    if (this.editorContent === null) return null;
+    return this.editorContent.split('\n').length;
+  }
+
+  insertTextAt(line: number, ch: number, text: string): boolean {
+    if (this.editorContent === null) return false;
+    const lines = this.editorContent.split('\n');
+    if (line >= lines.length) return false;
+    const lineStr = lines[line];
+    lines[line] = lineStr.slice(0, ch) + text + lineStr.slice(ch);
+    this.editorContent = lines.join('\n');
+    return true;
+  }
+
+  replaceRange(fromLine: number, fromCh: number, toLine: number, toCh: number, text: string): boolean {
+    if (this.editorContent === null) return false;
+    const lines = this.editorContent.split('\n');
+    const before = lines.slice(0, fromLine).join('\n') + (fromLine > 0 ? '\n' : '') + lines[fromLine].slice(0, fromCh);
+    const after = lines[toLine].slice(toCh) + (toLine < lines.length - 1 ? '\n' : '') + lines.slice(toLine + 1).join('\n');
+    this.editorContent = before + text + after;
+    return true;
+  }
+
+  deleteRange(fromLine: number, fromCh: number, toLine: number, toCh: number): boolean {
+    return this.replaceRange(fromLine, fromCh, toLine, toCh, '');
+  }
+
+  getCursorPosition(): { line: number; ch: number } | null {
+    if (this.editorContent === null) return null;
+    return { ...this.cursor };
+  }
+
+  setCursorPosition(line: number, ch: number): boolean {
+    if (this.editorContent === null) return false;
+    this.cursor = { line, ch };
+    return true;
+  }
+
+  getSelection(): { from: { line: number; ch: number }; to: { line: number; ch: number }; text: string } | null {
+    if (this.editorContent === null || !this.selection) return null;
+    const lines = this.editorContent.split('\n');
+    const from = this.selection.from;
+    const to = this.selection.to;
+    let text = '';
+    if (from.line === to.line) {
+      text = lines[from.line].slice(from.ch, to.ch);
+    } else {
+      text = lines[from.line].slice(from.ch) + '\n';
+      for (let i = from.line + 1; i < to.line; i++) {
+        text += lines[i] + '\n';
+      }
+      text += lines[to.line].slice(0, to.ch);
+    }
+    return { from: { ...from }, to: { ...to }, text };
+  }
+
+  setSelection(fromLine: number, fromCh: number, toLine: number, toCh: number): boolean {
+    if (this.editorContent === null) return false;
+    this.selection = { from: { line: fromLine, ch: fromCh }, to: { line: toLine, ch: toCh } };
+    return true;
+  }
+
+  getActiveLeafInfo(): Record<string, unknown> | null {
+    if (!this.activeLeafId) return null;
+    const leaf = this.openLeaves.find((l) => l.leafId === this.activeLeafId);
+    if (!leaf) return null;
+    return { id: leaf.leafId, type: 'markdown', filePath: leaf.path };
+  }
+
+  async openFile(path: string, _mode?: string): Promise<void> {
+    if (!this.files.has(path)) throw new Error(`File not found: ${path}`);
+    const leafId = `leaf-${String(this.openLeaves.length)}`;
+    this.openLeaves.push({ path, leafId });
+    this.activeLeafId = leafId;
+    this.activeFile = path;
+    this.editorContent = this.files.get(path)?.content ?? '';
+  }
+
+  getOpenFiles(): Array<{ path: string; leafId: string }> {
+    return [...this.openLeaves];
+  }
+
+  setActiveLeaf(leafId: string): boolean {
+    const leaf = this.openLeaves.find((l) => l.leafId === leafId);
+    if (!leaf) return false;
+    this.activeLeafId = leafId;
+    this.activeFile = leaf.path;
+    return true;
+  }
+
+  getWorkspaceLayout(): Record<string, unknown> {
+    return {
+      main: { type: 'split', children: this.openLeaves.map((l) => ({ type: 'leaf', id: l.leafId })) },
+    };
+  }
+
+  showNotice(_message: string, _duration?: number): void {
+    // no-op in mock
+  }
+
+  getInstalledPlugins(): Array<{ id: string; name: string; enabled: boolean }> {
+    return [...this.installedPlugins];
+  }
+
+  isPluginEnabled(pluginId: string): boolean {
+    return this.installedPlugins.some((p) => p.id === pluginId && p.enabled);
+  }
+
+  executeCommand(commandId: string): boolean {
+    this.executedCommands.push(commandId);
+    return true;
+  }
+
   // Test helpers
+  setActiveEditor(path: string, content: string): void {
+    this.activeFile = path;
+    this.editorContent = content;
+  }
+
+  addOpenLeaf(path: string, leafId: string): void {
+    this.openLeaves.push({ path, leafId });
+  }
+
+  setActiveLeafId(leafId: string): void {
+    this.activeLeafId = leafId;
+  }
+
+  addInstalledPlugin(id: string, name: string, enabled: boolean): void {
+    this.installedPlugins.push({ id, name, enabled });
+  }
+
+  getExecutedCommands(): string[] {
+    return [...this.executedCommands];
+  }
+
   setMetadata(path: string, metadata: MockFileMetadata): void {
     const file = this.files.get(path);
     if (file) {
