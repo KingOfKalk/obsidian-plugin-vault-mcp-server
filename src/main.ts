@@ -4,6 +4,8 @@ import { createLogger, Logger } from './utils/logger';
 import { ModuleRegistry } from './registry/module-registry';
 import { createMcpServer } from './server/mcp-server';
 import { HttpMcpServer } from './server/http-server';
+import { RealObsidianAdapter, ObsidianAdapter } from './obsidian/adapter';
+import { discoverModules } from './tools';
 import { McpSettingsTab, migrateSettings } from './settings';
 
 const ICON_MCP = 'plug';
@@ -12,6 +14,7 @@ export default class McpPlugin extends Plugin {
   settings: McpPluginSettings = DEFAULT_SETTINGS;
   logger!: Logger;
   registry!: ModuleRegistry;
+  adapter!: ObsidianAdapter;
   httpServer: HttpMcpServer | null = null;
   private statusBarItem: { setText: (text: string) => void } | null = null;
   private ribbonIconEl: HTMLElement | null = null;
@@ -24,10 +27,10 @@ export default class McpPlugin extends Plugin {
       accessKey: this.settings.accessKey,
     });
 
+    this.adapter = new RealObsidianAdapter(this.app);
     this.registry = new ModuleRegistry(this.logger);
 
-    // Apply saved module states
-    this.registry.applyState(this.settings.moduleStates);
+    this.registerDiscoveredModules();
 
     // Add settings tab
     this.addSettingTab(new McpSettingsTab(this.app, this));
@@ -128,6 +131,18 @@ export default class McpPlugin extends Plugin {
   async restartServer(): Promise<void> {
     await this.stopServer();
     await this.startServer();
+  }
+
+  refreshModules(): void {
+    this.registry.clear();
+    this.registerDiscoveredModules();
+  }
+
+  private registerDiscoveredModules(): void {
+    for (const module of discoverModules(this.adapter)) {
+      this.registry.registerModule(module);
+    }
+    this.registry.applyState(this.settings.moduleStates);
   }
 
   private updateStatusDisplay(): void {
