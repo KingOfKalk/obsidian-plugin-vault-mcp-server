@@ -38,7 +38,7 @@ jobs:
 
       - name: Create styles.css placeholder
         if: ${{ steps.release.outputs.release_created }}
-        run: touch styles.css
+        run: echo "/* obsidian-mcp-plugin styles */" > styles.css
 
       - name: Upload release assets
         if: ${{ steps.release.outputs.release_created }}
