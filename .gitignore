@@ -1,0 +1,26 @@
+# Build output
+main.js
+dist/
+
+# Dependencies
+node_modules/
+
+# Coverage
+coverage/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# Obsidian plugin dev
+data.json
