@@ -303,18 +303,32 @@ describe('McpSettingsTab server controls', () => {
       startServer: vi.fn().mockResolvedValue(undefined),
       stopServer: vi.fn().mockResolvedValue(undefined),
       restartServer: vi.fn().mockResolvedValue(undefined),
+      saveSettings: vi.fn().mockResolvedValue(undefined),
     };
   }
 
   type ButtonInfo = { text: string; disabled: boolean; callback: (() => void) | null };
+  type ExtraButtonInfo = { icon: string; tooltip: string; callback: (() => void) | null };
   type ToggleInfo = { value: boolean; tooltip: string; callback: ((value: boolean) => void) | null };
-  type SettingInstance = { settingName: string; buttons: ButtonInfo[]; toggles: ToggleInfo[] };
+  type SettingInstance = {
+    settingName: string;
+    buttons: ButtonInfo[];
+    extraButtons: ExtraButtonInfo[];
+    toggles: ToggleInfo[];
+  };
 
   function getSettingButtons(name: string): ButtonInfo[] {
     const setting = (Setting as unknown as { instances: SettingInstance[] }).instances.find(
       (s) => s.settingName === name,
     );
     return setting?.buttons ?? [];
+  }
+
+  function getSettingExtraButtons(name: string): ExtraButtonInfo[] {
+    const setting = (Setting as unknown as { instances: SettingInstance[] }).instances.find(
+      (s) => s.settingName === name,
+    );
+    return setting?.extraButtons ?? [];
   }
 
   function getStatusToggle(): ToggleInfo {
@@ -326,6 +340,10 @@ describe('McpSettingsTab server controls', () => {
 
   function getStatusButtons(): ButtonInfo[] {
     return getSettingButtons('Status');
+  }
+
+  function getStatusExtraButtons(): ExtraButtonInfo[] {
+    return getSettingExtraButtons('Status');
   }
 
   beforeEach(() => {
@@ -359,8 +377,8 @@ describe('McpSettingsTab server controls', () => {
 
   it('should not render Restart button when server is stopped', () => {
     renderTab(false);
-    const buttons = getStatusButtons();
-    expect(buttons.find((b) => b.text === 'Restart')).toBeUndefined();
+    expect(getStatusButtons()).toHaveLength(0);
+    expect(getStatusExtraButtons()).toHaveLength(0);
   });
 
   it('should render a copy icon extra button on the Server URL setting', () => {
@@ -390,15 +408,31 @@ describe('McpSettingsTab server controls', () => {
     });
   });
 
-  it('should render a copy icon extra button on the Access Key setting', () => {
+  it('should render copy and generate extra buttons on the Access Key setting', () => {
     renderTab(false);
-    const setting = (Setting as unknown as { instances: SettingInstance[] }).instances.find(
-      (s) => s.settingName === 'Access Key',
-    ) as unknown as { extraButtons: Array<{ icon: string; tooltip: string; callback: (() => void) | null }> };
-    expect(setting).toBeDefined();
-    expect(setting.extraButtons).toHaveLength(1);
-    expect(setting.extraButtons[0].icon).toBe('copy');
-    expect(setting.extraButtons[0].tooltip).toBe('Copy access key');
+    const extras = getSettingExtraButtons('Access Key');
+    expect(extras).toHaveLength(2);
+    expect(extras[0].icon).toBe('copy');
+    expect(extras[0].tooltip).toBe('Copy access key');
+    expect(extras[1].icon).toBe('refresh-cw');
+    expect(extras[1].tooltip).toBe('Generate');
+  });
+
+  it('should not render any text buttons on the Access Key setting', () => {
+    renderTab(false);
+    expect(getSettingButtons('Access Key')).toHaveLength(0);
+  });
+
+  it('Generate extra button replaces the access key with a new random value', async () => {
+    renderTab(false);
+    const getKey = (): string => (mockPlugin.settings as { accessKey: string }).accessKey;
+    const originalKey = getKey();
+    const generate = getSettingExtraButtons('Access Key').find((b) => b.icon === 'refresh-cw')!;
+    generate.callback!();
+    await vi.waitFor(() => {
+      expect(getKey()).not.toBe(originalKey);
+      expect(getKey()).toMatch(/^[0-9a-f]{64}$/);
+    });
   });
 
   it('Access Key copy button copies accessKey to clipboard', async () => {
@@ -417,11 +451,13 @@ describe('McpSettingsTab server controls', () => {
     });
   });
 
-  it('should render Restart button only when server is running', () => {
+  it('should render a refresh icon extra button to restart the server when running', () => {
     renderTab(true);
-    const buttons = getStatusButtons();
-    expect(buttons).toHaveLength(1);
-    expect(buttons[0].text).toBe('Restart');
+    expect(getStatusButtons()).toHaveLength(0);
+    const extra = getStatusExtraButtons();
+    expect(extra).toHaveLength(1);
+    expect(extra[0].icon).toBe('refresh-cw');
+    expect(extra[0].tooltip).toBe('Restart server');
   });
 
   it('turning the toggle on calls startServer()', async () => {
@@ -440,12 +476,166 @@ describe('McpSettingsTab server controls', () => {
     });
   });
 
-  it('Restart button calls restartServer()', async () => {
+  it('Restart extra button calls restartServer()', async () => {
     renderTab(true);
-    const restart = getStatusButtons().find((b) => b.text === 'Restart')!;
+    const restart = getStatusExtraButtons().find((b) => b.icon === 'refresh-cw')!;
     restart.callback!();
     await vi.waitFor(() => {
       expect(mockPlugin.restartServer).toHaveBeenCalled();
     });
+  });
+});
+
+describe('McpSettingsTab module rows read-only rendering', () => {
+  type ToggleInfo = { value: boolean; tooltip: string; callback: ((value: boolean) => void) | null };
+  type ModuleSettingInstance = {
+    settingName: string;
+    settingDesc: string;
+    settingClass: string;
+    container: unknown;
+    toggles: ToggleInfo[];
+  };
+
+  interface ModuleRegistration {
+    enabled: boolean;
+    readOnly: boolean;
+    module: {
+      metadata: {
+        id: string;
+        name: string;
+        description: string;
+        supportsReadOnly: boolean;
+      };
+    };
+  }
+
+  function createRegistry(modules: ModuleRegistration[]): {
+    getModules: () => ModuleRegistration[];
+    enableModule: ReturnType<typeof vi.fn>;
+    disableModule: ReturnType<typeof vi.fn>;
+    setReadOnly: ReturnType<typeof vi.fn>;
+    getState: () => Record<string, unknown>;
+  } {
+    return {
+      getModules: () => modules,
+      enableModule: vi.fn(),
+      disableModule: vi.fn(),
+      setReadOnly: vi.fn(),
+      getState: () => ({}),
+    };
+  }
+
+  function renderModules(modules: ModuleRegistration[]): {
+    registry: ReturnType<typeof createRegistry>;
+    container: TrackingEl;
+  } {
+    const registry = createRegistry(modules);
+    const plugin = {
+      settings: { ...DEFAULT_SETTINGS, accessKey: 'k' },
+      httpServer: null,
+      registry,
+      saveSettings: vi.fn().mockResolvedValue(undefined),
+      logger: { updateOptions: (): void => {} },
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+    const tab = new McpSettingsTab({} as any, plugin as any);
+    const container = createTrackingEl();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+    (tab as any).containerEl = container;
+    tab.display();
+    return { registry, container };
+  }
+
+  function findAllByClass(root: TrackingEl, cls: string): TrackingEl[] {
+    const results: TrackingEl[] = [];
+    for (const child of root.children) {
+      if (child.className === cls) results.push(child);
+      results.push(...findAllByClass(child, cls));
+    }
+    return results;
+  }
+
+  function getSetting(name: string): ModuleSettingInstance | undefined {
+    return (Setting as unknown as { instances: ModuleSettingInstance[] }).instances.find(
+      (s) => s.settingName === name,
+    );
+  }
+
+  const vaultModule: ModuleRegistration = {
+    enabled: true,
+    readOnly: false,
+    module: {
+      metadata: { id: 'vault', name: 'Vault', description: 'Vault ops', supportsReadOnly: true },
+    },
+  };
+
+  beforeEach(() => {
+    (Setting as unknown as { instances: unknown[] }).instances = [];
+  });
+
+  it('renders the module enable-toggle with exactly one toggle on the module row', () => {
+    renderModules([vaultModule]);
+    const moduleRow = getSetting('Vault');
+    expect(moduleRow).toBeDefined();
+    expect(moduleRow!.toggles).toHaveLength(1);
+  });
+
+  it('renders a dedicated Read-only sub-row with its own name, description and toggle', () => {
+    renderModules([vaultModule]);
+    const readOnlyRow = getSetting('Read-only');
+    expect(readOnlyRow).toBeDefined();
+    expect(readOnlyRow!.settingDesc.length).toBeGreaterThan(0);
+    expect(readOnlyRow!.toggles).toHaveLength(1);
+    expect(readOnlyRow!.settingClass).toContain('mcp-module-readonly-row');
+  });
+
+  it('does not render a Read-only sub-row for modules that do not support it', () => {
+    renderModules([
+      {
+        enabled: true,
+        readOnly: false,
+        module: {
+          metadata: { id: 'ui', name: 'UI', description: 'UI ops', supportsReadOnly: false },
+        },
+      },
+    ]);
+    expect(getSetting('Read-only')).toBeUndefined();
+  });
+
+  it('toggling the Read-only sub-row calls registry.setReadOnly', async () => {
+    const { registry } = renderModules([vaultModule]);
+    const readOnlyRow = getSetting('Read-only')!;
+    readOnlyRow.toggles[0].callback!(true);
+    await vi.waitFor(() => {
+      expect(registry.setReadOnly).toHaveBeenCalledWith('vault', true);
+    });
+  });
+
+  it('wraps each module in its own .mcp-module-card container', () => {
+    const { container } = renderModules([
+      vaultModule,
+      {
+        enabled: false,
+        readOnly: false,
+        module: {
+          metadata: { id: 'ui', name: 'UI', description: 'UI ops', supportsReadOnly: false },
+        },
+      },
+    ]);
+    const cards = findAllByClass(container, 'mcp-module-card');
+    expect(cards).toHaveLength(2);
+  });
+
+  it('places the module row and its Read-only sub-row inside the same card', () => {
+    const { container } = renderModules([vaultModule]);
+    const card = findAllByClass(container, 'mcp-module-card')[0];
+    expect(card).toBeDefined();
+    expect(getSetting('Vault')!.container).toBe(card);
+    expect(getSetting('Read-only')!.container).toBe(card);
+  });
+
+  it('marks the module header row with the mcp-module-card-header class', () => {
+    renderModules([vaultModule]);
+    expect(getSetting('Vault')!.settingClass).toContain('mcp-module-card-header');
   });
 });

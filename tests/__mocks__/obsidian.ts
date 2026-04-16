@@ -56,18 +56,35 @@ export class PluginSettingTab {
 export class Setting {
   static instances: Setting[] = [];
   settingName = '';
+  settingDesc = '';
+  settingClass = '';
+  container: any;
   buttons: Array<{ text: string; disabled: boolean; callback: (() => void) | null }> = [];
   extraButtons: Array<{ icon: string; tooltip: string; callback: (() => void) | null }> = [];
   toggles: Array<{ value: boolean; tooltip: string; callback: ((value: boolean) => void) | null }> = [];
+  settingEl: { classList: { add: (cls: string) => void } };
 
-  constructor(_containerEl: any) {
+  constructor(containerEl: any) {
     Setting.instances.push(this);
+    this.container = containerEl;
+    this.settingEl = {
+      classList: {
+        add: (cls: string): void => {
+          this.settingClass = this.settingClass ? `${this.settingClass} ${cls}` : cls;
+        },
+      },
+    };
   }
   setName(name: string): this {
     this.settingName = name;
     return this;
   }
-  setDesc(_desc: any): this {
+  setDesc(desc: any): this {
+    if (typeof desc === 'string') this.settingDesc = desc;
+    return this;
+  }
+  setClass(cls: string): this {
+    this.settingClass = this.settingClass ? `${this.settingClass} ${cls}` : cls;
     return this;
   }
   addText(_cb: (text: any) => void): this {

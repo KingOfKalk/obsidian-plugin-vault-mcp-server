@@ -51,12 +51,15 @@ export class McpSettingsTab extends PluginSettingTab {
       );
 
     if (isRunning) {
-      setting.addButton((btn) =>
-        btn.setButtonText('Restart').onClick(() => {
-          void this.plugin.restartServer().then(() => {
-            this.display();
-          });
-        }),
+      setting.addExtraButton((btn) =>
+        btn
+          .setIcon('refresh-cw')
+          .setTooltip('Restart server')
+          .onClick(() => {
+            void this.plugin.restartServer().then(() => {
+              this.display();
+            });
+          }),
       );
     }
   }
@@ -141,12 +144,16 @@ export class McpSettingsTab extends PluginSettingTab {
               });
           }),
       )
-      .addButton((btn) =>
-        btn.setButtonText('Generate').onClick(async () => {
-          this.plugin.settings.accessKey = generateAccessKey();
-          await this.plugin.saveSettings();
-          this.display();
-        }),
+      .addExtraButton((btn) =>
+        btn
+          .setIcon('refresh-cw')
+          .setTooltip('Generate')
+          .onClick(() => {
+            this.plugin.settings.accessKey = generateAccessKey();
+            void this.plugin.saveSettings().then(() => {
+              this.display();
+            });
+          }),
       );
 
     new Setting(containerEl)
@@ -290,9 +297,12 @@ export class McpSettingsTab extends PluginSettingTab {
   ): void {
     const { metadata } = registration.module;
 
-    const setting = new Setting(containerEl)
+    const card = containerEl.createDiv({ cls: 'mcp-module-card' });
+
+    new Setting(card)
       .setName(metadata.name)
       .setDesc(metadata.description)
+      .setClass('mcp-module-card-header')
       .addToggle((toggle) =>
         toggle.setValue(registration.enabled).onChange(async (value) => {
           if (value) {
@@ -306,16 +316,17 @@ export class McpSettingsTab extends PluginSettingTab {
       );
 
     if (metadata.supportsReadOnly) {
-      setting.addToggle((toggle) =>
-        toggle
-          .setValue(registration.readOnly)
-          .setTooltip('Read-only mode')
-          .onChange(async (value) => {
+      new Setting(card)
+        .setName('Read-only')
+        .setDesc('Expose only read tools for this module; hide mutating tools.')
+        .setClass('mcp-module-readonly-row')
+        .addToggle((toggle) =>
+          toggle.setValue(registration.readOnly).onChange(async (value) => {
             this.plugin.registry.setReadOnly(metadata.id, value);
             this.plugin.settings.moduleStates = this.plugin.registry.getState();
             await this.plugin.saveSettings();
           }),
-      );
+        );
     }
   }
 }

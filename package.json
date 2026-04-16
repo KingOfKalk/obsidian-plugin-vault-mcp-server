@@ -1,6 +1,6 @@
 {
   "name": "obsidian-mcp",
-  "version": "1.4.1",
+  "version": "1.5.1",
   "description": "Obsidian plugin that runs an MCP server, exposing vault operations as tools over Streamable HTTP",
   "main": "main.js",
   "scripts": {

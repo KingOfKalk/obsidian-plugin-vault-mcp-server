@@ -52,3 +52,28 @@
   color: var(--text-success);
   border-color: var(--text-success);
 }
+
+.mcp-module-card {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 0 16px;
+  margin-bottom: 12px;
+  background-color: var(--background-secondary);
+}
+
+.mcp-module-card .setting-item {
+  border-top: none;
+}
+
+.mcp-module-card .setting-item + .setting-item {
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.mcp-module-card-header .setting-item-name {
+  font-weight: 600;
+}
+
+.mcp-module-readonly-row {
+  padding-left: 2em;
+  border-top: none;
+}
