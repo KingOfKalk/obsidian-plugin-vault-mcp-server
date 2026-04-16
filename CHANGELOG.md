@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.5.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.4.1...v1.5.0) (2026-04-16)
+
+
+### Features
+
+* **server:** do not auto-start MCP server on plugin load; default to off ([#92](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/92)) ([196dfc5](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/196dfc5a51153ba94e5ca06e3d06b125796879fd)), closes [#85](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/85)
+* **settings:** add copy-icon button next to Access Key field ([#88](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/88)) ([d3c3cb3](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/d3c3cb3da039b14b54d7455ab7b7f359d3d42c7a)), closes [#83](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/83)
+* **settings:** auto-size the MCP client configuration code block ([#91](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/91)) ([68c381e](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/68c381eb32dee44ed8974e85bc4948c1fe3cda77)), closes [#86](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/86)
+* **settings:** replace Copy URL text button with copy icon ([#89](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/89)) ([af0cb84](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/af0cb847f4f2c496c193a086b601ad4e90384899)), closes [#84](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/84)
+* **settings:** replace Start/Stop buttons with a single server toggle ([#90](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/90)) ([e97137f](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/e97137f67efca3ac7b8b61c696a6f8b5e37149c8)), closes [#82](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/82)
+
+
+### Bug Fixes
+
+* **settings:** promote read-only module toggle to its own labelled sub-row ([#94](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/94)) ([ed48e60](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/ed48e603d3ab46546cbd4b6d458c95c0d083d76a)), closes [#87](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/87)
+
 ## [1.4.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.4.0...v1.4.1) (2026-04-16)
 
 
