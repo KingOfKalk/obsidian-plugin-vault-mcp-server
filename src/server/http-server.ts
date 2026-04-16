@@ -7,6 +7,7 @@ import { authenticateRequest, sendAuthError } from './auth';
 import { applyCorsHeaders, handlePreflight, CorsOptions, DEFAULT_CORS_OPTIONS } from './cors';
 
 export interface HttpServerOptions {
+  host: string;
   port: number;
   accessKey: string;
   corsOptions?: CorsOptions;
@@ -93,8 +94,8 @@ export class HttpMcpServer {
         }
       });
 
-      this.httpServer!.listen(this.options.port, '127.0.0.1', () => {
-        this.logger.info(`MCP server listening on http://127.0.0.1:${String(this.options.port)}`);
+      this.httpServer!.listen(this.options.port, this.options.host, () => {
+        this.logger.info(`MCP server listening on http://${this.options.host}:${String(this.options.port)}`);
         resolve();
       });
     });

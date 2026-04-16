@@ -1,18 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Setting } from 'obsidian';
-import { migrateSettings, generateAccessKey, McpSettingsTab } from '../src/settings';
+import { migrateSettings, generateAccessKey, isValidIPv4, McpSettingsTab } from '../src/settings';
 import { DEFAULT_SETTINGS } from '../src/types';
 
 describe('migrateSettings', () => {
-  it('should migrate v0 (no schemaVersion) to v1', () => {
+  it('should migrate v0 (no schemaVersion) to v2', () => {
     const data: Record<string, unknown> = {};
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(1);
+    expect(result.schemaVersion).toBe(2);
     expect(result.port).toBe(28741);
     expect(result.accessKey).toBe('');
     expect(result.httpsEnabled).toBe(false);
     expect(result.debugMode).toBe(false);
     expect(result.moduleStates).toEqual({});
+    expect(result.serverAddress).toBe('127.0.0.1');
   });
 
   it('should preserve existing values during migration', () => {
@@ -22,15 +23,31 @@ describe('migrateSettings', () => {
       debugMode: true,
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(1);
+    expect(result.schemaVersion).toBe(2);
     expect(result.port).toBe(9999);
     expect(result.accessKey).toBe('my-key');
     expect(result.debugMode).toBe(true);
+    expect(result.serverAddress).toBe('127.0.0.1');
   });
 
-  it('should not modify data already at v1', () => {
+  it('should migrate v1 data to v2 by adding serverAddress', () => {
     const data: Record<string, unknown> = {
       schemaVersion: 1,
+      port: 28741,
+      accessKey: 'test',
+      httpsEnabled: false,
+      debugMode: false,
+      moduleStates: {},
+    };
+    const result = migrateSettings(data);
+    expect(result.schemaVersion).toBe(2);
+    expect(result.serverAddress).toBe('127.0.0.1');
+  });
+
+  it('should not modify data already at v2', () => {
+    const data: Record<string, unknown> = {
+      schemaVersion: 2,
+      serverAddress: '192.168.1.100',
       port: 28741,
       accessKey: 'test',
       httpsEnabled: false,
@@ -46,10 +63,11 @@ describe('migrateSettings', () => {
       port: 3000,
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(1);
+    expect(result.schemaVersion).toBe(2);
     expect(result.port).toBe(3000);
     expect(result.accessKey).toBe('');
     expect(result.moduleStates).toEqual({});
+    expect(result.serverAddress).toBe('127.0.0.1');
   });
 });
 
@@ -64,6 +82,27 @@ describe('generateAccessKey', () => {
     const key1 = generateAccessKey();
     const key2 = generateAccessKey();
     expect(key1).not.toBe(key2);
+  });
+});
+
+describe('isValidIPv4', () => {
+  it('should accept valid IPv4 addresses', () => {
+    expect(isValidIPv4('127.0.0.1')).toBe(true);
+    expect(isValidIPv4('0.0.0.0')).toBe(true);
+    expect(isValidIPv4('192.168.1.100')).toBe(true);
+    expect(isValidIPv4('255.255.255.255')).toBe(true);
+    expect(isValidIPv4('10.0.0.1')).toBe(true);
+  });
+
+  it('should reject invalid IPv4 addresses', () => {
+    expect(isValidIPv4('')).toBe(false);
+    expect(isValidIPv4('localhost')).toBe(false);
+    expect(isValidIPv4('256.0.0.1')).toBe(false);
+    expect(isValidIPv4('1.2.3')).toBe(false);
+    expect(isValidIPv4('1.2.3.4.5')).toBe(false);
+    expect(isValidIPv4('abc.def.ghi.jkl')).toBe(false);
+    expect(isValidIPv4('1.2.3.-1')).toBe(false);
+    expect(isValidIPv4('::1')).toBe(false);
   });
 });
 
@@ -152,7 +191,7 @@ describe('McpSettingsTab MCP config display', () => {
   }
 
   function createConfigMockPlugin(overrides?: Partial<{ port: number; accessKey: string }>): {
-    settings: { port: number; accessKey: string; httpsEnabled: boolean; debugMode: boolean; moduleStates: Record<string, unknown>; schemaVersion: number };
+    settings: { serverAddress: string; port: number; accessKey: string; httpsEnabled: boolean; debugMode: boolean; moduleStates: Record<string, unknown>; schemaVersion: number };
     httpServer: null;
     registry: { getModules: () => [] };
     logger: { updateOptions: () => void };
@@ -241,11 +280,18 @@ describe('McpSettingsTab server controls', () => {
     };
   }
 
-  function getStatusButtons(): Array<{ text: string; disabled: boolean; callback: (() => void) | null }> {
-    const statusSetting = (Setting as unknown as { instances: Array<{ settingName: string; buttons: Array<{ text: string; disabled: boolean; callback: (() => void) | null }> }> }).instances.find(
-      (s) => s.settingName === 'Status',
+  type ButtonInfo = { text: string; disabled: boolean; callback: (() => void) | null };
+  type SettingInstance = { settingName: string; buttons: ButtonInfo[] };
+
+  function getSettingButtons(name: string): ButtonInfo[] {
+    const setting = (Setting as unknown as { instances: SettingInstance[] }).instances.find(
+      (s) => s.settingName === name,
     );
-    return statusSetting?.buttons ?? [];
+    return setting?.buttons ?? [];
+  }
+
+  function getStatusButtons(): ButtonInfo[] {
+    return getSettingButtons('Status');
   }
 
   beforeEach(() => {
@@ -259,11 +305,18 @@ describe('McpSettingsTab server controls', () => {
     tab.display();
   }
 
-  it('should render four buttons (Copy URL, Start, Stop, Restart)', () => {
+  it('should render three status buttons (Start, Stop, Restart)', () => {
     renderTab(false);
     const buttons = getStatusButtons();
-    expect(buttons).toHaveLength(4);
-    expect(buttons.map((b) => b.text)).toEqual(['Copy URL', 'Start', 'Stop', 'Restart']);
+    expect(buttons).toHaveLength(3);
+    expect(buttons.map((b) => b.text)).toEqual(['Start', 'Stop', 'Restart']);
+  });
+
+  it('should render Copy URL button in Server URL setting', () => {
+    renderTab(false);
+    const buttons = getSettingButtons('Server URL');
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0].text).toBe('Copy URL');
   });
 
   it('should disable Stop and Restart when server is stopped', () => {

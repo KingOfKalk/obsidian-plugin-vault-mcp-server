@@ -9,9 +9,10 @@
 
 ## Network Exposure
 
-- **Localhost only**: The server binds to `127.0.0.1` by default — it's not accessible from other machines
-- **Firewall**: If running on a shared machine, ensure your firewall blocks the MCP port from external access
-- **HTTPS**: Enable HTTPS for encrypted communication, even on localhost
+- **Localhost by default**: The server binds to `127.0.0.1` by default — it's not accessible from other machines. This can be changed in settings via the **Server Address** option.
+- **Binding to `0.0.0.0`**: Exposes the server on all network interfaces. Only do this if you understand the security implications and have an access key configured.
+- **Firewall**: If running on a shared machine or binding to a non-localhost address, ensure your firewall blocks the MCP port from unauthorized access
+- **HTTPS**: Enable HTTPS for encrypted communication, especially when binding to a non-localhost address
 
 ## Feature Access Control
 

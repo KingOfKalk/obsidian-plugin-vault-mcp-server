@@ -1,6 +1,8 @@
 export interface McpPluginSettings {
   /** Schema version for settings migration */
   schemaVersion: number;
+  /** IP address the MCP server binds to */
+  serverAddress: string;
   /** HTTP port for the MCP server */
   port: number;
   /** Access key for bearer token authentication */
@@ -19,7 +21,8 @@ export interface ModuleState {
 }
 
 export const DEFAULT_SETTINGS: McpPluginSettings = {
-  schemaVersion: 1,
+  schemaVersion: 2,
+  serverAddress: '127.0.0.1',
   port: 28741,
   accessKey: '',
   httpsEnabled: false,
