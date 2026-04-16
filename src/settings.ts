@@ -259,7 +259,7 @@ export class McpSettingsTab extends PluginSettingTab {
     for (const registration of modules) {
       const { metadata } = registration.module;
 
-      const setting = new Setting(containerEl)
+      new Setting(containerEl)
         .setName(metadata.name)
         .setDesc(metadata.description)
         .addToggle((toggle) =>
@@ -275,16 +275,17 @@ export class McpSettingsTab extends PluginSettingTab {
         );
 
       if (metadata.supportsReadOnly) {
-        setting.addToggle((toggle) =>
-          toggle
-            .setValue(registration.readOnly)
-            .setTooltip('Read-only mode')
-            .onChange(async (value) => {
+        new Setting(containerEl)
+          .setName('Read-only')
+          .setDesc('Expose only read tools for this module; hide mutating tools.')
+          .setClass('mcp-module-readonly-row')
+          .addToggle((toggle) =>
+            toggle.setValue(registration.readOnly).onChange(async (value) => {
               this.plugin.registry.setReadOnly(metadata.id, value);
               this.plugin.settings.moduleStates = this.plugin.registry.getState();
               await this.plugin.saveSettings();
             }),
-        );
+          );
       }
     }
 
