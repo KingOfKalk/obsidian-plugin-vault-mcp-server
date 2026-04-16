@@ -303,18 +303,32 @@ describe('McpSettingsTab server controls', () => {
       startServer: vi.fn().mockResolvedValue(undefined),
       stopServer: vi.fn().mockResolvedValue(undefined),
       restartServer: vi.fn().mockResolvedValue(undefined),
+      saveSettings: vi.fn().mockResolvedValue(undefined),
     };
   }
 
   type ButtonInfo = { text: string; disabled: boolean; callback: (() => void) | null };
+  type ExtraButtonInfo = { icon: string; tooltip: string; callback: (() => void) | null };
   type ToggleInfo = { value: boolean; tooltip: string; callback: ((value: boolean) => void) | null };
-  type SettingInstance = { settingName: string; buttons: ButtonInfo[]; toggles: ToggleInfo[] };
+  type SettingInstance = {
+    settingName: string;
+    buttons: ButtonInfo[];
+    extraButtons: ExtraButtonInfo[];
+    toggles: ToggleInfo[];
+  };
 
   function getSettingButtons(name: string): ButtonInfo[] {
     const setting = (Setting as unknown as { instances: SettingInstance[] }).instances.find(
       (s) => s.settingName === name,
     );
     return setting?.buttons ?? [];
+  }
+
+  function getSettingExtraButtons(name: string): ExtraButtonInfo[] {
+    const setting = (Setting as unknown as { instances: SettingInstance[] }).instances.find(
+      (s) => s.settingName === name,
+    );
+    return setting?.extraButtons ?? [];
   }
 
   function getStatusToggle(): ToggleInfo {
@@ -326,6 +340,10 @@ describe('McpSettingsTab server controls', () => {
 
   function getStatusButtons(): ButtonInfo[] {
     return getSettingButtons('Status');
+  }
+
+  function getStatusExtraButtons(): ExtraButtonInfo[] {
+    return getSettingExtraButtons('Status');
   }
 
   beforeEach(() => {
@@ -359,8 +377,8 @@ describe('McpSettingsTab server controls', () => {
 
   it('should not render Restart button when server is stopped', () => {
     renderTab(false);
-    const buttons = getStatusButtons();
-    expect(buttons.find((b) => b.text === 'Restart')).toBeUndefined();
+    expect(getStatusButtons()).toHaveLength(0);
+    expect(getStatusExtraButtons()).toHaveLength(0);
   });
 
   it('should render a copy icon extra button on the Server URL setting', () => {
@@ -390,15 +408,31 @@ describe('McpSettingsTab server controls', () => {
     });
   });
 
-  it('should render a copy icon extra button on the Access Key setting', () => {
+  it('should render copy and generate extra buttons on the Access Key setting', () => {
     renderTab(false);
-    const setting = (Setting as unknown as { instances: SettingInstance[] }).instances.find(
-      (s) => s.settingName === 'Access Key',
-    ) as unknown as { extraButtons: Array<{ icon: string; tooltip: string; callback: (() => void) | null }> };
-    expect(setting).toBeDefined();
-    expect(setting.extraButtons).toHaveLength(1);
-    expect(setting.extraButtons[0].icon).toBe('copy');
-    expect(setting.extraButtons[0].tooltip).toBe('Copy access key');
+    const extras = getSettingExtraButtons('Access Key');
+    expect(extras).toHaveLength(2);
+    expect(extras[0].icon).toBe('copy');
+    expect(extras[0].tooltip).toBe('Copy access key');
+    expect(extras[1].icon).toBe('refresh-cw');
+    expect(extras[1].tooltip).toBe('Generate');
+  });
+
+  it('should not render any text buttons on the Access Key setting', () => {
+    renderTab(false);
+    expect(getSettingButtons('Access Key')).toHaveLength(0);
+  });
+
+  it('Generate extra button replaces the access key with a new random value', async () => {
+    renderTab(false);
+    const getKey = (): string => (mockPlugin.settings as { accessKey: string }).accessKey;
+    const originalKey = getKey();
+    const generate = getSettingExtraButtons('Access Key').find((b) => b.icon === 'refresh-cw')!;
+    generate.callback!();
+    await vi.waitFor(() => {
+      expect(getKey()).not.toBe(originalKey);
+      expect(getKey()).toMatch(/^[0-9a-f]{64}$/);
+    });
   });
 
   it('Access Key copy button copies accessKey to clipboard', async () => {
@@ -417,11 +451,13 @@ describe('McpSettingsTab server controls', () => {
     });
   });
 
-  it('should render Restart button only when server is running', () => {
+  it('should render a refresh icon extra button to restart the server when running', () => {
     renderTab(true);
-    const buttons = getStatusButtons();
-    expect(buttons).toHaveLength(1);
-    expect(buttons[0].text).toBe('Restart');
+    expect(getStatusButtons()).toHaveLength(0);
+    const extra = getStatusExtraButtons();
+    expect(extra).toHaveLength(1);
+    expect(extra[0].icon).toBe('refresh-cw');
+    expect(extra[0].tooltip).toBe('Restart server');
   });
 
   it('turning the toggle on calls startServer()', async () => {
@@ -440,9 +476,9 @@ describe('McpSettingsTab server controls', () => {
     });
   });
 
-  it('Restart button calls restartServer()', async () => {
+  it('Restart extra button calls restartServer()', async () => {
     renderTab(true);
-    const restart = getStatusButtons().find((b) => b.text === 'Restart')!;
+    const restart = getStatusExtraButtons().find((b) => b.icon === 'refresh-cw')!;
     restart.callback!();
     await vi.waitFor(() => {
       expect(mockPlugin.restartServer).toHaveBeenCalled();

@@ -50,12 +50,15 @@ export class McpSettingsTab extends PluginSettingTab {
       );
 
     if (isRunning) {
-      setting.addButton((btn) =>
-        btn.setButtonText('Restart').onClick(() => {
-          void this.plugin.restartServer().then(() => {
-            this.display();
-          });
-        }),
+      setting.addExtraButton((btn) =>
+        btn
+          .setIcon('refresh-cw')
+          .setTooltip('Restart server')
+          .onClick(() => {
+            void this.plugin.restartServer().then(() => {
+              this.display();
+            });
+          }),
       );
     }
   }
@@ -140,12 +143,16 @@ export class McpSettingsTab extends PluginSettingTab {
               });
           }),
       )
-      .addButton((btn) =>
-        btn.setButtonText('Generate').onClick(async () => {
-          this.plugin.settings.accessKey = generateAccessKey();
-          await this.plugin.saveSettings();
-          this.display();
-        }),
+      .addExtraButton((btn) =>
+        btn
+          .setIcon('refresh-cw')
+          .setTooltip('Generate')
+          .onClick(() => {
+            this.plugin.settings.accessKey = generateAccessKey();
+            void this.plugin.saveSettings().then(() => {
+              this.display();
+            });
+          }),
       );
 
     new Setting(containerEl)
