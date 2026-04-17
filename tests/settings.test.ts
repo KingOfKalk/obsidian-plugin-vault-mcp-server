@@ -840,3 +840,147 @@ describe('McpSettingsTab module rows rendering', () => {
     });
   });
 });
+
+describe('McpSettingsTab server settings validation', () => {
+  interface TextInfo {
+    placeholder: string;
+    value: string;
+    callback: ((value: string) => void | Promise<void>) | null;
+  }
+  interface ValidationSettingInstance {
+    settingName: string;
+    texts: TextInfo[];
+    descEl: TrackingEl;
+  }
+
+  beforeEach(() => {
+    (Setting as unknown as { instances: unknown[] }).instances = [];
+  });
+
+  function createValidationMockPlugin(): {
+    settings: typeof DEFAULT_SETTINGS & { accessKey: string };
+    httpServer: null;
+    registry: { getModules: () => [] };
+    logger: { updateOptions: () => void };
+    saveSettings: ReturnType<typeof vi.fn>;
+  } {
+    return {
+      settings: { ...DEFAULT_SETTINGS, accessKey: 'k' },
+      httpServer: null,
+      registry: { getModules: () => [] },
+      logger: { updateOptions: (): void => {} },
+      saveSettings: vi.fn().mockResolvedValue(undefined),
+    };
+  }
+
+  function renderValidationTab(): ReturnType<typeof createValidationMockPlugin> {
+    const plugin = createValidationMockPlugin();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+    const tab = new McpSettingsTab({} as any, plugin as any);
+    const container = createTrackingEl();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+    (tab as any).containerEl = container;
+    tab.display();
+    return plugin;
+  }
+
+  function getSettingByName(name: string): ValidationSettingInstance {
+    return (Setting as unknown as { instances: ValidationSettingInstance[] }).instances.find(
+      (s) => s.settingName === name,
+    )!;
+  }
+
+  function errorElements(setting: ValidationSettingInstance): TrackingEl[] {
+    const results: TrackingEl[] = [];
+    for (const child of setting.descEl.children) {
+      if (child.className === 'mcp-settings-error') results.push(child);
+    }
+    return results;
+  }
+
+  describe('Server Address (IP) validation', () => {
+    it('does not show an error element on initial render with a valid IP', () => {
+      renderValidationTab();
+      const setting = getSettingByName('Server Address');
+      expect(errorElements(setting)).toHaveLength(0);
+    });
+
+    it('shows an error element when an invalid IP is typed', async () => {
+      renderValidationTab();
+      const setting = getSettingByName('Server Address');
+      await setting.texts[0].callback!('not-an-ip');
+      const errors = errorElements(setting);
+      expect(errors).toHaveLength(1);
+      expect(errors[0].textContent).toMatch(/invalid/i);
+    });
+
+    it('does not persist invalid IP values', async () => {
+      const plugin = renderValidationTab();
+      const setting = getSettingByName('Server Address');
+      await setting.texts[0].callback!('256.256.256.256');
+      expect(plugin.settings.serverAddress).toBe('127.0.0.1');
+      expect(plugin.saveSettings).not.toHaveBeenCalled();
+    });
+
+    it('clears the error element when a valid IP is typed after an invalid one', async () => {
+      const plugin = renderValidationTab();
+      const setting = getSettingByName('Server Address');
+      await setting.texts[0].callback!('bogus');
+      expect(errorElements(setting)).toHaveLength(1);
+      await setting.texts[0].callback!('10.0.0.1');
+      expect(errorElements(setting)).toHaveLength(0);
+      expect(plugin.settings.serverAddress).toBe('10.0.0.1');
+      expect(plugin.saveSettings).toHaveBeenCalled();
+    });
+  });
+
+  describe('Port validation', () => {
+    it('does not show an error element on initial render with a valid port', () => {
+      renderValidationTab();
+      const setting = getSettingByName('Port');
+      expect(errorElements(setting)).toHaveLength(0);
+    });
+
+    it('shows an error when the port is 0', async () => {
+      renderValidationTab();
+      const setting = getSettingByName('Port');
+      await setting.texts[0].callback!('0');
+      const errors = errorElements(setting);
+      expect(errors).toHaveLength(1);
+      expect(errors[0].textContent).toMatch(/invalid/i);
+    });
+
+    it('shows an error when the port is out of range (99999)', async () => {
+      renderValidationTab();
+      const setting = getSettingByName('Port');
+      await setting.texts[0].callback!('99999');
+      expect(errorElements(setting)).toHaveLength(1);
+    });
+
+    it('shows an error for a non-numeric port', async () => {
+      renderValidationTab();
+      const setting = getSettingByName('Port');
+      await setting.texts[0].callback!('abc');
+      expect(errorElements(setting)).toHaveLength(1);
+    });
+
+    it('does not persist invalid port values', async () => {
+      const plugin = renderValidationTab();
+      const setting = getSettingByName('Port');
+      await setting.texts[0].callback!('0');
+      expect(plugin.settings.port).toBe(28741);
+      expect(plugin.saveSettings).not.toHaveBeenCalled();
+    });
+
+    it('clears the error when a valid port is typed after an invalid one', async () => {
+      const plugin = renderValidationTab();
+      const setting = getSettingByName('Port');
+      await setting.texts[0].callback!('99999');
+      expect(errorElements(setting)).toHaveLength(1);
+      await setting.texts[0].callback!('3000');
+      expect(errorElements(setting)).toHaveLength(0);
+      expect(plugin.settings.port).toBe(3000);
+      expect(plugin.saveSettings).toHaveBeenCalled();
+    });
+  });
+});

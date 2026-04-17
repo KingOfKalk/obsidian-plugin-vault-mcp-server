@@ -73,18 +73,22 @@ export class McpSettingsTab extends PluginSettingTab {
 
     const addressSetting = new Setting(containerEl)
       .setName('Server Address')
-      .setDesc('IP address the server binds to (default: 127.0.0.1). Requires restart.')
-      .addText((text) =>
-        text
-          .setPlaceholder('127.0.0.1')
-          .setValue(this.plugin.settings.serverAddress)
-          .onChange(async (value) => {
-            if (isValidIPv4(value)) {
-              this.plugin.settings.serverAddress = value;
-              await this.plugin.saveSettings();
-            }
-          }),
-      );
+      .setDesc('IP address the server binds to (default: 127.0.0.1). Requires restart.');
+    const addressError = createValidationError(addressSetting);
+    addressSetting.addText((text) =>
+      text
+        .setPlaceholder('127.0.0.1')
+        .setValue(this.plugin.settings.serverAddress)
+        .onChange(async (value) => {
+          if (isValidIPv4(value)) {
+            addressError.clear();
+            this.plugin.settings.serverAddress = value;
+            await this.plugin.saveSettings();
+          } else {
+            addressError.show('Invalid IPv4 address. Expected format: 127.0.0.1');
+          }
+        }),
+    );
 
     if (this.plugin.settings.serverAddress !== '127.0.0.1') {
       addressSetting.descEl.createEl('br');
@@ -93,21 +97,25 @@ export class McpSettingsTab extends PluginSettingTab {
       });
     }
 
-    new Setting(containerEl)
+    const portSetting = new Setting(containerEl)
       .setName('Port')
-      .setDesc('HTTP port for the MCP server (default: 28741)')
-      .addText((text) =>
-        text
-          .setPlaceholder('28741')
-          .setValue(String(this.plugin.settings.port))
-          .onChange(async (value) => {
-            const port = parseInt(value, 10);
-            if (!isNaN(port) && port > 0 && port < 65536) {
-              this.plugin.settings.port = port;
-              await this.plugin.saveSettings();
-            }
-          }),
-      );
+      .setDesc('HTTP port for the MCP server (default: 28741)');
+    const portError = createValidationError(portSetting);
+    portSetting.addText((text) =>
+      text
+        .setPlaceholder('28741')
+        .setValue(String(this.plugin.settings.port))
+        .onChange(async (value) => {
+          const port = parseInt(value, 10);
+          if (/^\d+$/.test(value) && !isNaN(port) && port > 0 && port < 65536) {
+            portError.clear();
+            this.plugin.settings.port = port;
+            await this.plugin.saveSettings();
+          } else {
+            portError.show('Invalid port. Enter a whole number between 1 and 65535.');
+          }
+        }),
+    );
 
     const serverUrl = `${this.scheme()}://${this.plugin.settings.serverAddress}:${String(this.plugin.settings.port)}/mcp`;
     new Setting(containerEl)
@@ -349,6 +357,33 @@ export class McpSettingsTab extends PluginSettingTab {
         }),
       );
   }
+}
+
+interface ValidationErrorController {
+  show: (message: string) => void;
+  clear: () => void;
+}
+
+function createValidationError(setting: Setting): ValidationErrorController {
+  let errorEl: HTMLElement | null = null;
+  return {
+    show: (message: string): void => {
+      if (errorEl) {
+        errorEl.textContent = message;
+        return;
+      }
+      errorEl = setting.descEl.createEl('div', {
+        cls: 'mcp-settings-error',
+        text: message,
+      });
+    },
+    clear: (): void => {
+      if (errorEl) {
+        errorEl.remove();
+        errorEl = null;
+      }
+    },
+  };
 }
 
 export function generateAccessKey(): string {

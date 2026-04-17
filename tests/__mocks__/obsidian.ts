@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/require-await, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/explicit-function-return-type */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/require-await, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/explicit-function-return-type, @typescript-eslint/no-unsafe-call */
 
 export class Plugin {
   app: any;
@@ -24,15 +24,46 @@ export class Plugin {
 }
 
 function mockEl(): any {
-  return {
+  const el: any = {
     setText: () => {},
     style: {},
     textContent: '',
+    className: '',
+    tagName: '',
+    attributes: {} as Record<string, string>,
     classList: { add: () => {}, remove: () => {} },
     addEventListener: () => {},
-    createEl: () => mockEl(),
-    createDiv: (_opts?: any) => mockEl(),
+    children: [] as any[],
+    empty: () => {
+      el.children.length = 0;
+    },
+    remove: () => {},
+    createEl: (tag?: string, opts?: { text?: string; cls?: string; attr?: Record<string, string> }) => {
+      const child = mockEl();
+      if (tag) child.tagName = tag;
+      if (opts?.text) child.textContent = opts.text;
+      if (opts?.cls) child.className = opts.cls;
+      if (opts?.attr) Object.assign(child.attributes, opts.attr);
+      el.children.push(child);
+      child.remove = () => {
+        const idx = el.children.indexOf(child);
+        if (idx >= 0) el.children.splice(idx, 1);
+      };
+      return child;
+    },
+    createDiv: (opts?: { cls?: string }) => {
+      const child = mockEl();
+      child.tagName = 'div';
+      if (opts?.cls) child.className = opts.cls;
+      el.children.push(child);
+      child.remove = () => {
+        const idx = el.children.indexOf(child);
+        if (idx >= 0) el.children.splice(idx, 1);
+      };
+      return child;
+    },
   };
+  return el;
 }
 
 export class PluginSettingTab {
@@ -59,14 +90,21 @@ export class Setting {
   settingDesc = '';
   settingClass = '';
   container: any;
+  descEl: any;
   buttons: Array<{ text: string; disabled: boolean; callback: (() => void) | null }> = [];
   extraButtons: Array<{ icon: string; tooltip: string; callback: (() => void) | null }> = [];
   toggles: Array<{ value: boolean; tooltip: string; callback: ((value: boolean) => void) | null }> = [];
+  texts: Array<{
+    placeholder: string;
+    value: string;
+    callback: ((value: string) => void | Promise<void>) | null;
+  }> = [];
   settingEl: { classList: { add: (cls: string) => void } };
 
   constructor(containerEl: any) {
     Setting.instances.push(this);
     this.container = containerEl;
+    this.descEl = mockEl();
     this.settingEl = {
       classList: {
         add: (cls: string): void => {
@@ -87,7 +125,19 @@ export class Setting {
     this.settingClass = this.settingClass ? `${this.settingClass} ${cls}` : cls;
     return this;
   }
-  addText(_cb: (text: any) => void): this {
+  addText(cb: (text: any) => void): this {
+    const record = {
+      placeholder: '',
+      value: '',
+      callback: null as ((value: string) => void | Promise<void>) | null,
+    };
+    const text = {
+      setPlaceholder(p: string) { record.placeholder = p; return text; },
+      setValue(v: string) { record.value = v; return text; },
+      onChange(fn: (value: string) => void | Promise<void>) { record.callback = fn; return text; },
+    };
+    cb(text);
+    this.texts.push(record);
     return this;
   }
   addToggle(cb: (toggle: any) => void): this {
