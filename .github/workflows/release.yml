@@ -50,8 +50,20 @@ jobs:
             fs.writeFileSync('versions.json', JSON.stringify(versions, null, '\t') + '\n');
           "
 
+      - name: Upload plugin release assets
+        if: ${{ steps.release.outputs.release_created }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ steps.release.outputs.tag_name }} \
+            main.js \
+            manifest.json \
+            styles.css \
+            versions.json
+
       - name: Install screenshot system deps
         if: ${{ steps.release.outputs.release_created }}
+        continue-on-error: true
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
@@ -62,10 +74,12 @@ jobs:
 
       - name: Install websocket-client
         if: ${{ steps.release.outputs.release_created }}
+        continue-on-error: true
         run: pip install websocket-client
 
       - name: Download Obsidian AppImage
         if: ${{ steps.release.outputs.release_created }}
+        continue-on-error: true
         run: |
           sudo mkdir -p /opt
           sudo wget -q \
@@ -76,7 +90,9 @@ jobs:
           sudo ln -sf /opt/squashfs-root/obsidian /usr/local/bin/obsidian
 
       - name: Capture release screenshots
+        id: screenshots
         if: ${{ steps.release.outputs.release_created }}
+        continue-on-error: true
         run: |
           export DISPLAY=:99
           Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset \
@@ -106,22 +122,20 @@ jobs:
           python3 docker/scripts/release_screenshots.py \
             --out-dir /tmp/shots --port 9222
 
-      - name: Upload release assets
-        if: ${{ steps.release.outputs.release_created }}
+      - name: Upload screenshot release assets
+        if: ${{ steps.release.outputs.release_created && steps.screenshots.outcome == 'success' }}
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release upload ${{ steps.release.outputs.tag_name }} \
-            main.js \
-            manifest.json \
-            styles.css \
-            versions.json \
             /tmp/shots/release-main.png \
             /tmp/shots/release-plugin-settings.png \
             /tmp/shots/release-server-running.png
 
       - name: Append Screenshots section to release notes
-        if: ${{ steps.release.outputs.release_created }}
+        if: ${{ steps.release.outputs.release_created && steps.screenshots.outcome == 'success' }}
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
