@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.1.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.0.2...v2.1.0) (2026-04-17)
+
+
+### Features
+
+* **server:** wire up HTTPS with cached self-signed certificate ([#136](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/136)) ([5e1d374](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/5e1d3741d84d2944b0e1b87135c5e5c6f69698a2)), closes [#131](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/131)
+* **settings:** replace inline MCP config JSON with a compact copy card ([#128](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/128)) ([d4d24cb](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/d4d24cb9f6db84a8423986ea91622379d20d0c64)), closes [#127](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/127)
+
+
+### Bug Fixes
+
+* **settings:** surface validation errors for invalid IP and port input ([#138](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/138)) ([3934c71](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/3934c710f805c81f1a599436e565eec0a8784d69)), closes [#134](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/134)
+* **ui:** swap ribbon icon glyph on server state change ([#139](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/139)) ([d64cc65](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/d64cc65b76bfb549ab270c4f3396076cd9a15161)), closes [#132](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/132)
+
 ## [2.0.2](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.0.1...v2.0.2) (2026-04-17)
 
 
