@@ -8,6 +8,7 @@ import { generateSelfSignedCert } from './server/tls';
 import { RealObsidianAdapter, ObsidianAdapter } from './obsidian/adapter';
 import { discoverModules } from './tools';
 import { McpSettingsTab, migrateSettings } from './settings';
+import { t } from './lang/helpers';
 
 const ICON_MCP = 'plug';
 const ICON_MCP_RUNNING = 'plug-zap';
@@ -40,7 +41,7 @@ export default class McpPlugin extends Plugin {
     // Add ribbon icon
     this.ribbonIconEl = this.addRibbonIcon(
       ICON_MCP,
-      'MCP Server',
+      t('ribbon_mcp_server'),
       () => {
         if (this.httpServer?.isRunning) {
           void this.stopServer();
@@ -56,7 +57,7 @@ export default class McpPlugin extends Plugin {
     // Register commands
     this.addCommand({
       id: 'start-server',
-      name: 'Start MCP Server',
+      name: t('command_start_server'),
       callback: () => {
         void this.startServer();
       },
@@ -64,7 +65,7 @@ export default class McpPlugin extends Plugin {
 
     this.addCommand({
       id: 'stop-server',
-      name: 'Stop MCP Server',
+      name: t('command_stop_server'),
       callback: () => {
         void this.stopServer();
       },
@@ -72,7 +73,7 @@ export default class McpPlugin extends Plugin {
 
     this.addCommand({
       id: 'restart-server',
-      name: 'Restart MCP Server',
+      name: t('command_restart_server'),
       callback: () => {
         void this.restartServer();
       },
@@ -80,10 +81,10 @@ export default class McpPlugin extends Plugin {
 
     this.addCommand({
       id: 'copy-access-key',
-      name: 'Copy Access Key',
+      name: t('command_copy_access_key'),
       callback: () => {
         void navigator.clipboard.writeText(this.settings.accessKey).then(() => {
-          new Notice('Access key copied to clipboard');
+          new Notice(t('notice_access_key_copied'));
         });
       },
     });
@@ -123,11 +124,11 @@ export default class McpPlugin extends Plugin {
       );
       await this.httpServer.start();
       this.updateStatusDisplay();
-      new Notice(`MCP server started on port ${String(this.settings.port)}`);
+      new Notice(t('notice_server_started', { port: this.settings.port }));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Failed to start MCP server: ${message}`);
-      new Notice(`Failed to start MCP server: ${message}`);
+      new Notice(t('notice_server_start_failed', { message }));
     }
   }
 
@@ -189,8 +190,8 @@ export default class McpPlugin extends Plugin {
     if (this.ribbonIconEl) {
       setIcon(this.ribbonIconEl, isRunning ? ICON_MCP_RUNNING : ICON_MCP);
       this.ribbonIconEl.ariaLabel = isRunning
-        ? `MCP Server (running on :${String(this.settings.port)})`
-        : 'MCP Server (stopped)';
+        ? t('ribbon_tooltip_running', { port: this.settings.port })
+        : t('ribbon_tooltip_stopped');
     }
   }
 

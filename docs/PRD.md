@@ -96,6 +96,15 @@ Utility tools that do not mirror an Obsidian API. Modules in this group render u
 
 - **R55** — `get_date` tool returns the current local datetime as a plain ISO-8601 string with timezone offset (e.g. `2026-04-16T14:32:05.123+02:00`). The offset is already encoded in the string, so no additional fields are returned. Disabled by default. Belongs to the "Extras" module group.
 
+### Internationalization (I18N)
+
+The plugin UI is translated via a tiny in-house i18n helper modelled on the [obsidian-kanban pattern](https://github.com/mgmeyers/obsidian-kanban/blob/main/src/lang/helpers.ts) — zero runtime dependencies, all translations compiled into the plugin bundle. See `src/lang/helpers.ts` for the `t()` function and `src/lang/locale/` for per-locale maps.
+
+- **I1** — Plugin UI strings support multiple locales. English and German ship out of the box (`src/lang/locale/en.ts`, `src/lang/locale/de.ts`). `en` is the source of truth; other locales are `Partial<Record<keyof typeof en, string>>` maps.
+- **I2** — The active locale is auto-detected via `window.localStorage.getItem('language')` (the key Obsidian itself writes). No in-plugin settings override in this iteration — the plugin simply follows Obsidian's own language setting.
+- **I3** — Missing keys in non-English locales fall back to the English value at runtime. If the detected locale is not registered in the locale map, `t()` logs a single `console.error` and returns the English value. `t()` is typed as `t(key: keyof typeof en, params?: Record<string, string | number>): string`, so a missing/misspelled key is a TypeScript compile error.
+- **I4** — MCP tool names, tool descriptions, input schemas, and MCP error payloads remain English-only. These surfaces are LLM-facing (agents, not humans), and keeping them English maximizes tool-selection quality and MCP interop stability. Structured log output is also English by convention.
+
 ## Configuration
 
 ### Server Settings
