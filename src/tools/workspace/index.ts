@@ -41,7 +41,7 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
 export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
   const h = createHandlers(adapter);
   return {
-    metadata: { id: 'workspace', name: 'Workspace and Navigation', description: 'Manage panes, open files, and navigate the workspace', supportsReadOnly: false },
+    metadata: { id: 'workspace', name: 'Workspace and Navigation', description: 'Manage panes, open files, and navigate the workspace' },
     tools(): ToolDefinition[] {
       return [
         { name: 'workspace_get_active_leaf', description: 'Get active pane info', schema: {}, handler: h.getActiveLeaf, isReadOnly: true },

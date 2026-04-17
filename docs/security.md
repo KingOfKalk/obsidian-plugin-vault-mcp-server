@@ -16,8 +16,7 @@
 
 ## Feature Access Control
 
-- **Disable unused modules**: Only enable the feature categories you need
-- **Use read-only mode**: For modules that support it (Vault, Editor, Templates), enable read-only mode to prevent modifications
+- **Disable unused modules**: Only enable the feature categories you need. Each module is all-or-nothing — when enabled, every tool it ships is exposed.
 - **Principle of least privilege**: Start with minimal permissions and expand as needed
 
 ## Path Traversal Protection

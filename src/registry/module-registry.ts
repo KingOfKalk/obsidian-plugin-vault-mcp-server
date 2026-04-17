@@ -3,7 +3,7 @@ import { ModuleRegistration, ToolDefinition, ToolModule } from './types';
 
 export type ModuleStateMap = Record<
   string,
-  { enabled: boolean; readOnly: boolean; toolStates?: Record<string, boolean> }
+  { enabled: boolean; toolStates?: Record<string, boolean> }
 >;
 
 export type RegistryChangeHandler = () => void;
@@ -35,7 +35,6 @@ export class ModuleRegistry {
       // Extras modules are always "enabled" at the module level — individual
       // tools are gated by toolStates instead.
       enabled: isExtras ? true : (module.metadata.defaultEnabled ?? true),
-      readOnly: false,
       toolStates,
     });
     this.logger.info(`Registered module: ${module.metadata.name}`, { id });
@@ -69,19 +68,6 @@ export class ModuleRegistry {
     }
     registration.enabled = false;
     this.logger.info(`Disabled module: ${id}`);
-    this.notifyChange();
-  }
-
-  setReadOnly(id: string, readOnly: boolean): void {
-    const registration = this.modules.get(id);
-    if (!registration) {
-      throw new Error(`Module "${id}" is not registered`);
-    }
-    if (!registration.module.metadata.supportsReadOnly) {
-      throw new Error(`Module "${id}" does not support read-only mode`);
-    }
-    registration.readOnly = readOnly;
-    this.logger.info(`Set module "${id}" read-only: ${String(readOnly)}`);
     this.notifyChange();
   }
 
@@ -134,7 +120,6 @@ export class ModuleRegistry {
       const isExtras = registration.module.metadata.group === 'extras';
       const moduleTools = registration.module.tools();
       for (const tool of moduleTools) {
-        if (registration.readOnly && !tool.isReadOnly) continue;
         if (isExtras && !(registration.toolStates[tool.name] ?? false)) continue;
         tools.push(tool);
       }
@@ -163,9 +148,6 @@ export class ModuleRegistry {
         }
       } else {
         registration.enabled = moduleState.enabled;
-        if (registration.module.metadata.supportsReadOnly) {
-          registration.readOnly = moduleState.readOnly;
-        }
       }
     }
     this.notifyChange();
@@ -177,7 +159,6 @@ export class ModuleRegistry {
       const isExtras = registration.module.metadata.group === 'extras';
       state[id] = {
         enabled: registration.enabled,
-        readOnly: registration.readOnly,
         ...(isExtras ? { toolStates: { ...registration.toolStates } } : {}),
       };
     }

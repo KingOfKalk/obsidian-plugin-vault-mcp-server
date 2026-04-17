@@ -37,7 +37,7 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
 export function createUiModule(adapter: ObsidianAdapter): ToolModule {
   const h = createHandlers(adapter);
   return {
-    metadata: { id: 'ui', name: 'UI Interactions', description: 'Show notices, modals, and prompts in Obsidian', supportsReadOnly: false },
+    metadata: { id: 'ui', name: 'UI Interactions', description: 'Show notices, modals, and prompts in Obsidian' },
     tools(): ToolDefinition[] {
       return [
         { name: 'ui_notice', description: 'Show a notice/notification', schema: { message: z.string(), duration: z.number().optional() }, handler: h.showNotice, isReadOnly: false },

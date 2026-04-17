@@ -15,7 +15,6 @@ export interface ModuleMetadata {
   id: string;
   name: string;
   description: string;
-  supportsReadOnly: boolean;
   group?: ModuleGroup;
   defaultEnabled?: boolean;
 }
@@ -28,7 +27,6 @@ export interface ToolModule {
 export interface ModuleRegistration {
   module: ToolModule;
   enabled: boolean;
-  readOnly: boolean;
   /** Per-tool enabled state, keyed by tool name. Only used for modules in the 'extras' group. */
   toolStates: Record<string, boolean>;
 }

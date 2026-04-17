@@ -70,7 +70,7 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
 export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
   const h = createHandlers(adapter);
   return {
-    metadata: { id: 'editor', name: 'Editor Operations', description: 'Access and manipulate the active editor', supportsReadOnly: true },
+    metadata: { id: 'editor', name: 'Editor Operations', description: 'Access and manipulate the active editor' },
     tools(): ToolDefinition[] {
       return [
         { name: 'editor_get_content', description: 'Get content of active editor', schema: {}, handler: h.getContent, isReadOnly: true },

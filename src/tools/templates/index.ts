@@ -67,7 +67,7 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
 export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
   const h = createHandlers(adapter);
   return {
-    metadata: { id: 'templates', name: 'Templates and Content Generation', description: 'List, create from, and expand templates', supportsReadOnly: true },
+    metadata: { id: 'templates', name: 'Templates and Content Generation', description: 'List, create from, and expand templates' },
     tools(): ToolDefinition[] {
       return [
         { name: 'template_list', description: 'List available templates', schema: {}, handler: h.listTemplates, isReadOnly: true },

@@ -13,7 +13,7 @@ An Obsidian desktop plugin that runs an MCP (Model Context Protocol) server, exp
 - **Templates**: List, create from, and expand templates
 - **Plugin Interop**: List plugins, execute commands, Dataview/Templater integration
 - **Security**: Bearer token authentication, CORS, path traversal protection
-- **Dynamic module toggles**: Enable/disable feature categories, per-module read-only mode
+- **Dynamic module toggles**: Enable/disable feature categories with a single per-module switch
 
 ## Installation
 
@@ -71,7 +71,7 @@ claude mcp add obsidian --transport http --url http://127.0.0.1:28741 --header "
 | HTTPS | Off | Enable HTTPS with self-signed certificate |
 | Debug Mode | Off | Verbose logging of requests/responses |
 
-Feature modules can be individually enabled/disabled and set to read-only mode in the settings tab.
+Feature modules can be individually enabled or disabled in the settings tab. When a module is enabled, all of its tools are exposed.
 
 ## Commands
 

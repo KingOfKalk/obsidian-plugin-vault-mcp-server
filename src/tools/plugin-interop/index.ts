@@ -51,7 +51,7 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
 export function createPluginInteropModule(adapter: ObsidianAdapter): ToolModule {
   const h = createHandlers(adapter);
   return {
-    metadata: { id: 'plugin-interop', name: 'Plugin Interop', description: 'List plugins, check status, execute commands, and integrate with Dataview/Templater', supportsReadOnly: false },
+    metadata: { id: 'plugin-interop', name: 'Plugin Interop', description: 'List plugins, check status, execute commands, and integrate with Dataview/Templater' },
     tools(): ToolDefinition[] {
       return [
         { name: 'plugin_list', description: 'List installed plugins with status', schema: {}, handler: h.listPlugins, isReadOnly: true },

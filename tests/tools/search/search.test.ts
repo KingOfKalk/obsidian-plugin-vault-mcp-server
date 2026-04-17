@@ -15,7 +15,6 @@ describe('search module', () => {
     const adapter = new MockObsidianAdapter();
     const module = createSearchModule(adapter);
     expect(module.metadata.id).toBe('search');
-    expect(module.metadata.supportsReadOnly).toBe(false);
   });
 
   it('should register 12 tools', () => {

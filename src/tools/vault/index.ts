@@ -29,7 +29,6 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
       id: 'vault',
       name: 'Vault and File Operations',
       description: 'Create, read, update, delete, and manage files in the vault',
-      supportsReadOnly: true,
     },
 
     tools(): ToolDefinition[] {
