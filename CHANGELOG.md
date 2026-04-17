@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.1.0...v2.2.0) (2026-04-17)
+
+
+### Features
+
+* **i18n:** add multi-language support with English and German locales ([#141](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/141)) ([c416495](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/c4164951e0f5561c286bf54d3ebb059356955b8a)), closes [#114](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/114)
+
 ## [2.1.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.0.2...v2.1.0) (2026-04-17)
 
 
