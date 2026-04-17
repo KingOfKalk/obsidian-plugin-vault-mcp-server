@@ -12,7 +12,11 @@
 - **Localhost by default**: The server binds to `127.0.0.1` by default — it's not accessible from other machines. This can be changed in settings via the **Server Address** option.
 - **Binding to `0.0.0.0`**: Exposes the server on all network interfaces. Only do this if you understand the security implications and have an access key configured.
 - **Firewall**: If running on a shared machine or binding to a non-localhost address, ensure your firewall blocks the MCP port from unauthorized access
-- **HTTPS**: Enable HTTPS for encrypted communication, especially when binding to a non-localhost address
+- **HTTPS**: Enable HTTPS for encrypted communication, especially when binding to a non-localhost address. The plugin generates and caches a self-signed certificate; clients must explicitly trust it (e.g. Node clients need `--cafile` or the `ca` option, curl `--cacert`). Since the certificate is locally issued it cannot be verified against a public CA.
+
+## TLS Certificate
+
+When HTTPS is enabled, a self-signed RSA-2048 certificate (SHA-256, 365-day validity) is generated on first start and cached in `data.json`. The subject alternative name list includes `localhost`, `127.0.0.1`, `::1`, and the configured server address. Use the **Regenerate certificate** button in settings if you rotate the server address or want a fresh key pair; clients that previously trusted the old certificate must re-trust the new one.
 
 ## Feature Access Control
 

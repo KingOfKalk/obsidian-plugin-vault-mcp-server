@@ -1,4 +1,5 @@
-import { createServer, IncomingMessage, Server, ServerResponse } from 'http';
+import { createServer as createHttpServer, IncomingMessage, Server, ServerResponse } from 'http';
+import { createServer as createHttpsServer } from 'https';
 import { randomUUID } from 'crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -12,6 +13,8 @@ export interface HttpServerOptions {
   port: number;
   accessKey: string;
   corsOptions?: CorsOptions;
+  /** When provided, the server uses HTTPS with these PEM-encoded credentials. */
+  tls?: { cert: string; key: string };
 }
 
 export type McpServerFactory = () => McpServer;
@@ -53,6 +56,10 @@ export class HttpMcpServer {
     return this.sessions.size;
   }
 
+  get scheme(): 'http' | 'https' {
+    return this.options.tls ? 'https' : 'http';
+  }
+
   async start(): Promise<void> {
     if (this.isRunning) {
       this.logger.warn('Server is already running');
@@ -61,9 +68,16 @@ export class HttpMcpServer {
 
     const corsOptions = this.options.corsOptions ?? DEFAULT_CORS_OPTIONS;
 
-    this.httpServer = createServer((req: IncomingMessage, res: ServerResponse): void => {
+    const handler = (req: IncomingMessage, res: ServerResponse): void => {
       void this.handleRequest(req, res, corsOptions);
-    });
+    };
+
+    this.httpServer = this.options.tls
+      ? createHttpsServer(
+          { cert: this.options.tls.cert, key: this.options.tls.key },
+          handler,
+        )
+      : createHttpServer(handler);
 
     this.httpServer.on('connection', () => {
       this._connectedClients++;
@@ -83,7 +97,9 @@ export class HttpMcpServer {
       });
 
       this.httpServer!.listen(this.options.port, this.options.host, () => {
-        this.logger.info(`MCP server listening on http://${this.options.host}:${String(this.options.port)}`);
+        this.logger.info(
+          `MCP server listening on ${this.scheme}://${this.options.host}:${String(this.options.port)}`,
+        );
         resolve();
       });
     });

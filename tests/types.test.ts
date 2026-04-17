@@ -22,8 +22,12 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.moduleStates).toEqual({});
   });
 
-  it('should have schema version 4', () => {
-    expect(DEFAULT_SETTINGS.schemaVersion).toBe(4);
+  it('should have schema version 5', () => {
+    expect(DEFAULT_SETTINGS.schemaVersion).toBe(5);
+  });
+
+  it('should have a null TLS certificate by default', () => {
+    expect(DEFAULT_SETTINGS.tlsCertificate).toBeNull();
   });
 
   it('should have default server address 127.0.0.1', () => {

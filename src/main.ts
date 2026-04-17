@@ -1,9 +1,10 @@
 import { Notice, Plugin } from 'obsidian';
-import { DEFAULT_SETTINGS, McpPluginSettings } from './types';
+import { DEFAULT_SETTINGS, McpPluginSettings, TlsCertificateData } from './types';
 import { createLogger, Logger } from './utils/logger';
 import { ModuleRegistry } from './registry/module-registry';
 import { createMcpServer } from './server/mcp-server';
 import { HttpMcpServer } from './server/http-server';
+import { generateSelfSignedCert } from './server/tls';
 import { RealObsidianAdapter, ObsidianAdapter } from './obsidian/adapter';
 import { discoverModules } from './tools';
 import { McpSettingsTab, migrateSettings } from './settings';
@@ -105,6 +106,10 @@ export default class McpPlugin extends Plugin {
 
   async startServer(): Promise<void> {
     try {
+      const tls = this.settings.httpsEnabled
+        ? await this.ensureTlsCertificate()
+        : undefined;
+
       this.httpServer = new HttpMcpServer(
         () => createMcpServer(this.registry, this.logger),
         this.logger,
@@ -112,6 +117,7 @@ export default class McpPlugin extends Plugin {
           host: this.settings.serverAddress,
           port: this.settings.port,
           accessKey: this.settings.accessKey,
+          tls,
         },
       );
       await this.httpServer.start();
@@ -122,6 +128,25 @@ export default class McpPlugin extends Plugin {
       this.logger.error(`Failed to start MCP server: ${message}`);
       new Notice(`Failed to start MCP server: ${message}`);
     }
+  }
+
+  async regenerateTlsCertificate(): Promise<void> {
+    this.settings.tlsCertificate = null;
+    await this.saveSettings();
+    await this.ensureTlsCertificate();
+  }
+
+  private async ensureTlsCertificate(): Promise<TlsCertificateData> {
+    if (this.settings.tlsCertificate) {
+      return this.settings.tlsCertificate;
+    }
+    this.logger.info('Generating self-signed TLS certificate');
+    const cert = await generateSelfSignedCert({
+      hosts: [this.settings.serverAddress],
+    });
+    this.settings.tlsCertificate = cert;
+    await this.saveSettings();
+    return cert;
   }
 
   async stopServer(): Promise<void> {
