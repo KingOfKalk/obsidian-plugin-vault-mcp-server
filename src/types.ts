@@ -20,10 +20,12 @@ export interface McpPluginSettings {
 export interface ModuleState {
   enabled: boolean;
   readOnly: boolean;
+  /** Per-tool enabled state, keyed by tool name. Only populated for modules in the 'extras' group. */
+  toolStates?: Record<string, boolean>;
 }
 
 export const DEFAULT_SETTINGS: McpPluginSettings = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   serverAddress: '127.0.0.1',
   port: 28741,
   accessKey: '',

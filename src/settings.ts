@@ -275,7 +275,7 @@ export class McpSettingsTab extends PluginSettingTab {
         cls: 'setting-item-description',
       });
       for (const registration of extrasModules) {
-        this.renderModuleRow(containerEl, registration);
+        this.renderExtrasToolRows(containerEl, registration);
       }
     }
 
@@ -285,6 +285,31 @@ export class McpSettingsTab extends PluginSettingTab {
         this.display();
       }),
     );
+  }
+
+  private renderExtrasToolRows(
+    containerEl: HTMLElement,
+    registration: ModuleRegistration,
+  ): void {
+    const moduleId = registration.module.metadata.id;
+    const tools = registration.module.tools();
+
+    for (const tool of tools) {
+      const card = containerEl.createDiv({ cls: 'mcp-module-card' });
+      new Setting(card)
+        .setName(tool.name)
+        .setDesc(tool.description)
+        .setClass('mcp-module-card-header')
+        .addToggle((toggle) =>
+          toggle
+            .setValue(registration.toolStates[tool.name] ?? false)
+            .onChange(async (value) => {
+              this.plugin.registry.setToolEnabled(moduleId, tool.name, value);
+              this.plugin.settings.moduleStates = this.plugin.registry.getState();
+              await this.plugin.saveSettings();
+            }),
+        );
+    }
   }
 
   private renderModuleRow(
@@ -365,6 +390,22 @@ export function migrateSettings(
     data.schemaVersion = 3;
     // V2 -> V3: add autoStart, default off for existing installs (explicit opt-in)
     if (data.autoStart === undefined) data.autoStart = false;
+  }
+
+  if ((data.schemaVersion as number) < 4) {
+    data.schemaVersion = 4;
+    // V3 -> V4: extras moves from module-level enable to per-tool enable.
+    // Preserve behavior: if the extras module was previously enabled, enable
+    // its known tools; otherwise leave them off.
+    const moduleStates = (data.moduleStates ?? {}) as Record<
+      string,
+      { enabled?: boolean; readOnly?: boolean; toolStates?: Record<string, boolean> }
+    >;
+    const extras = moduleStates.extras;
+    if (extras && extras.toolStates === undefined) {
+      extras.toolStates = extras.enabled ? { get_date: true } : {};
+    }
+    data.moduleStates = moduleStates;
   }
 
   return data;

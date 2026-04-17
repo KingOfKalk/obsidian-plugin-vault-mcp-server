@@ -22,8 +22,8 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.moduleStates).toEqual({});
   });
 
-  it('should have schema version 3', () => {
-    expect(DEFAULT_SETTINGS.schemaVersion).toBe(3);
+  it('should have schema version 4', () => {
+    expect(DEFAULT_SETTINGS.schemaVersion).toBe(4);
   });
 
   it('should have default server address 127.0.0.1', () => {
