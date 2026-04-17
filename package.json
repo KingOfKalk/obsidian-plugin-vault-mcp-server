@@ -23,19 +23,20 @@
   "author": "KingOfKalk",
   "license": "GPL-3.0-only",
   "devDependencies": {
-    "typescript-eslint": "^8.0.0",
+    "@types/node": "^25.6.0",
+    "@vitest/coverage-v8": "^4.1.0",
     "builtin-modules": "^5.1.0",
     "esbuild": "^0.28.0",
     "eslint": "^10.2.0",
     "prettier": "^3.4.0",
     "typescript": "^6.0.0",
-    "vitest": "^4.1.0",
-    "@vitest/coverage-v8": "^4.1.0",
-    "@types/node": "^25.6.0"
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^4.1.0"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
     "obsidian": "^1.7.2",
+    "selfsigned": "^5.5.0",
     "zod": "^4.3.0"
   }
 }

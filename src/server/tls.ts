@@ -1,44 +1,61 @@
-import { generateKeyPairSync, createSign, randomBytes } from 'crypto';
+import { generate } from 'selfsigned';
 
 export interface TlsCertificate {
   cert: string;
   key: string;
 }
 
-export function generateSelfSignedCert(): TlsCertificate {
-  const { publicKey, privateKey } = generateKeyPairSync('rsa', {
-    modulusLength: 2048,
-  });
+export interface GenerateOptions {
+  /** Hostnames/IPs to include in subjectAltName. Defaults cover loopback. */
+  hosts?: string[];
+  /** Validity in days. Defaults to 365. */
+  validityDays?: number;
+}
 
-  // Create a simple self-signed certificate
-  // This is a minimal X.509 v3 certificate for local use
-  const serialNumber = randomBytes(16).toString('hex');
-  const notBefore = new Date();
-  const notAfter = new Date();
-  notAfter.setFullYear(notAfter.getFullYear() + 10);
+const DEFAULT_HOSTS = ['localhost', '127.0.0.1', '::1'];
 
-  // Use Node.js crypto to create a self-signed cert
-  // For simplicity in a local-only context, we generate PEM-encoded key pair
-  const pubPem = publicKey.export({ type: 'spki', format: 'pem' });
-  const privPem = privateKey.export({ type: 'pkcs8', format: 'pem' });
+export async function generateSelfSignedCert(
+  options: GenerateOptions = {},
+): Promise<TlsCertificate> {
+  const hosts = Array.from(new Set([...DEFAULT_HOSTS, ...(options.hosts ?? [])]));
+  const validityDays = options.validityDays ?? 365;
 
-  // Create a minimal self-signed certificate using the sign API
-  const sign = createSign('SHA256');
-  const certInfo = [
-    `Serial: ${serialNumber}`,
-    `Not Before: ${notBefore.toISOString()}`,
-    `Not After: ${notAfter.toISOString()}`,
-    `Subject: CN=localhost`,
-    `Issuer: CN=localhost`,
-  ].join('\n');
-  sign.update(certInfo);
-  sign.sign(privateKey, 'base64');
+  const now = new Date();
+  const notAfter = new Date(now.getTime() + validityDays * 24 * 60 * 60 * 1000);
 
-  // For a production-quality implementation, we'd use a proper X.509 library
-  // For local-only self-signed use, the key pair is sufficient
-  // Node's https.createServer accepts { key, cert } where cert can be self-signed
-  return {
-    cert: pubPem,
-    key: privPem,
-  };
+  const pems = await generate(
+    [{ name: 'commonName', value: 'Obsidian MCP Plugin (localhost)' }],
+    {
+      keySize: 2048,
+      algorithm: 'sha256',
+      notBeforeDate: now,
+      notAfterDate: notAfter,
+      extensions: [
+        { name: 'basicConstraints', cA: false, critical: true },
+        {
+          name: 'keyUsage',
+          digitalSignature: true,
+          keyEncipherment: true,
+          critical: true,
+        },
+        { name: 'extKeyUsage', serverAuth: true },
+        {
+          name: 'subjectAltName',
+          altNames: hosts.map((host) =>
+            isIpAddress(host)
+              ? { type: 7, ip: host }
+              : { type: 2, value: host },
+          ),
+        },
+      ],
+    },
+  );
+
+  return { cert: pems.cert, key: pems.private };
+}
+
+function isIpAddress(value: string): boolean {
+  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(value)) return true;
+  if (value.includes(':')) return true;
+  return false;
 }

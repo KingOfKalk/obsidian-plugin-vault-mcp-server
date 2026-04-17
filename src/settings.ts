@@ -21,6 +21,10 @@ export class McpSettingsTab extends PluginSettingTab {
     this.renderModuleToggles(containerEl);
   }
 
+  private scheme(): 'http' | 'https' {
+    return this.plugin.settings.httpsEnabled ? 'https' : 'http';
+  }
+
   private renderServerStatus(containerEl: HTMLElement): void {
     containerEl.createEl('h2', { text: 'Server Status' });
 
@@ -30,7 +34,7 @@ export class McpSettingsTab extends PluginSettingTab {
 
     const address = this.plugin.settings.serverAddress;
     const statusText = isRunning
-      ? `Running on http://${address}:${String(port)} (${String(clients)} connection${clients !== 1 ? 's' : ''})`
+      ? `Running on ${this.scheme()}://${address}:${String(port)} (${String(clients)} connection${clients !== 1 ? 's' : ''})`
       : 'Stopped';
 
     const setting = new Setting(containerEl)
@@ -105,16 +109,16 @@ export class McpSettingsTab extends PluginSettingTab {
           }),
       );
 
+    const serverUrl = `${this.scheme()}://${this.plugin.settings.serverAddress}:${String(this.plugin.settings.port)}/mcp`;
     new Setting(containerEl)
       .setName('Server URL')
-      .setDesc(`http://${this.plugin.settings.serverAddress}:${String(this.plugin.settings.port)}/mcp`)
+      .setDesc(serverUrl)
       .addExtraButton((btn) =>
         btn
           .setIcon('copy')
           .setTooltip('Copy server URL')
           .onClick(() => {
-            const url = `http://${this.plugin.settings.serverAddress}:${String(this.plugin.settings.port)}/mcp`;
-            void navigator.clipboard.writeText(url).then(() => {
+            void navigator.clipboard.writeText(serverUrl).then(() => {
               new Notice('MCP server URL copied to clipboard');
             });
           }),
@@ -155,6 +159,43 @@ export class McpSettingsTab extends PluginSettingTab {
             });
           }),
       );
+
+    new Setting(containerEl)
+      .setName('HTTPS')
+      .setDesc(
+        'Serve MCP over HTTPS with a locally generated self-signed certificate. Clients must trust the certificate (or disable certificate verification). Requires restart.',
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.httpsEnabled)
+          .onChange(async (value) => {
+            this.plugin.settings.httpsEnabled = value;
+            await this.plugin.saveSettings();
+            this.display();
+          }),
+      );
+
+    if (this.plugin.settings.httpsEnabled) {
+      const hasCert = this.plugin.settings.tlsCertificate !== null;
+      new Setting(containerEl)
+        .setName('TLS Certificate')
+        .setDesc(
+          hasCert
+            ? 'A self-signed certificate is cached. Regenerate to replace it (e.g. after changing the server address).'
+            : 'No certificate cached yet — one will be generated on the next server start.',
+        )
+        .addExtraButton((btn) =>
+          btn
+            .setIcon('refresh-cw')
+            .setTooltip('Regenerate certificate')
+            .onClick(() => {
+              void this.plugin.regenerateTlsCertificate().then(() => {
+                new Notice('TLS certificate regenerated. Restart the server to apply.');
+                this.display();
+              });
+            }),
+        );
+    }
 
     new Setting(containerEl)
       .setName('Auto-start on launch')
@@ -208,7 +249,7 @@ export class McpSettingsTab extends PluginSettingTab {
     const address = this.plugin.settings.serverAddress;
     const port = this.plugin.settings.port;
     const accessKey = this.plugin.settings.accessKey;
-    const url = `http://${address}:${String(port)}/mcp`;
+    const url = `${this.scheme()}://${address}:${String(port)}/mcp`;
 
     const config: Record<string, unknown> = { url };
 
@@ -372,6 +413,12 @@ export function migrateSettings(
       extras.toolStates = extras.enabled ? { get_date: true } : {};
     }
     data.moduleStates = moduleStates;
+  }
+
+  if ((data.schemaVersion as number) < 5) {
+    data.schemaVersion = 5;
+    // V4 -> V5: introduce cached self-signed TLS certificate.
+    if (data.tlsCertificate === undefined) data.tlsCertificate = null;
   }
 
   return data;

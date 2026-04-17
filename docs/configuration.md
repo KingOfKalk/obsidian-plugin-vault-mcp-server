@@ -19,7 +19,12 @@
 
 ### HTTPS (`httpsEnabled`)
 - **Default**: `false`
-- **Description**: Enable HTTPS with a locally generated self-signed certificate
+- **Description**: Enable HTTPS with a locally generated self-signed certificate. The certificate is generated on first server start and cached in plugin data; MCP clients must trust it explicitly (or disable certificate verification). Requires a server restart after toggling.
+- **Regenerate**: Click the refresh button on the "TLS Certificate" row in settings to produce a fresh certificate (e.g. after changing the server address). Existing clients will need to re-trust the new certificate.
+
+### TLS Certificate (`tlsCertificate`)
+- **Default**: `null`
+- **Description**: Cached self-signed certificate and private key (PEM) used when HTTPS is enabled. Generated automatically; regenerated on demand via the settings UI. Included in `data.json` — treat it like the access key.
 
 ### Debug Mode (`debugMode`)
 - **Default**: `false`

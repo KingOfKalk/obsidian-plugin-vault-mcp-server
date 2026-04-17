@@ -7,7 +7,7 @@ describe('migrateSettings', () => {
   it('should migrate v0 (no schemaVersion) to v4', () => {
     const data: Record<string, unknown> = {};
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(4);
+    expect(result.schemaVersion).toBe(5);
     expect(result.port).toBe(28741);
     expect(result.accessKey).toBe('');
     expect(result.httpsEnabled).toBe(false);
@@ -24,7 +24,7 @@ describe('migrateSettings', () => {
       debugMode: true,
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(4);
+    expect(result.schemaVersion).toBe(5);
     expect(result.port).toBe(9999);
     expect(result.accessKey).toBe('my-key');
     expect(result.debugMode).toBe(true);
@@ -42,7 +42,7 @@ describe('migrateSettings', () => {
       moduleStates: {},
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(4);
+    expect(result.schemaVersion).toBe(5);
     expect(result.serverAddress).toBe('127.0.0.1');
     expect(result.autoStart).toBe(false);
   });
@@ -58,7 +58,7 @@ describe('migrateSettings', () => {
       moduleStates: {},
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(4);
+    expect(result.schemaVersion).toBe(5);
     expect(result.autoStart).toBe(false);
   });
 
@@ -77,14 +77,14 @@ describe('migrateSettings', () => {
       },
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(4);
+    expect(result.schemaVersion).toBe(5);
     expect(result.moduleStates).toEqual({
       vault: { enabled: true },
       editor: { enabled: false },
     });
   });
 
-  it('should not modify data already at v4', () => {
+  it('should migrate v4 data to v5 by adding tlsCertificate=null', () => {
     const data: Record<string, unknown> = {
       schemaVersion: 4,
       serverAddress: '192.168.1.100',
@@ -96,7 +96,37 @@ describe('migrateSettings', () => {
       moduleStates: {},
     };
     const result = migrateSettings(data);
+    expect(result.schemaVersion).toBe(5);
+    expect(result.tlsCertificate).toBeNull();
+  });
+
+  it('should not modify data already at v5', () => {
+    const data: Record<string, unknown> = {
+      schemaVersion: 5,
+      serverAddress: '192.168.1.100',
+      port: 28741,
+      accessKey: 'test',
+      httpsEnabled: true,
+      tlsCertificate: { cert: 'C', key: 'K' },
+      debugMode: false,
+      autoStart: true,
+      moduleStates: {},
+    };
+    const result = migrateSettings(data);
     expect(result).toEqual(data);
+  });
+
+  it('preserves an existing tlsCertificate across migration', () => {
+    const data: Record<string, unknown> = {
+      schemaVersion: 4,
+      tlsCertificate: { cert: 'EXISTING_CERT', key: 'EXISTING_KEY' },
+    };
+    const result = migrateSettings(data);
+    expect(result.schemaVersion).toBe(5);
+    expect(result.tlsCertificate).toEqual({
+      cert: 'EXISTING_CERT',
+      key: 'EXISTING_KEY',
+    });
   });
 
   it('should handle partially populated v0 data', () => {
@@ -104,7 +134,7 @@ describe('migrateSettings', () => {
       port: 3000,
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(4);
+    expect(result.schemaVersion).toBe(5);
     expect(result.port).toBe(3000);
     expect(result.accessKey).toBe('');
     expect(result.moduleStates).toEqual({});
@@ -124,7 +154,7 @@ describe('migrateSettings', () => {
       moduleStates: { extras: { enabled: true, readOnly: false } },
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(4);
+    expect(result.schemaVersion).toBe(5);
     const states = result.moduleStates as Record<
       string,
       { enabled: boolean; readOnly: boolean; toolStates?: Record<string, boolean> }
