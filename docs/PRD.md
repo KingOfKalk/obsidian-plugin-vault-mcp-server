@@ -92,7 +92,7 @@ Each category is a toggleable module. Modules self-register. The settings UI aut
 
 ### Extras
 
-Utility tools that do not mirror an Obsidian API. Modules in this group render under a separate "Extras" heading in the settings UI (not under "Feature Modules") and are disabled by default — users opt in individually.
+Utility tools that do not mirror an Obsidian API. Modules in this group render under a separate "Extras" heading in the settings UI (not under "Feature Modules"). Unlike core feature modules, Extras modules are not toggled as a single unit: the settings UI renders one toggle **per tool** within the Extras group, and the registry stores per-tool enable state on the module. All Extras tools are disabled by default — users opt in one tool at a time.
 
 - **R55** — `get_date` tool returns the current local datetime as a plain ISO-8601 string with timezone offset (e.g. `2026-04-16T14:32:05.123+02:00`). The offset is already encoded in the string, so no additional fields are returned. Disabled by default. Belongs to the "Extras" module group.
 
@@ -101,10 +101,12 @@ Utility tools that do not mirror an Obsidian API. Modules in this group render u
 ### Server Settings
 
 - **CR1** — Configurable HTTP port with default value 28741
-- **CR2** — Access key field for authentication (user-provided, with a "Generate" button for convenience)
+- **CR2** — Access key field for authentication (user-provided, with a "Generate" button for convenience). The Generate button produces a new access key by calling Node's `crypto.randomBytes(32)` and rendering the 32 random bytes as a 64-character lowercase hex string, then overwrites the stored access key and re-renders the settings tab.
 - **CR3** — Toggle between HTTP and HTTPS (self-signed certificate), HTTP by default
 - **CR4** — Debug mode toggle that enables verbose logging
 - **CR17** — Configurable server IP address (default `127.0.0.1`). Must validate IPv4 format. Settings UI shows a security warning when bound to a non-localhost address. Requires server restart to take effect.
+- **CR19** — Auto-start on launch toggle. Defaults to off. When on, the plugin's `onload` starts the MCP server automatically during plugin load only if the stored access key is non-empty; if `autoStart` is true but no access key is configured, the server is left stopped and the plugin logs an `info` entry explaining why. Users must explicitly opt in per install.
+- **CR20** — Server URL row displays the current `http://<address>:<port>/mcp` URL in its description and exposes a clipboard-copy extra button ("Copy server URL") that writes that URL to the clipboard and shows a confirmation Notice.
 
 ### Feature Access Control
 
@@ -119,12 +121,17 @@ Utility tools that do not mirror an Obsidian API. Modules in this group render u
 
 ### Server Controls
 
-- **CR16** — Settings UI provides dedicated Start, Stop, and Restart buttons for MCP server lifecycle management. The Stop button is only enabled when the server is running. The Start button is only enabled when the server is stopped. The Restart button is only enabled when the server is running.
+- ~~CR16~~ — ~~Settings UI provides dedicated Start, Stop, and Restart buttons for MCP server lifecycle management. The Stop button is only enabled when the server is running. The Start button is only enabled when the server is stopped. The Restart button is only enabled when the server is running.~~
+- **CR18** — Settings UI "Status" row exposes server lifecycle as a single running/stopped toggle: flipping the toggle on starts the server, flipping it off stops it. While the server is running, a refresh-icon extra button appears on the same row to restart the server; this restart control is not rendered while the server is stopped. Replaces ~~CR16~~ — the shipped UI never implemented three separate Start/Stop/Restart buttons; it uses the simpler toggle plus conditional restart control instead.
+
+### MCP Client Configuration
+
+- **CR21** — Settings UI contains an "MCP Client Configuration" section with a clipboard-copy extra button that copies a ready-to-paste JSON snippet for the `mcpServers` entry of Claude Desktop / Claude Code config files. The snippet is derived live from the current `serverAddress`, `port`, and `accessKey`: it always includes the MCP endpoint URL (`http://<address>:<port>/mcp`) and, when the access key is non-empty, a `headers` object with `Authorization: Bearer <key>`. The copy action shows a confirmation Notice.
 
 ### Settings Persistence
 
 - **CR13** — All settings persisted in Obsidian's plugin data.json
-- **CR14** — Settings migration strategy between plugin versions (versioned schema)
+- **CR14** — Settings migration strategy between plugin versions (versioned schema — see Appendix A: Settings Schema Migrations)
 - **CR15** — Sensible defaults for all settings on first install
 
 ## Non-Functional Requirements
@@ -138,12 +145,14 @@ Utility tools that do not mirror an Obsidian API. Modules in this group render u
 
 ### Security
 
-- **NFR5** — All MCP requests require a valid access key (Bearer token)
+- **NFR5** — All MCP requests require a valid access key (Bearer token). Bearer authentication is enforced by `authenticateRequest` before any request-routing logic, including the MCP `initialize` handshake and any subsequent `mcp-session-id`-keyed calls. CORS preflight (`OPTIONS`) requests are handled earlier and are the only HTTP traffic that does not require the Bearer token. If the server has no configured access key, every request is rejected with an authentication error.
 - **NFR6** — CORS headers configurable and restrictive by default
-- **NFR7** — Disabled feature categories reject requests with 403, not just hide tools
+- ~~NFR7~~ — ~~Disabled feature categories reject requests with 403, not just hide tools~~
+- **NFR30** — Disabled feature modules (and, for Extras, individually disabled tools) are filtered out of the MCP tool list advertised to clients. A client that invokes a tool from a disabled module receives the standard MCP unknown-tool error from the SDK; the plugin does not emit an HTTP 403 for feature-gating. Replaces ~~NFR7~~ because the implemented contract is "hide disabled tools at `tools/list` time", not "reject with HTTP 403".
 - **NFR8** — File operations scoped to the vault directory (no path traversal)
 - **NFR9** — Self-signed HTTPS certificate generated locally, never transmitted
-- **NFR10** — Access key never appears in logs even in debug mode
+- **NFR10** — Access key never appears in logs even in debug mode. The `Logger` enforces this by substituting the configured access key with the literal placeholder `[REDACTED]` in every formatted message string and every string reached recursively inside structured log data before the entry is emitted. `updateOptions` keeps the redaction key in sync with the current settings.
+- **NFR32** — The HTTP transport caps individual request bodies at 4 MiB. Requests whose body exceeds `MAX_BODY_BYTES` are rejected with a JSON-RPC `-32700` ("Parse error: Request body too large") response and the underlying socket is destroyed mid-upload to avoid buffering unbounded input. Implemented in `src/server/http-server.ts` (`readJsonBody`).
 
 ### Reliability
 
@@ -161,8 +170,8 @@ Utility tools that do not mirror an Obsidian API. Modules in this group render u
 ### Testability
 
 - **NFR18** — All Obsidian API interactions go through an abstraction layer that can be mocked
-- **NFR19** — Plugin passes MCP Inspector validation for all exposed tools
-- **NFR20** — Test coverage target of 80% for business logic (tool handlers, validation, auth)
+- **NFR19** — Plugin passes MCP Inspector validation for all exposed tools. (Aspirational: Inspector is run manually during development; no CI job runs Inspector today.)
+- **NFR20** — Unit tests for business logic (tool handlers, validation, auth) are executed with coverage collection in CI via `npm run test:coverage`. A specific numeric coverage floor is aspirational; the CI workflow collects and reports coverage but does not fail below a fixed percentage today.
 
 ### Maintainability
 
@@ -175,6 +184,7 @@ Utility tools that do not mirror an Obsidian API. Modules in this group render u
 - **NFR24** — Structured logging with levels: debug, info, warn, error
 - **NFR25** — Debug mode logs all incoming MCP requests and outgoing responses
 - **NFR26** — Server status (running, port, connected clients) visible in the settings tab
+- **NFR31** — Plugin registers an Obsidian status bar item that displays `MCP :<port>` while the MCP server is running and renders as empty text while the server is stopped. The status bar text is refreshed on every start/stop transition so users can see at a glance whether the server is live and on which port without opening settings.
 
 ### Compatibility
 
@@ -216,7 +226,7 @@ Utility tools that do not mirror an Obsidian API. Modules in this group render u
 - **TR19** — Integration tests that boot the MCP server and call tools via MCP client
 - **TR20** — Unit tests for each tool handler in isolation
 - **TR21** — Test fixtures for vault content (markdown files, folders, frontmatter samples)
-- **TR22** — E2E tests using WebdriverIO + wdio-obsidian-service in Docker with Xvfb
+- **TR22** — E2E tests using WebdriverIO + wdio-obsidian-service in Docker with Xvfb. (Aspirational: CI today runs lint, typecheck, unit tests with coverage, and build only — no WebdriverIO/E2E job is wired up yet. Visual verification is done ad-hoc on the host via the Xvfb + CDP screenshot pipeline described in `docs/screenshots-on-host.md`.)
 
 ### CI/CD
 
@@ -239,3 +249,14 @@ Utility tools that do not mirror an Obsidian API. Modules in this group render u
 - **DR6** — Architecture decision records for key choices (transport, auth, testing framework)
 - **DR7** — How to add a new feature category (step-by-step guide for contributors)
 - **DR8** — API reference: list of all MCP tools with parameter schemas and example responses
+
+## Appendix A: Settings Schema Migrations
+
+This appendix grounds CR14 in the concrete migration steps implemented in `migrateSettings` (`src/settings.ts`). Each step is idempotent and runs in order; `schemaVersion` is written after each successful step so partial upgrades resume correctly.
+
+- **v1** — Baseline. Fills in defaults for required fields that may be missing on data loaded from a pre-versioned install: `port` (28741), `accessKey` (empty string), `httpsEnabled` (false), `debugMode` (false), and an empty `moduleStates` map.
+- **v2** — Adds `serverAddress`, defaulting to `127.0.0.1` (see CR17).
+- **v3** — Adds `autoStart`, defaulting to `false` for existing installs so the server never starts unexpectedly after an upgrade (see CR19).
+- **v4** — Removes the per-module `readOnly` flag from every `moduleStates` entry (the feature was dropped), and converts the Extras group from a single module-level toggle to per-tool toggles (`toolStates`). Preserves behaviour: if the Extras module was previously enabled, the known `get_date` tool stays enabled; otherwise its `toolStates` map is initialized empty.
+
+Future schema versions must be appended here with the same format (version number, behaviour summary, rationale, and links to the CRs/NFRs they serve).
