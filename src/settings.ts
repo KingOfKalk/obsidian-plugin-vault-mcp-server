@@ -270,10 +270,6 @@ export class McpSettingsTab extends PluginSettingTab {
 
     if (extrasModules.length > 0) {
       containerEl.createEl('h2', { text: 'Extras' });
-      containerEl.createEl('p', {
-        text: 'Utility tools that do not mirror an Obsidian API. Disabled by default — enable individually as needed.',
-        cls: 'setting-item-description',
-      });
       for (const registration of extrasModules) {
         this.renderExtrasToolRows(containerEl, registration);
       }
@@ -295,11 +291,9 @@ export class McpSettingsTab extends PluginSettingTab {
     const tools = registration.module.tools();
 
     for (const tool of tools) {
-      const card = containerEl.createDiv({ cls: 'mcp-module-card' });
-      new Setting(card)
+      new Setting(containerEl)
         .setName(tool.name)
         .setDesc(tool.description)
-        .setClass('mcp-module-card-header')
         .addToggle((toggle) =>
           toggle
             .setValue(registration.toolStates[tool.name] ?? false)
