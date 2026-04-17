@@ -2,6 +2,7 @@ import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
 import { randomBytes } from 'crypto';
 import type McpPlugin from './main';
 import type { ModuleRegistration } from './registry/types';
+import { t } from './lang/helpers';
 
 export class McpSettingsTab extends PluginSettingTab {
   plugin: McpPlugin;
@@ -26,24 +27,27 @@ export class McpSettingsTab extends PluginSettingTab {
   }
 
   private renderServerStatus(containerEl: HTMLElement): void {
-    containerEl.createEl('h2', { text: 'Server Status' });
+    containerEl.createEl('h2', { text: t('heading_server_status') });
 
     const isRunning = this.plugin.httpServer?.isRunning ?? false;
     const port = this.plugin.settings.port;
     const clients = this.plugin.httpServer?.connectedClients ?? 0;
 
     const address = this.plugin.settings.serverAddress;
+    const url = `${this.scheme()}://${address}:${String(port)}`;
     const statusText = isRunning
-      ? `Running on ${this.scheme()}://${address}:${String(port)} (${String(clients)} connection${clients !== 1 ? 's' : ''})`
-      : 'Stopped';
+      ? clients === 1
+        ? t('status_running_one', { url })
+        : t('status_running_many', { url, count: clients })
+      : t('status_stopped');
 
     const setting = new Setting(containerEl)
-      .setName('Status')
+      .setName(t('setting_status_name'))
       .setDesc(statusText)
       .addToggle((toggle) =>
         toggle
           .setValue(isRunning)
-          .setTooltip(isRunning ? 'Stop MCP server' : 'Start MCP server')
+          .setTooltip(isRunning ? t('tooltip_stop_server') : t('tooltip_start_server'))
           .onChange((value) => {
             const action = value
               ? this.plugin.startServer()
@@ -58,7 +62,7 @@ export class McpSettingsTab extends PluginSettingTab {
       setting.addExtraButton((btn) =>
         btn
           .setIcon('refresh-cw')
-          .setTooltip('Restart server')
+          .setTooltip(t('tooltip_restart_server'))
           .onClick(() => {
             void this.plugin.restartServer().then(() => {
               this.display();
@@ -69,11 +73,11 @@ export class McpSettingsTab extends PluginSettingTab {
   }
 
   private renderServerSettings(containerEl: HTMLElement): void {
-    containerEl.createEl('h2', { text: 'Server Settings' });
+    containerEl.createEl('h2', { text: t('heading_server_settings') });
 
     const addressSetting = new Setting(containerEl)
-      .setName('Server Address')
-      .setDesc('IP address the server binds to (default: 127.0.0.1). Requires restart.');
+      .setName(t('setting_server_address_name'))
+      .setDesc(t('setting_server_address_desc'));
     const addressError = createValidationError(addressSetting);
     addressSetting.addText((text) =>
       text
@@ -85,7 +89,7 @@ export class McpSettingsTab extends PluginSettingTab {
             this.plugin.settings.serverAddress = value;
             await this.plugin.saveSettings();
           } else {
-            addressError.show('Invalid IPv4 address. Expected format: 127.0.0.1');
+            addressError.show(t('error_invalid_ipv4'));
           }
         }),
     );
@@ -93,13 +97,13 @@ export class McpSettingsTab extends PluginSettingTab {
     if (this.plugin.settings.serverAddress !== '127.0.0.1') {
       addressSetting.descEl.createEl('br');
       addressSetting.descEl.createEl('strong', {
-        text: 'Warning: Non-localhost address exposes the server to the network. Ensure an access key is set.',
+        text: t('warning_non_localhost'),
       });
     }
 
     const portSetting = new Setting(containerEl)
-      .setName('Port')
-      .setDesc('HTTP port for the MCP server (default: 28741)');
+      .setName(t('setting_port_name'))
+      .setDesc(t('setting_port_desc'));
     const portError = createValidationError(portSetting);
     portSetting.addText((text) =>
       text
@@ -112,32 +116,32 @@ export class McpSettingsTab extends PluginSettingTab {
             this.plugin.settings.port = port;
             await this.plugin.saveSettings();
           } else {
-            portError.show('Invalid port. Enter a whole number between 1 and 65535.');
+            portError.show(t('error_invalid_port'));
           }
         }),
     );
 
     const serverUrl = `${this.scheme()}://${this.plugin.settings.serverAddress}:${String(this.plugin.settings.port)}/mcp`;
     new Setting(containerEl)
-      .setName('Server URL')
+      .setName(t('setting_server_url_name'))
       .setDesc(serverUrl)
       .addExtraButton((btn) =>
         btn
           .setIcon('copy')
-          .setTooltip('Copy server URL')
+          .setTooltip(t('tooltip_copy_server_url'))
           .onClick(() => {
             void navigator.clipboard.writeText(serverUrl).then(() => {
-              new Notice('MCP server URL copied to clipboard');
+              new Notice(t('notice_server_url_copied'));
             });
           }),
       );
 
     new Setting(containerEl)
-      .setName('Access Key')
-      .setDesc('Bearer token for authenticating MCP clients')
+      .setName(t('setting_access_key_name'))
+      .setDesc(t('setting_access_key_desc'))
       .addText((text) =>
         text
-          .setPlaceholder('Enter access key')
+          .setPlaceholder(t('placeholder_access_key'))
           .setValue(this.plugin.settings.accessKey)
           .onChange(async (value) => {
             this.plugin.settings.accessKey = value;
@@ -147,19 +151,19 @@ export class McpSettingsTab extends PluginSettingTab {
       .addExtraButton((btn) =>
         btn
           .setIcon('copy')
-          .setTooltip('Copy access key')
+          .setTooltip(t('tooltip_copy_access_key'))
           .onClick(() => {
             void navigator.clipboard
               .writeText(this.plugin.settings.accessKey)
               .then(() => {
-                new Notice('Access key copied to clipboard');
+                new Notice(t('notice_access_key_copied'));
               });
           }),
       )
       .addExtraButton((btn) =>
         btn
           .setIcon('refresh-cw')
-          .setTooltip('Generate')
+          .setTooltip(t('tooltip_generate'))
           .onClick(() => {
             this.plugin.settings.accessKey = generateAccessKey();
             void this.plugin.saveSettings().then(() => {
@@ -169,10 +173,8 @@ export class McpSettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName('HTTPS')
-      .setDesc(
-        'Serve MCP over HTTPS with a locally generated self-signed certificate. Clients must trust the certificate (or disable certificate verification). Requires restart.',
-      )
+      .setName(t('setting_https_name'))
+      .setDesc(t('setting_https_desc'))
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.httpsEnabled)
@@ -186,19 +188,19 @@ export class McpSettingsTab extends PluginSettingTab {
     if (this.plugin.settings.httpsEnabled) {
       const hasCert = this.plugin.settings.tlsCertificate !== null;
       new Setting(containerEl)
-        .setName('TLS Certificate')
+        .setName(t('setting_tls_cert_name'))
         .setDesc(
           hasCert
-            ? 'A self-signed certificate is cached. Regenerate to replace it (e.g. after changing the server address).'
-            : 'No certificate cached yet — one will be generated on the next server start.',
+            ? t('setting_tls_cert_desc_present')
+            : t('setting_tls_cert_desc_absent'),
         )
         .addExtraButton((btn) =>
           btn
             .setIcon('refresh-cw')
-            .setTooltip('Regenerate certificate')
+            .setTooltip(t('tooltip_regenerate_cert'))
             .onClick(() => {
               void this.plugin.regenerateTlsCertificate().then(() => {
-                new Notice('TLS certificate regenerated. Restart the server to apply.');
+                new Notice(t('notice_tls_regenerated'));
                 this.display();
               });
             }),
@@ -206,8 +208,8 @@ export class McpSettingsTab extends PluginSettingTab {
     }
 
     new Setting(containerEl)
-      .setName('Auto-start on launch')
-      .setDesc('Start MCP server automatically when Obsidian launches')
+      .setName(t('setting_autostart_name'))
+      .setDesc(t('setting_autostart_desc'))
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.autoStart)
@@ -218,8 +220,8 @@ export class McpSettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName('Debug Mode')
-      .setDesc('Enable verbose logging of MCP requests and responses')
+      .setName(t('setting_debug_name'))
+      .setDesc(t('setting_debug_desc'))
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.debugMode)
@@ -232,22 +234,20 @@ export class McpSettingsTab extends PluginSettingTab {
   }
 
   private renderMcpConfig(containerEl: HTMLElement): void {
-    containerEl.createEl('h2', { text: 'MCP Client Configuration' });
+    containerEl.createEl('h2', { text: t('heading_mcp_client_config') });
 
     new Setting(containerEl)
-      .setName('Client configuration')
-      .setDesc(
-        'Copy the JSON snippet for your MCP client and paste it into the mcpServers section of its config (Claude Desktop, Claude Code, …).',
-      )
+      .setName(t('setting_client_config_name'))
+      .setDesc(t('setting_client_config_desc'))
       .addExtraButton((btn) =>
         btn
           .setIcon('copy')
-          .setTooltip('Copy configuration')
+          .setTooltip(t('tooltip_copy_config'))
           .onClick(() => {
             void navigator.clipboard
               .writeText(this.buildMcpConfigJson())
               .then(() => {
-                new Notice('MCP client configuration copied to clipboard');
+                new Notice(t('notice_config_copied'));
               });
           }),
       );
@@ -282,11 +282,11 @@ export class McpSettingsTab extends PluginSettingTab {
       (r) => r.module.metadata.group === 'extras',
     );
 
-    containerEl.createEl('h2', { text: 'Feature Modules' });
+    containerEl.createEl('h2', { text: t('heading_feature_modules') });
 
     if (modules.length === 0) {
       containerEl.createEl('p', {
-        text: 'No modules registered. Click "Refresh Modules" to re-run discovery.',
+        text: t('message_no_modules'),
         cls: 'setting-item-description',
       });
     }
@@ -296,14 +296,14 @@ export class McpSettingsTab extends PluginSettingTab {
     }
 
     if (extrasModules.length > 0) {
-      containerEl.createEl('h2', { text: 'Extras' });
+      containerEl.createEl('h2', { text: t('heading_extras') });
       for (const registration of extrasModules) {
         this.renderExtrasToolRows(containerEl, registration);
       }
     }
 
     new Setting(containerEl).addButton((btn) =>
-      btn.setButtonText('Refresh Modules').onClick(() => {
+      btn.setButtonText(t('button_refresh_modules')).onClick(() => {
         this.plugin.refreshModules();
         this.display();
       }),
