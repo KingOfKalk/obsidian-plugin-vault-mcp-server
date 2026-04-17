@@ -757,7 +757,7 @@ describe('McpSettingsTab module rows rendering', () => {
       });
     });
 
-    it('renders one card per tool', () => {
+    it('renders one flat row per tool with no mcp-module-card wrapper', () => {
       const two: ModuleRegistration = {
         ...extrasModule,
         toolStates: { get_date: false, get_uuid: false },
@@ -769,9 +769,29 @@ describe('McpSettingsTab module rows rendering', () => {
           ],
         },
       };
-      const { container } = renderModules([two]);
+      renderModules([two]);
+      expect(getSetting('get_date')).toBeDefined();
+      expect(getSetting('get_uuid')).toBeDefined();
+      expect(getSetting('get_date')!.settingClass).not.toContain(
+        'mcp-module-card-header',
+      );
+      expect(getSetting('get_uuid')!.settingClass).not.toContain(
+        'mcp-module-card-header',
+      );
+    });
+
+    it('does not wrap extras tool rows in a .mcp-module-card container', () => {
+      // When only an extras module is present, no module cards should be
+      // created (cards are reserved for core module rows).
+      const { container } = renderModules([extrasModule]);
       const cards = findAllByClass(container, 'mcp-module-card');
-      expect(cards).toHaveLength(2);
+      expect(cards).toHaveLength(0);
+    });
+
+    it('defaults the get_date toggle to off on a fresh install', () => {
+      // Fresh install: registry initialises toolStates[get_date] = false
+      renderModules([extrasModule]);
+      expect(getSetting('get_date')!.toggles[0].value).toBe(false);
     });
   });
 });
