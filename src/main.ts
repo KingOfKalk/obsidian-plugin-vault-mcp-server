@@ -1,4 +1,4 @@
-import { Notice, Plugin } from 'obsidian';
+import { Notice, Plugin, setIcon } from 'obsidian';
 import { DEFAULT_SETTINGS, McpPluginSettings, TlsCertificateData } from './types';
 import { createLogger, Logger } from './utils/logger';
 import { ModuleRegistry } from './registry/module-registry';
@@ -10,6 +10,7 @@ import { discoverModules } from './tools';
 import { McpSettingsTab, migrateSettings } from './settings';
 
 const ICON_MCP = 'plug';
+const ICON_MCP_RUNNING = 'plug-zap';
 
 export default class McpPlugin extends Plugin {
   settings: McpPluginSettings = DEFAULT_SETTINGS;
@@ -184,8 +185,9 @@ export default class McpPlugin extends Plugin {
       );
     }
 
-    // Update ribbon icon
+    // Update ribbon icon glyph + aria label
     if (this.ribbonIconEl) {
+      setIcon(this.ribbonIconEl, isRunning ? ICON_MCP_RUNNING : ICON_MCP);
       this.ribbonIconEl.ariaLabel = isRunning
         ? `MCP Server (running on :${String(this.settings.port)})`
         : 'MCP Server (stopped)';

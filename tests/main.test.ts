@@ -80,6 +80,56 @@ describe('McpPlugin.onload autoStart behaviour', () => {
     expect(startSpy).not.toHaveBeenCalled();
   });
 
+  it('swaps the ribbon icon glyph when the server transitions between stopped and running', async () => {
+    const plugin = createPlugin({
+      schemaVersion: 3,
+      serverAddress: '127.0.0.1',
+      port: 28741,
+      accessKey: 'configured-key',
+      httpsEnabled: false,
+      debugMode: false,
+      autoStart: false,
+      moduleStates: {},
+    });
+
+    interface RibbonStub {
+      _icon: string;
+      ariaLabel: string;
+    }
+    interface InternalPlugin {
+      addRibbonIcon: (icon: string, title: string, cb: () => void) => RibbonStub;
+      httpServer: { isRunning: boolean } | null;
+      updateStatusDisplay: () => void;
+    }
+
+    const ribbonEl: RibbonStub = { _icon: '', ariaLabel: '' };
+    const internals = plugin as unknown as InternalPlugin;
+    internals.addRibbonIcon = (icon: string): RibbonStub => {
+      ribbonEl._icon = icon;
+      return ribbonEl;
+    };
+
+    await plugin.onload();
+
+    // Initial render: server stopped, so the ribbon should show the default plug glyph.
+    expect(ribbonEl._icon).toBe('plug');
+    expect(ribbonEl.ariaLabel).toBe('MCP Server (stopped)');
+
+    // Simulate the server becoming running, then refresh the status display.
+    internals.httpServer = { isRunning: true };
+    internals.updateStatusDisplay();
+
+    expect(ribbonEl._icon).toBe('plug-zap');
+    expect(ribbonEl.ariaLabel).toBe('MCP Server (running on :28741)');
+
+    // Simulate the server being stopped again.
+    internals.httpServer = null;
+    internals.updateStatusDisplay();
+
+    expect(ribbonEl._icon).toBe('plug');
+    expect(ribbonEl.ariaLabel).toBe('MCP Server (stopped)');
+  });
+
   it('migrates existing installs to autoStart=false so the server stays stopped on first load', async () => {
     const plugin = createPlugin({
       schemaVersion: 2,
