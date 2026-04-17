@@ -1,4 +1,4 @@
-import { App, Notice, PluginSettingTab, Setting, setIcon } from 'obsidian';
+import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
 import { randomBytes } from 'crypto';
 import type McpPlugin from './main';
 import type { ModuleRegistration } from './registry/types';
@@ -185,45 +185,23 @@ export class McpSettingsTab extends PluginSettingTab {
   private renderMcpConfig(containerEl: HTMLElement): void {
     containerEl.createEl('h2', { text: 'MCP Client Configuration' });
 
-    const desc = containerEl.createEl('p', {
-      text: 'Add this to the mcpServers section of your MCP client configuration.',
-      cls: 'setting-item-description',
-    });
-    desc.style.marginBottom = '8px';
-
-    const config = this.buildMcpConfigJson();
-
-    const wrapper = containerEl.createDiv({ cls: 'mcp-config-preview' });
-
-    const pre = wrapper.createEl('pre', { cls: 'mcp-config-code' });
-    const code = pre.createEl('code', { text: config });
-
-    const actions = wrapper.createDiv({ cls: 'mcp-config-actions' });
-
-    const copyBtn = actions.createEl('button', {
-      cls: 'mcp-config-btn clickable-icon',
-      attr: { 'aria-label': 'Copy configuration', type: 'button' },
-    });
-    setIcon(copyBtn, 'copy');
-    copyBtn.addEventListener('click', () => {
-      void navigator.clipboard.writeText(code.textContent ?? '').then(() => {
-        setIcon(copyBtn, 'check');
-        copyBtn.classList.add('mcp-config-btn--copied');
-        setTimeout(() => {
-          setIcon(copyBtn, 'copy');
-          copyBtn.classList.remove('mcp-config-btn--copied');
-        }, 2000);
-      });
-    });
-
-    const regenBtn = actions.createEl('button', {
-      cls: 'mcp-config-btn clickable-icon',
-      attr: { 'aria-label': 'Regenerate configuration', type: 'button' },
-    });
-    setIcon(regenBtn, 'refresh-cw');
-    regenBtn.addEventListener('click', () => {
-      code.textContent = this.buildMcpConfigJson();
-    });
+    new Setting(containerEl)
+      .setName('Client configuration')
+      .setDesc(
+        'Copy the JSON snippet for your MCP client and paste it into the mcpServers section of its config (Claude Desktop, Claude Code, …).',
+      )
+      .addExtraButton((btn) =>
+        btn
+          .setIcon('copy')
+          .setTooltip('Copy configuration')
+          .onClick(() => {
+            void navigator.clipboard
+              .writeText(this.buildMcpConfigJson())
+              .then(() => {
+                new Notice('MCP client configuration copied to clipboard');
+              });
+          }),
+      );
   }
 
   private buildMcpConfigJson(): string {

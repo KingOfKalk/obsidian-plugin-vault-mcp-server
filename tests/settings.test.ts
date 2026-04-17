@@ -286,22 +286,16 @@ function findByClass(root: TrackingEl, cls: string): TrackingEl | undefined {
 }
 
 describe('McpSettingsTab MCP config display', () => {
+  type ExtraButtonInfo = { icon: string; tooltip: string; callback: (() => void) | null };
+  type SettingInstance = {
+    settingName: string;
+    settingDesc: string;
+    extraButtons: ExtraButtonInfo[];
+  };
+
   beforeEach(() => {
     (Setting as unknown as { instances: unknown[] }).instances = [];
   });
-
-  function renderWithTracking(
-    overrides?: Partial<{ port: number; accessKey: string }>,
-  ): { tab: McpSettingsTab; container: TrackingEl; plugin: ReturnType<typeof createConfigMockPlugin> } {
-    const plugin = createConfigMockPlugin(overrides);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
-    const tab = new McpSettingsTab({} as any, plugin as any);
-    const container = createTrackingEl();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-    (tab as any).containerEl = container;
-    tab.display();
-    return { tab, container, plugin };
-  }
 
   function createConfigMockPlugin(overrides?: Partial<{ port: number; accessKey: string }>): {
     settings: { serverAddress: string; port: number; accessKey: string; httpsEnabled: boolean; debugMode: boolean; moduleStates: Record<string, unknown>; schemaVersion: number };
@@ -323,58 +317,79 @@ describe('McpSettingsTab MCP config display', () => {
     };
   }
 
-  it('should render a <pre><code> card with the MCP config JSON', () => {
-    const { container } = renderWithTracking();
-    const pre = findByClass(container, 'mcp-config-code');
-    expect(pre).toBeDefined();
-    expect(pre!.tagName).toBe('pre');
-    const code = pre!.children[0];
-    expect(code.tagName).toBe('code');
-    expect(code.textContent).toContain('"url"');
-    expect(code.textContent).toContain('28741');
-    expect(code.textContent).toContain('Bearer test-key-abc');
+  function renderTab(
+    overrides?: Partial<{ port: number; accessKey: string }>,
+  ): { container: TrackingEl } {
+    const plugin = createConfigMockPlugin(overrides);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+    const tab = new McpSettingsTab({} as any, plugin as any);
+    const container = createTrackingEl();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+    (tab as any).containerEl = container;
+    tab.display();
+    return { container };
+  }
+
+  function getClientConfigSetting(): SettingInstance {
+    return (Setting as unknown as { instances: SettingInstance[] }).instances.find(
+      (s) => s.settingName === 'Client configuration',
+    )!;
+  }
+
+  it('renders a Client configuration Setting row with an explanatory description', () => {
+    renderTab();
+    const setting = getClientConfigSetting();
+    expect(setting).toBeDefined();
+    expect(setting.settingDesc).toMatch(/mcpServers/);
   });
 
-  it('should render Copy and Regenerate as icon buttons on one line', () => {
-    const { container } = renderWithTracking();
-    const actions = findByClass(container, 'mcp-config-actions');
-    expect(actions).toBeDefined();
-    expect(actions!.children).toHaveLength(2);
-
-    const copyBtn = actions!.children[0];
-    expect(copyBtn.tagName).toBe('button');
-    expect(copyBtn.attributes['aria-label']).toBe('Copy configuration');
-    expect(copyBtn._icon).toBe('copy');
-
-    const regenBtn = actions!.children[1];
-    expect(regenBtn.tagName).toBe('button');
-    expect(regenBtn.attributes['aria-label']).toBe('Regenerate configuration');
-    expect(regenBtn._icon).toBe('refresh-cw');
+  it('renders exactly one copy extra button (no regenerate button)', () => {
+    renderTab();
+    const extras = getClientConfigSetting().extraButtons;
+    expect(extras).toHaveLength(1);
+    expect(extras[0].icon).toBe('copy');
+    expect(extras[0].tooltip).toBe('Copy configuration');
   });
 
-  it('Regenerate button should update the code block with current settings', () => {
-    const { container, plugin } = renderWithTracking();
-    const code = findByClass(container, 'mcp-config-code')!.children[0];
-    const actions = findByClass(container, 'mcp-config-actions')!;
-    const regenBtn = actions.children[1];
-
-    expect(code.textContent).toContain('28741');
-
-    plugin.settings.port = 9999;
-    plugin.settings.accessKey = 'new-key-xyz';
-    regenBtn.handlers['click'][0]();
-
-    expect(code.textContent).toContain('9999');
-    expect(code.textContent).toContain('Bearer new-key-xyz');
-    expect(code.textContent).not.toContain('28741');
+  it('does not render the old inline <pre>/<code> JSON preview', () => {
+    const { container } = renderTab();
+    expect(findByClass(container, 'mcp-config-preview')).toBeUndefined();
+    expect(findByClass(container, 'mcp-config-code')).toBeUndefined();
+    expect(findByClass(container, 'mcp-config-actions')).toBeUndefined();
   });
 
-  it('should omit headers when access key is empty', () => {
-    const { container } = renderWithTracking({ accessKey: '' });
-    const code = findByClass(container, 'mcp-config-code')!.children[0];
-    expect(code.textContent).toContain('"url"');
-    expect(code.textContent).not.toContain('Authorization');
-    expect(code.textContent).not.toContain('headers');
+  it('clicking the copy button writes the generated JSON to the clipboard', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { clipboard: { writeText } },
+      configurable: true,
+    });
+    renderTab();
+    getClientConfigSetting().extraButtons[0].callback!();
+    await vi.waitFor(() => {
+      expect(writeText).toHaveBeenCalled();
+    });
+    const copied = writeText.mock.calls[0][0] as string;
+    expect(copied).toContain('"url"');
+    expect(copied).toContain('28741');
+    expect(copied).toContain('Bearer test-key-abc');
+  });
+
+  it('copied JSON omits the Authorization header when the access key is empty', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { clipboard: { writeText } },
+      configurable: true,
+    });
+    renderTab({ accessKey: '' });
+    getClientConfigSetting().extraButtons[0].callback!();
+    await vi.waitFor(() => {
+      expect(writeText).toHaveBeenCalled();
+    });
+    const copied = writeText.mock.calls[0][0] as string;
+    expect(copied).toContain('"url"');
+    expect(copied).not.toContain('Authorization');
+    expect(copied).not.toContain('headers');
   });
 });
 
