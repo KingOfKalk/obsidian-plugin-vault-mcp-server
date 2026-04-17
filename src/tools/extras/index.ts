@@ -28,20 +28,10 @@ function formatIsoWithOffset(now: Date): string {
   return `${String(y)}-${mo}-${d}T${h}:${mi}:${s}.${ms}${formatOffset(offsetMinutes)}`;
 }
 
-function resolveTimezone(): string {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone;
-}
-
 function createHandlers(_adapter: ObsidianAdapter): Record<string, Handler> {
   return {
     getDate: (): Promise<CallToolResult> => {
-      const now = new Date();
-      const payload = {
-        iso: formatIsoWithOffset(now),
-        timezone: resolveTimezone(),
-        utcOffsetMinutes: -now.getTimezoneOffset(),
-      };
-      return Promise.resolve(text(JSON.stringify(payload)));
+      return Promise.resolve(text(formatIsoWithOffset(new Date())));
     },
   };
 }
@@ -60,7 +50,7 @@ export function createExtrasModule(adapter: ObsidianAdapter): ToolModule {
       return [
         {
           name: 'get_date',
-          description: 'Get the current local datetime as an ISO-8601 string with timezone offset, plus the IANA timezone name and UTC offset in minutes.',
+          description: 'Get the current local datetime as an ISO-8601 string with timezone offset.',
           schema: {},
           handler: h.getDate,
           isReadOnly: true,
