@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.2](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.0.1...v2.0.2) (2026-04-17)
+
+
+### Bug Fixes
+
+* **settings:** render extras as a flat group ([#123](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/123)) ([1817a9f](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/1817a9f34b2c04306be240936682189a92c0550c)), closes [#120](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/120)
+
 ## [2.0.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.0.0...v2.0.1) (2026-04-17)
 
 
