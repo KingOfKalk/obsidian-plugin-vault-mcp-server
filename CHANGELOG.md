@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.0.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.6.0...v2.0.0) (2026-04-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* `ModuleState`, `ModuleRegistration`, and `ModuleStateMap` no longer have a `readOnly` field. `ModuleMetadata` no longer has `supportsReadOnly`. `ModuleRegistry.setReadOnly()` is removed.
+
+### Features
+
+* remove per-module read-only mode ([#116](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/116)) ([28aad6d](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/28aad6d5d24b4128f4b11f365886f7b76d7c3334))
+* **settings:** per-tool toggles for the Extras group ([#117](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/117)) ([5b5c190](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/5b5c190cd1db06004f4b0efb8f3bdd084c448f88)), closes [#115](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/115)
+
 ## [1.6.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.5.1...v1.6.0) (2026-04-16)
 
 
