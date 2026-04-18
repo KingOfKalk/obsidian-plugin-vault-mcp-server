@@ -1,0 +1,12 @@
+# Supported locales for the localized docs/screenshots pipeline.
+#
+# Single source of truth for:
+#   - docker/scripts/docs_screenshots.py (captures docs/screenshots/<locale>/…)
+#   - .github/workflows/docs-screenshots.yml (runs on release: published)
+#
+# Order matters: screenshots are generated in this order, and the first entry
+# is treated as the source locale. Each locale here must correspond to a
+# runtime locale registered in src/lang/locale/ (see PRD I1 / NFR35).
+locales:
+  - en
+  - de

@@ -1,0 +1,165 @@
+name: Docs Screenshots
+
+# Captures localized settings screenshots (one per locale listed in
+# .supported-locales.yml) and commits them to main alongside a refreshed
+# caption/alt-text block in docs/help/<locale>.md. See PRD NFR35.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to screenshot (e.g. v2.0.1)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  docs-screenshots:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Commit back to main, not the release tag.
+          ref: main
+          # Full history so the push isn't rejected as non-fast-forward.
+          fetch-depth: 0
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Create styles.css placeholder
+        run: echo "/* obsidian-mcp-plugin styles */" > styles.css
+
+      - name: Install screenshot system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            xvfb x11-utils dbus dbus-x11 \
+            libgtk-3-0 libnotify4 libnss3 libxss1 libasound2t64 \
+            libsecret-1-0 xdg-utils libgbm1 libdrm2 libx11-xcb1 \
+            libxcb-dri3-0 libxshmfence1
+
+      - name: Install websocket-client
+        run: pip install websocket-client
+
+      - name: Download Obsidian AppImage
+        run: |
+          sudo mkdir -p /opt
+          sudo wget -q \
+            "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.8.9/Obsidian-1.8.9.AppImage" \
+            -O /opt/Obsidian.AppImage
+          sudo chmod +x /opt/Obsidian.AppImage
+          (cd /opt && sudo ./Obsidian.AppImage --appimage-extract >/dev/null)
+          sudo ln -sf /opt/squashfs-root/obsidian /usr/local/bin/obsidian
+
+      - name: Capture localized docs screenshots
+        id: capture
+        run: |
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset \
+            >/tmp/xvfb.log 2>&1 &
+          eval "$(dbus-launch --sh-syntax)"
+          sleep 1
+          xdpyinfo >/dev/null
+
+          rm -rf /tmp/vault
+          python3 docker/scripts/create_vault.py /tmp/vault \
+            --plugin-dir "$(pwd)" --enable-plugin
+          mkdir -p "$HOME/.config/obsidian"
+          echo '{"vaults":{"v1":{"path":"/tmp/vault","ts":1,"open":true}}}' \
+            > "$HOME/.config/obsidian/obsidian.json"
+
+          nohup obsidian --no-sandbox --disable-gpu \
+            --disable-software-rasterizer \
+            --remote-debugging-port=9222 --remote-allow-origins='*' \
+            "obsidian://open?path=/tmp/vault" \
+            >/tmp/obsidian.log 2>&1 &
+
+          echo "Waiting for Obsidian CDP on :9222..."
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:9222/json/version >/dev/null; then
+              echo "CDP ready after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          if ! curl -sf http://127.0.0.1:9222/json/version >/dev/null; then
+            echo "CDP never came up — obsidian.log tail:" >&2
+            tail -n 100 /tmp/obsidian.log >&2 || true
+            exit 1
+          fi
+
+          python3 docker/scripts/bootstrap.py \
+            --vault /tmp/vault --port 9222 --no-launch
+
+          python3 docker/scripts/docs_screenshots.py \
+            --out-dir docs/screenshots --port 9222 \
+            --config .supported-locales.yml --manifest manifest.json \
+            > /tmp/docs-screenshots.json
+          cat /tmp/docs-screenshots.json
+          echo "summary-file=/tmp/docs-screenshots.json" >> "$GITHUB_OUTPUT"
+
+      - name: Refresh manual captions with captured version
+        run: |
+          python3 - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          summary = json.loads(Path("/tmp/docs-screenshots.json").read_text())
+          version = summary["version"]
+          block_re = re.compile(
+              r"<!-- BEGIN: screenshot-settings -->.*?<!-- END: screenshot-settings -->",
+              re.DOTALL,
+          )
+          language_name = {"en": "English", "de": "German"}
+          for locale in summary["locales"]:
+              manual = Path(f"docs/help/{locale}.md")
+              if not manual.exists():
+                  print(f"skip: docs/help/{locale}.md does not exist yet")
+                  continue
+              lang = language_name.get(locale, locale)
+              block = (
+                  "<!-- BEGIN: screenshot-settings -->\n"
+                  f"![MCP Server settings tab ({lang}, captured from v{version})]"
+                  f"(../screenshots/{locale}/settings.png)\n"
+                  "\n"
+                  f"*Figure 1 — The MCP Server settings tab, "
+                  f"captured from plugin v{version}.*\n"
+                  "<!-- END: screenshot-settings -->"
+              )
+              text = manual.read_text(encoding="utf-8")
+              if not block_re.search(text):
+                  print(f"skip: no screenshot-settings block in {manual}")
+                  continue
+              manual.write_text(block_re.sub(block, text), encoding="utf-8")
+              print(f"updated: {manual}")
+          PY
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/screenshots docs/help
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "docs(screenshots): update localized screenshots for ${TAG}"
+          git push origin main

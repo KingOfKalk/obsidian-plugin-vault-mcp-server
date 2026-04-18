@@ -98,6 +98,12 @@ modules.
 
 ## Settings reference
 
+<!-- BEGIN: screenshot-settings -->
+![MCP Server settings tab (English, captured from v0.0.0)](../screenshots/en/settings.png)
+
+*Figure 1 — The MCP Server settings tab, captured from plugin v0.0.0.*
+<!-- END: screenshot-settings -->
+
 The settings tab is split into five sections.
 
 ### 1. Status
