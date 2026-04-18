@@ -50,6 +50,32 @@ const de: Partial<Record<keyof typeof en, string>> = {
   tooltip_regenerate_cert: 'Zertifikat neu erzeugen',
   notice_tls_regenerated:
     'TLS-Zertifikat neu erzeugt. Starte den Server neu, damit es aktiv wird.',
+  setting_custom_tls_toggle_name: 'Eigenes Zertifikat verwenden',
+  setting_custom_tls_toggle_desc:
+    'Eigenes SSL-Zertifikat und privaten Schlüssel statt des automatisch erzeugten, selbstsignierten Zertifikats verwenden. Die Dateien werden bei jedem Serverstart von der Festplatte gelesen.',
+  heading_custom_tls_group: 'Eigenes SSL-Zertifikat',
+  setting_custom_tls_cert_name: 'Öffentliches Zertifikat (PEM)',
+  setting_custom_tls_cert_desc: 'Pfad: {path}',
+  setting_custom_tls_key_name: 'Privater Schlüssel (PEM)',
+  setting_custom_tls_key_desc: 'Pfad: {path}',
+  button_browse: 'Durchsuchen …',
+  label_no_file_selected: 'Keine Datei ausgewählt',
+  dialog_title_pick_cert: 'Öffentliches Zertifikat (PEM) auswählen',
+  dialog_title_pick_key: 'Privaten Schlüssel (PEM) auswählen',
+  error_custom_tls_cert_not_readable:
+    'Die Zertifikatsdatei unter diesem Pfad kann nicht gelesen werden.',
+  error_custom_tls_key_not_readable:
+    'Die Datei des privaten Schlüssels unter diesem Pfad kann nicht gelesen werden.',
+  error_custom_tls_invalid_cert:
+    'Die Zertifikatsdatei ist kein gültiges PEM-Zertifikat.',
+  error_custom_tls_invalid_key:
+    'Die Datei des privaten Schlüssels ist kein gültiger PEM-Schlüssel.',
+  error_custom_tls_key_cert_mismatch:
+    'Der private Schlüssel passt nicht zum öffentlichen Zertifikat.',
+  error_custom_tls_cert_expired:
+    'Das Zertifikat ist bereits abgelaufen.',
+  notice_custom_tls_server_refused:
+    'MCP-Server nicht gestartet — das eigene Zertifikat ist ungültig: {message}',
   setting_autostart_name: 'Beim Start automatisch starten',
   setting_autostart_desc: 'MCP-Server automatisch starten, wenn Obsidian gestartet wird',
   setting_debug_name: 'Debug-Modus',
