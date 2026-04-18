@@ -21,7 +21,7 @@ describe('editor module', () => {
 
   it('should have 5 read-only tools', () => {
     const module = createEditorModule(adapter);
-    expect(module.tools().filter((t) => t.isReadOnly)).toHaveLength(5);
+    expect(module.tools().filter((t) => t.annotations.readOnlyHint)).toHaveLength(5);
   });
 
   describe('handlers', () => {

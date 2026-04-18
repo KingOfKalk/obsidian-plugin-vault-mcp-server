@@ -29,7 +29,7 @@ describe('Extras module', () => {
     const module = createExtrasModule(adapter);
     const tool = module.tools()[0];
     expect(tool.name).toBe('get_date');
-    expect(tool.isReadOnly).toBe(true);
+    expect(tool.annotations.readOnlyHint).toBe(true);
   });
 
   it('get_date returns a plain ISO-8601 string with timezone offset', async () => {

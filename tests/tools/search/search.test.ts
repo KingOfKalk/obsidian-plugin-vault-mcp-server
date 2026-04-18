@@ -26,7 +26,7 @@ describe('search module', () => {
   it('should have all read-only tools', () => {
     const adapter = new MockObsidianAdapter();
     const module = createSearchModule(adapter);
-    const allReadOnly = module.tools().every((t) => t.isReadOnly);
+    const allReadOnly = module.tools().every((t) => t.annotations.readOnlyHint);
     expect(allReadOnly).toBe(true);
   });
 });

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { ToolModule, ToolDefinition } from '../../registry/types';
+import { ToolModule, ToolDefinition, annotations } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 
 type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
@@ -54,11 +54,11 @@ export function createPluginInteropModule(adapter: ObsidianAdapter): ToolModule 
     metadata: { id: 'plugin-interop', name: 'Plugin Interop', description: 'List plugins, check status, execute commands, and integrate with Dataview/Templater' },
     tools(): ToolDefinition[] {
       return [
-        { name: 'plugin_list', description: 'List installed plugins with status', schema: {}, handler: h.listPlugins, isReadOnly: true },
-        { name: 'plugin_check', description: 'Check if a plugin is installed and enabled', schema: { pluginId: z.string().min(1) }, handler: h.checkPlugin, isReadOnly: true },
-        { name: 'plugin_dataview_query', description: 'Execute a Dataview query', schema: { query: z.string().min(1) }, handler: h.dataviewQuery, isReadOnly: true },
-        { name: 'plugin_templater_execute', description: 'Execute a Templater template', schema: { templatePath: z.string().min(1) }, handler: h.templaterExecute, isReadOnly: false },
-        { name: 'plugin_execute_command', description: 'Execute an Obsidian command by ID', schema: { commandId: z.string().min(1) }, handler: h.executeCommand, isReadOnly: false },
+        { name: 'plugin_list', description: 'List installed plugins with status', schema: {}, handler: h.listPlugins, annotations: annotations.readExternal },
+        { name: 'plugin_check', description: 'Check if a plugin is installed and enabled', schema: { pluginId: z.string().min(1) }, handler: h.checkPlugin, annotations: annotations.readExternal },
+        { name: 'plugin_dataview_query', description: 'Execute a Dataview query', schema: { query: z.string().min(1) }, handler: h.dataviewQuery, annotations: annotations.readExternal },
+        { name: 'plugin_templater_execute', description: 'Execute a Templater template', schema: { templatePath: z.string().min(1) }, handler: h.templaterExecute, annotations: annotations.destructiveExternal },
+        { name: 'plugin_execute_command', description: 'Execute an Obsidian command by ID', schema: { commandId: z.string().min(1) }, handler: h.executeCommand, annotations: annotations.destructiveExternal },
       ];
     },
   };

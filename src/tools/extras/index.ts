@@ -1,5 +1,5 @@
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { ToolModule, ToolDefinition } from '../../registry/types';
+import { ToolModule, ToolDefinition, annotations } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 
 type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
@@ -53,7 +53,7 @@ export function createExtrasModule(adapter: ObsidianAdapter): ToolModule {
           description: 'Get the current local datetime as an ISO-8601 string with timezone offset.',
           schema: {},
           handler: h.getDate,
-          isReadOnly: true,
+          annotations: annotations.read,
         },
       ];
     },

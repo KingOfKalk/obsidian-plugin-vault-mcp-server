@@ -20,14 +20,14 @@ describe('vault module', () => {
   it('should have 5 read-only tools', () => {
     const adapter = new MockObsidianAdapter();
     const module = createVaultModule(adapter);
-    const readOnlyTools = module.tools().filter((t) => t.isReadOnly);
+    const readOnlyTools = module.tools().filter((t) => t.annotations.readOnlyHint);
     expect(readOnlyTools).toHaveLength(5);
   });
 
   it('should have 11 write tools', () => {
     const adapter = new MockObsidianAdapter();
     const module = createVaultModule(adapter);
-    const writeTools = module.tools().filter((t) => !t.isReadOnly);
+    const writeTools = module.tools().filter((t) => !t.annotations.readOnlyHint);
     expect(writeTools).toHaveLength(11);
   });
 

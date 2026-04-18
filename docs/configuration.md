@@ -33,7 +33,7 @@
 
 ## Feature Modules
 
-Each module can be individually enabled or disabled. When a module is enabled, all of its tools are exposed; there is no per-module read-only mode. Tools still advertise an `isReadOnly` hint in their MCP metadata so clients can present them appropriately.
+Each module can be individually enabled or disabled. When a module is enabled, all of its tools are exposed; there is no per-module read-only mode. Tools advertise MCP `annotations` (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) so clients can present them appropriately.
 
 | Module | Tools |
 |--------|-------|

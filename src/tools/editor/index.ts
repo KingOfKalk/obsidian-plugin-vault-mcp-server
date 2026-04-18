@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { ToolModule, ToolDefinition } from '../../registry/types';
+import { ToolModule, ToolDefinition, annotations } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 
 type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
@@ -73,16 +73,16 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
     metadata: { id: 'editor', name: 'Editor Operations', description: 'Access and manipulate the active editor' },
     tools(): ToolDefinition[] {
       return [
-        { name: 'editor_get_content', description: 'Get content of active editor', schema: {}, handler: h.getContent, isReadOnly: true },
-        { name: 'editor_get_active_file', description: 'Get active file path', schema: {}, handler: h.getActivePath, isReadOnly: true },
-        { name: 'editor_insert', description: 'Insert text at position', schema: { line: z.number(), ch: z.number(), text: z.string() }, handler: h.insert, isReadOnly: false },
-        { name: 'editor_replace', description: 'Replace text in range', schema: { fromLine: z.number(), fromCh: z.number(), toLine: z.number(), toCh: z.number(), text: z.string() }, handler: h.replace, isReadOnly: false },
-        { name: 'editor_delete', description: 'Delete text in range', schema: { fromLine: z.number(), fromCh: z.number(), toLine: z.number(), toCh: z.number() }, handler: h.deleteRange, isReadOnly: false },
-        { name: 'editor_get_cursor', description: 'Get cursor position', schema: {}, handler: h.getCursor, isReadOnly: true },
-        { name: 'editor_set_cursor', description: 'Set cursor position', schema: { line: z.number(), ch: z.number() }, handler: h.setCursor, isReadOnly: false },
-        { name: 'editor_get_selection', description: 'Get current selection', schema: {}, handler: h.getSelection, isReadOnly: true },
-        { name: 'editor_set_selection', description: 'Set selection range', schema: { fromLine: z.number(), fromCh: z.number(), toLine: z.number(), toCh: z.number() }, handler: h.setSelection, isReadOnly: false },
-        { name: 'editor_get_line_count', description: 'Get line count of active editor', schema: {}, handler: h.getLineCount, isReadOnly: true },
+        { name: 'editor_get_content', description: 'Get content of active editor', schema: {}, handler: h.getContent, annotations: annotations.read },
+        { name: 'editor_get_active_file', description: 'Get active file path', schema: {}, handler: h.getActivePath, annotations: annotations.read },
+        { name: 'editor_insert', description: 'Insert text at position', schema: { line: z.number(), ch: z.number(), text: z.string() }, handler: h.insert, annotations: annotations.additive },
+        { name: 'editor_replace', description: 'Replace text in range', schema: { fromLine: z.number(), fromCh: z.number(), toLine: z.number(), toCh: z.number(), text: z.string() }, handler: h.replace, annotations: annotations.destructive },
+        { name: 'editor_delete', description: 'Delete text in range', schema: { fromLine: z.number(), fromCh: z.number(), toLine: z.number(), toCh: z.number() }, handler: h.deleteRange, annotations: annotations.destructive },
+        { name: 'editor_get_cursor', description: 'Get cursor position', schema: {}, handler: h.getCursor, annotations: annotations.read },
+        { name: 'editor_set_cursor', description: 'Set cursor position', schema: { line: z.number(), ch: z.number() }, handler: h.setCursor, annotations: annotations.additive },
+        { name: 'editor_get_selection', description: 'Get current selection', schema: {}, handler: h.getSelection, annotations: annotations.read },
+        { name: 'editor_set_selection', description: 'Set selection range', schema: { fromLine: z.number(), fromCh: z.number(), toLine: z.number(), toCh: z.number() }, handler: h.setSelection, annotations: annotations.additive },
+        { name: 'editor_get_line_count', description: 'Get line count of active editor', schema: {}, handler: h.getLineCount, annotations: annotations.read },
       ];
     },
   };
