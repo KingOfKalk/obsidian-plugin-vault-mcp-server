@@ -1,0 +1,65 @@
+name: Notify workflow failure
+
+on:
+  workflow_run:
+    workflows: [CI, Release, Release Screenshots]
+    types: [completed]
+
+permissions:
+  issues: write
+
+jobs:
+  file-issue:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create or comment on failure issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          EVENT: ${{ github.event.workflow_run.event }}
+        run: |
+          set -euo pipefail
+
+          TITLE="Workflow failure: ${WORKFLOW_NAME}"
+          LABEL="workflow-failure"
+
+          gh label create "$LABEL" \
+            --repo "$REPO" \
+            --color B60205 \
+            --description "Auto-filed when a workflow fails on main" \
+            >/dev/null 2>&1 || true
+
+          cat > /tmp/body.md <<EOF
+          The **${WORKFLOW_NAME}** workflow failed.
+
+          - Run: ${RUN_URL}
+          - Branch: \`${HEAD_BRANCH}\`
+          - Commit: \`${HEAD_SHA}\`
+          - Trigger: \`${EVENT}\`
+
+          Auto-filed by \`.github/workflows/notify-failure.yml\`. Repeat failures comment on this issue instead of opening new ones. Close once resolved.
+          EOF
+
+          EXISTING=$(gh issue list \
+            --repo "$REPO" \
+            --state open \
+            --label "$LABEL" \
+            --search "\"${TITLE}\" in:title" \
+            --json number,title \
+            --jq ".[] | select(.title == \"${TITLE}\") | .number" \
+            | head -n 1)
+
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --repo "$REPO" --body-file /tmp/body.md
+            echo "Commented on existing issue #${EXISTING}"
+          else
+            gh issue create --repo "$REPO" \
+              --title "$TITLE" \
+              --label "$LABEL" \
+              --body-file /tmp/body.md
+          fi

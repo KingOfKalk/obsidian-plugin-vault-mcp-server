@@ -250,6 +250,7 @@ The plugin UI is translated via a tiny in-house i18n helper modelled on the [obs
 - **TR23** — GitHub Actions workflow: build-and-test (lint, type-check, test, build) on every PR and push to main
 - **TR24** — GitHub Actions workflow: please-release for release management (tag-based, produces main.js, manifest.json, styles.css as release assets)
 - **TR25** — Dependabot for dependency updates
+- **TR27** — GitHub Actions workflow `notify-failure.yml` listens for `workflow_run` completions of `CI`, `Release`, and `Release Screenshots` and, when `conclusion == 'failure'`, auto-files a tracking issue. A single open issue per workflow is kept (matched by the `workflow-failure` label and a title of the form `Workflow failure: <workflow-name>`); repeat failures append a comment to that issue instead of opening duplicates, and once the issue is closed the next failure opens a fresh one. The workflow requires only `issues: write` permission and runs from the `main` definition, so fork PRs cannot inject into the notifier.
 
 ## Documentation
 
