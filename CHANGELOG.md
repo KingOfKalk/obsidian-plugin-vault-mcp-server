@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.4.1...v2.5.0) (2026-04-18)
+
+
+### Features
+
+* **registry:** add per-tool MCP annotations ([#191](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/191)) ([c97195f](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/c97195facd8c4a9c524c3b935ca860571c694d0a)), closes [#173](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/173)
+
 ## [2.4.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.4.0...v2.4.1) (2026-04-18)
 
 
