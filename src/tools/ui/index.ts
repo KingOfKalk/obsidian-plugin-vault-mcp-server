@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { ToolModule, ToolDefinition } from '../../registry/types';
+import { ToolModule, ToolDefinition, annotations } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 
 type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
@@ -40,9 +40,9 @@ export function createUiModule(adapter: ObsidianAdapter): ToolModule {
     metadata: { id: 'ui', name: 'UI Interactions', description: 'Show notices, modals, and prompts in Obsidian' },
     tools(): ToolDefinition[] {
       return [
-        { name: 'ui_notice', description: 'Show a notice/notification', schema: { message: z.string(), duration: z.number().optional() }, handler: h.showNotice, isReadOnly: false },
-        { name: 'ui_confirm', description: 'Show a confirmation modal', schema: { message: z.string() }, handler: h.showConfirm, isReadOnly: false },
-        { name: 'ui_prompt', description: 'Show an input prompt modal', schema: { message: z.string(), defaultValue: z.string().optional() }, handler: h.showPrompt, isReadOnly: false },
+        { name: 'ui_notice', description: 'Show a notice/notification', schema: { message: z.string(), duration: z.number().optional() }, handler: h.showNotice, annotations: annotations.additive },
+        { name: 'ui_confirm', description: 'Show a confirmation modal', schema: { message: z.string() }, handler: h.showConfirm, annotations: annotations.additive },
+        { name: 'ui_prompt', description: 'Show an input prompt modal', schema: { message: z.string(), defaultValue: z.string().optional() }, handler: h.showPrompt, annotations: annotations.additive },
       ];
     },
   };

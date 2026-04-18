@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ModuleRegistry } from '../../src/registry/module-registry';
-import { ToolModule, ToolDefinition } from '../../src/registry/types';
+import { ToolModule, ToolDefinition, annotations as annPresets } from '../../src/registry/types';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { Logger } from '../../src/utils/logger';
 
@@ -12,7 +12,7 @@ function createMockLogger(): Logger {
   return logger;
 }
 
-function createMockTool(name: string, isReadOnly: boolean): ToolDefinition {
+function createMockTool(name: string, readOnly: boolean): ToolDefinition {
   return {
     name,
     description: `Mock tool: ${name}`,
@@ -21,7 +21,7 @@ function createMockTool(name: string, isReadOnly: boolean): ToolDefinition {
       Promise.resolve({
         content: [{ type: 'text' as const, text: 'ok' }],
       }),
-    isReadOnly,
+    annotations: readOnly ? annPresets.read : annPresets.destructive,
   };
 }
 
@@ -131,7 +131,7 @@ describe('ModuleRegistry', () => {
       expect(registry.getActiveTools()).toHaveLength(0);
     });
 
-    it('should expose mutating tools from enabled modules regardless of isReadOnly metadata', () => {
+    it('should expose mutating tools from enabled modules regardless of readOnly annotation', () => {
       const tools = [createMockTool('vault_read', true), createMockTool('vault_create', false)];
       const module = createMockModule('vault', tools);
       registry.registerModule(module);

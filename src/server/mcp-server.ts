@@ -36,6 +36,7 @@ function registerTools(
       {
         description: tool.description,
         inputSchema: tool.schema,
+        annotations: tool.annotations,
       },
       async (params) => {
         try {

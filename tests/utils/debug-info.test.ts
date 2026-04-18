@@ -58,7 +58,7 @@ function makeModule(
         description: '',
         schema: {},
         handler: () => Promise.resolve({ content: [] }),
-        isReadOnly: true,
+        annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
       }));
     },
   };

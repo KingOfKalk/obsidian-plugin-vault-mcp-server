@@ -893,7 +893,6 @@ describe('McpSettingsTab module rows rendering', () => {
   interface ToolEntry {
     name: string;
     description: string;
-    isReadOnly: boolean;
   }
 
   interface ModuleRegistration {
@@ -1020,7 +1019,7 @@ describe('McpSettingsTab module rows rendering', () => {
           group: 'extras',
         },
         tools: () => [
-          { name: 'get_date', description: 'Get the current date', isReadOnly: true },
+          { name: 'get_date', description: 'Get the current date' },
         ],
       },
     };
@@ -1071,8 +1070,8 @@ describe('McpSettingsTab module rows rendering', () => {
         module: {
           ...extrasModule.module,
           tools: () => [
-            { name: 'get_date', description: 'd1', isReadOnly: true },
-            { name: 'get_uuid', description: 'd2', isReadOnly: true },
+            { name: 'get_date', description: 'd1' },
+            { name: 'get_uuid', description: 'd2' },
           ],
         },
       };
