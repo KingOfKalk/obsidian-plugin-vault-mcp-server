@@ -64,7 +64,9 @@ jobs:
           sudo chmod -R a+rX /opt/squashfs-root
           sudo chmod a+x /opt/squashfs-root/obsidian
           ls -la /opt/squashfs-root/obsidian
-          /opt/squashfs-root/obsidian --version || true
+          version_output=$(/opt/squashfs-root/obsidian --version 2>&1)
+          echo "obsidian --version: ${version_output}"
+          echo "${version_output}" | grep -Eq '[0-9]+\.[0-9]+\.[0-9]+'
 
       - name: Capture release screenshots
         run: |
