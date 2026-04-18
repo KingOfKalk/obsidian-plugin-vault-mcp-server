@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.4.0...v2.4.1) (2026-04-18)
+
+
+### Bug Fixes
+
+* **ci:** launch Obsidian binary directly in release screenshots ([#168](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/168)) ([7677fbc](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/7677fbc66584d76a99d30b246036e0ba0986919b)), closes [#166](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/166)
+
 ## [2.4.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.3.0...v2.4.0) (2026-04-18)
 
 
