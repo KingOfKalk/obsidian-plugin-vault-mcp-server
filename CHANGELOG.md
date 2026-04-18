@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.4.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.3.0...v2.4.0) (2026-04-18)
+
+
+### Features
+
+* bring your own SSL certificate ([#162](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/162)) ([d4a3c74](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/d4a3c7455d8dd850b256736253cea6b28178f56e))
+* **docs:** add user manual and localized screenshot pipeline ([#158](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/158)) ([8db7446](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/8db74468fb934ba8f4a6ce8c59ae6d5de38fd484))
+* surface port-in-use failures in status bar, toggle, and settings ([#165](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/165)) ([9122ade](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/9122ade18ed1166e7e89a03f744ec6cd06a6dcd6)), closes [#160](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/160)
+
+
+### Bug Fixes
+
+* **ci:** invoke Obsidian AppRun by absolute path in release screenshots ([#164](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/164)) ([ef4520b](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/ef4520be19b65c61e7585a18c14a3329e2710d5f)), closes [#159](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/159)
+* **ci:** make extracted Obsidian AppImage executable for runner user ([#154](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/154)) ([af12956](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/af12956e9cb147dcadf4a0c75ed37e107452194b))
+
 ## [2.3.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.2.0...v2.3.0) (2026-04-18)
 
 
