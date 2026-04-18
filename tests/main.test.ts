@@ -8,13 +8,24 @@ interface TestPlugin extends McpPlugin {
 
 function createPlugin(persisted: Record<string, unknown> | null): TestPlugin {
   const app = {
-    vault: { adapter: { basePath: '/tmp/vault' } },
+    vault: {
+      configDir: '.obsidian',
+      adapter: {
+        basePath: '/tmp/vault',
+        exists: (): Promise<boolean> => Promise.resolve(false),
+        read: (): Promise<string> => Promise.resolve(''),
+        write: (): Promise<void> => Promise.resolve(),
+        append: (): Promise<void> => Promise.resolve(),
+        stat: (): Promise<null> => Promise.resolve(null),
+      },
+    },
     workspace: {},
     metadataCache: {},
   };
   /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access */
-  const plugin = new McpPlugin(app as any, {} as any) as unknown as TestPlugin;
+  const plugin = new McpPlugin(app as any, { id: 'obsidian-mcp', version: '0.0.0' } as any) as unknown as TestPlugin;
   (plugin as any).app = app;
+  (plugin as any).manifest = { id: 'obsidian-mcp', version: '0.0.0' };
   /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access */
   plugin.loadData = vi.fn().mockResolvedValue(persisted);
   plugin.saveData = vi.fn().mockResolvedValue(undefined);

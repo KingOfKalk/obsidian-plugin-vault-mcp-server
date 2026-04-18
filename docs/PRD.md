@@ -137,6 +137,11 @@ The plugin UI is translated via a tiny in-house i18n helper modelled on the [obs
 
 - **CR21** — Settings UI contains an "MCP Client Configuration" section with a clipboard-copy extra button that copies a ready-to-paste JSON snippet for the `mcpServers` entry of Claude Desktop / Claude Code config files. The snippet is derived live from the current `serverAddress`, `port`, and `accessKey`: it always includes the MCP endpoint URL (`http://<address>:<port>/mcp`) and, when the access key is non-empty, a `headers` object with `Authorization: Bearer <key>`. The copy action shows a confirmation Notice.
 
+### Diagnostics
+
+- **CR22** — Settings UI exposes a "Diagnostics" section rendered after the Feature Modules / Extras sections. It contains three rows: a Log File row whose description shows the relative path to the persistent debug log (see CR23); a "Copy debug info" row with an extra button that opens a modal preview of the debug bundle (read-only textarea with Copy and Close buttons); and a "Clear log" row with an extra button that empties the log file and shows a confirmation Notice.
+- **CR23** — The plugin persists structured log output to `<vault>/.obsidian/plugins/<plugin-id>/debug.log` via Obsidian's vault adapter (`app.vault.adapter`), not Node `fs`. Level gating mirrors console output: `info` and above always written, `debug` only when Debug Mode (CR4) is on. Writes are serialized through a single in-flight Promise chain so concurrent log calls do not interleave. Single-file rotation: when the file exceeds 1 MiB, the next write trims it to the most recent 512 KiB and prepends a `--- rotated ---` marker on its own line. No multi-file backups (`.1`, `.2`, …) are kept. Errors writing to the log are swallowed so logging never throws.
+
 ### Settings Persistence
 
 - **CR13** — All settings persisted in Obsidian's plugin data.json
@@ -162,6 +167,7 @@ The plugin UI is translated via a tiny in-house i18n helper modelled on the [obs
 - **NFR9** — Self-signed HTTPS certificate generated locally, never transmitted
 - **NFR10** — Access key never appears in logs even in debug mode. The `Logger` enforces this by substituting the configured access key with the literal placeholder `[REDACTED]` in every formatted message string and every string reached recursively inside structured log data before the entry is emitted. `updateOptions` keeps the redaction key in sync with the current settings.
 - **NFR32** — The HTTP transport caps individual request bodies at 4 MiB. Requests whose body exceeds `MAX_BODY_BYTES` are rejected with a JSON-RPC `-32700` ("Parse error: Request body too large") response and the underlying socket is destroyed mid-upload to avoid buffering unbounded input. Implemented in `src/server/http-server.ts` (`readJsonBody`).
+- **NFR33** — The "Copy debug info" bundle (CR22) is plain text and never includes secret material. The access key is rendered as the literal placeholder `<set>` or `<empty>` (never the configured value), and the cached TLS certificate is rendered as `<present>` or `<absent>` (never the PEM contents). The recent-log tail included in the bundle is read straight from `debug.log` (CR23), which is already redacted at write time by the `Logger` per NFR10, so no additional scrubbing is performed on the tail.
 
 ### Reliability
 
@@ -227,6 +233,7 @@ The plugin UI is translated via a tiny in-house i18n helper modelled on the [obs
 - **TR14** — Settings tab class extends PluginSettingTab
 - **TR15** — Ribbon icon showing server status (running/stopped)
 - **TR16** — Command palette commands: start server, stop server, restart server, copy access key
+- **TR26** — Adds a "Copy Debug Info" command palette entry alongside the four listed in TR16. Invoking it opens the same diagnostics modal as the "Copy debug info" button in the settings UI (CR22).
 
 ### Testing
 

@@ -11,6 +11,12 @@ export interface LogEntry {
 export interface LoggerOptions {
   debugMode: boolean;
   accessKey: string;
+  /**
+   * Optional plain-text sink invoked once per emitted log line, after
+   * level gating and access-key redaction. Used to persist log output
+   * to `debug.log` for the Diagnostics surface (CR23).
+   */
+  sink?: (line: string) => void;
 }
 
 const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
@@ -63,20 +69,30 @@ export class Logger {
       ...(data !== undefined && { data: this.redactUnknown(data) }),
     };
 
+    const json = JSON.stringify(entry);
+
     switch (level) {
       case 'debug':
       case 'info':
         // eslint-disable-next-line no-console
-        console.log(JSON.stringify(entry));
+        console.log(json);
         break;
       case 'warn':
         // eslint-disable-next-line no-console
-        console.warn(JSON.stringify(entry));
+        console.warn(json);
         break;
       case 'error':
         // eslint-disable-next-line no-console
-        console.error(JSON.stringify(entry));
+        console.error(json);
         break;
+    }
+
+    if (this.options.sink) {
+      try {
+        this.options.sink(formatPlainTextLine(entry));
+      } catch {
+        // Logging must never throw — swallow sink failures.
+      }
     }
   }
 
@@ -107,4 +123,19 @@ export class Logger {
 
 export function createLogger(module: string, options: LoggerOptions): Logger {
   return new Logger(module, options);
+}
+
+function formatPlainTextLine(entry: LogEntry): string {
+  const level = entry.level.toUpperCase().padEnd(5, ' ');
+  const base = `${entry.timestamp}  ${level}  [${entry.module}] ${entry.message}`;
+  if (entry.data === undefined) {
+    return base;
+  }
+  let serialized: string;
+  try {
+    serialized = JSON.stringify(entry.data);
+  } catch {
+    serialized = '[unserializable]';
+  }
+  return `${base} ${serialized}`;
 }
