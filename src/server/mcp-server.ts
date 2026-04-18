@@ -31,10 +31,12 @@ function registerTools(
   const tools = registry.getActiveTools();
   for (const tool of tools) {
     logger.debug(`Registering tool: ${tool.name}`);
-    server.tool(
+    server.registerTool(
       tool.name,
-      tool.description,
-      tool.schema,
+      {
+        description: tool.description,
+        inputSchema: tool.schema,
+      },
       async (params) => {
         try {
           return await tool.handler(params as Record<string, unknown>);
