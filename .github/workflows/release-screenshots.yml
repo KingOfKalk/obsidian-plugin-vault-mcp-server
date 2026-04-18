@@ -53,13 +53,19 @@ jobs:
 
       - name: Download Obsidian AppImage
         run: |
+          set -x
           sudo mkdir -p /opt
           sudo wget -q \
             "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.8.9/Obsidian-1.8.9.AppImage" \
             -O /opt/Obsidian.AppImage
           sudo chmod +x /opt/Obsidian.AppImage
           (cd /opt && sudo ./Obsidian.AppImage --appimage-extract >/dev/null)
-          sudo ln -sf /opt/squashfs-root/obsidian /usr/local/bin/obsidian
+          sudo chown -R "$USER":"$USER" /opt/squashfs-root
+          sudo chmod -R a+rX /opt/squashfs-root
+          sudo chmod a+x /opt/squashfs-root/AppRun /opt/squashfs-root/obsidian
+          sudo ln -sf /opt/squashfs-root/AppRun /usr/local/bin/obsidian
+          ls -la /opt/squashfs-root/AppRun /opt/squashfs-root/obsidian
+          /usr/local/bin/obsidian --version || true
 
       - name: Capture release screenshots
         run: |
