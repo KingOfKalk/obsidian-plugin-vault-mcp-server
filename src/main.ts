@@ -22,7 +22,8 @@ export default class McpPlugin extends Plugin {
   registry!: ModuleRegistry;
   adapter!: ObsidianAdapter;
   httpServer: HttpMcpServer | null = null;
-  private statusBarItem: { setText: (text: string) => void } | null = null;
+  lastStartError: { port: number; message: string } | null = null;
+  private statusBarItem: HTMLElement | null = null;
   private ribbonIconEl: HTMLElement | null = null;
 
   async onload(): Promise<void> {
@@ -125,6 +126,7 @@ export default class McpPlugin extends Plugin {
   }
 
   async startServer(): Promise<void> {
+    const attemptedPort = this.settings.port;
     let tls: TlsCertificateData | undefined;
     if (this.settings.httpsEnabled) {
       try {
@@ -143,18 +145,21 @@ export default class McpPlugin extends Plugin {
         this.logger,
         {
           host: this.settings.serverAddress,
-          port: this.settings.port,
+          port: attemptedPort,
           authEnabled: this.settings.authEnabled,
           accessKey: this.settings.accessKey,
           tls,
         },
       );
       await this.httpServer.start();
+      this.lastStartError = null;
       this.updateStatusDisplay();
-      new Notice(t('notice_server_started', { port: this.settings.port }));
+      new Notice(t('notice_server_started', { port: attemptedPort }));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Failed to start MCP server: ${message}`);
+      this.lastStartError = { port: attemptedPort, message };
+      this.updateStatusDisplay();
       new Notice(t('notice_server_start_failed', { message }));
     }
   }
@@ -215,6 +220,7 @@ export default class McpPlugin extends Plugin {
     if (this.httpServer) {
       await this.httpServer.stop();
       this.httpServer = null;
+      this.lastStartError = null;
       this.updateStatusDisplay();
     }
   }
@@ -238,12 +244,24 @@ export default class McpPlugin extends Plugin {
 
   private updateStatusDisplay(): void {
     const isRunning = this.httpServer?.isRunning ?? false;
+    const failure = !isRunning ? this.lastStartError : null;
 
-    // Update status bar
+    // Update status bar: three states — running, stopped, or failed-to-start.
     if (this.statusBarItem) {
-      this.statusBarItem.setText(
-        isRunning ? `MCP :${String(this.settings.port)}` : '',
-      );
+      this.statusBarItem.empty();
+      this.statusBarItem.title = '';
+      this.statusBarItem.ariaLabel = '';
+      if (isRunning) {
+        this.statusBarItem.setText(`MCP :${String(this.settings.port)}`);
+      } else if (failure) {
+        this.statusBarItem.createEl('span', {
+          cls: 'mcp-statusbar-error',
+          text: `MCP :${String(failure.port)}`,
+        });
+        const tooltip = t('status_bar_port_in_use', { port: failure.port });
+        this.statusBarItem.title = tooltip;
+        this.statusBarItem.ariaLabel = tooltip;
+      }
     }
 
     // Update ribbon icon glyph + aria label

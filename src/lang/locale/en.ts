@@ -90,6 +90,9 @@ const en = {
   // Plugin lifecycle notices (main.ts)
   notice_server_started: 'MCP server started on port {port}',
   notice_server_start_failed: 'Failed to start MCP server: {message}',
+  status_bar_port_in_use: 'Port {port} is already in use',
+  settings_port_in_use_error:
+    'Port {port} is already in use. Choose a different port.',
 
   // Settings — Diagnostics section
   heading_diagnostics: 'Diagnostics',

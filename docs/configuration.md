@@ -11,6 +11,7 @@
 - **Default**: `28741`
 - **Description**: HTTP port the MCP server listens on
 - **Range**: 1–65535
+- **Conflict handling**: If the configured port is already in use by another process, the server start fails. The plugin shows an Obsidian Notice, renders the port with a strike-through in the status bar (hover for the exact error), and displays an inline error under this field in settings. Change the port or free the other process, then toggle the server back on.
 
 ### Access Key (`accessKey`)
 - **Default**: (empty)

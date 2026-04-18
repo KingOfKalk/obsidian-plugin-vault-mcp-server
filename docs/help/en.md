@@ -194,6 +194,10 @@ restarting Obsidian (useful when developing modules).
 ### Status bar
 
 - Shows `MCP :<port>` while the server is running. Empty when stopped.
+- After a failed start (most commonly because the configured port is already
+  in use), the status bar shows `MCP :<port>` with a strike-through in the
+  error color. Hover to see the exact error. The indicator stays until the
+  next successful start, an explicit stop, or a port change.
 
 ---
 
@@ -246,6 +250,18 @@ Auto-start is gated by auth. If **Require Bearer authentication** is on but
 Another process holds port 28741. Either stop that process or change
 **Port** in settings. The plugin only checks the port when starting; you must
 restart the server after changing the port.
+
+When this happens you'll see three signals at once:
+
+- A transient Obsidian Notice: "Failed to start MCP server: Port … is
+  already in use."
+- The status bar shows the port struck through. Hover for the exact error.
+- An inline error appears under the **Port** field in settings. Edit the
+  port (or pick a new one) to dismiss it; the next successful start clears
+  all three.
+
+The toggle under **Server Status** flips back to **off** so clicking it
+again retries the start.
 
 ### Tool not showing up in my client
 

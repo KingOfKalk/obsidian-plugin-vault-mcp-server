@@ -163,6 +163,152 @@ describe('McpPlugin.onload autoStart behaviour', () => {
     expect(ribbonEl.ariaLabel).toBe('MCP Server (stopped)');
   });
 
+  it('marks the status bar and ribbon as failed when startServer rejects with a port-in-use error', async () => {
+    const plugin = createPlugin({
+      schemaVersion: 6,
+      serverAddress: '127.0.0.1',
+      port: 28741,
+      accessKey: '',
+      httpsEnabled: false,
+      tlsCertificate: null,
+      debugMode: false,
+      autoStart: false,
+      authEnabled: false,
+      moduleStates: {},
+    });
+
+    interface StatusBarStub {
+      textContent: string;
+      title: string;
+      ariaLabel: string;
+      children: { className: string; textContent: string }[];
+    }
+    interface RibbonStub {
+      _icon: string;
+      ariaLabel: string;
+    }
+    interface InternalPlugin {
+      addStatusBarItem: () => StatusBarStub;
+      addRibbonIcon: (icon: string, title: string, cb: () => void) => RibbonStub;
+      lastStartError: { port: number; message: string } | null;
+    }
+
+    const ribbonEl: RibbonStub = { _icon: '', ariaLabel: '' };
+    const internals = plugin as unknown as InternalPlugin;
+    internals.addRibbonIcon = (icon: string): RibbonStub => {
+      ribbonEl._icon = icon;
+      return ribbonEl;
+    };
+
+    await plugin.onload();
+
+    const { HttpMcpServer } = await import('../src/server/http-server');
+    const startSpy = vi
+      .spyOn(HttpMcpServer.prototype, 'start')
+      .mockRejectedValue(
+        new Error('Port 28741 is already in use. Choose a different port in settings.'),
+      );
+
+    try {
+      await plugin.startServer();
+
+      // Ribbon returns to stopped glyph.
+      expect(ribbonEl._icon).toBe('plug');
+      // Last-start error is recorded.
+      expect(internals.lastStartError).not.toBeNull();
+      expect(internals.lastStartError?.port).toBe(28741);
+
+      // Status bar should show the struck-through port and a tooltip.
+      const statusBar = (plugin as unknown as { statusBarItem: StatusBarStub })
+        .statusBarItem;
+      expect(statusBar.textContent).toBe('');
+      expect(statusBar.children).toHaveLength(1);
+      expect(statusBar.children[0].className).toBe('mcp-statusbar-error');
+      expect(statusBar.children[0].textContent).toBe('MCP :28741');
+      expect(statusBar.title).toBe('Port 28741 is already in use');
+      expect(statusBar.ariaLabel).toBe('Port 28741 is already in use');
+    } finally {
+      startSpy.mockRestore();
+    }
+  });
+
+  it('clears the last-start error when the next startServer succeeds', async () => {
+    const plugin = createPlugin({
+      schemaVersion: 6,
+      serverAddress: '127.0.0.1',
+      port: 28741,
+      accessKey: '',
+      httpsEnabled: false,
+      tlsCertificate: null,
+      debugMode: false,
+      autoStart: false,
+      authEnabled: false,
+      moduleStates: {},
+    });
+
+    interface InternalPlugin {
+      lastStartError: { port: number; message: string } | null;
+      statusBarItem: { title: string; ariaLabel: string; textContent: string; children: unknown[] };
+    }
+
+    await plugin.onload();
+
+    const internals = plugin as unknown as InternalPlugin;
+    internals.lastStartError = { port: 28741, message: 'stale' };
+
+    const { HttpMcpServer } = await import('../src/server/http-server');
+    const startSpy = vi
+      .spyOn(HttpMcpServer.prototype, 'start')
+      .mockResolvedValue(undefined);
+    const isRunningSpy = vi
+      .spyOn(HttpMcpServer.prototype, 'isRunning', 'get')
+      .mockReturnValue(true);
+
+    try {
+      await plugin.startServer();
+      expect(internals.lastStartError).toBeNull();
+      expect(internals.statusBarItem.title).toBe('');
+      expect(internals.statusBarItem.children).toHaveLength(0);
+      expect(internals.statusBarItem.textContent).toBe('MCP :28741');
+    } finally {
+      startSpy.mockRestore();
+      isRunningSpy.mockRestore();
+    }
+  });
+
+  it('clears the last-start error when stopServer is called', async () => {
+    const plugin = createPlugin({
+      schemaVersion: 6,
+      serverAddress: '127.0.0.1',
+      port: 28741,
+      accessKey: '',
+      httpsEnabled: false,
+      tlsCertificate: null,
+      debugMode: false,
+      autoStart: false,
+      authEnabled: false,
+      moduleStates: {},
+    });
+
+    interface InternalPlugin {
+      httpServer: { stop: () => Promise<void>; isRunning: boolean } | null;
+      lastStartError: { port: number; message: string } | null;
+    }
+
+    await plugin.onload();
+
+    const internals = plugin as unknown as InternalPlugin;
+    internals.lastStartError = { port: 28741, message: 'stale' };
+    internals.httpServer = {
+      stop: (): Promise<void> => Promise.resolve(),
+      isRunning: false,
+    };
+
+    await plugin.stopServer();
+
+    expect(internals.lastStartError).toBeNull();
+  });
+
   it('migrates existing installs to autoStart=false so the server stays stopped on first load', async () => {
     const plugin = createPlugin({
       schemaVersion: 2,

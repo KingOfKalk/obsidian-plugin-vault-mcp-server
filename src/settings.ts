@@ -114,6 +114,13 @@ export class McpSettingsTab extends PluginSettingTab {
       .setName(t('setting_port_name'))
       .setDesc(t('setting_port_desc'));
     const portError = createValidationError(portSetting);
+    const portStartError = createValidationError(portSetting);
+    const startFailure = this.plugin.lastStartError;
+    if (startFailure && startFailure.port === this.plugin.settings.port) {
+      portStartError.show(
+        t('settings_port_in_use_error', { port: startFailure.port }),
+      );
+    }
     portSetting.addText((text) =>
       text
         .setPlaceholder('28741')
@@ -122,6 +129,7 @@ export class McpSettingsTab extends PluginSettingTab {
           const port = parseInt(value, 10);
           if (/^\d+$/.test(value) && !isNaN(port) && port > 0 && port < 65536) {
             portError.clear();
+            portStartError.clear();
             this.plugin.settings.port = port;
             await this.plugin.saveSettings();
           } else {

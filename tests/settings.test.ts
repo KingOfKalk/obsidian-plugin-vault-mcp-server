@@ -738,6 +738,69 @@ describe('McpSettingsTab server controls', () => {
     });
   });
 
+  describe('Port-in-use inline error', () => {
+    interface ChildEl {
+      className: string;
+      textContent: string;
+    }
+    interface PortSetting {
+      descEl: { children: ChildEl[] };
+      texts: { callback: ((value: string) => void | Promise<void>) | null }[];
+    }
+
+    function getPortSetting(): PortSetting {
+      return (Setting as unknown as { instances: PortSetting[] & { settingName?: string }[] }).instances.find(
+        (s) => (s as unknown as { settingName: string }).settingName === 'Port',
+      ) as unknown as PortSetting;
+    }
+
+    function portErrors(): ChildEl[] {
+      return getPortSetting().descEl.children.filter(
+        (c) => c.className === 'mcp-settings-error',
+      );
+    }
+
+    function renderWithLastError(
+      lastStartError: { port: number; message: string } | null,
+      portValue = 28741,
+    ): Record<string, unknown> {
+      const plugin = createMockPlugin(false);
+      plugin.settings = { ...DEFAULT_SETTINGS, accessKey: 'test-key', authEnabled: true, port: portValue };
+      (plugin as unknown as Record<string, unknown>).lastStartError = lastStartError;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+      const tab = new McpSettingsTab({} as any, plugin as any);
+      tab.display();
+      return plugin as unknown as Record<string, unknown>;
+    }
+
+    it('shows the inline error under the Port field when lastStartError matches the current port', () => {
+      renderWithLastError({ port: 28741, message: 'Port 28741 is already in use.' }, 28741);
+      const errors = portErrors();
+      expect(errors).toHaveLength(1);
+      expect(errors[0].textContent).toBe(
+        'Port 28741 is already in use. Choose a different port.',
+      );
+    });
+
+    it('does not show the inline error when lastStartError.port differs from the current port', () => {
+      renderWithLastError({ port: 9999, message: 'stale error' }, 28741);
+      expect(portErrors()).toHaveLength(0);
+    });
+
+    it('does not show the inline error when lastStartError is null', () => {
+      renderWithLastError(null, 28741);
+      expect(portErrors()).toHaveLength(0);
+    });
+
+    it('clears the inline error when the user types a new valid port', async () => {
+      renderWithLastError({ port: 28741, message: 'fail' }, 28741);
+      expect(portErrors()).toHaveLength(1);
+      const port = getPortSetting();
+      await port.texts[0].callback!('28742');
+      expect(portErrors()).toHaveLength(0);
+    });
+  });
+
   describe('Require Bearer authentication toggle', () => {
     function getAuthEnabledSetting(): SettingInstance | undefined {
       return (Setting as unknown as { instances: SettingInstance[] }).instances.find(
