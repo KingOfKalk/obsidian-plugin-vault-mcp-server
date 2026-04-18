@@ -1,0 +1,290 @@
+# MCP Server — User Manual
+
+This manual is for end users of the **MCP Server** Obsidian plugin. It covers
+installation, basic setup, every setting and toggle in the UI, and a FAQ for
+the most common stumbling blocks (self-signed TLS in LLM clients, port
+conflicts, auth errors, etc.).
+
+If you are a developer and want a deeper reference, see:
+
+- [`configuration.md`](../configuration.md) — settings reference
+- [`security.md`](../security.md) — security model
+- [`PRD.md`](../PRD.md) — full product requirements
+
+---
+
+## What this plugin does
+
+The plugin runs an **MCP (Model Context Protocol) server** inside Obsidian
+Desktop. It exposes vault operations, search, the editor, the workspace, UI
+prompts, templates, and plugin interop as MCP tools over **Streamable HTTP**.
+Any MCP-capable client (Claude Desktop, Claude Code, Codex, custom agents) can
+connect to the server and read or modify your vault programmatically.
+
+- **Desktop only** (Node-only APIs are required)
+- **Default endpoint**: `http://127.0.0.1:28741/mcp`
+- **Auth**: opt-in HTTP Bearer token
+- **Transport**: Streamable HTTP (MCP SDK 1.x)
+
+---
+
+## Installation
+
+### Option A — Install via BRAT (recommended while in beta)
+
+[BRAT](https://github.com/TfTHacker/obsidian42-brat) is the "Beta Reviewers
+Auto-update Tool" community plugin. It installs and keeps beta plugins up to
+date directly from a GitHub release.
+
+1. In Obsidian, open **Settings → Community plugins** and make sure
+   **Restricted mode** is **off**.
+2. Browse the community plugin store and install **BRAT**, then enable it.
+3. Open **Settings → BRAT → Beta Plugin List → Add Beta plugin**.
+4. Paste the repository URL:
+
+   ```
+   https://github.com/KingOfKalk/obisdian-plugin-mcp
+   ```
+
+5. Pick **Latest version** and click **Add Plugin**. BRAT downloads
+   `main.js`, `manifest.json`, and `styles.css` from the latest GitHub
+   release.
+6. Open **Settings → Community plugins** and enable **MCP Server**.
+
+BRAT will check for new releases on Obsidian startup and update the plugin
+automatically.
+
+### Option B — Manual install
+
+1. Download `main.js`, `manifest.json`, and `styles.css` from the
+   [latest release](https://github.com/KingOfKalk/obisdian-plugin-mcp/releases).
+2. Create the folder `<your-vault>/.obsidian/plugins/obsidian-mcp/`.
+3. Copy the three files into that folder.
+4. Reload Obsidian (`Ctrl/Cmd+R` or restart) and enable **MCP Server** under
+   **Settings → Community plugins**.
+
+---
+
+## Basic setup (5 minutes)
+
+The shipping defaults are intentionally conservative: the server is **off**,
+auth is **off**, and binding is restricted to `127.0.0.1`. Walk through these
+steps once after install:
+
+1. **Open the settings tab**: **Settings → MCP Server**.
+2. **Decide if you need authentication**:
+   - Local-only, single-user machine → leave **Require Bearer authentication**
+     off.
+   - Anything else (shared host, non-localhost binding, paranoia) → turn it on
+     and click **Generate** next to **Access Key**.
+3. **(Optional) Pick which feature modules you want**. By default all core
+   modules are enabled. Disable anything you don't need (principle of least
+   privilege).
+4. **Start the server** by flipping the **Status** toggle on, or by running
+   the **MCP Server: Start MCP Server** command from the command palette.
+   - The status bar will show `MCP :28741` while the server is running.
+   - The ribbon icon switches from a plain plug to a "plug-zap" lightning
+     icon.
+5. **Connect your MCP client**. In the **MCP Client Configuration** section
+   click the copy button — the snippet is generated live from your current
+   address, port, auth, and key. Paste it into your client's `mcpServers`
+   config (e.g. Claude Desktop's `claude_desktop_config.json`, or Claude
+   Code's `mcp.json`).
+
+That's it. The client should see the tools advertised by your enabled
+modules.
+
+---
+
+## Settings reference
+
+The settings tab is split into five sections.
+
+### 1. Status
+
+| Control | What it does |
+|---|---|
+| **Status toggle** | Flip on to start the server, off to stop it. While running, the row also shows the server URL and the number of connected clients. |
+| **Restart icon** | Appears next to the toggle while the server is running. Click to restart (apply changes that need a fresh listen). |
+
+### 2. Server Settings
+
+| Setting | Default | What it does |
+|---|---|---|
+| **Server Address** | `127.0.0.1` | IPv4 address the server binds to. `127.0.0.1` is local-only. Setting this to `0.0.0.0` exposes the server on every network interface — only do that with auth enabled and a firewall in front. Requires a restart. |
+| **Port** | `28741` | TCP port to listen on. Any integer 1–65535. Restart required. |
+| **Server URL** | (read-only) | Full `http(s)://address:port/mcp` URL. The copy button puts it on your clipboard. |
+| **Require Bearer authentication** | off | Master switch for auth. When off, every request is accepted (only safe on `127.0.0.1`). When on, every request must carry `Authorization: Bearer <key>`. |
+| **Access Key** | (empty) | Visible only when auth is on. Use **Generate** to create a 64-char hex key (256 bits of entropy from `crypto.randomBytes`). The **Copy** button copies it without revealing it. |
+| **HTTPS** | off | Switch to HTTPS using a locally generated self-signed certificate. Restart required. See the FAQ for client-side trust. |
+| **TLS Certificate** | auto | Generated on the first HTTPS start, then cached in `data.json`. Use **Regenerate certificate** if you change the address or want a fresh key pair — clients will need to re-trust the new cert. |
+| **Auto-start on launch** | off | Start the MCP server automatically when Obsidian loads. If auth is enabled but no key is set, the server stays stopped and the reason is logged. |
+
+### 3. MCP Client Configuration
+
+A single row with a **Copy** button. The JSON snippet is built live from your
+current settings:
+
+- Always includes the `url` field with the right scheme and port.
+- Includes a `headers` block with `Authorization: Bearer <key>` **only** when
+  auth is on **and** the key is non-empty.
+
+Paste it into:
+
+- **Claude Desktop** → `claude_desktop_config.json`, under `mcpServers`.
+- **Claude Code** → `~/.claude/mcp.json` (or per-project `.claude/mcp.json`).
+- Any other MCP client that supports Streamable HTTP transport.
+
+### 4. Feature Modules
+
+Each module is a collapsible card with one enable/disable toggle. Disabled
+modules are hidden from `tools/list`, so the client never sees them.
+
+| Module | Tools | Notes |
+|---|---|---|
+| Vault and File Operations | 16 | Create / read / update / delete files and folders, rename, move, copy, list, binary I/O, metadata. |
+| Search and Metadata | 12 | Full-text search, frontmatter, tags, headings, links, embeds, backlinks, block refs. |
+| Editor Operations | 10 | Read/insert/replace/delete text in the active editor, cursor and selection management. |
+| Workspace and Navigation | 5 | Inspect / open / focus leaves, read the layout. |
+| UI Interactions | 3 | Show notices and confirm/prompt modals. |
+| Templates | 3 | List templates, create from template, expand variables. |
+| Plugin Interop | 5 | List plugins, run Dataview / Templater queries, execute commands. |
+
+There is also an **Extras** group for utility tools that don't mirror an
+Obsidian API. Extras are toggled **per tool**, not per module, and are off by
+default. Today this contains:
+
+- `get_date` — returns the current local time as ISO-8601 with offset.
+
+A **Refresh** button at the top of this section re-discovers modules without
+restarting Obsidian (useful when developing modules).
+
+### 5. Diagnostics
+
+| Control | What it does |
+|---|---|
+| **Debug Mode** | Verbose logging of every MCP request and response. Access keys are **always** redacted. |
+| **Log file** | Read-only path to the persistent log at `<vault>/.obsidian/plugins/obsidian-mcp/debug.log`. The file rotates in place at 1 MiB (trims to the most recent 512 KiB). |
+| **Copy debug info** | Opens a modal with a copy-pasteable bundle: settings (with the access key replaced by `<set>`/`<empty>` and the cert by `<present>`/`<absent>`), module list, server status, and the most recent log lines. Safe to share when filing a bug. |
+| **Clear log** | Empties `debug.log`. |
+
+---
+
+## Commands and UI surfaces
+
+### Command palette
+
+- **MCP Server: Start MCP Server**
+- **MCP Server: Stop MCP Server**
+- **MCP Server: Restart MCP Server**
+- **MCP Server: Copy Access Key**
+- **MCP Server: Copy Debug Info**
+
+### Ribbon
+
+- A **plug** icon in the left ribbon. Grey when stopped, "plug-zap"
+  (lightning) when running. Click to toggle the server.
+
+### Status bar
+
+- Shows `MCP :<port>` while the server is running. Empty when stopped.
+
+---
+
+## FAQ
+
+### "self-signed certificate" / "unable to verify the first certificate" in my LLM client
+
+When you enable **HTTPS** the plugin generates a local self-signed RSA-2048
+certificate (SHA-256, 365-day validity, valid for `localhost`, `127.0.0.1`,
+`::1`, and the configured server address). Public CAs cannot validate it, so
+your MCP client will refuse the connection by default. You have three
+options:
+
+1. **Use plain HTTP on `127.0.0.1`** (simplest). Localhost traffic never
+   leaves your machine; HTTPS adds little for a local-only server. Turn HTTPS
+   off and use `http://127.0.0.1:28741/mcp`.
+2. **Trust the certificate explicitly** in the client. The exact mechanism
+   depends on the runtime:
+   - Node-based clients: pass `--cafile <path-to-pem>` or set the `ca` option
+     when constructing the HTTPS agent.
+   - `curl`: `--cacert <path-to-pem>`.
+   - System trust stores (macOS Keychain, Windows certmgr, Linux
+     `update-ca-trust`) also work but affect every app on the machine.
+   The PEM is embedded in `data.json` under `tlsCertificate.cert` — copy it
+   into a `.pem` file. Click **Regenerate certificate** in settings whenever
+   you rotate the address; clients will then need to re-trust the new cert.
+3. **Disable certificate verification in the client**. Convenient for local
+   testing, dangerous everywhere else. Only do this if the connection is
+   provably local-only.
+
+### My client says "401 Unauthorized" / "Bearer token required"
+
+You enabled **Require Bearer authentication** but the client isn't sending
+the right header. Check:
+
+- The `Authorization: Bearer <key>` header is present on every request.
+- The `<key>` matches the one in **Settings → MCP Server → Access Key**
+  exactly. Use the **Copy** button — never type it by hand.
+- Re-copy the **MCP Client Configuration** snippet after generating a new
+  key; the snippet is rebuilt from the live key.
+
+### The server won't auto-start
+
+Auto-start is gated by auth. If **Require Bearer authentication** is on but
+**Access Key** is empty, the server intentionally stays stopped and writes an
+`info` log entry explaining why. Either generate a key or disable auth.
+
+### "EADDRINUSE" / port conflict on start
+
+Another process holds port 28741. Either stop that process or change
+**Port** in settings. The plugin only checks the port when starting; you must
+restart the server after changing the port.
+
+### Tool not showing up in my client
+
+- The module that ships the tool is disabled. Enable it under **Feature
+  Modules**.
+- For Extras tools (e.g. `get_date`), the per-tool toggle is off by default.
+- The client cached the previous `tools/list` response. Reconnect.
+
+### How do I expose the server to another machine on my LAN?
+
+1. Set **Server Address** to `0.0.0.0`.
+2. Turn on **Require Bearer authentication** and generate a key.
+3. Strongly consider enabling **HTTPS** (and follow the trust steps above).
+4. Configure your firewall to allow only the hosts you trust to reach the
+   port.
+5. Restart the server.
+
+The settings UI shows a warning whenever the bind address is anything other
+than `127.0.0.1` — read it.
+
+### Where are the settings stored? Are they safe to commit?
+
+Settings live in `<vault>/.obsidian/plugins/obsidian-mcp/data.json`. **Do
+not** commit this file: it contains your access key and the cached TLS
+private key. Treat it like a secret.
+
+### How do I rotate the access key?
+
+Click **Generate** next to **Access Key**, then re-copy the **MCP Client
+Configuration** snippet into every client. Old keys stop working
+immediately.
+
+### Where can I see what the server is doing?
+
+- Turn on **Debug Mode** for live request/response logging in the developer
+  console (`Ctrl+Shift+I`).
+- The persistent log is at
+  `<vault>/.obsidian/plugins/obsidian-mcp/debug.log`.
+- Use **Copy debug info** to grab a sanitized bundle for bug reports.
+
+### How do I report a bug?
+
+1. Reproduce the issue with **Debug Mode** on.
+2. Click **Copy debug info** in **Diagnostics** and paste the bundle into a
+   GitHub issue at
+   <https://github.com/KingOfKalk/obisdian-plugin-mcp/issues>. The bundle
+   never includes your access key or TLS private key, but always re-read it
+   before sharing.

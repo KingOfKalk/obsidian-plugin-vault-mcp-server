@@ -202,6 +202,10 @@ The plugin UI is translated via a tiny in-house i18n helper modelled on the [obs
 - **NFR26** — Server status (running, port, connected clients) visible in the settings tab
 - **NFR31** — Plugin registers an Obsidian status bar item that displays `MCP :<port>` while the MCP server is running and renders as empty text while the server is stopped. The status bar text is refreshed on every start/stop transition so users can see at a glance whether the server is live and on which port without opening settings.
 
+### Documentation Sync
+
+- **NFR34** — The end-user manual at `docs/help/en.md` (and any sibling locale files under `docs/help/`) MUST stay in sync with every user-facing surface shipped by the plugin: settings/toggles, command palette entries, ribbon icons, status bar items, modals, MCP modules and tools, installation flow, and known errors that warrant FAQ coverage. Any PR that adds, removes, renames, or changes the behaviour of one of these surfaces MUST update the manual in the same PR; reviewers reject PRs that change user-facing behaviour without a corresponding manual update. Adding a new translation locale to the plugin UI (see I1) implies adding the matching `docs/help/<locale>.md` file, with English remaining the source of truth for content (mirroring I3).
+
 ### Compatibility
 
 - **NFR27** — Minimum Obsidian version: document chosen version at development start (recommend latest stable)
