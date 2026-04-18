@@ -236,19 +236,6 @@ export class McpSettingsTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           }),
       );
-
-    new Setting(containerEl)
-      .setName(t('setting_debug_name'))
-      .setDesc(t('setting_debug_desc'))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.debugMode)
-          .onChange(async (value) => {
-            this.plugin.settings.debugMode = value;
-            this.plugin.logger.updateOptions({ debugMode: value });
-            await this.plugin.saveSettings();
-          }),
-      );
   }
 
   private renderMcpConfig(containerEl: HTMLElement): void {
@@ -296,6 +283,19 @@ export class McpSettingsTab extends PluginSettingTab {
 
   private renderDiagnostics(containerEl: HTMLElement): void {
     containerEl.createEl('h2', { text: t('heading_diagnostics') });
+
+    new Setting(containerEl)
+      .setName(t('setting_debug_name'))
+      .setDesc(t('setting_debug_desc'))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.debugMode)
+          .onChange(async (value) => {
+            this.plugin.settings.debugMode = value;
+            this.plugin.logger.updateOptions({ debugMode: value });
+            await this.plugin.saveSettings();
+          }),
+      );
 
     new Setting(containerEl)
       .setName(t('setting_log_file_name'))
