@@ -22,8 +22,14 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.moduleStates).toEqual({});
   });
 
-  it('should have schema version 6', () => {
-    expect(DEFAULT_SETTINGS.schemaVersion).toBe(6);
+  it('should have schema version 7', () => {
+    expect(DEFAULT_SETTINGS.schemaVersion).toBe(7);
+  });
+
+  it('has bring-your-own-cert disabled by default', () => {
+    expect(DEFAULT_SETTINGS.useCustomTls).toBe(false);
+    expect(DEFAULT_SETTINGS.customTlsCertPath).toBeNull();
+    expect(DEFAULT_SETTINGS.customTlsKeyPath).toBeNull();
   });
 
   it('should have Bearer authentication disabled by default', () => {
