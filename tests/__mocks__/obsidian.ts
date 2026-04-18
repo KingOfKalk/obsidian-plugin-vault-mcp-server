@@ -19,23 +19,28 @@ export class Plugin {
     return {};
   }
   addStatusBarItem(): any {
-    return { setText: () => {} };
+    return mockEl();
   }
 }
 
 function mockEl(): any {
   const el: any = {
-    setText: () => {},
+    setText: (text: string) => {
+      el.textContent = text;
+    },
     style: {},
     textContent: '',
     className: '',
     tagName: '',
+    title: '',
+    ariaLabel: '',
     attributes: {} as Record<string, string>,
     classList: { add: () => {}, remove: () => {} },
     addEventListener: () => {},
     children: [] as any[],
     empty: () => {
       el.children.length = 0;
+      el.textContent = '';
     },
     remove: () => {},
     createEl: (tag?: string, opts?: { text?: string; cls?: string; attr?: Record<string, string> }) => {

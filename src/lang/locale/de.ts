@@ -99,6 +99,9 @@ const de: Partial<Record<keyof typeof en, string>> = {
   // Plugin lifecycle notices
   notice_server_started: 'MCP-Server auf Port {port} gestartet',
   notice_server_start_failed: 'MCP-Server konnte nicht gestartet werden: {message}',
+  status_bar_port_in_use: 'Port {port} ist bereits belegt',
+  settings_port_in_use_error:
+    'Port {port} ist bereits belegt. Wähle einen anderen Port.',
 
   // Diagnostics section
   heading_diagnostics: 'Diagnose',

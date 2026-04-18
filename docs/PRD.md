@@ -178,7 +178,7 @@ The plugin UI is translated via a tiny in-house i18n helper modelled on the [obs
 
 - **NFR11** — HTTP server starts when plugin loads and stops when plugin unloads
 - **NFR12** — Graceful shutdown: finish in-flight requests, then close connections
-- **NFR13** — Port conflict recovery with clear error message to the user
+- **NFR13** — Port conflict recovery with clear error message to the user (see **NFR36** for the status bar surface, **CR18** for the toggle behaviour, and the inline error under the Port field in settings)
 - **NFR14** — Handle Obsidian API unavailability gracefully (e.g., vault not ready at startup)
 
 ### Concurrency
@@ -204,7 +204,8 @@ The plugin UI is translated via a tiny in-house i18n helper modelled on the [obs
 - **NFR24** — Structured logging with levels: debug, info, warn, error
 - **NFR25** — Debug mode logs all incoming MCP requests and outgoing responses
 - **NFR26** — Server status (running, port, connected clients) visible in the settings tab
-- **NFR31** — Plugin registers an Obsidian status bar item that displays `MCP :<port>` while the MCP server is running and renders as empty text while the server is stopped. The status bar text is refreshed on every start/stop transition so users can see at a glance whether the server is live and on which port without opening settings.
+- ~~NFR31~~ — ~~Plugin registers an Obsidian status bar item that displays `MCP :<port>` while the MCP server is running and renders as empty text while the server is stopped. The status bar text is refreshed on every start/stop transition so users can see at a glance whether the server is live and on which port without opening settings.~~
+- **NFR36** — Plugin registers an Obsidian status bar item that renders one of three states: `MCP :<port>` while the MCP server is running; empty text while the server is stopped and no start has failed; `MCP :<port>` wrapped in a span with class `mcp-statusbar-error` (strike-through + error colour) plus a `title`/`aria-label` tooltip describing the error when the last start attempt failed (e.g. because the port was already in use). The failed state is sticky — it persists until the next successful start, an explicit stop, or a port change — and the tooltip uses the `status_bar_port_in_use` i18n key. Replaces ~~NFR31~~ because the shipped behaviour now distinguishes "stopped" from "failed to start", which users previously could not see without opening settings. Pairs with the inline port-in-use error under the Port field in **Server Settings** (uses the existing `mcp-settings-error` class, shown only when the recorded failure port matches the currently configured port).
 
 ### Documentation Sync
 
