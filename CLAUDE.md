@@ -7,6 +7,8 @@
 3. PR titles must follow Conventional Commits format
 4. Never commit screenshots or images to git, with one exception: localized screenshots under `docs/screenshots/<locale>/` may be committed, but only by the `docs-screenshots` GitHub Actions workflow or by the user directly. Agents (including Claude) must not commit images under any path. Everywhere else, attach screenshots to GitHub issues/PRs instead of committing them.
 5. Keep the user manual in sync with the code. Whenever a change adds, removes, renames, or alters the behaviour of any user-facing surface — settings/toggles, command palette entries, ribbon icons, status bar items, modals, MCP tools/modules, installation steps, or known errors that warrant FAQ coverage — you MUST update [`docs/help/en.md`](docs/help/en.md) (and any sibling locale files) in the same PR. If you add a translation locale, add the matching `docs/help/<locale>.md` file. Reviewers should reject PRs that change user-facing behaviour without a corresponding manual update.
+6. Any work that will result in a commit must have a GitHub issue first — create the issue before branching and reference it in the branch name, commits, and PR
+7. Branch names must follow Conventional Commits-style prefixes and include the issue number, e.g. `feat/issue-7-structured-logging`, `fix/issue-12-crash-on-startup`, `chore/issue-3-update-deps`. Auto-generated names like `claude/obsidian-plugin-prd-Zm6eU` are not allowed
 
 ## Linting & Code Quality
 
@@ -30,6 +32,8 @@ Follow these steps for every new feature or change:
 
 ### 3. Create a branch
 - Create a feature branch for the work off the latest `main`
+- Name it with a Conventional Commits-style prefix and the issue number: `<type>/issue-<number>-<short-description>` (e.g. `feat/issue-7-structured-logging`, `fix/issue-12-crash-on-startup`)
+- Do not use auto-generated names like `claude/obsidian-plugin-prd-Zm6eU`
 
 ### 4. Work on the issue
 - Run `npm test` **before** making changes to confirm the baseline is green
