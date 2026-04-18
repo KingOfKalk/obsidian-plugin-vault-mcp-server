@@ -62,9 +62,9 @@ jobs:
           (cd /opt && sudo ./Obsidian.AppImage --appimage-extract >/dev/null)
           sudo chown -R "$USER":"$USER" /opt/squashfs-root
           sudo chmod -R a+rX /opt/squashfs-root
-          sudo chmod a+x /opt/squashfs-root/AppRun /opt/squashfs-root/obsidian
-          ls -la /opt/squashfs-root/AppRun /opt/squashfs-root/obsidian
-          /opt/squashfs-root/AppRun --version || true
+          sudo chmod a+x /opt/squashfs-root/obsidian
+          ls -la /opt/squashfs-root/obsidian
+          /opt/squashfs-root/obsidian --version || true
 
       - name: Capture release screenshots
         run: |
@@ -82,7 +82,7 @@ jobs:
           echo '{"vaults":{"v1":{"path":"/tmp/vault","ts":1,"open":true}}}' \
             > "$HOME/.config/obsidian/obsidian.json"
 
-          nohup /opt/squashfs-root/AppRun --no-sandbox --disable-gpu \
+          nohup /opt/squashfs-root/obsidian --no-sandbox --disable-gpu \
             --disable-software-rasterizer \
             --remote-debugging-port=9222 --remote-allow-origins='*' \
             "obsidian://open?path=/tmp/vault" \
