@@ -46,20 +46,7 @@ export class McpSettingsTab extends PluginSettingTab {
 
     const setting = new Setting(containerEl)
       .setName(t('setting_status_name'))
-      .setDesc(statusText)
-      .addToggle((toggle) =>
-        toggle
-          .setValue(isRunning)
-          .setTooltip(isRunning ? t('tooltip_stop_server') : t('tooltip_start_server'))
-          .onChange((value) => {
-            const action = value
-              ? this.plugin.startServer()
-              : this.plugin.stopServer();
-            void action.then(() => {
-              this.display();
-            });
-          }),
-      );
+      .setDesc(statusText);
 
     if (isRunning) {
       setting.addExtraButton((btn) =>
@@ -73,6 +60,20 @@ export class McpSettingsTab extends PluginSettingTab {
           }),
       );
     }
+
+    setting.addToggle((toggle) =>
+      toggle
+        .setValue(isRunning)
+        .setTooltip(isRunning ? t('tooltip_stop_server') : t('tooltip_start_server'))
+        .onChange((value) => {
+          const action = value
+            ? this.plugin.startServer()
+            : this.plugin.stopServer();
+          void action.then(() => {
+            this.display();
+          });
+        }),
+    );
   }
 
   private renderServerSettings(containerEl: HTMLElement): void {
