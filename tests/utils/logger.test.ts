@@ -169,4 +169,71 @@ describe('Logger', () => {
       expect(spy).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('sink', () => {
+    it('invokes the sink once per emitted line at info level', () => {
+      const sink = vi.fn();
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+      const l = createLogger('m', { debugMode: false, accessKey: '', sink });
+      l.info('first');
+      l.info('second');
+      expect(sink).toHaveBeenCalledTimes(2);
+    });
+
+    it('invokes the sink for warn and error too', () => {
+      const sink = vi.fn();
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      const l = createLogger('m', { debugMode: false, accessKey: '', sink });
+      l.warn('w');
+      l.error('e');
+      expect(sink).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not invoke the sink for messages filtered by level', () => {
+      const sink = vi.fn();
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+      const l = createLogger('m', { debugMode: false, accessKey: '', sink });
+      l.debug('suppressed');
+      expect(sink).not.toHaveBeenCalled();
+    });
+
+    it('formats sink lines as human-readable plain text', () => {
+      const sink = vi.fn();
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+      const l = createLogger('http-server', {
+        debugMode: false,
+        accessKey: '',
+        sink,
+      });
+      l.info('listening', { port: 28741 });
+      const line = sink.mock.calls[0][0] as string;
+      expect(line).toMatch(
+        /^\d{4}-\d{2}-\d{2}T[^\s]+Z\s+INFO\s+\[http-server\] listening \{"port":28741\}$/,
+      );
+    });
+
+    it('redacts the access key in sink output', () => {
+      const sink = vi.fn();
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+      const l = createLogger('m', {
+        debugMode: false,
+        accessKey: 'sekrit',
+        sink,
+      });
+      l.info('Bearer sekrit');
+      const line = sink.mock.calls[0][0] as string;
+      expect(line).not.toContain('sekrit');
+      expect(line).toContain('[REDACTED]');
+    });
+
+    it('swallows sink errors so logging never throws', () => {
+      const sink = vi.fn(() => {
+        throw new Error('disk full');
+      });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+      const l = createLogger('m', { debugMode: false, accessKey: '', sink });
+      expect(() => l.info('x')).not.toThrow();
+    });
+  });
 });

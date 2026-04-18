@@ -2,7 +2,7 @@
 
 export class Plugin {
   app: any;
-  manifest: any;
+  manifest: any = { id: 'obsidian-mcp', version: '0.0.0' };
   async loadData(): Promise<any> {
     return null;
   }

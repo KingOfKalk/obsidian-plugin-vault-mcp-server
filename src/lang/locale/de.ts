@@ -71,11 +71,29 @@ const de: Partial<Record<keyof typeof en, string>> = {
   notice_server_started: 'MCP-Server auf Port {port} gestartet',
   notice_server_start_failed: 'MCP-Server konnte nicht gestartet werden: {message}',
 
+  // Diagnostics section
+  heading_diagnostics: 'Diagnose',
+  setting_log_file_name: 'Protokolldatei',
+  setting_copy_debug_info_name: 'Debug-Infos kopieren',
+  setting_copy_debug_info_desc:
+    'Öffnet eine Vorschau des Debug-Pakets (Einstellungen, Module, Serverstatus, aktuelles Protokoll) und kopiert es in die Zwischenablage.',
+  tooltip_copy_debug_info: 'Debug-Vorschau öffnen',
+  setting_clear_log_name: 'Protokoll leeren',
+  setting_clear_log_desc: 'Leert die persistente Debug-Protokolldatei.',
+  tooltip_clear_log: 'Protokolldatei leeren',
+  notice_log_cleared: 'Debug-Protokoll geleert',
+  notice_debug_info_copied: 'Debug-Infos in die Zwischenablage kopiert',
+  modal_debug_info_title: 'Debug-Infos',
+  modal_debug_info_loading: 'Wird zusammengestellt …',
+  button_copy: 'Kopieren',
+  button_close: 'Schließen',
+
   // Command palette entries
   command_start_server: 'MCP-Server starten',
   command_stop_server: 'MCP-Server stoppen',
   command_restart_server: 'MCP-Server neu starten',
   command_copy_access_key: 'Zugriffsschlüssel kopieren',
+  command_copy_debug_info: 'Debug-Infos kopieren',
 
   // Ribbon icon
   ribbon_mcp_server: 'MCP-Server',

@@ -333,6 +333,8 @@ describe('McpSettingsTab MCP config display', () => {
     registry: { getModules: () => [] };
     logger: { updateOptions: () => void };
     saveSettings: ReturnType<typeof vi.fn>;
+    app: { vault: { configDir: string } };
+    manifest: { id: string; version: string };
   } {
     return {
       settings: {
@@ -344,6 +346,8 @@ describe('McpSettingsTab MCP config display', () => {
       registry: { getModules: () => [] },
       logger: { updateOptions: (): void => {} },
       saveSettings: vi.fn().mockResolvedValue(undefined),
+      app: { vault: { configDir: '.obsidian' } },
+      manifest: { id: 'obsidian-mcp', version: '0.0.0' },
     };
   }
 
@@ -438,6 +442,8 @@ describe('McpSettingsTab server controls', () => {
       stopServer: vi.fn().mockResolvedValue(undefined),
       restartServer: vi.fn().mockResolvedValue(undefined),
       saveSettings: vi.fn().mockResolvedValue(undefined),
+      app: { vault: { configDir: '.obsidian' } },
+      manifest: { id: 'obsidian-mcp', version: '0.0.0' },
     };
   }
 
@@ -677,6 +683,8 @@ describe('McpSettingsTab module rows rendering', () => {
       registry,
       saveSettings: vi.fn().mockResolvedValue(undefined),
       logger: { updateOptions: (): void => {} },
+      app: { vault: { configDir: '.obsidian' } },
+      manifest: { id: 'obsidian-mcp', version: '0.0.0' },
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
     const tab = new McpSettingsTab({} as any, plugin as any);
@@ -863,6 +871,8 @@ describe('McpSettingsTab server settings validation', () => {
     registry: { getModules: () => [] };
     logger: { updateOptions: () => void };
     saveSettings: ReturnType<typeof vi.fn>;
+    app: { vault: { configDir: string } };
+    manifest: { id: string; version: string };
   } {
     return {
       settings: { ...DEFAULT_SETTINGS, accessKey: 'k' },
@@ -870,6 +880,8 @@ describe('McpSettingsTab server settings validation', () => {
       registry: { getModules: () => [] },
       logger: { updateOptions: (): void => {} },
       saveSettings: vi.fn().mockResolvedValue(undefined),
+      app: { vault: { configDir: '.obsidian' } },
+      manifest: { id: 'obsidian-mcp', version: '0.0.0' },
     };
   }
 

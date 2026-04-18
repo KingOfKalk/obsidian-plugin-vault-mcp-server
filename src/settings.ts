@@ -3,6 +3,8 @@ import { randomBytes } from 'crypto';
 import type McpPlugin from './main';
 import type { ModuleRegistration } from './registry/types';
 import { t } from './lang/helpers';
+import { clearLogFile, getLogFilePath } from './utils/log-file';
+import { DebugInfoModal } from './ui/debug-info-modal';
 
 export class McpSettingsTab extends PluginSettingTab {
   plugin: McpPlugin;
@@ -20,6 +22,7 @@ export class McpSettingsTab extends PluginSettingTab {
     this.renderServerSettings(containerEl);
     this.renderMcpConfig(containerEl);
     this.renderModuleToggles(containerEl);
+    this.renderDiagnostics(containerEl);
   }
 
   private scheme(): 'http' | 'https' {
@@ -273,6 +276,40 @@ export class McpSettingsTab extends PluginSettingTab {
       .slice(1, -1)
       .map((line) => line.slice(2))
       .join('\n');
+  }
+
+  private renderDiagnostics(containerEl: HTMLElement): void {
+    containerEl.createEl('h2', { text: t('heading_diagnostics') });
+
+    new Setting(containerEl)
+      .setName(t('setting_log_file_name'))
+      .setDesc(getLogFilePath(this.plugin));
+
+    new Setting(containerEl)
+      .setName(t('setting_copy_debug_info_name'))
+      .setDesc(t('setting_copy_debug_info_desc'))
+      .addExtraButton((btn) =>
+        btn
+          .setIcon('copy')
+          .setTooltip(t('tooltip_copy_debug_info'))
+          .onClick(() => {
+            new DebugInfoModal(this.plugin.app, this.plugin).open();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName(t('setting_clear_log_name'))
+      .setDesc(t('setting_clear_log_desc'))
+      .addExtraButton((btn) =>
+        btn
+          .setIcon('trash')
+          .setTooltip(t('tooltip_clear_log'))
+          .onClick(() => {
+            void clearLogFile(this.plugin).then(() => {
+              new Notice(t('notice_log_cleared'));
+            });
+          }),
+      );
   }
 
   private renderModuleToggles(containerEl: HTMLElement): void {

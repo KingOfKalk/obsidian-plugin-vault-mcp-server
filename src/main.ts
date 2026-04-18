@@ -9,6 +9,8 @@ import { RealObsidianAdapter, ObsidianAdapter } from './obsidian/adapter';
 import { discoverModules } from './tools';
 import { McpSettingsTab, migrateSettings } from './settings';
 import { t } from './lang/helpers';
+import { createLogFileSink } from './utils/log-file';
+import { DebugInfoModal } from './ui/debug-info-modal';
 
 const ICON_MCP = 'plug';
 const ICON_MCP_RUNNING = 'plug-zap';
@@ -28,6 +30,7 @@ export default class McpPlugin extends Plugin {
     this.logger = createLogger('mcp-plugin', {
       debugMode: this.settings.debugMode,
       accessKey: this.settings.accessKey,
+      sink: createLogFileSink(this),
     });
 
     this.adapter = new RealObsidianAdapter(this.app);
@@ -86,6 +89,14 @@ export default class McpPlugin extends Plugin {
         void navigator.clipboard.writeText(this.settings.accessKey).then(() => {
           new Notice(t('notice_access_key_copied'));
         });
+      },
+    });
+
+    this.addCommand({
+      id: 'copy-debug-info',
+      name: t('command_copy_debug_info'),
+      callback: () => {
+        new DebugInfoModal(this.app, this).open();
       },
     });
 

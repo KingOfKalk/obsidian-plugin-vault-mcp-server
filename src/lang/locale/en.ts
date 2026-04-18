@@ -67,11 +67,29 @@ const en = {
   notice_server_started: 'MCP server started on port {port}',
   notice_server_start_failed: 'Failed to start MCP server: {message}',
 
+  // Settings — Diagnostics section
+  heading_diagnostics: 'Diagnostics',
+  setting_log_file_name: 'Log file',
+  setting_copy_debug_info_name: 'Copy debug info',
+  setting_copy_debug_info_desc:
+    'Open a preview of the debug info bundle (settings, modules, server status, recent log) and copy it to the clipboard.',
+  tooltip_copy_debug_info: 'Open debug info preview',
+  setting_clear_log_name: 'Clear log',
+  setting_clear_log_desc: 'Empty the persistent debug log file.',
+  tooltip_clear_log: 'Clear log file',
+  notice_log_cleared: 'Debug log cleared',
+  notice_debug_info_copied: 'Debug info copied to clipboard',
+  modal_debug_info_title: 'Debug info',
+  modal_debug_info_loading: 'Collecting…',
+  button_copy: 'Copy',
+  button_close: 'Close',
+
   // Command palette entries
   command_start_server: 'Start MCP Server',
   command_stop_server: 'Stop MCP Server',
   command_restart_server: 'Restart MCP Server',
   command_copy_access_key: 'Copy Access Key',
+  command_copy_debug_info: 'Copy Debug Info',
 
   // Ribbon icon
   ribbon_mcp_server: 'MCP Server',
