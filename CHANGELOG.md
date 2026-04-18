@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.3.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.2.0...v2.3.0) (2026-04-18)
+
+
+### Features
+
+* add toggle to require Bearer authentication (off by default) ([#147](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/147)) ([e66b044](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/e66b04448d7168dfd84f7c4e57886fd306272dea))
+* **diagnostics:** add debug info bundle and persistent log file ([#145](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/145)) ([d6292d8](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/d6292d844c8f3348771f1069c7a3150e71b1115e)), closes [#143](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/143)
+
 ## [2.2.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.1.0...v2.2.0) (2026-04-17)
 
 
