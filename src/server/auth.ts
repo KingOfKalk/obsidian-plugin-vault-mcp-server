@@ -8,7 +8,12 @@ export interface AuthResult {
 export function authenticateRequest(
   req: IncomingMessage,
   accessKey: string,
+  authEnabled: boolean,
 ): AuthResult {
+  if (!authEnabled) {
+    return { authenticated: true };
+  }
+
   if (!accessKey || accessKey.length === 0) {
     return { authenticated: false, error: 'Server access key is not configured' };
   }

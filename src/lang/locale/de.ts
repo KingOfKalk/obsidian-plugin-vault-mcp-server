@@ -30,6 +30,9 @@ const de: Partial<Record<keyof typeof en, string>> = {
   setting_server_url_name: 'Server-URL',
   tooltip_copy_server_url: 'Server-URL kopieren',
   notice_server_url_copied: 'MCP-Server-URL in die Zwischenablage kopiert',
+  setting_auth_enabled_name: 'Bearer-Authentifizierung erforderlich',
+  setting_auth_enabled_desc:
+    'Wenn aktiviert, verlangt der Server bei jeder MCP-Anfrage einen gültigen Bearer-Zugriffsschlüssel. Wenn deaktiviert, werden Anfragen ohne Authentifizierung akzeptiert — nur in einer vertrauenswürdigen, ausschließlich lokal erreichbaren Umgebung sicher.',
   setting_access_key_name: 'Zugriffsschlüssel',
   setting_access_key_desc: 'Bearer-Token zur Authentifizierung von MCP-Clients',
   placeholder_access_key: 'Zugriffsschlüssel eingeben',

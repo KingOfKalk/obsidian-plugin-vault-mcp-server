@@ -11,6 +11,8 @@ import { applyCorsHeaders, handlePreflight, CorsOptions, DEFAULT_CORS_OPTIONS } 
 export interface HttpServerOptions {
   host: string;
   port: number;
+  /** When false, the server skips Bearer token validation entirely. */
+  authEnabled: boolean;
   accessKey: string;
   corsOptions?: CorsOptions;
   /** When provided, the server uses HTTPS with these PEM-encoded credentials. */
@@ -116,7 +118,11 @@ export class HttpMcpServer {
 
     applyCorsHeaders(res, corsOptions);
 
-    const authResult = authenticateRequest(req, this.options.accessKey);
+    const authResult = authenticateRequest(
+      req,
+      this.options.accessKey,
+      this.options.authEnabled,
+    );
     if (!authResult.authenticated) {
       this.logger.warn('Authentication failed', { error: authResult.error });
       sendAuthError(res, authResult.error ?? 'Authentication failed');

@@ -4,10 +4,10 @@ import { migrateSettings, generateAccessKey, isValidIPv4, McpSettingsTab } from 
 import { DEFAULT_SETTINGS } from '../src/types';
 
 describe('migrateSettings', () => {
-  it('should migrate v0 (no schemaVersion) to v4', () => {
+  it('should migrate v0 (no schemaVersion) to current schema', () => {
     const data: Record<string, unknown> = {};
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(5);
+    expect(result.schemaVersion).toBe(6);
     expect(result.port).toBe(28741);
     expect(result.accessKey).toBe('');
     expect(result.httpsEnabled).toBe(false);
@@ -15,6 +15,7 @@ describe('migrateSettings', () => {
     expect(result.moduleStates).toEqual({});
     expect(result.serverAddress).toBe('127.0.0.1');
     expect(result.autoStart).toBe(false);
+    expect(result.authEnabled).toBe(false);
   });
 
   it('should preserve existing values during migration', () => {
@@ -24,7 +25,7 @@ describe('migrateSettings', () => {
       debugMode: true,
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(5);
+    expect(result.schemaVersion).toBe(6);
     expect(result.port).toBe(9999);
     expect(result.accessKey).toBe('my-key');
     expect(result.debugMode).toBe(true);
@@ -32,7 +33,7 @@ describe('migrateSettings', () => {
     expect(result.autoStart).toBe(false);
   });
 
-  it('should migrate v1 data to v4 by adding serverAddress and autoStart', () => {
+  it('should migrate v1 data by adding serverAddress and autoStart', () => {
     const data: Record<string, unknown> = {
       schemaVersion: 1,
       port: 28741,
@@ -42,12 +43,12 @@ describe('migrateSettings', () => {
       moduleStates: {},
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(5);
+    expect(result.schemaVersion).toBe(6);
     expect(result.serverAddress).toBe('127.0.0.1');
     expect(result.autoStart).toBe(false);
   });
 
-  it('should migrate v2 data to v4 by adding autoStart=false', () => {
+  it('should migrate v2 data by adding autoStart=false', () => {
     const data: Record<string, unknown> = {
       schemaVersion: 2,
       serverAddress: '192.168.1.100',
@@ -58,11 +59,11 @@ describe('migrateSettings', () => {
       moduleStates: {},
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(5);
+    expect(result.schemaVersion).toBe(6);
     expect(result.autoStart).toBe(false);
   });
 
-  it('should migrate v3 data to v4 by stripping per-module readOnly flags', () => {
+  it('should migrate v3 data by stripping per-module readOnly flags', () => {
     const data: Record<string, unknown> = {
       schemaVersion: 3,
       serverAddress: '127.0.0.1',
@@ -77,7 +78,7 @@ describe('migrateSettings', () => {
       },
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(5);
+    expect(result.schemaVersion).toBe(6);
     expect(result.moduleStates).toEqual({
       vault: { enabled: true },
       editor: { enabled: false },
@@ -96,13 +97,51 @@ describe('migrateSettings', () => {
       moduleStates: {},
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(5);
+    expect(result.schemaVersion).toBe(6);
     expect(result.tlsCertificate).toBeNull();
   });
 
-  it('should not modify data already at v5', () => {
+  it('should migrate v5 data to v6 by adding authEnabled=false', () => {
     const data: Record<string, unknown> = {
       schemaVersion: 5,
+      serverAddress: '127.0.0.1',
+      port: 28741,
+      accessKey: 'test',
+      httpsEnabled: false,
+      tlsCertificate: null,
+      debugMode: false,
+      autoStart: false,
+      moduleStates: {},
+    };
+    const result = migrateSettings(data);
+    expect(result.schemaVersion).toBe(6);
+    expect(result.authEnabled).toBe(false);
+  });
+
+  it('v5->v6 migration sets authEnabled=false even when an access key is configured', () => {
+    const data: Record<string, unknown> = {
+      schemaVersion: 5,
+      accessKey: 'pre-existing-key',
+    };
+    const result = migrateSettings(data);
+    expect(result.schemaVersion).toBe(6);
+    expect(result.authEnabled).toBe(false);
+    expect(result.accessKey).toBe('pre-existing-key');
+  });
+
+  it('v5->v6 preserves an explicitly set authEnabled=true value', () => {
+    const data: Record<string, unknown> = {
+      schemaVersion: 5,
+      authEnabled: true,
+    };
+    const result = migrateSettings(data);
+    expect(result.schemaVersion).toBe(6);
+    expect(result.authEnabled).toBe(true);
+  });
+
+  it('should not modify data already at v6', () => {
+    const data: Record<string, unknown> = {
+      schemaVersion: 6,
       serverAddress: '192.168.1.100',
       port: 28741,
       accessKey: 'test',
@@ -110,6 +149,7 @@ describe('migrateSettings', () => {
       tlsCertificate: { cert: 'C', key: 'K' },
       debugMode: false,
       autoStart: true,
+      authEnabled: true,
       moduleStates: {},
     };
     const result = migrateSettings(data);
@@ -122,7 +162,7 @@ describe('migrateSettings', () => {
       tlsCertificate: { cert: 'EXISTING_CERT', key: 'EXISTING_KEY' },
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(5);
+    expect(result.schemaVersion).toBe(6);
     expect(result.tlsCertificate).toEqual({
       cert: 'EXISTING_CERT',
       key: 'EXISTING_KEY',
@@ -134,12 +174,13 @@ describe('migrateSettings', () => {
       port: 3000,
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(5);
+    expect(result.schemaVersion).toBe(6);
     expect(result.port).toBe(3000);
     expect(result.accessKey).toBe('');
     expect(result.moduleStates).toEqual({});
     expect(result.serverAddress).toBe('127.0.0.1');
     expect(result.autoStart).toBe(false);
+    expect(result.authEnabled).toBe(false);
   });
 
   it('should migrate v3 extras state to per-tool states (enabled -> get_date on)', () => {
@@ -154,7 +195,7 @@ describe('migrateSettings', () => {
       moduleStates: { extras: { enabled: true, readOnly: false } },
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(5);
+    expect(result.schemaVersion).toBe(6);
     const states = result.moduleStates as Record<
       string,
       { enabled: boolean; readOnly: boolean; toolStates?: Record<string, boolean> }
@@ -201,6 +242,14 @@ describe('migrateSettings', () => {
 describe('DEFAULT_SETTINGS', () => {
   it('should default autoStart to false', () => {
     expect(DEFAULT_SETTINGS.autoStart).toBe(false);
+  });
+
+  it('should default authEnabled to false', () => {
+    expect(DEFAULT_SETTINGS.authEnabled).toBe(false);
+  });
+
+  it('declares schemaVersion 6', () => {
+    expect(DEFAULT_SETTINGS.schemaVersion).toBe(6);
   });
 });
 
@@ -327,8 +376,8 @@ describe('McpSettingsTab MCP config display', () => {
     (Setting as unknown as { instances: unknown[] }).instances = [];
   });
 
-  function createConfigMockPlugin(overrides?: Partial<{ port: number; accessKey: string }>): {
-    settings: { serverAddress: string; port: number; accessKey: string; httpsEnabled: boolean; debugMode: boolean; moduleStates: Record<string, unknown>; schemaVersion: number };
+  function createConfigMockPlugin(overrides?: Partial<{ port: number; accessKey: string; authEnabled: boolean }>): {
+    settings: { serverAddress: string; port: number; accessKey: string; authEnabled: boolean; httpsEnabled: boolean; debugMode: boolean; moduleStates: Record<string, unknown>; schemaVersion: number };
     httpServer: null;
     registry: { getModules: () => [] };
     logger: { updateOptions: () => void };
@@ -340,6 +389,7 @@ describe('McpSettingsTab MCP config display', () => {
       settings: {
         ...DEFAULT_SETTINGS,
         accessKey: 'test-key-abc',
+        authEnabled: true,
         ...overrides,
       },
       httpServer: null,
@@ -352,7 +402,7 @@ describe('McpSettingsTab MCP config display', () => {
   }
 
   function renderTab(
-    overrides?: Partial<{ port: number; accessKey: string }>,
+    overrides?: Partial<{ port: number; accessKey: string; authEnabled: boolean }>,
   ): { container: TrackingEl } {
     const plugin = createConfigMockPlugin(overrides);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
@@ -425,6 +475,23 @@ describe('McpSettingsTab MCP config display', () => {
     expect(copied).not.toContain('Authorization');
     expect(copied).not.toContain('headers');
   });
+
+  it('copied JSON omits the Authorization header when Bearer auth is disabled', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { clipboard: { writeText } },
+      configurable: true,
+    });
+    renderTab({ authEnabled: false });
+    getClientConfigSetting().extraButtons[0].callback!();
+    await vi.waitFor(() => {
+      expect(writeText).toHaveBeenCalled();
+    });
+    const copied = writeText.mock.calls[0][0] as string;
+    expect(copied).toContain('"url"');
+    expect(copied).not.toContain('Authorization');
+    expect(copied).not.toContain('headers');
+  });
 });
 
 describe('McpSettingsTab server controls', () => {
@@ -433,7 +500,7 @@ describe('McpSettingsTab server controls', () => {
 
   function createMockPlugin(isRunning: boolean, clients = 0) {
     return {
-      settings: { ...DEFAULT_SETTINGS, accessKey: 'test-key' },
+      settings: { ...DEFAULT_SETTINGS, accessKey: 'test-key', authEnabled: true },
       httpServer: isRunning
         ? { isRunning: true, connectedClients: clients }
         : null,
@@ -442,6 +509,7 @@ describe('McpSettingsTab server controls', () => {
       stopServer: vi.fn().mockResolvedValue(undefined),
       restartServer: vi.fn().mockResolvedValue(undefined),
       saveSettings: vi.fn().mockResolvedValue(undefined),
+      logger: { updateOptions: (): void => {} },
       app: { vault: { configDir: '.obsidian' } },
       manifest: { id: 'obsidian-mcp', version: '0.0.0' },
     };
@@ -622,6 +690,84 @@ describe('McpSettingsTab server controls', () => {
     restart.callback!();
     await vi.waitFor(() => {
       expect(mockPlugin.restartServer).toHaveBeenCalled();
+    });
+  });
+
+  describe('Require Bearer authentication toggle', () => {
+    function getAuthEnabledSetting(): SettingInstance | undefined {
+      return (Setting as unknown as { instances: SettingInstance[] }).instances.find(
+        (s) => s.settingName === 'Require Bearer authentication',
+      );
+    }
+
+    function createAuthMockPlugin(authEnabled: boolean): Record<string, unknown> {
+      return {
+        settings: { ...DEFAULT_SETTINGS, accessKey: 'test-key', authEnabled },
+        httpServer: null,
+        registry: { getModules: () => [] },
+        startServer: vi.fn().mockResolvedValue(undefined),
+        stopServer: vi.fn().mockResolvedValue(undefined),
+        restartServer: vi.fn().mockResolvedValue(undefined),
+        saveSettings: vi.fn().mockResolvedValue(undefined),
+        logger: { updateOptions: (): void => {} },
+        app: { vault: { configDir: '.obsidian' } },
+        manifest: { id: 'obsidian-mcp', version: '0.0.0' },
+      };
+    }
+
+    function renderAuthTab(authEnabled: boolean): Record<string, unknown> {
+      const plugin = createAuthMockPlugin(authEnabled);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+      const tab = new McpSettingsTab({} as any, plugin as any);
+      tab.display();
+      return plugin;
+    }
+
+    it('renders the toggle with the stored value', () => {
+      renderAuthTab(true);
+      const setting = getAuthEnabledSetting();
+      expect(setting).toBeDefined();
+      expect(setting!.toggles).toHaveLength(1);
+      expect(setting!.toggles[0].value).toBe(true);
+    });
+
+    it('reflects authEnabled=false in the toggle value', () => {
+      renderAuthTab(false);
+      expect(getAuthEnabledSetting()!.toggles[0].value).toBe(false);
+    });
+
+    it('hides the Access Key row when auth is disabled', () => {
+      renderAuthTab(false);
+      const accessKey = (Setting as unknown as { instances: SettingInstance[] }).instances.find(
+        (s) => s.settingName === 'Access Key',
+      );
+      expect(accessKey).toBeUndefined();
+    });
+
+    it('shows the Access Key row when auth is enabled', () => {
+      renderAuthTab(true);
+      const accessKey = (Setting as unknown as { instances: SettingInstance[] }).instances.find(
+        (s) => s.settingName === 'Access Key',
+      );
+      expect(accessKey).toBeDefined();
+    });
+
+    it('toggling on persists authEnabled=true via saveSettings', async () => {
+      const plugin = renderAuthTab(false);
+      getAuthEnabledSetting()!.toggles[0].callback!(true);
+      await vi.waitFor(() => {
+        expect((plugin.saveSettings as ReturnType<typeof vi.fn>)).toHaveBeenCalled();
+      });
+      expect((plugin.settings as { authEnabled: boolean }).authEnabled).toBe(true);
+    });
+
+    it('toggling off persists authEnabled=false via saveSettings', async () => {
+      const plugin = renderAuthTab(true);
+      getAuthEnabledSetting()!.toggles[0].callback!(false);
+      await vi.waitFor(() => {
+        expect((plugin.saveSettings as ReturnType<typeof vi.fn>)).toHaveBeenCalled();
+      });
+      expect((plugin.settings as { authEnabled: boolean }).authEnabled).toBe(false);
     });
   });
 });

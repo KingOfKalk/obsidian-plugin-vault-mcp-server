@@ -1,5 +1,10 @@
 # Security Best Practices
 
+## Bearer Authentication
+
+- **Off by default**: Bearer authentication is opt-in via the **Require Bearer authentication** toggle in Server Settings. With it off the server accepts every request without an `Authorization` header — only safe on a trusted, localhost-only setup.
+- **Turn it on for any non-local exposure**: If you bind the server to anything other than `127.0.0.1`, or share the host with anyone you don't trust, enable the toggle and configure an access key.
+
 ## Access Key Management
 
 - **Generate a strong key**: Use the "Generate" button to create a random 64-character hex key

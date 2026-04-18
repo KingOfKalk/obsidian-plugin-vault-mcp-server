@@ -110,12 +110,13 @@ The plugin UI is translated via a tiny in-house i18n helper modelled on the [obs
 ### Server Settings
 
 - **CR1** — Configurable HTTP port with default value 28741
-- **CR2** — Access key field for authentication (user-provided, with a "Generate" button for convenience). The Generate button produces a new access key by calling Node's `crypto.randomBytes(32)` and rendering the 32 random bytes as a 64-character lowercase hex string, then overwrites the stored access key and re-renders the settings tab.
+- **CR2** — Access key field for authentication (user-provided, with a "Generate" button for convenience). The Generate button produces a new access key by calling Node's `crypto.randomBytes(32)` and rendering the 32 random bytes as a 64-character lowercase hex string, then overwrites the stored access key and re-renders the settings tab. The Access Key row only renders when **CR24** ("Require Bearer authentication") is on; with auth disabled the row is hidden because the key has no effect.
 - **CR3** — Toggle between HTTP and HTTPS (self-signed certificate), HTTP by default
 - **CR4** — Debug mode toggle that enables verbose logging
 - **CR17** — Configurable server IP address (default `127.0.0.1`). Must validate IPv4 format. Settings UI shows a security warning when bound to a non-localhost address. Requires server restart to take effect.
-- **CR19** — Auto-start on launch toggle. Defaults to off. When on, the plugin's `onload` starts the MCP server automatically during plugin load only if the stored access key is non-empty; if `autoStart` is true but no access key is configured, the server is left stopped and the plugin logs an `info` entry explaining why. Users must explicitly opt in per install.
+- **CR19** — Auto-start on launch toggle. Defaults to off. When on, the plugin's `onload` starts the MCP server automatically during plugin load. The auto-start gate respects **CR24**: if Bearer auth is enabled but no access key is configured, the server is left stopped and the plugin logs an `info` entry explaining why; if Bearer auth is disabled, no access key is required for auto-start. Users must explicitly opt in per install.
 - **CR20** — Server URL row displays the current `http://<address>:<port>/mcp` URL in its description and exposes a clipboard-copy extra button ("Copy server URL") that writes that URL to the clipboard and shows a confirmation Notice.
+- **CR24** — "Require Bearer authentication" toggle in Server Settings. Defaults to **off** so a fresh install can be used without first generating an access key. When off, `authenticateRequest` short-circuits and the server accepts every request regardless of the `Authorization` header; the Access Key row (CR2) is hidden, and the MCP client configuration snippet (CR21) omits the `headers`/`Authorization` entry. When on, the existing CR2 access key field is rendered and **NFR5** Bearer enforcement applies. Persisted as `authEnabled` in the v6 settings schema (see Appendix A).
 
 ### Feature Access Control
 
@@ -135,7 +136,7 @@ The plugin UI is translated via a tiny in-house i18n helper modelled on the [obs
 
 ### MCP Client Configuration
 
-- **CR21** — Settings UI contains an "MCP Client Configuration" section with a clipboard-copy extra button that copies a ready-to-paste JSON snippet for the `mcpServers` entry of Claude Desktop / Claude Code config files. The snippet is derived live from the current `serverAddress`, `port`, and `accessKey`: it always includes the MCP endpoint URL (`http://<address>:<port>/mcp`) and, when the access key is non-empty, a `headers` object with `Authorization: Bearer <key>`. The copy action shows a confirmation Notice.
+- **CR21** — Settings UI contains an "MCP Client Configuration" section with a clipboard-copy extra button that copies a ready-to-paste JSON snippet for the `mcpServers` entry of Claude Desktop / Claude Code config files. The snippet is derived live from the current `serverAddress`, `port`, `authEnabled`, and `accessKey`: it always includes the MCP endpoint URL (`http://<address>:<port>/mcp`) and, only when Bearer auth is enabled (CR24) **and** the access key is non-empty, a `headers` object with `Authorization: Bearer <key>`. The copy action shows a confirmation Notice.
 
 ### Diagnostics
 
@@ -159,7 +160,7 @@ The plugin UI is translated via a tiny in-house i18n helper modelled on the [obs
 
 ### Security
 
-- **NFR5** — All MCP requests require a valid access key (Bearer token). Bearer authentication is enforced by `authenticateRequest` before any request-routing logic, including the MCP `initialize` handshake and any subsequent `mcp-session-id`-keyed calls. CORS preflight (`OPTIONS`) requests are handled earlier and are the only HTTP traffic that does not require the Bearer token. If the server has no configured access key, every request is rejected with an authentication error.
+- **NFR5** — Bearer-token authentication is opt-in and controlled by **CR24** (`authEnabled`, default off). When enabled, every MCP request must carry a valid `Authorization: Bearer <key>` header; enforcement happens in `authenticateRequest` before any request-routing logic, including the MCP `initialize` handshake and any subsequent `mcp-session-id`-keyed calls. With auth enabled and no access key configured, every request is rejected with an authentication error. When `authEnabled` is off, `authenticateRequest` short-circuits and accepts every request — operators must rely on network controls (localhost-only binding, firewall) instead. CORS preflight (`OPTIONS`) requests are handled earlier and never reach the auth check in either mode.
 - **NFR6** — CORS headers configurable and restrictive by default
 - ~~NFR7~~ — ~~Disabled feature categories reject requests with 403, not just hide tools~~
 - **NFR30** — Disabled feature modules (and, for Extras, individually disabled tools) are filtered out of the MCP tool list advertised to clients. A client that invokes a tool from a disabled module receives the standard MCP unknown-tool error from the SDK; the plugin does not emit an HTTP 403 for feature-gating. Replaces ~~NFR7~~ because the implemented contract is "hide disabled tools at `tools/list` time", not "reject with HTTP 403".
@@ -274,5 +275,7 @@ This appendix grounds CR14 in the concrete migration steps implemented in `migra
 - **v2** — Adds `serverAddress`, defaulting to `127.0.0.1` (see CR17).
 - **v3** — Adds `autoStart`, defaulting to `false` for existing installs so the server never starts unexpectedly after an upgrade (see CR19).
 - **v4** — Removes the per-module `readOnly` flag from every `moduleStates` entry (the feature was dropped), and converts the Extras group from a single module-level toggle to per-tool toggles (`toolStates`). Preserves behaviour: if the Extras module was previously enabled, the known `get_date` tool stays enabled; otherwise its `toolStates` map is initialized empty.
+- **v5** — Adds `tlsCertificate`, defaulting to `null` so the self-signed certificate is generated on the next server start with HTTPS enabled.
+- **v6** — Adds `authEnabled`, defaulting to `false` (see CR24 / NFR5). Existing installs that previously relied on always-on Bearer auth will need to flip the toggle back on after upgrading; the access key itself is preserved so re-enabling auth restores the prior behaviour without regenerating the key.
 
 Future schema versions must be appended here with the same format (version number, behaviour summary, rationale, and links to the CRs/NFRs they serve).

@@ -65,9 +65,10 @@ function makeModule(
 }
 
 const baseSettings: McpPluginSettings = {
-  schemaVersion: 5,
+  schemaVersion: 6,
   serverAddress: '127.0.0.1',
   port: 28741,
+  authEnabled: true,
   accessKey: SECRET,
   httpsEnabled: false,
   tlsCertificate: { cert: FAKE_PEM, key: FAKE_PEM },
