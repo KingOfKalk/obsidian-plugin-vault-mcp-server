@@ -22,8 +22,12 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.moduleStates).toEqual({});
   });
 
-  it('should have schema version 5', () => {
-    expect(DEFAULT_SETTINGS.schemaVersion).toBe(5);
+  it('should have schema version 6', () => {
+    expect(DEFAULT_SETTINGS.schemaVersion).toBe(6);
+  });
+
+  it('should have Bearer authentication disabled by default', () => {
+    expect(DEFAULT_SETTINGS.authEnabled).toBe(false);
   });
 
   it('should have a null TLS certificate by default', () => {

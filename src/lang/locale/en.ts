@@ -27,6 +27,9 @@ const en = {
   setting_server_url_name: 'Server URL',
   tooltip_copy_server_url: 'Copy server URL',
   notice_server_url_copied: 'MCP server URL copied to clipboard',
+  setting_auth_enabled_name: 'Require Bearer authentication',
+  setting_auth_enabled_desc:
+    'When on, the server requires a valid Bearer access key on every MCP request. When off, requests are accepted without authentication — only safe on a trusted, localhost-only setup.',
   setting_access_key_name: 'Access Key',
   setting_access_key_desc: 'Bearer token for authenticating MCP clients',
   placeholder_access_key: 'Enter access key',

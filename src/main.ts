@@ -100,14 +100,20 @@ export default class McpPlugin extends Plugin {
       },
     });
 
-    // Start server only when explicitly opted in and an access key is set
-    if (this.settings.autoStart && this.settings.accessKey) {
+    // Start server only when explicitly opted in. If auth is enabled, require
+    // a configured access key — otherwise every request would be rejected.
+    const canAutoStart =
+      this.settings.autoStart &&
+      (!this.settings.authEnabled || this.settings.accessKey.length > 0);
+    if (canAutoStart) {
       await this.startServer();
     } else {
-      if (!this.settings.accessKey) {
-        this.logger.info('MCP server not started: no access key configured');
-      } else {
+      if (!this.settings.autoStart) {
         this.logger.info('MCP server not started: auto-start is disabled');
+      } else {
+        this.logger.info(
+          'MCP server not started: Bearer auth is on but no access key is configured',
+        );
       }
       this.updateStatusDisplay();
     }
@@ -129,6 +135,7 @@ export default class McpPlugin extends Plugin {
         {
           host: this.settings.serverAddress,
           port: this.settings.port,
+          authEnabled: this.settings.authEnabled,
           accessKey: this.settings.accessKey,
           tls,
         },

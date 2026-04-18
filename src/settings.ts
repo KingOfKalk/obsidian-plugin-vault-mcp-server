@@ -140,40 +140,55 @@ export class McpSettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName(t('setting_access_key_name'))
-      .setDesc(t('setting_access_key_desc'))
-      .addText((text) =>
-        text
-          .setPlaceholder(t('placeholder_access_key'))
-          .setValue(this.plugin.settings.accessKey)
+      .setName(t('setting_auth_enabled_name'))
+      .setDesc(t('setting_auth_enabled_desc'))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.authEnabled)
           .onChange(async (value) => {
-            this.plugin.settings.accessKey = value;
+            this.plugin.settings.authEnabled = value;
             await this.plugin.saveSettings();
-          }),
-      )
-      .addExtraButton((btn) =>
-        btn
-          .setIcon('copy')
-          .setTooltip(t('tooltip_copy_access_key'))
-          .onClick(() => {
-            void navigator.clipboard
-              .writeText(this.plugin.settings.accessKey)
-              .then(() => {
-                new Notice(t('notice_access_key_copied'));
-              });
-          }),
-      )
-      .addExtraButton((btn) =>
-        btn
-          .setIcon('refresh-cw')
-          .setTooltip(t('tooltip_generate'))
-          .onClick(() => {
-            this.plugin.settings.accessKey = generateAccessKey();
-            void this.plugin.saveSettings().then(() => {
-              this.display();
-            });
+            this.display();
           }),
       );
+
+    if (this.plugin.settings.authEnabled) {
+      new Setting(containerEl)
+        .setName(t('setting_access_key_name'))
+        .setDesc(t('setting_access_key_desc'))
+        .addText((text) =>
+          text
+            .setPlaceholder(t('placeholder_access_key'))
+            .setValue(this.plugin.settings.accessKey)
+            .onChange(async (value) => {
+              this.plugin.settings.accessKey = value;
+              await this.plugin.saveSettings();
+            }),
+        )
+        .addExtraButton((btn) =>
+          btn
+            .setIcon('copy')
+            .setTooltip(t('tooltip_copy_access_key'))
+            .onClick(() => {
+              void navigator.clipboard
+                .writeText(this.plugin.settings.accessKey)
+                .then(() => {
+                  new Notice(t('notice_access_key_copied'));
+                });
+            }),
+        )
+        .addExtraButton((btn) =>
+          btn
+            .setIcon('refresh-cw')
+            .setTooltip(t('tooltip_generate'))
+            .onClick(() => {
+              this.plugin.settings.accessKey = generateAccessKey();
+              void this.plugin.saveSettings().then(() => {
+                this.display();
+              });
+            }),
+        );
+    }
 
     new Setting(containerEl)
       .setName(t('setting_https_name'))
@@ -260,11 +275,12 @@ export class McpSettingsTab extends PluginSettingTab {
     const address = this.plugin.settings.serverAddress;
     const port = this.plugin.settings.port;
     const accessKey = this.plugin.settings.accessKey;
+    const authEnabled = this.plugin.settings.authEnabled;
     const url = `${this.scheme()}://${address}:${String(port)}/mcp`;
 
     const config: Record<string, unknown> = { url };
 
-    if (accessKey) {
+    if (authEnabled && accessKey) {
       config.headers = {
         Authorization: `Bearer ${accessKey}`,
       };
@@ -491,6 +507,14 @@ export function migrateSettings(
     data.schemaVersion = 5;
     // V4 -> V5: introduce cached self-signed TLS certificate.
     if (data.tlsCertificate === undefined) data.tlsCertificate = null;
+  }
+
+  if ((data.schemaVersion as number) < 6) {
+    data.schemaVersion = 6;
+    // V5 -> V6: introduce optional Bearer authentication. Default to off so
+    // existing installs match new-install behaviour; users who want auth can
+    // toggle it back on in Server Settings.
+    if (data.authEnabled === undefined) data.authEnabled = false;
   }
 
   return data;

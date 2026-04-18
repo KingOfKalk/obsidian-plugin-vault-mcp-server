@@ -73,15 +73,17 @@ describe('McpPlugin.onload autoStart behaviour', () => {
     expect(startSpy).toHaveBeenCalled();
   });
 
-  it('does not start the server when autoStart is true but no access key is set', async () => {
+  it('does not start the server when autoStart is true, auth is required, but no access key is set', async () => {
     const plugin = createPlugin({
-      schemaVersion: 3,
+      schemaVersion: 6,
       serverAddress: '127.0.0.1',
       port: 28741,
       accessKey: '',
       httpsEnabled: false,
+      tlsCertificate: null,
       debugMode: false,
       autoStart: true,
+      authEnabled: true,
       moduleStates: {},
     });
     const startSpy = vi.spyOn(plugin, 'startServer').mockResolvedValue();
@@ -89,6 +91,26 @@ describe('McpPlugin.onload autoStart behaviour', () => {
     await plugin.onload();
 
     expect(startSpy).not.toHaveBeenCalled();
+  });
+
+  it('starts the server when autoStart is true and Bearer auth is disabled, even without an access key', async () => {
+    const plugin = createPlugin({
+      schemaVersion: 6,
+      serverAddress: '127.0.0.1',
+      port: 28741,
+      accessKey: '',
+      httpsEnabled: false,
+      tlsCertificate: null,
+      debugMode: false,
+      autoStart: true,
+      authEnabled: false,
+      moduleStates: {},
+    });
+    const startSpy = vi.spyOn(plugin, 'startServer').mockResolvedValue();
+
+    await plugin.onload();
+
+    expect(startSpy).toHaveBeenCalled();
   });
 
   it('swaps the ribbon icon glyph when the server transitions between stopped and running', async () => {

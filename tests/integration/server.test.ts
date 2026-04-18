@@ -87,6 +87,7 @@ describe('Integration: HTTP Server Authentication', () => {
       {
         host: '127.0.0.1',
         port: TEST_PORT,
+        authEnabled: true,
         accessKey: ACCESS_KEY,
       },
     );

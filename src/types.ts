@@ -5,6 +5,8 @@ export interface McpPluginSettings {
   serverAddress: string;
   /** HTTP port for the MCP server */
   port: number;
+  /** When true, the server requires a Bearer access key on every request. */
+  authEnabled: boolean;
   /** Access key for bearer token authentication */
   accessKey: string;
   /** Enable HTTPS with self-signed certificate */
@@ -31,9 +33,10 @@ export interface ModuleState {
 }
 
 export const DEFAULT_SETTINGS: McpPluginSettings = {
-  schemaVersion: 5,
+  schemaVersion: 6,
   serverAddress: '127.0.0.1',
   port: 28741,
+  authEnabled: false,
   accessKey: '',
   httpsEnabled: false,
   tlsCertificate: null,
