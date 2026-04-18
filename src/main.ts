@@ -5,6 +5,7 @@ import { ModuleRegistry } from './registry/module-registry';
 import { createMcpServer } from './server/mcp-server';
 import { HttpMcpServer } from './server/http-server';
 import { generateSelfSignedCert } from './server/tls';
+import { CustomTlsError, loadAndValidateCustomTls } from './server/custom-tls';
 import { RealObsidianAdapter, ObsidianAdapter } from './obsidian/adapter';
 import { discoverModules } from './tools';
 import { McpSettingsTab, migrateSettings } from './settings';
@@ -124,11 +125,19 @@ export default class McpPlugin extends Plugin {
   }
 
   async startServer(): Promise<void> {
-    try {
-      const tls = this.settings.httpsEnabled
-        ? await this.ensureTlsCertificate()
-        : undefined;
+    let tls: TlsCertificateData | undefined;
+    if (this.settings.httpsEnabled) {
+      try {
+        tls = await this.resolveTls();
+      } catch (error) {
+        const message = this.formatTlsError(error);
+        this.logger.error(`Failed to start MCP server: ${message}`);
+        new Notice(t('notice_custom_tls_server_refused', { message }));
+        return;
+      }
+    }
 
+    try {
       this.httpServer = new HttpMcpServer(
         () => createMcpServer(this.registry, this.logger),
         this.logger,
@@ -154,6 +163,39 @@ export default class McpPlugin extends Plugin {
     this.settings.tlsCertificate = null;
     await this.saveSettings();
     await this.ensureTlsCertificate();
+  }
+
+  private async resolveTls(): Promise<TlsCertificateData> {
+    if (this.settings.useCustomTls) {
+      const { customTlsCertPath, customTlsKeyPath } = this.settings;
+      if (!customTlsCertPath || !customTlsKeyPath) {
+        throw new CustomTlsError(
+          !customTlsCertPath ? 'cert_not_readable' : 'key_not_readable',
+        );
+      }
+      return loadAndValidateCustomTls(customTlsCertPath, customTlsKeyPath);
+    }
+    return this.ensureTlsCertificate();
+  }
+
+  private formatTlsError(error: unknown): string {
+    if (error instanceof CustomTlsError) {
+      switch (error.code) {
+        case 'cert_not_readable':
+          return t('error_custom_tls_cert_not_readable');
+        case 'key_not_readable':
+          return t('error_custom_tls_key_not_readable');
+        case 'invalid_cert':
+          return t('error_custom_tls_invalid_cert');
+        case 'invalid_key':
+          return t('error_custom_tls_invalid_key');
+        case 'key_cert_mismatch':
+          return t('error_custom_tls_key_cert_mismatch');
+        case 'cert_expired':
+          return t('error_custom_tls_cert_expired');
+      }
+    }
+    return error instanceof Error ? error.message : String(error);
   }
 
   private async ensureTlsCertificate(): Promise<TlsCertificateData> {

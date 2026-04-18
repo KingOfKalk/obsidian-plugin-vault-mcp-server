@@ -2,9 +2,14 @@ import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
 import { randomBytes } from 'crypto';
 import type McpPlugin from './main';
 import type { ModuleRegistration } from './registry/types';
-import { t } from './lang/helpers';
+import { t, type TranslationKey } from './lang/helpers';
 import { clearLogFile, getLogFilePath } from './utils/log-file';
 import { DebugInfoModal } from './ui/debug-info-modal';
+import {
+  CustomTlsError,
+  loadAndValidateCustomTls,
+} from './server/custom-tls';
+import { pickFile } from './utils/file-picker';
 
 export class McpSettingsTab extends PluginSettingTab {
   plugin: McpPlugin;
@@ -205,25 +210,44 @@ export class McpSettingsTab extends PluginSettingTab {
       );
 
     if (this.plugin.settings.httpsEnabled) {
-      const hasCert = this.plugin.settings.tlsCertificate !== null;
+      if (!this.plugin.settings.useCustomTls) {
+        const hasCert = this.plugin.settings.tlsCertificate !== null;
+        new Setting(containerEl)
+          .setName(t('setting_tls_cert_name'))
+          .setDesc(
+            hasCert
+              ? t('setting_tls_cert_desc_present')
+              : t('setting_tls_cert_desc_absent'),
+          )
+          .addExtraButton((btn) =>
+            btn
+              .setIcon('refresh-cw')
+              .setTooltip(t('tooltip_regenerate_cert'))
+              .onClick(() => {
+                void this.plugin.regenerateTlsCertificate().then(() => {
+                  new Notice(t('notice_tls_regenerated'));
+                  this.display();
+                });
+              }),
+          );
+      }
+
       new Setting(containerEl)
-        .setName(t('setting_tls_cert_name'))
-        .setDesc(
-          hasCert
-            ? t('setting_tls_cert_desc_present')
-            : t('setting_tls_cert_desc_absent'),
-        )
-        .addExtraButton((btn) =>
-          btn
-            .setIcon('refresh-cw')
-            .setTooltip(t('tooltip_regenerate_cert'))
-            .onClick(() => {
-              void this.plugin.regenerateTlsCertificate().then(() => {
-                new Notice(t('notice_tls_regenerated'));
-                this.display();
-              });
+        .setName(t('setting_custom_tls_toggle_name'))
+        .setDesc(t('setting_custom_tls_toggle_desc'))
+        .addToggle((toggle) =>
+          toggle
+            .setValue(this.plugin.settings.useCustomTls)
+            .onChange(async (value) => {
+              this.plugin.settings.useCustomTls = value;
+              await this.plugin.saveSettings();
+              this.display();
             }),
         );
+
+      if (this.plugin.settings.useCustomTls) {
+        this.renderCustomTlsGroup(containerEl);
+      }
     }
 
     new Setting(containerEl)
@@ -237,6 +261,109 @@ export class McpSettingsTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           }),
       );
+  }
+
+  private renderCustomTlsGroup(containerEl: HTMLElement): void {
+    containerEl.createEl('h3', { text: t('heading_custom_tls_group') });
+
+    const certSetting = new Setting(containerEl)
+      .setName(t('setting_custom_tls_cert_name'))
+      .setDesc(
+        t('setting_custom_tls_cert_desc', {
+          path:
+            this.plugin.settings.customTlsCertPath ?? t('label_no_file_selected'),
+        }),
+      );
+    const certError = createValidationError(certSetting);
+    certSetting.addButton((btn) =>
+      btn.setButtonText(t('button_browse')).onClick(() => {
+        void this.pickCustomTlsPath('cert');
+      }),
+    );
+
+    const keySetting = new Setting(containerEl)
+      .setName(t('setting_custom_tls_key_name'))
+      .setDesc(
+        t('setting_custom_tls_key_desc', {
+          path:
+            this.plugin.settings.customTlsKeyPath ?? t('label_no_file_selected'),
+        }),
+      );
+    const keyError = createValidationError(keySetting);
+    keySetting.addButton((btn) =>
+      btn.setButtonText(t('button_browse')).onClick(() => {
+        void this.pickCustomTlsPath('key');
+      }),
+    );
+
+    const { customTlsCertPath, customTlsKeyPath } = this.plugin.settings;
+    if (customTlsCertPath && customTlsKeyPath) {
+      void loadAndValidateCustomTls(customTlsCertPath, customTlsKeyPath).then(
+        () => {
+          certError.clear();
+          keyError.clear();
+        },
+        (err: unknown) => {
+          this.showCustomTlsError(err, certError, keyError);
+        },
+      );
+    }
+  }
+
+  private async pickCustomTlsPath(kind: 'cert' | 'key'): Promise<void> {
+    const title =
+      kind === 'cert' ? t('dialog_title_pick_cert') : t('dialog_title_pick_key');
+    const filters =
+      kind === 'cert'
+        ? [
+            { name: 'PEM certificate', extensions: ['pem', 'crt', 'cer'] },
+            { name: 'All files', extensions: ['*'] },
+          ]
+        : [
+            { name: 'PEM private key', extensions: ['pem', 'key'] },
+            { name: 'All files', extensions: ['*'] },
+          ];
+    const chosen = await pickFile({ title, filters });
+    if (!chosen) return;
+
+    if (kind === 'cert') {
+      this.plugin.settings.customTlsCertPath = chosen;
+    } else {
+      this.plugin.settings.customTlsKeyPath = chosen;
+    }
+    await this.plugin.saveSettings();
+    this.display();
+  }
+
+  private showCustomTlsError(
+    err: unknown,
+    certError: ValidationErrorController,
+    keyError: ValidationErrorController,
+  ): void {
+    if (!(err instanceof CustomTlsError)) {
+      certError.show(err instanceof Error ? err.message : String(err));
+      keyError.clear();
+      return;
+    }
+    const key: TranslationKey = `error_custom_tls_${err.code}`;
+    const message = t(key);
+    switch (err.code) {
+      case 'cert_not_readable':
+      case 'invalid_cert':
+      case 'cert_expired':
+        certError.show(message);
+        keyError.clear();
+        return;
+      case 'key_not_readable':
+      case 'invalid_key':
+        keyError.show(message);
+        certError.clear();
+        return;
+      case 'key_cert_mismatch':
+        certError.show(message);
+        keyError.show(message);
+        return;
+    }
   }
 
   private renderMcpConfig(containerEl: HTMLElement): void {
@@ -516,6 +643,16 @@ export function migrateSettings(
     // existing installs match new-install behaviour; users who want auth can
     // toggle it back on in Server Settings.
     if (data.authEnabled === undefined) data.authEnabled = false;
+  }
+
+  if ((data.schemaVersion as number) < 7) {
+    data.schemaVersion = 7;
+    // V6 -> V7: bring-your-own SSL certificate. Default to off so existing
+    // installs keep their cached self-signed cert; `tlsCertificate` is
+    // preserved so toggling the feature back off restores prior behaviour.
+    if (data.useCustomTls === undefined) data.useCustomTls = false;
+    if (data.customTlsCertPath === undefined) data.customTlsCertPath = null;
+    if (data.customTlsKeyPath === undefined) data.customTlsKeyPath = null;
   }
 
   return data;

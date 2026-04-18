@@ -1,4 +1,8 @@
-name: Release Screenshots
+name: Docs Screenshots
+
+# Captures localized settings screenshots (one per locale listed in
+# .supported-locales.yml) and commits them to main alongside a refreshed
+# caption/alt-text block in docs/help/<locale>.md. See PRD NFR35.
 
 on:
   release:
@@ -14,7 +18,7 @@ permissions:
   contents: write
 
 jobs:
-  screenshots:
+  docs-screenshots:
     runs-on: ubuntu-latest
     env:
       TAG: ${{ github.event.release.tag_name || inputs.tag }}
@@ -22,7 +26,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.release.tag_name || inputs.tag }}
+          # Commit back to main, not the release tag.
+          ref: main
+          # Full history so the push isn't rejected as non-fast-forward.
+          fetch-depth: 0
 
       - name: Use Node.js 20
         uses: actions/setup-node@v6
@@ -53,21 +60,16 @@ jobs:
 
       - name: Download Obsidian AppImage
         run: |
-          set -x
           sudo mkdir -p /opt
           sudo wget -q \
             "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.8.9/Obsidian-1.8.9.AppImage" \
             -O /opt/Obsidian.AppImage
           sudo chmod +x /opt/Obsidian.AppImage
           (cd /opt && sudo ./Obsidian.AppImage --appimage-extract >/dev/null)
-          sudo chown -R "$USER":"$USER" /opt/squashfs-root
-          sudo chmod -R a+rX /opt/squashfs-root
-          sudo chmod a+x /opt/squashfs-root/AppRun /opt/squashfs-root/obsidian
-          sudo ln -sf /opt/squashfs-root/AppRun /usr/local/bin/obsidian
-          ls -la /opt/squashfs-root/AppRun /opt/squashfs-root/obsidian
-          /usr/local/bin/obsidian --version || true
+          sudo ln -sf /opt/squashfs-root/obsidian /usr/local/bin/obsidian
 
-      - name: Capture release screenshots
+      - name: Capture localized docs screenshots
+        id: capture
         run: |
           export DISPLAY=:99
           Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset \
@@ -106,36 +108,58 @@ jobs:
           python3 docker/scripts/bootstrap.py \
             --vault /tmp/vault --port 9222 --no-launch
 
-          mkdir -p /tmp/shots
-          python3 docker/scripts/release_screenshots.py \
-            --out-dir /tmp/shots --port 9222
+          python3 docker/scripts/docs_screenshots.py \
+            --out-dir docs/screenshots --port 9222 \
+            --config .supported-locales.yml --manifest manifest.json \
+            > /tmp/docs-screenshots.json
+          cat /tmp/docs-screenshots.json
+          echo "summary-file=/tmp/docs-screenshots.json" >> "$GITHUB_OUTPUT"
 
-      - name: Upload screenshot release assets
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Refresh manual captions with captured version
         run: |
-          gh release upload "$TAG" \
-            /tmp/shots/release-main.png \
-            /tmp/shots/release-plugin-settings.png \
-            /tmp/shots/release-server-running.png \
-            --clobber
+          python3 - <<'PY'
+          import json
+          import re
+          from pathlib import Path
 
-      - name: Append Screenshots section to release notes
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          summary = json.loads(Path("/tmp/docs-screenshots.json").read_text())
+          version = summary["version"]
+          block_re = re.compile(
+              r"<!-- BEGIN: screenshot-settings -->.*?<!-- END: screenshot-settings -->",
+              re.DOTALL,
+          )
+          language_name = {"en": "English", "de": "German"}
+          for locale in summary["locales"]:
+              manual = Path(f"docs/help/{locale}.md")
+              if not manual.exists():
+                  print(f"skip: docs/help/{locale}.md does not exist yet")
+                  continue
+              lang = language_name.get(locale, locale)
+              block = (
+                  "<!-- BEGIN: screenshot-settings -->\n"
+                  f"![MCP Server settings tab ({lang}, captured from v{version})]"
+                  f"(../screenshots/{locale}/settings.png)\n"
+                  "\n"
+                  f"*Figure 1 — The MCP Server settings tab, "
+                  f"captured from plugin v{version}.*\n"
+                  "<!-- END: screenshot-settings -->"
+              )
+              text = manual.read_text(encoding="utf-8")
+              if not block_re.search(text):
+                  print(f"skip: no screenshot-settings block in {manual}")
+                  continue
+              manual.write_text(block_re.sub(block, text), encoding="utf-8")
+              print(f"updated: {manual}")
+          PY
+
+      - name: Commit and push
         run: |
-          BASE="https://github.com/${{ github.repository }}/releases/download/${TAG}"
-          {
-            gh release view "$TAG" --json body -q .body \
-              | sed '/^## Screenshots$/,$d' \
-              | sed -e :a -e '/^$/{$d;N;ba' -e '}'
-            echo
-            echo "## Screenshots"
-            echo
-            echo "![Main view](${BASE}/release-main.png)"
-            echo
-            echo "![Plugin settings](${BASE}/release-plugin-settings.png)"
-            echo
-            echo "![Server running](${BASE}/release-server-running.png)"
-          } > /tmp/release-notes.md
-          gh release edit "$TAG" --notes-file /tmp/release-notes.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/screenshots docs/help
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "docs(screenshots): update localized screenshots for ${TAG}"
+          git push origin main

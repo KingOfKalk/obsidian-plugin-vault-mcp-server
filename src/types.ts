@@ -13,6 +13,12 @@ export interface McpPluginSettings {
   httpsEnabled: boolean;
   /** Cached self-signed TLS certificate (PEM). Regenerated on demand. */
   tlsCertificate: TlsCertificateData | null;
+  /** When true, the server loads a user-provided cert/key pair from disk instead of the auto-generated self-signed cert. */
+  useCustomTls: boolean;
+  /** Absolute filesystem path to the user-provided public certificate (PEM). */
+  customTlsCertPath: string | null;
+  /** Absolute filesystem path to the user-provided private key (PEM). */
+  customTlsKeyPath: string | null;
   /** Enable verbose debug logging */
   debugMode: boolean;
   /** Auto-start the MCP server when Obsidian launches */
@@ -33,13 +39,16 @@ export interface ModuleState {
 }
 
 export const DEFAULT_SETTINGS: McpPluginSettings = {
-  schemaVersion: 6,
+  schemaVersion: 7,
   serverAddress: '127.0.0.1',
   port: 28741,
   authEnabled: false,
   accessKey: '',
   httpsEnabled: false,
   tlsCertificate: null,
+  useCustomTls: false,
+  customTlsCertPath: null,
+  customTlsKeyPath: null,
   debugMode: false,
   autoStart: false,
   moduleStates: {},

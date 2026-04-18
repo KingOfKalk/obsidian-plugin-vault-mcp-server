@@ -7,7 +7,7 @@ describe('migrateSettings', () => {
   it('should migrate v0 (no schemaVersion) to current schema', () => {
     const data: Record<string, unknown> = {};
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(6);
+    expect(result.schemaVersion).toBe(7);
     expect(result.port).toBe(28741);
     expect(result.accessKey).toBe('');
     expect(result.httpsEnabled).toBe(false);
@@ -25,7 +25,7 @@ describe('migrateSettings', () => {
       debugMode: true,
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(6);
+    expect(result.schemaVersion).toBe(7);
     expect(result.port).toBe(9999);
     expect(result.accessKey).toBe('my-key');
     expect(result.debugMode).toBe(true);
@@ -43,7 +43,7 @@ describe('migrateSettings', () => {
       moduleStates: {},
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(6);
+    expect(result.schemaVersion).toBe(7);
     expect(result.serverAddress).toBe('127.0.0.1');
     expect(result.autoStart).toBe(false);
   });
@@ -59,7 +59,7 @@ describe('migrateSettings', () => {
       moduleStates: {},
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(6);
+    expect(result.schemaVersion).toBe(7);
     expect(result.autoStart).toBe(false);
   });
 
@@ -78,7 +78,7 @@ describe('migrateSettings', () => {
       },
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(6);
+    expect(result.schemaVersion).toBe(7);
     expect(result.moduleStates).toEqual({
       vault: { enabled: true },
       editor: { enabled: false },
@@ -97,7 +97,7 @@ describe('migrateSettings', () => {
       moduleStates: {},
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(6);
+    expect(result.schemaVersion).toBe(7);
     expect(result.tlsCertificate).toBeNull();
   });
 
@@ -114,7 +114,7 @@ describe('migrateSettings', () => {
       moduleStates: {},
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(6);
+    expect(result.schemaVersion).toBe(7);
     expect(result.authEnabled).toBe(false);
   });
 
@@ -124,7 +124,7 @@ describe('migrateSettings', () => {
       accessKey: 'pre-existing-key',
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(6);
+    expect(result.schemaVersion).toBe(7);
     expect(result.authEnabled).toBe(false);
     expect(result.accessKey).toBe('pre-existing-key');
   });
@@ -135,18 +135,21 @@ describe('migrateSettings', () => {
       authEnabled: true,
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(6);
+    expect(result.schemaVersion).toBe(7);
     expect(result.authEnabled).toBe(true);
   });
 
-  it('should not modify data already at v6', () => {
+  it('should not modify data already at v7', () => {
     const data: Record<string, unknown> = {
-      schemaVersion: 6,
+      schemaVersion: 7,
       serverAddress: '192.168.1.100',
       port: 28741,
       accessKey: 'test',
       httpsEnabled: true,
       tlsCertificate: { cert: 'C', key: 'K' },
+      useCustomTls: false,
+      customTlsCertPath: null,
+      customTlsKeyPath: null,
       debugMode: false,
       autoStart: true,
       authEnabled: true,
@@ -156,13 +159,49 @@ describe('migrateSettings', () => {
     expect(result).toEqual(data);
   });
 
+  it('should migrate v6 data to v7 by adding the custom TLS fields', () => {
+    const data: Record<string, unknown> = {
+      schemaVersion: 6,
+      serverAddress: '127.0.0.1',
+      port: 28741,
+      accessKey: '',
+      httpsEnabled: true,
+      tlsCertificate: { cert: 'C', key: 'K' },
+      debugMode: false,
+      autoStart: false,
+      authEnabled: false,
+      moduleStates: {},
+    };
+    const result = migrateSettings(data);
+    expect(result.schemaVersion).toBe(7);
+    expect(result.useCustomTls).toBe(false);
+    expect(result.customTlsCertPath).toBeNull();
+    expect(result.customTlsKeyPath).toBeNull();
+    // Pre-existing tlsCertificate is untouched so users can flip the toggle back off.
+    expect(result.tlsCertificate).toEqual({ cert: 'C', key: 'K' });
+  });
+
+  it('v6->v7 preserves explicitly set custom TLS values', () => {
+    const data: Record<string, unknown> = {
+      schemaVersion: 6,
+      useCustomTls: true,
+      customTlsCertPath: '/etc/ssl/my.crt',
+      customTlsKeyPath: '/etc/ssl/my.key',
+    };
+    const result = migrateSettings(data);
+    expect(result.schemaVersion).toBe(7);
+    expect(result.useCustomTls).toBe(true);
+    expect(result.customTlsCertPath).toBe('/etc/ssl/my.crt');
+    expect(result.customTlsKeyPath).toBe('/etc/ssl/my.key');
+  });
+
   it('preserves an existing tlsCertificate across migration', () => {
     const data: Record<string, unknown> = {
       schemaVersion: 4,
       tlsCertificate: { cert: 'EXISTING_CERT', key: 'EXISTING_KEY' },
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(6);
+    expect(result.schemaVersion).toBe(7);
     expect(result.tlsCertificate).toEqual({
       cert: 'EXISTING_CERT',
       key: 'EXISTING_KEY',
@@ -174,7 +213,7 @@ describe('migrateSettings', () => {
       port: 3000,
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(6);
+    expect(result.schemaVersion).toBe(7);
     expect(result.port).toBe(3000);
     expect(result.accessKey).toBe('');
     expect(result.moduleStates).toEqual({});
@@ -195,7 +234,7 @@ describe('migrateSettings', () => {
       moduleStates: { extras: { enabled: true, readOnly: false } },
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(6);
+    expect(result.schemaVersion).toBe(7);
     const states = result.moduleStates as Record<
       string,
       { enabled: boolean; readOnly: boolean; toolStates?: Record<string, boolean> }
@@ -248,8 +287,14 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.authEnabled).toBe(false);
   });
 
-  it('declares schemaVersion 6', () => {
-    expect(DEFAULT_SETTINGS.schemaVersion).toBe(6);
+  it('declares schemaVersion 7', () => {
+    expect(DEFAULT_SETTINGS.schemaVersion).toBe(7);
+  });
+
+  it('defaults custom TLS fields to off/null', () => {
+    expect(DEFAULT_SETTINGS.useCustomTls).toBe(false);
+    expect(DEFAULT_SETTINGS.customTlsCertPath).toBeNull();
+    expect(DEFAULT_SETTINGS.customTlsKeyPath).toBeNull();
   });
 });
 
