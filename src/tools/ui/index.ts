@@ -1,17 +1,63 @@
 import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { ToolModule, ToolDefinition, annotations } from '../../registry/types';
+import {
+  ToolModule,
+  ToolDefinition,
+  annotations,
+  defineTool,
+  type InferredParams,
+} from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { describeTool } from '../shared/describe';
 
-type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
-
 function text(t: string): CallToolResult { return { content: [{ type: 'text', text: t }] }; }
 
-function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
+const showNoticeSchema = {
+  message: z
+    .string()
+    .min(1)
+    .max(1000)
+    .describe('Notice text to show to the user'),
+  duration: z
+    .number()
+    .int()
+    .min(0)
+    .max(60_000)
+    .optional()
+    .describe('Milliseconds before the notice auto-dismisses (0 = sticky)'),
+};
+
+const showConfirmSchema = {
+  message: z
+    .string()
+    .min(1)
+    .max(1000)
+    .describe('Question to present in the confirmation modal'),
+};
+
+const showPromptSchema = {
+  message: z
+    .string()
+    .min(1)
+    .max(1000)
+    .describe('Prompt label to show in the input modal'),
+  defaultValue: z
+    .string()
+    .max(1000)
+    .optional()
+    .describe('Pre-filled value for the input field'),
+};
+
+interface UiHandlers {
+  showNotice: (params: InferredParams<typeof showNoticeSchema>) => Promise<CallToolResult>;
+  showConfirm: (params: InferredParams<typeof showConfirmSchema>) => Promise<CallToolResult>;
+  showPrompt: (params: InferredParams<typeof showPromptSchema>) => Promise<CallToolResult>;
+}
+
+function createHandlers(adapter: ObsidianAdapter): UiHandlers {
   return {
     showNotice: (params): Promise<CallToolResult> => {
-      adapter.showNotice(params.message as string, params.duration as number | undefined);
+      adapter.showNotice(params.message, params.duration);
       return Promise.resolve(text('Notice shown'));
     },
     // Confirmation modals and input prompts require Obsidian UI interaction
@@ -20,15 +66,15 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
     showConfirm: (params): Promise<CallToolResult> => {
       return Promise.resolve(text(JSON.stringify({
         type: 'confirm',
-        message: params.message as string,
+        message: params.message,
         note: 'Confirmation modals require user interaction in the Obsidian UI',
       })));
     },
     showPrompt: (params): Promise<CallToolResult> => {
       return Promise.resolve(text(JSON.stringify({
         type: 'prompt',
-        message: params.message as string,
-        defaultValue: (params.defaultValue as string) ?? '',
+        message: params.message,
+        defaultValue: params.defaultValue ?? '',
         note: 'Input prompts require user interaction in the Obsidian UI',
       })));
     },
@@ -41,7 +87,7 @@ export function createUiModule(adapter: ObsidianAdapter): ToolModule {
     metadata: { id: 'ui', name: 'UI Interactions', description: 'Show notices, modals, and prompts in Obsidian' },
     tools(): ToolDefinition[] {
       return [
-        {
+        defineTool({
           name: 'ui_notice',
           description: describeTool({
             summary: 'Show a transient notice/toast in Obsidian.',
@@ -51,41 +97,22 @@ export function createUiModule(adapter: ObsidianAdapter): ToolModule {
             ],
             returns: 'Plain text "Notice shown".',
           }),
-          schema: {
-            message: z
-              .string()
-              .min(1)
-              .max(1000)
-              .describe('Notice text to show to the user'),
-            duration: z
-              .number()
-              .int()
-              .min(0)
-              .max(60_000)
-              .optional()
-              .describe('Milliseconds before the notice auto-dismisses (0 = sticky)'),
-          },
+          schema: showNoticeSchema,
           handler: h.showNotice,
           annotations: annotations.additive,
-        },
-        {
+        }),
+        defineTool({
           name: 'ui_confirm',
           description: describeTool({
             summary: 'Stub for a confirmation modal — user interaction cannot be captured via MCP.',
             args: ['message (string, 1..1000): Question text.'],
             returns: 'JSON envelope noting that confirmation modals need UI interaction.',
           }),
-          schema: {
-            message: z
-              .string()
-              .min(1)
-              .max(1000)
-              .describe('Question to present in the confirmation modal'),
-          },
+          schema: showConfirmSchema,
           handler: h.showConfirm,
           annotations: annotations.additive,
-        },
-        {
+        }),
+        defineTool({
           name: 'ui_prompt',
           description: describeTool({
             summary: 'Stub for an input prompt modal — user input cannot be captured via MCP.',
@@ -95,21 +122,10 @@ export function createUiModule(adapter: ObsidianAdapter): ToolModule {
             ],
             returns: 'JSON envelope noting that prompts need UI interaction.',
           }),
-          schema: {
-            message: z
-              .string()
-              .min(1)
-              .max(1000)
-              .describe('Prompt label to show in the input modal'),
-            defaultValue: z
-              .string()
-              .max(1000)
-              .optional()
-              .describe('Pre-filled value for the input field'),
-          },
+          schema: showPromptSchema,
           handler: h.showPrompt,
           annotations: annotations.additive,
-        },
+        }),
       ];
     },
   };

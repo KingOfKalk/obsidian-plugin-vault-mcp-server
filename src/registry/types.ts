@@ -4,10 +4,20 @@ import { CallToolResult, ToolAnnotations } from '@modelcontextprotocol/sdk/types
 export type { ToolAnnotations };
 
 /**
- * Inferred parameter type for a handler whose schema is `Shape` — the
- * resolved output of `z.object(Shape).parse(...)` in the dispatcher.
+ * Inferred parameter type for a handler whose schema is `Shape`.
+ *
+ * Uses `z.input` (not `z.output`/`z.infer`) so fields with `.default()` are
+ * **optional** in the handler's signature. That matches the ergonomics of
+ * direct test calls (where the test author doesn't want to thread every
+ * default) and mirrors the shape of the `rawParams` the dispatcher sees
+ * before `.parse()` fills in defaults.
+ *
+ * At runtime the dispatcher always resolves defaults before invoking the
+ * handler, so any field with a default is never actually `undefined`. Use
+ * `?? <default>` at the call site when you want to read such a field
+ * directly — keeps the type honest both pre- and post-parse.
  */
-export type InferredParams<Shape extends z.ZodRawShape> = z.infer<
+export type InferredParams<Shape extends z.ZodRawShape> = z.input<
   z.ZodObject<Shape>
 >;
 

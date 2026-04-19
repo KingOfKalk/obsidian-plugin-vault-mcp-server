@@ -1,4 +1,4 @@
-import { ToolModule, ToolDefinition, annotations } from '../../registry/types';
+import { ToolModule, ToolDefinition, annotations, defineTool } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { createSearchHandlers } from './handlers';
 import { describeTool } from '../shared/describe';
@@ -22,7 +22,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
 
     tools(): ToolDefinition[] {
       return [
-        {
+        defineTool({
           name: 'search_fulltext',
           description: describeTool({
             summary: 'Case-insensitive substring search across all vault file contents.',
@@ -34,8 +34,8 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           schema: searchFulltextSchema,
           handler: handlers.searchFulltext,
           annotations: annotations.read,
-        },
-        {
+        }),
+        defineTool({
           name: 'search_frontmatter',
           description: describeTool({
             summary: 'Get the parsed YAML frontmatter block for a file.',
@@ -46,8 +46,8 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           schema: filePathSchema,
           handler: handlers.searchFrontmatter,
           annotations: annotations.read,
-        },
-        {
+        }),
+        defineTool({
           name: 'search_tags',
           description: describeTool({
             summary: 'List every tag used anywhere in the vault with the files that use it.',
@@ -56,8 +56,8 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           schema: readOnlySchema,
           handler: handlers.searchTags,
           annotations: annotations.read,
-        },
-        {
+        }),
+        defineTool({
           name: 'search_headings',
           description: describeTool({
             summary: 'List headings (with levels) for a file.',
@@ -68,8 +68,8 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           schema: filePathSchema,
           handler: handlers.searchHeadings,
           annotations: annotations.read,
-        },
-        {
+        }),
+        defineTool({
           name: 'search_outgoing_links',
           description: describeTool({
             summary: 'List outgoing links from a file.',
@@ -80,8 +80,8 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           schema: filePathSchema,
           handler: handlers.searchOutgoingLinks,
           annotations: annotations.read,
-        },
-        {
+        }),
+        defineTool({
           name: 'search_embeds',
           description: describeTool({
             summary: 'List embedded resources (![[...]]) referenced by a file.',
@@ -92,8 +92,8 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           schema: filePathSchema,
           handler: handlers.searchEmbeds,
           annotations: annotations.read,
-        },
-        {
+        }),
+        defineTool({
           name: 'search_backlinks',
           description: describeTool({
             summary: 'List files that link TO a given file (reverse links).',
@@ -104,8 +104,8 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           schema: filePathSchema,
           handler: handlers.searchBacklinks,
           annotations: annotations.read,
-        },
-        {
+        }),
+        defineTool({
           name: 'search_resolved_links',
           description: describeTool({
             summary: 'Get the vault-wide map of resolved links (targets that exist).',
@@ -114,8 +114,8 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           schema: readOnlySchema,
           handler: handlers.searchResolvedLinks,
           annotations: annotations.read,
-        },
-        {
+        }),
+        defineTool({
           name: 'search_unresolved_links',
           description: describeTool({
             summary: 'Get the vault-wide map of unresolved links (targets that do not exist).',
@@ -125,8 +125,8 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           schema: readOnlySchema,
           handler: handlers.searchUnresolvedLinks,
           annotations: annotations.read,
-        },
-        {
+        }),
+        defineTool({
           name: 'search_block_references',
           description: describeTool({
             summary: 'List block references (^block-id) defined in a file.',
@@ -137,8 +137,8 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           schema: filePathSchema,
           handler: handlers.searchBlockReferences,
           annotations: annotations.read,
-        },
-        {
+        }),
+        defineTool({
           name: 'search_by_tag',
           description: describeTool({
             summary: 'Find files tagged with a given tag (with or without leading #).',
@@ -148,8 +148,8 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           schema: searchByTagSchema,
           handler: handlers.searchByTag,
           annotations: annotations.read,
-        },
-        {
+        }),
+        defineTool({
           name: 'search_by_frontmatter',
           description: describeTool({
             summary: 'Find files whose YAML frontmatter has a key with a given value.',
@@ -163,7 +163,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           schema: searchByFrontmatterSchema,
           handler: handlers.searchByFrontmatter,
           annotations: annotations.read,
-        },
+        }),
       ];
     },
   };

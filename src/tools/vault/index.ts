@@ -1,4 +1,4 @@
-import { ToolModule, ToolDefinition, annotations } from '../../registry/types';
+import { ToolModule, ToolDefinition, annotations, defineTool } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { createHandlers, WriteMutex } from './handlers';
 import { describeTool } from '../shared/describe';
@@ -34,7 +34,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
 
     tools(): ToolDefinition[] {
       return [
-        {
+        defineTool({
           name: 'vault_create',
           description: describeTool({
             summary: 'Create a new file at a vault-relative path with text content.',
@@ -55,8 +55,8 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           schema: createFileSchema,
           handler: handlers.createFile,
           annotations: annotations.additive,
-        },
-        {
+        }),
+        defineTool({
           name: 'vault_read',
           description: describeTool({
             summary: 'Read the full UTF-8 content of a file by vault-relative path.',
@@ -74,8 +74,8 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           schema: readFileSchema,
           handler: handlers.readFile,
           annotations: annotations.read,
-        },
-        {
+        }),
+        defineTool({
           name: 'vault_update',
           description: describeTool({
             summary: 'Overwrite an existing file with new content.',
@@ -93,8 +93,8 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           schema: updateFileSchema,
           handler: handlers.updateFile,
           annotations: annotations.destructiveIdempotent,
-        },
-        {
+        }),
+        defineTool({
           name: 'vault_delete',
           description: describeTool({
             summary: 'Delete a file by vault-relative path.',
@@ -106,8 +106,8 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           schema: deleteFileSchema,
           handler: handlers.deleteFile,
           annotations: annotations.destructiveIdempotent,
-        },
-        {
+        }),
+        defineTool({
           name: 'vault_append',
           description: describeTool({
             summary: 'Append content to the end of an existing file.',
@@ -122,8 +122,8 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           schema: appendFileSchema,
           handler: handlers.appendFile,
           annotations: annotations.additive,
-        },
-        {
+        }),
+        defineTool({
           name: 'vault_get_metadata',
           description: describeTool({
             summary: 'Get file stat metadata (size, creation date, modification date).',
@@ -135,8 +135,8 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           schema: getMetadataSchema,
           handler: handlers.getMetadata,
           annotations: annotations.read,
-        },
-        {
+        }),
+        defineTool({
           name: 'vault_rename',
           description: describeTool({
             summary: 'Rename a file within its current folder.',
@@ -154,8 +154,8 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           schema: renameFileSchema,
           handler: handlers.renameFile,
           annotations: annotations.destructive,
-        },
-        {
+        }),
+        defineTool({
           name: 'vault_move',
           description: describeTool({
             summary: 'Move a file to a different path (can change folder and name).',
@@ -170,8 +170,8 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           schema: moveFileSchema,
           handler: handlers.moveFile,
           annotations: annotations.destructive,
-        },
-        {
+        }),
+        defineTool({
           name: 'vault_copy',
           description: describeTool({
             summary: 'Copy a file to a new path, leaving the original in place.',
@@ -186,8 +186,8 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           schema: copyFileSchema,
           handler: handlers.copyFile,
           annotations: annotations.additive,
-        },
-        {
+        }),
+        defineTool({
           name: 'vault_create_folder',
           description: describeTool({
             summary: 'Create a new folder at a vault-relative path.',
@@ -199,8 +199,8 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           schema: createFolderSchema,
           handler: handlers.createFolder,
           annotations: annotations.additive,
-        },
-        {
+        }),
+        defineTool({
           name: 'vault_delete_folder',
           description: describeTool({
             summary: 'Delete a folder, optionally recursively.',
@@ -215,8 +215,8 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           schema: deleteFolderSchema,
           handler: handlers.deleteFolder,
           annotations: annotations.destructiveIdempotent,
-        },
-        {
+        }),
+        defineTool({
           name: 'vault_rename_folder',
           description: describeTool({
             summary: 'Rename or move a folder.',
@@ -231,8 +231,8 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           schema: renameFolderSchema,
           handler: handlers.renameFolder,
           annotations: annotations.destructive,
-        },
-        {
+        }),
+        defineTool({
           name: 'vault_list',
           description: describeTool({
             summary: 'List files and folders directly under a path (non-recursive).',
@@ -244,8 +244,8 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           schema: listFolderSchema,
           handler: handlers.listFolder,
           annotations: annotations.read,
-        },
-        {
+        }),
+        defineTool({
           name: 'vault_list_recursive',
           description: describeTool({
             summary: 'List all files and folders under a path, recursively.',
@@ -260,8 +260,8 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           schema: listRecursiveSchema,
           handler: handlers.listRecursive,
           annotations: annotations.read,
-        },
-        {
+        }),
+        defineTool({
           name: 'vault_read_binary',
           description: describeTool({
             summary: 'Read binary file contents as base64.',
@@ -276,8 +276,8 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           schema: readBinarySchema,
           handler: handlers.readBinary,
           annotations: annotations.read,
-        },
-        {
+        }),
+        defineTool({
           name: 'vault_write_binary',
           description: describeTool({
             summary: 'Write binary file contents from a base64 string.',
@@ -292,7 +292,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           schema: writeBinarySchema,
           handler: handlers.writeBinary,
           annotations: annotations.destructiveIdempotent,
-        },
+        }),
       ];
     },
   };

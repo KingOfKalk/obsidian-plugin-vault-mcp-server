@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { ToolModule, ToolDefinition, annotations } from '../../registry/types';
+import {
+  ToolModule,
+  ToolDefinition,
+  annotations,
+  defineTool,
+  type InferredParams,
+} from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { handleToolError } from '../shared/errors';
 import { describeTool } from '../shared/describe';
@@ -10,15 +16,13 @@ import {
   responseFormatField,
 } from '../shared/response';
 
-type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
-
 function text(t: string): CallToolResult { return { content: [{ type: 'text', text: t }] }; }
 function err(m: string): CallToolResult { return handleToolError(new Error(m)); }
 
 /**
- * Require a value to be a non-negative safe integer. Defensive belt-and-braces
- * alongside the Zod schema: until the dispatcher enforces `schema.parse()` at
- * runtime (#174), handlers still receive untyped params and need the guard.
+ * Require a value to be a non-negative safe integer. Kept as a runtime guard
+ * alongside the Zod schema; the dispatcher has already parsed numbers by the
+ * time the handler is called, but the helper is useful in other call sites.
  */
 function isNonNegativeInt(value: unknown): value is number {
   return (
@@ -49,7 +53,65 @@ function assertEditorPosition(
   }
 }
 
-function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
+// Schemas as module-level consts so handler signatures can reference them
+// via `typeof <schema>` for automatic parameter typing through
+// `InferredParams<Shape>`.
+
+const readOnlySchema = { ...responseFormatField };
+
+const insertSchema = {
+  line: z.number().int().min(0).describe('Zero-based line index'),
+  ch: z.number().int().min(0).describe('Zero-based column index'),
+  text: z
+    .string()
+    .max(5_000_000)
+    .describe('Text to insert at (line, ch)'),
+};
+
+const replaceSchema = {
+  fromLine: z.number().int().min(0).describe('Start line (inclusive, zero-based)'),
+  fromCh: z.number().int().min(0).describe('Start column (inclusive, zero-based)'),
+  toLine: z.number().int().min(0).describe('End line (exclusive, zero-based)'),
+  toCh: z.number().int().min(0).describe('End column (exclusive, zero-based)'),
+  text: z
+    .string()
+    .max(5_000_000)
+    .describe('Replacement text for the range'),
+};
+
+const deleteRangeSchema = {
+  fromLine: z.number().int().min(0).describe('Start line (inclusive)'),
+  fromCh: z.number().int().min(0).describe('Start column (inclusive)'),
+  toLine: z.number().int().min(0).describe('End line (exclusive)'),
+  toCh: z.number().int().min(0).describe('End column (exclusive)'),
+};
+
+const setCursorSchema = {
+  line: z.number().int().min(0).describe('Zero-based line index'),
+  ch: z.number().int().min(0).describe('Zero-based column index'),
+};
+
+const setSelectionSchema = {
+  fromLine: z.number().int().min(0).describe('Start line (inclusive)'),
+  fromCh: z.number().int().min(0).describe('Start column (inclusive)'),
+  toLine: z.number().int().min(0).describe('End line (exclusive)'),
+  toCh: z.number().int().min(0).describe('End column (exclusive)'),
+};
+
+interface EditorHandlers {
+  getContent: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
+  getActivePath: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
+  insert: (params: InferredParams<typeof insertSchema>) => Promise<CallToolResult>;
+  replace: (params: InferredParams<typeof replaceSchema>) => Promise<CallToolResult>;
+  deleteRange: (params: InferredParams<typeof deleteRangeSchema>) => Promise<CallToolResult>;
+  getCursor: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
+  setCursor: (params: InferredParams<typeof setCursorSchema>) => Promise<CallToolResult>;
+  getSelection: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
+  setSelection: (params: InferredParams<typeof setSelectionSchema>) => Promise<CallToolResult>;
+  getLineCount: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
+}
+
+function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
   return {
     getContent: (params): Promise<CallToolResult> => {
       const content = adapter.getActiveFileContent();
@@ -85,11 +147,7 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
           err(error instanceof Error ? error.message : String(error)),
         );
       }
-      const ok = adapter.insertTextAt(
-        params.line as number,
-        params.ch as number,
-        params.text as string,
-      );
+      const ok = adapter.insertTextAt(params.line, params.ch, params.text);
       return Promise.resolve(ok ? text('Text inserted') : err('No active editor'));
     },
     replace: (params): Promise<CallToolResult> => {
@@ -106,8 +164,11 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
         );
       }
       const ok = adapter.replaceRange(
-        params.fromLine as number, params.fromCh as number,
-        params.toLine as number, params.toCh as number, params.text as string,
+        params.fromLine,
+        params.fromCh,
+        params.toLine,
+        params.toCh,
+        params.text,
       );
       return Promise.resolve(ok ? text('Text replaced') : err('No active editor'));
     },
@@ -125,8 +186,10 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
         );
       }
       const ok = adapter.deleteRange(
-        params.fromLine as number, params.fromCh as number,
-        params.toLine as number, params.toCh as number,
+        params.fromLine,
+        params.fromCh,
+        params.toLine,
+        params.toCh,
       );
       return Promise.resolve(ok ? text('Text deleted') : err('No active editor'));
     },
@@ -151,10 +214,7 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
           err(error instanceof Error ? error.message : String(error)),
         );
       }
-      const ok = adapter.setCursorPosition(
-        params.line as number,
-        params.ch as number,
-      );
+      const ok = adapter.setCursorPosition(params.line, params.ch);
       return Promise.resolve(ok ? text('Cursor set') : err('No active editor'));
     },
     getSelection: (params): Promise<CallToolResult> => {
@@ -183,8 +243,10 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
         );
       }
       const ok = adapter.setSelection(
-        params.fromLine as number, params.fromCh as number,
-        params.toLine as number, params.toCh as number,
+        params.fromLine,
+        params.fromCh,
+        params.toLine,
+        params.toCh,
       );
       return Promise.resolve(ok ? text('Selection set') : err('No active editor'));
     },
@@ -208,29 +270,29 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
     metadata: { id: 'editor', name: 'Editor Operations', description: 'Access and manipulate the active editor' },
     tools(): ToolDefinition[] {
       return [
-        {
+        defineTool({
           name: 'editor_get_content',
           description: describeTool({
             summary: 'Get the full text content of the currently active editor.',
             returns: 'Plain text: the editor\'s current content.',
             errors: ['"No active editor" if no markdown view is focused.'],
           }),
-          schema: { ...responseFormatField },
+          schema: readOnlySchema,
           handler: h.getContent,
           annotations: annotations.read,
-        },
-        {
+        }),
+        defineTool({
           name: 'editor_get_active_file',
           description: describeTool({
             summary: 'Get the vault-relative path of the currently active file.',
             returns: 'Plain text: the path, e.g. "notes/today.md".',
             errors: ['"No active file" if no file is open.'],
           }),
-          schema: { ...responseFormatField },
+          schema: readOnlySchema,
           handler: h.getActivePath,
           annotations: annotations.read,
-        },
-        {
+        }),
+        defineTool({
           name: 'editor_insert',
           description: describeTool({
             summary: 'Insert text at a (line, ch) position in the active editor.',
@@ -246,18 +308,11 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
               '"Position is out of range" if (line, ch) is outside the document.',
             ],
           }),
-          schema: {
-            line: z.number().int().min(0).describe('Zero-based line index'),
-            ch: z.number().int().min(0).describe('Zero-based column index'),
-            text: z
-              .string()
-              .max(5_000_000)
-              .describe('Text to insert at (line, ch)'),
-          },
+          schema: insertSchema,
           handler: h.insert,
           annotations: annotations.additive,
-        },
-        {
+        }),
+        defineTool({
           name: 'editor_replace',
           description: describeTool({
             summary: 'Replace text in a (fromLine, fromCh)→(toLine, toCh) range.',
@@ -273,20 +328,11 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
               '"Position is out of range" if either endpoint is outside the document.',
             ],
           }),
-          schema: {
-            fromLine: z.number().int().min(0).describe('Start line (inclusive, zero-based)'),
-            fromCh: z.number().int().min(0).describe('Start column (inclusive, zero-based)'),
-            toLine: z.number().int().min(0).describe('End line (exclusive, zero-based)'),
-            toCh: z.number().int().min(0).describe('End column (exclusive, zero-based)'),
-            text: z
-              .string()
-              .max(5_000_000)
-              .describe('Replacement text for the range'),
-          },
+          schema: replaceSchema,
           handler: h.replace,
           annotations: annotations.destructive,
-        },
-        {
+        }),
+        defineTool({
           name: 'editor_delete',
           description: describeTool({
             summary: 'Delete text in a (fromLine, fromCh)→(toLine, toCh) range.',
@@ -300,27 +346,22 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
               '"Position is out of range" if either endpoint is outside the document.',
             ],
           }),
-          schema: {
-            fromLine: z.number().int().min(0).describe('Start line (inclusive)'),
-            fromCh: z.number().int().min(0).describe('Start column (inclusive)'),
-            toLine: z.number().int().min(0).describe('End line (exclusive)'),
-            toCh: z.number().int().min(0).describe('End column (exclusive)'),
-          },
+          schema: deleteRangeSchema,
           handler: h.deleteRange,
           annotations: annotations.destructive,
-        },
-        {
+        }),
+        defineTool({
           name: 'editor_get_cursor',
           description: describeTool({
             summary: 'Get the current cursor position in the active editor.',
             returns: 'JSON: { line, ch } (zero-based).',
             errors: ['"No active editor" if no markdown view is focused.'],
           }),
-          schema: { ...responseFormatField },
+          schema: readOnlySchema,
           handler: h.getCursor,
           annotations: annotations.read,
-        },
-        {
+        }),
+        defineTool({
           name: 'editor_set_cursor',
           description: describeTool({
             summary: 'Move the cursor to a (line, ch) position in the active editor.',
@@ -334,25 +375,22 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
               '"Position is out of range" if (line, ch) is outside the document.',
             ],
           }),
-          schema: {
-            line: z.number().int().min(0).describe('Zero-based line index'),
-            ch: z.number().int().min(0).describe('Zero-based column index'),
-          },
+          schema: setCursorSchema,
           handler: h.setCursor,
           annotations: annotations.additive,
-        },
-        {
+        }),
+        defineTool({
           name: 'editor_get_selection',
           description: describeTool({
             summary: 'Get the current text selection in the active editor.',
             returns: 'JSON: { from: {line, ch}, to: {line, ch}, text }.',
             errors: ['"No active editor or selection" if nothing is selected.'],
           }),
-          schema: { ...responseFormatField },
+          schema: readOnlySchema,
           handler: h.getSelection,
           annotations: annotations.read,
-        },
-        {
+        }),
+        defineTool({
           name: 'editor_set_selection',
           description: describeTool({
             summary: 'Select a (fromLine, fromCh)→(toLine, toCh) range in the active editor.',
@@ -366,26 +404,21 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
               '"Position is out of range" if either endpoint is outside the document.',
             ],
           }),
-          schema: {
-            fromLine: z.number().int().min(0).describe('Start line (inclusive)'),
-            fromCh: z.number().int().min(0).describe('Start column (inclusive)'),
-            toLine: z.number().int().min(0).describe('End line (exclusive)'),
-            toCh: z.number().int().min(0).describe('End column (exclusive)'),
-          },
+          schema: setSelectionSchema,
           handler: h.setSelection,
           annotations: annotations.additive,
-        },
-        {
+        }),
+        defineTool({
           name: 'editor_get_line_count',
           description: describeTool({
             summary: 'Get the number of lines in the active editor.',
             returns: 'Plain text: the line count as a decimal integer.',
             errors: ['"No active editor" if no markdown view is focused.'],
           }),
-          schema: { ...responseFormatField },
+          schema: readOnlySchema,
           handler: h.getLineCount,
           annotations: annotations.read,
-        },
+        }),
       ];
     },
   };

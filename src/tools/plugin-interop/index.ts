@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { ToolModule, ToolDefinition, annotations } from '../../registry/types';
+import {
+  ToolModule,
+  ToolDefinition,
+  annotations,
+  defineTool,
+  type InferredParams,
+} from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { handleToolError } from '../shared/errors';
 import { describeTool } from '../shared/describe';
@@ -11,15 +17,57 @@ import {
 } from '../shared/response';
 import type { ModuleOptions } from '../index';
 
-type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
-
 function text(t: string): CallToolResult { return { content: [{ type: 'text', text: t }] }; }
 function err(m: string): CallToolResult { return handleToolError(new Error(m)); }
+
+const listSchema = { ...responseFormatField };
+
+const checkSchema = {
+  pluginId: z
+    .string()
+    .min(1)
+    .max(200)
+    .describe('Community plugin id (e.g. "dataview")'),
+  ...responseFormatField,
+};
+
+const dataviewSchema = {
+  query: z
+    .string()
+    .min(1)
+    .max(10_000)
+    .describe('Dataview query (DQL or Dataview-js)'),
+  ...responseFormatField,
+};
+
+const templaterSchema = {
+  templatePath: z
+    .string()
+    .min(1)
+    .max(4096)
+    .describe('Vault-relative path to the Templater template'),
+};
+
+const executeCommandSchema = {
+  commandId: z
+    .string()
+    .min(1)
+    .max(200)
+    .describe('Obsidian command id (e.g. "app:reload")'),
+};
+
+interface PluginInteropHandlers {
+  listPlugins: (params: InferredParams<typeof listSchema>) => Promise<CallToolResult>;
+  checkPlugin: (params: InferredParams<typeof checkSchema>) => Promise<CallToolResult>;
+  dataviewQuery: (params: InferredParams<typeof dataviewSchema>) => Promise<CallToolResult>;
+  templaterExecute: (params: InferredParams<typeof templaterSchema>) => Promise<CallToolResult>;
+  executeCommand: (params: InferredParams<typeof executeCommandSchema>) => Promise<CallToolResult>;
+}
 
 function createHandlers(
   adapter: ObsidianAdapter,
   getExecuteCommandAllowlist: () => string[],
-): Record<string, Handler> {
+): PluginInteropHandlers {
   return {
     listPlugins: (params): Promise<CallToolResult> => {
       const plugins = adapter.getInstalledPlugins();
@@ -40,13 +88,12 @@ function createHandlers(
       );
     },
     checkPlugin: (params): Promise<CallToolResult> => {
-      const pluginId = params.pluginId as string;
-      const enabled = adapter.isPluginEnabled(pluginId);
+      const enabled = adapter.isPluginEnabled(params.pluginId);
       const plugins = adapter.getInstalledPlugins();
-      const installed = plugins.some((p) => p.id === pluginId);
+      const installed = plugins.some((p) => p.id === params.pluginId);
       return Promise.resolve(
         makeResponse(
-          { pluginId, installed, enabled },
+          { pluginId: params.pluginId, installed, enabled },
           (v) =>
             `**${v.pluginId}** — ${v.installed ? 'installed' : 'not installed'}, ${v.enabled ? 'enabled' : 'disabled'}`,
           readResponseFormat(params),
@@ -59,7 +106,7 @@ function createHandlers(
       }
       const payload = {
         note: 'Dataview query execution requires the Dataview plugin API at runtime',
-        query: params.query as string,
+        query: params.query,
       };
       return Promise.resolve(
         makeResponse(
@@ -75,11 +122,10 @@ function createHandlers(
       }
       return Promise.resolve(text(JSON.stringify({
         note: 'Templater execution requires the Templater plugin API at runtime',
-        templatePath: params.templatePath as string,
+        templatePath: params.templatePath,
       })));
     },
     executeCommand: (params): Promise<CallToolResult> => {
-      const commandId = params.commandId as string;
       const allowlist = getExecuteCommandAllowlist();
       if (allowlist.length === 0) {
         return Promise.resolve(
@@ -88,15 +134,19 @@ function createHandlers(
           ),
         );
       }
-      if (!allowlist.includes(commandId)) {
+      if (!allowlist.includes(params.commandId)) {
         return Promise.resolve(
           err(
-            `Command "${commandId}" is not on the executeCommand allowlist. Add it in Obsidian MCP settings if you trust it.`,
+            `Command "${params.commandId}" is not on the executeCommand allowlist. Add it in Obsidian MCP settings if you trust it.`,
           ),
         );
       }
-      const ok = adapter.executeCommand(commandId);
-      return Promise.resolve(ok ? text(`Executed command: ${commandId}`) : err(`Command not found: ${commandId}`));
+      const ok = adapter.executeCommand(params.commandId);
+      return Promise.resolve(
+        ok
+          ? text(`Executed command: ${params.commandId}`)
+          : err(`Command not found: ${params.commandId}`),
+      );
     },
   };
 }
@@ -113,35 +163,28 @@ export function createPluginInteropModule(
     metadata: { id: 'plugin-interop', name: 'Plugin Interop', description: 'List plugins, check status, execute commands, and integrate with Dataview/Templater' },
     tools(): ToolDefinition[] {
       return [
-        {
+        defineTool({
           name: 'plugin_list',
           description: describeTool({
             summary: 'List every installed community plugin with its enabled flag.',
             returns: 'JSON: [{ id, name, enabled, ... }].',
           }),
-          schema: { ...responseFormatField },
+          schema: listSchema,
           handler: h.listPlugins,
           annotations: annotations.readExternal,
-        },
-        {
+        }),
+        defineTool({
           name: 'plugin_check',
           description: describeTool({
             summary: 'Check whether a plugin is installed and enabled.',
             args: ['pluginId (string, 1..200): Plugin id, e.g. "dataview".'],
             returns: 'JSON: { pluginId, installed, enabled }.',
           }),
-          schema: {
-            pluginId: z
-              .string()
-              .min(1)
-              .max(200)
-              .describe('Community plugin id (e.g. "dataview")'),
-            ...responseFormatField,
-          },
+          schema: checkSchema,
           handler: h.checkPlugin,
           annotations: annotations.readExternal,
-        },
-        {
+        }),
+        defineTool({
           name: 'plugin_dataview_query',
           description: describeTool({
             summary: 'Execute a Dataview (DQL / dataview-js) query.',
@@ -149,18 +192,11 @@ export function createPluginInteropModule(
             returns: 'JSON envelope with the query echoed; full execution requires the Dataview plugin at runtime.',
             errors: ['"Dataview plugin is not installed or enabled" if the plugin is missing.'],
           }),
-          schema: {
-            query: z
-              .string()
-              .min(1)
-              .max(10_000)
-              .describe('Dataview query (DQL or Dataview-js)'),
-            ...responseFormatField,
-          },
+          schema: dataviewSchema,
           handler: h.dataviewQuery,
           annotations: annotations.readExternal,
-        },
-        {
+        }),
+        defineTool({
           name: 'plugin_templater_execute',
           description: describeTool({
             summary: 'Execute a Templater template file.',
@@ -168,17 +204,11 @@ export function createPluginInteropModule(
             returns: 'JSON envelope noting the template path; full execution requires the Templater plugin.',
             errors: ['"Templater plugin is not installed or enabled" if the plugin is missing.'],
           }),
-          schema: {
-            templatePath: z
-              .string()
-              .min(1)
-              .max(4096)
-              .describe('Vault-relative path to the Templater template'),
-          },
+          schema: templaterSchema,
           handler: h.templaterExecute,
           annotations: annotations.destructiveExternal,
-        },
-        {
+        }),
+        defineTool({
           name: 'plugin_execute_command',
           description: describeTool({
             summary: 'Execute any Obsidian command by its id.',
@@ -187,16 +217,10 @@ export function createPluginInteropModule(
             examples: ['Use when: triggering "editor:save-file" programmatically.'],
             errors: ['"Command not found" if the id is not registered.'],
           }),
-          schema: {
-            commandId: z
-              .string()
-              .min(1)
-              .max(200)
-              .describe('Obsidian command id (e.g. "app:reload")'),
-          },
+          schema: executeCommandSchema,
           handler: h.executeCommand,
           annotations: annotations.destructiveExternal,
-        },
+        }),
       ];
     },
   };
