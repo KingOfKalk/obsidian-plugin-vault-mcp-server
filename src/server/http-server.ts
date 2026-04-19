@@ -71,7 +71,12 @@ export class HttpMcpServer {
     const corsOptions = this.options.corsOptions ?? DEFAULT_CORS_OPTIONS;
 
     const handler = (req: IncomingMessage, res: ServerResponse): void => {
-      void this.handleRequest(req, res, corsOptions);
+      // Request handler: log unhandled rejections but don't fire a Notice per
+      // request — that would spam users under failure conditions.
+      this.handleRequest(req, res, corsOptions).catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Unhandled request error: ${message}`, error);
+      });
     };
 
     this.httpServer = this.options.tls
