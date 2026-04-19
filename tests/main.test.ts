@@ -232,6 +232,59 @@ describe('McpPlugin.onload autoStart behaviour', () => {
     }
   });
 
+  it('leaves plugin.httpServer null when startServer fails, and wires a fresh instance on the next successful start', async () => {
+    const plugin = createPlugin({
+      schemaVersion: 6,
+      serverAddress: '127.0.0.1',
+      port: 28741,
+      accessKey: '',
+      httpsEnabled: false,
+      tlsCertificate: null,
+      debugMode: false,
+      autoStart: false,
+      authEnabled: false,
+      moduleStates: {},
+    });
+
+    interface InternalPlugin {
+      httpServer: unknown;
+    }
+
+    await plugin.onload();
+
+    const internals = plugin as unknown as InternalPlugin;
+    expect(internals.httpServer).toBeNull();
+
+    const { HttpMcpServer } = await import('../src/server/http-server');
+    const failingStart = vi
+      .spyOn(HttpMcpServer.prototype, 'start')
+      .mockRejectedValueOnce(new Error('EADDRINUSE'));
+
+    try {
+      await plugin.startServer();
+      // After a failed start, httpServer must remain null — no half-constructed
+      // reference hanging around.
+      expect(internals.httpServer).toBeNull();
+    } finally {
+      failingStart.mockRestore();
+    }
+
+    // A subsequent successful start must assign a fresh instance.
+    const okStart = vi
+      .spyOn(HttpMcpServer.prototype, 'start')
+      .mockResolvedValue(undefined);
+    const isRunningSpy = vi
+      .spyOn(HttpMcpServer.prototype, 'isRunning', 'get')
+      .mockReturnValue(true);
+    try {
+      await plugin.startServer();
+      expect(internals.httpServer).not.toBeNull();
+    } finally {
+      okStart.mockRestore();
+      isRunningSpy.mockRestore();
+    }
+  });
+
   it('clears the last-start error when the next startServer succeeds', async () => {
     const plugin = createPlugin({
       schemaVersion: 6,
