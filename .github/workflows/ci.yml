@@ -32,6 +32,9 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+      - name: Check tool registry snapshot is up to date
+        run: npm run docs:check
+
       - name: Test
         run: npm run test:coverage
 
