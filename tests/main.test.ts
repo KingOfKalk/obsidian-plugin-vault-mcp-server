@@ -1,32 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { App, PluginManifest } from 'obsidian';
 import McpPlugin from '../src/main';
+import { mockApp, type MockApp, type MockManifest } from './__mocks__/obsidian';
 
 interface TestPlugin extends McpPlugin {
   loadData: () => Promise<Record<string, unknown> | null>;
   saveData: (data: unknown) => Promise<void>;
 }
 
+interface MutablePluginFields {
+  app: MockApp;
+  manifest: MockManifest;
+}
+
 function createPlugin(persisted: Record<string, unknown> | null): TestPlugin {
-  const app = {
-    vault: {
-      configDir: '.obsidian',
-      adapter: {
-        basePath: '/tmp/vault',
-        exists: (): Promise<boolean> => Promise.resolve(false),
-        read: (): Promise<string> => Promise.resolve(''),
-        write: (): Promise<void> => Promise.resolve(),
-        append: (): Promise<void> => Promise.resolve(),
-        stat: (): Promise<null> => Promise.resolve(null),
-      },
-    },
-    workspace: {},
-    metadataCache: {},
-  };
-  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access */
-  const plugin = new McpPlugin(app as any, { id: 'obsidian-mcp', version: '0.0.0' } as any) as unknown as TestPlugin;
-  (plugin as any).app = app;
-  (plugin as any).manifest = { id: 'obsidian-mcp', version: '0.0.0' };
-  /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access */
+  const app = mockApp();
+  const manifest: MockManifest = { id: 'obsidian-mcp', version: '0.0.0' };
+  const plugin = new McpPlugin(
+    app as unknown as App,
+    manifest as unknown as PluginManifest,
+  ) as unknown as TestPlugin;
+  const mutable = plugin as unknown as MutablePluginFields;
+  mutable.app = app;
+  mutable.manifest = manifest;
   plugin.loadData = vi.fn().mockResolvedValue(persisted);
   plugin.saveData = vi.fn().mockResolvedValue(undefined);
   return plugin;
