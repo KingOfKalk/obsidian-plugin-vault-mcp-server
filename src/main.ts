@@ -139,19 +139,21 @@ export default class McpPlugin extends Plugin {
       }
     }
 
+    const server = new HttpMcpServer(
+      () => createMcpServer(this.registry, this.logger),
+      this.logger,
+      {
+        host: this.settings.serverAddress,
+        port: attemptedPort,
+        authEnabled: this.settings.authEnabled,
+        accessKey: this.settings.accessKey,
+        tls,
+      },
+    );
+
     try {
-      this.httpServer = new HttpMcpServer(
-        () => createMcpServer(this.registry, this.logger),
-        this.logger,
-        {
-          host: this.settings.serverAddress,
-          port: attemptedPort,
-          authEnabled: this.settings.authEnabled,
-          accessKey: this.settings.accessKey,
-          tls,
-        },
-      );
-      await this.httpServer.start();
+      await server.start();
+      this.httpServer = server;
       this.lastStartError = null;
       this.updateStatusDisplay();
       new Notice(t('notice_server_started', { port: attemptedPort }));
