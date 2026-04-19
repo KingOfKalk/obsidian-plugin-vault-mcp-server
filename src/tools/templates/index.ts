@@ -4,6 +4,7 @@ import { ToolModule, ToolDefinition, annotations } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateVaultPath } from '../../utils/path-guard';
 import { handleToolError } from '../shared/errors';
+import { describeTool } from '../shared/describe';
 
 type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
 
@@ -73,14 +74,29 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
       return [
         {
           name: 'template_list',
-          description: 'List available templates',
+          description: describeTool({
+            summary: 'List files in the vault\'s "templates" folder.',
+            returns: 'JSON: string[] of template file paths. Empty array if the folder is missing.',
+          }),
           schema: {},
           handler: h.listTemplates,
           annotations: annotations.read,
         },
         {
           name: 'template_create_from',
-          description: 'Create a file from a template with variable substitution',
+          description: describeTool({
+            summary: 'Create a file by expanding {{variable}} placeholders in a template.',
+            args: [
+              'templatePath (string): Template source file.',
+              'destPath (string): New file path.',
+              'variables (Record<string,string>, optional): Variable map. date/time/title are built in.',
+            ],
+            returns: 'Plain text "Created <dest> from template <src>".',
+            errors: [
+              '"File not found" if templatePath is missing.',
+              '"File already exists" if destPath is taken.',
+            ],
+          }),
           schema: {
             templatePath: z
               .string()
@@ -102,7 +118,14 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
         },
         {
           name: 'template_expand',
-          description: 'Expand template variables in a string',
+          description: describeTool({
+            summary: 'Expand {{variable}} placeholders in a supplied string without writing any file.',
+            args: [
+              'template (string): Template body containing {{variable}} tokens.',
+              'variables (Record<string,string>, optional): Variable map.',
+            ],
+            returns: 'Plain text: the expanded string.',
+          }),
           schema: {
             template: z
               .string()

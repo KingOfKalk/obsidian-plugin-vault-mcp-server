@@ -1,6 +1,7 @@
 import { ToolModule, ToolDefinition, annotations } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { createSearchHandlers } from './handlers';
+import { describeTool } from '../shared/describe';
 import {
   searchFulltextSchema,
   filePathSchema,
@@ -22,84 +23,142 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
       return [
         {
           name: 'search_fulltext',
-          description: 'Full-text search across vault contents',
+          description: describeTool({
+            summary: 'Case-insensitive substring search across all vault file contents.',
+            args: ['query (string, 1..500): Substring to look for.'],
+            returns: 'JSON: [{ path, matches: string[] }]. Truncated at 25 000 characters.',
+            examples: ['Use when: "find everything mentioning Obsidian".'],
+            errors: ['"Query must not be empty" on empty input.'],
+          }),
           schema: searchFulltextSchema,
           handler: handlers.searchFulltext,
           annotations: annotations.read,
         },
         {
           name: 'search_frontmatter',
-          description: 'Query frontmatter properties for a given file',
+          description: describeTool({
+            summary: 'Get the parsed YAML frontmatter block for a file.',
+            args: ['path (string): Vault-relative path.'],
+            returns: 'JSON: the frontmatter object, or {} when absent.',
+            errors: ['"File not found" if the path does not exist.'],
+          }),
           schema: filePathSchema,
           handler: handlers.searchFrontmatter,
           annotations: annotations.read,
         },
         {
           name: 'search_tags',
-          description: 'Query all tags in the vault with file associations',
+          description: describeTool({
+            summary: 'List every tag used anywhere in the vault with the files that use it.',
+            returns: 'JSON: Record<tag, string[]>. Each key is the tag including leading #.',
+          }),
           schema: {},
           handler: handlers.searchTags,
           annotations: annotations.read,
         },
         {
           name: 'search_headings',
-          description: 'Query headings for a given file',
+          description: describeTool({
+            summary: 'List headings (with levels) for a file.',
+            args: ['path (string): Vault-relative path.'],
+            returns: 'JSON: [{ heading, level }].',
+            errors: ['"File not found" if the path does not exist.'],
+          }),
           schema: filePathSchema,
           handler: handlers.searchHeadings,
           annotations: annotations.read,
         },
         {
           name: 'search_outgoing_links',
-          description: 'Query all outgoing links for a given file',
+          description: describeTool({
+            summary: 'List outgoing links from a file.',
+            args: ['path (string): Vault-relative path.'],
+            returns: 'JSON: [{ link, displayText? }].',
+            errors: ['"File not found" if the path does not exist.'],
+          }),
           schema: filePathSchema,
           handler: handlers.searchOutgoingLinks,
           annotations: annotations.read,
         },
         {
           name: 'search_embeds',
-          description: 'Query all embeds for a given file',
+          description: describeTool({
+            summary: 'List embedded resources (![[...]]) referenced by a file.',
+            args: ['path (string): Vault-relative path.'],
+            returns: 'JSON: [{ link, displayText? }].',
+            errors: ['"File not found" if the path does not exist.'],
+          }),
           schema: filePathSchema,
           handler: handlers.searchEmbeds,
           annotations: annotations.read,
         },
         {
           name: 'search_backlinks',
-          description: 'Get all backlinks for a given file',
+          description: describeTool({
+            summary: 'List files that link TO a given file (reverse links).',
+            args: ['path (string): Target file path.'],
+            returns: 'JSON: string[] of paths that reference the target.',
+            errors: ['"File not found" if the path does not exist.'],
+          }),
           schema: filePathSchema,
           handler: handlers.searchBacklinks,
           annotations: annotations.read,
         },
         {
           name: 'search_resolved_links',
-          description: 'Get resolved links across the vault',
+          description: describeTool({
+            summary: 'Get the vault-wide map of resolved links (targets that exist).',
+            returns: 'JSON: Record<source, Record<target, count>>.',
+          }),
           schema: {},
           handler: handlers.searchResolvedLinks,
           annotations: annotations.read,
         },
         {
           name: 'search_unresolved_links',
-          description: 'Get unresolved links across the vault',
+          description: describeTool({
+            summary: 'Get the vault-wide map of unresolved links (targets that do not exist).',
+            returns: 'JSON: Record<source, Record<target, count>>.',
+            examples: ['Use when: hunting for broken [[wikilinks]] to clean up.'],
+          }),
           schema: {},
           handler: handlers.searchUnresolvedLinks,
           annotations: annotations.read,
         },
         {
           name: 'search_block_references',
-          description: 'Query block references for a given file',
+          description: describeTool({
+            summary: 'List block references (^block-id) defined in a file.',
+            args: ['path (string): Vault-relative path.'],
+            returns: 'JSON: [{ id, line }].',
+            errors: ['"File not found" if the path does not exist.'],
+          }),
           schema: filePathSchema,
           handler: handlers.searchBlockReferences,
           annotations: annotations.read,
         },
         {
           name: 'search_by_tag',
-          description: 'Search files by tag',
+          description: describeTool({
+            summary: 'Find files tagged with a given tag (with or without leading #).',
+            args: ['tag (string, 1..200): Tag to search for, e.g. "project" or "#project".'],
+            returns: 'JSON: string[] of vault-relative file paths.',
+          }),
           schema: searchByTagSchema,
           handler: handlers.searchByTag,
           annotations: annotations.read,
         },
         {
           name: 'search_by_frontmatter',
-          description: 'Search files by frontmatter property value',
+          description: describeTool({
+            summary: 'Find files whose YAML frontmatter has a key with a given value.',
+            args: [
+              'key (string, 1..200): Frontmatter property name.',
+              'value (string, ≤1000): Expected value (compared as stringified).',
+            ],
+            returns: 'JSON: string[] of matching file paths.',
+            examples: ['Use when: "find all notes where status == done".'],
+          }),
           schema: searchByFrontmatterSchema,
           handler: handlers.searchByFrontmatter,
           annotations: annotations.read,

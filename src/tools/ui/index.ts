@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { ToolModule, ToolDefinition, annotations } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
+import { describeTool } from '../shared/describe';
 
 type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
 
@@ -42,7 +43,14 @@ export function createUiModule(adapter: ObsidianAdapter): ToolModule {
       return [
         {
           name: 'ui_notice',
-          description: 'Show a notice/notification',
+          description: describeTool({
+            summary: 'Show a transient notice/toast in Obsidian.',
+            args: [
+              'message (string, 1..1000): Notice text.',
+              'duration (integer ms, 0..60000, optional): Auto-dismiss delay (0 = sticky).',
+            ],
+            returns: 'Plain text "Notice shown".',
+          }),
           schema: {
             message: z
               .string()
@@ -62,7 +70,11 @@ export function createUiModule(adapter: ObsidianAdapter): ToolModule {
         },
         {
           name: 'ui_confirm',
-          description: 'Show a confirmation modal',
+          description: describeTool({
+            summary: 'Stub for a confirmation modal — user interaction cannot be captured via MCP.',
+            args: ['message (string, 1..1000): Question text.'],
+            returns: 'JSON envelope noting that confirmation modals need UI interaction.',
+          }),
           schema: {
             message: z
               .string()
@@ -75,7 +87,14 @@ export function createUiModule(adapter: ObsidianAdapter): ToolModule {
         },
         {
           name: 'ui_prompt',
-          description: 'Show an input prompt modal',
+          description: describeTool({
+            summary: 'Stub for an input prompt modal — user input cannot be captured via MCP.',
+            args: [
+              'message (string, 1..1000): Prompt label.',
+              'defaultValue (string, ≤1000, optional): Pre-filled value.',
+            ],
+            returns: 'JSON envelope noting that prompts need UI interaction.',
+          }),
           schema: {
             message: z
               .string()
