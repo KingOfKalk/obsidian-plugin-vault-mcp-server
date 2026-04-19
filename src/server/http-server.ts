@@ -17,6 +17,16 @@ export interface HttpServerOptions {
   corsOptions?: CorsOptions;
   /** When provided, the server uses HTTPS with these PEM-encoded credentials. */
   tls?: { cert: string; key: string };
+  /**
+   * How long an MCP session may be idle before the periodic sweep closes it.
+   * Defaults to 10 minutes. Set to 0 to disable the idle timeout.
+   */
+  sessionIdleTimeoutMs?: number;
+  /**
+   * How often the idle-session sweep runs. Defaults to 60 seconds. Set to 0
+   * to disable the sweep entirely.
+   */
+  sessionSweepIntervalMs?: number;
 }
 
 export type McpServerFactory = () => McpServer;
@@ -24,9 +34,12 @@ export type McpServerFactory = () => McpServer;
 interface Session {
   transport: StreamableHTTPServerTransport;
   server: McpServer;
+  lastActivity: number;
 }
 
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
+const DEFAULT_SESSION_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
+const DEFAULT_SESSION_SWEEP_INTERVAL_MS = 60 * 1000;
 
 export class HttpMcpServer {
   private httpServer: Server | null = null;
@@ -35,11 +48,19 @@ export class HttpMcpServer {
   private options: HttpServerOptions;
   private _connectedClients = 0;
   private sessions = new Map<string, Session>();
+  private sweepTimer: ReturnType<typeof setInterval> | null = null;
+  private clock: () => number;
 
-  constructor(serverFactory: McpServerFactory, logger: Logger, options: HttpServerOptions) {
+  constructor(
+    serverFactory: McpServerFactory,
+    logger: Logger,
+    options: HttpServerOptions,
+    clock: () => number = Date.now,
+  ) {
     this.serverFactory = serverFactory;
     this.logger = logger;
     this.options = options;
+    this.clock = clock;
   }
 
   get connectedClients(): number {
@@ -110,6 +131,49 @@ export class HttpMcpServer {
         resolve();
       });
     });
+
+    this.startIdleSweep();
+  }
+
+  private startIdleSweep(): void {
+    const interval =
+      this.options.sessionSweepIntervalMs ?? DEFAULT_SESSION_SWEEP_INTERVAL_MS;
+    if (interval <= 0) {
+      return;
+    }
+    this.sweepTimer = setInterval(() => {
+      this.sweepIdleSessions();
+    }, interval);
+    if (typeof this.sweepTimer.unref === 'function') {
+      this.sweepTimer.unref();
+    }
+  }
+
+  /**
+   * Runs the idle-session sweep immediately. Exposed for unit tests — normal
+   * operation relies on the periodic timer kicked off by `start()`.
+   * @internal
+   */
+  runIdleSweepNow(): void {
+    this.sweepIdleSessions();
+  }
+
+  private sweepIdleSessions(): void {
+    const timeout =
+      this.options.sessionIdleTimeoutMs ?? DEFAULT_SESSION_IDLE_TIMEOUT_MS;
+    if (timeout <= 0) {
+      return;
+    }
+    const now = this.clock();
+    for (const [id, session] of this.sessions) {
+      const idleMs = now - session.lastActivity;
+      if (idleMs > timeout) {
+        this.logger.info(
+          `Closing idle MCP session: ${id} (idle ${String(idleMs)}ms, timeout ${String(timeout)}ms)`,
+        );
+        this.removeSession(id);
+      }
+    }
   }
 
   private async handleRequest(
@@ -149,6 +213,7 @@ export class HttpMcpServer {
       if (sessionId) {
         const session = this.sessions.get(sessionId);
         if (session) {
+          session.lastActivity = this.clock();
           await session.transport.handleRequest(req, res);
           return;
         }
@@ -184,6 +249,7 @@ export class HttpMcpServer {
         sendJsonRpcError(res, 404, -32001, 'Session not found');
         return;
       }
+      session.lastActivity = this.clock();
       await session.transport.handleRequest(req, res, parsedBody);
       return;
     }
@@ -202,7 +268,11 @@ export class HttpMcpServer {
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: (): string => randomUUID(),
       onsessioninitialized: (id: string): void => {
-        this.sessions.set(id, { transport, server });
+        this.sessions.set(id, {
+          transport,
+          server,
+          lastActivity: this.clock(),
+        });
         this.logger.debug(`MCP session initialized: ${id} (active: ${String(this.sessions.size)})`);
       },
       onsessionclosed: (id: string): void => {
@@ -217,7 +287,7 @@ export class HttpMcpServer {
     };
 
     await server.connect(transport);
-    return { transport, server };
+    return { transport, server, lastActivity: this.clock() };
   }
 
   private removeSession(id: string): void {
@@ -227,9 +297,12 @@ export class HttpMcpServer {
     }
     this.sessions.delete(id);
     this.logger.debug(`MCP session closed: ${id} (active: ${String(this.sessions.size)})`);
-    void session.server.close().catch((error: unknown) => {
+    session.server.close().catch((error: unknown) => {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.warn(`Error closing MCP server for session ${id}: ${message}`);
+      this.logger.error(
+        `Error closing MCP server for session ${id}: ${message}`,
+        error,
+      );
     });
   }
 
@@ -240,21 +313,32 @@ export class HttpMcpServer {
 
     this.logger.info('Stopping MCP server...');
 
-    const sessionsToClose = Array.from(this.sessions.values());
+    if (this.sweepTimer) {
+      clearInterval(this.sweepTimer);
+      this.sweepTimer = null;
+    }
+
+    const sessionsToClose = Array.from(this.sessions.entries());
     this.sessions.clear();
     await Promise.all(
-      sessionsToClose.map(async ({ transport, server }) => {
+      sessionsToClose.map(async ([id, { transport, server }]) => {
         try {
           await transport.close();
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
-          this.logger.warn(`Error closing transport: ${message}`);
+          this.logger.error(
+            `Error closing transport for session ${id}: ${message}`,
+            error,
+          );
         }
         try {
           await server.close();
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
-          this.logger.warn(`Error closing MCP server: ${message}`);
+          this.logger.error(
+            `Error closing MCP server for session ${id}: ${message}`,
+            error,
+          );
         }
       }),
     );
