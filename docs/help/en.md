@@ -162,6 +162,17 @@ default. Today this contains:
 
 - `get_date` — returns the current local time as ISO-8601 with offset.
 
+### Execute Command Allowlist
+
+The `plugin_execute_command` tool in Plugin Interop can run any Obsidian
+command — including destructive ones (e.g. `app:delete-file`). By default
+the allowlist is empty, which means the tool refuses every call with a
+clear error. To enable specific commands, add their ids (one per line) to
+the **Execute Command Allowlist** section in settings. Only commands on the
+allowlist will run; everything else is rejected with the command id echoed
+back. Keep the list short and curated — you're granting MCP clients the
+same power as the Obsidian command palette.
+
 A **Refresh** button at the top of this section re-discovers modules without
 restarting Obsidian (useful when developing modules).
 

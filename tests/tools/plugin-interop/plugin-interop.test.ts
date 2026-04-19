@@ -46,11 +46,53 @@ describe('plugin interop module', () => {
     expect(result.isError).toBe(true);
   });
 
-  it('should execute a command', async () => {
-    const module = createPluginInteropModule(adapter);
-    const tool = module.tools().find((t) => t.name === 'plugin_execute_command')!;
-    const result = await tool.handler({ commandId: 'app:toggle-left-sidebar' });
-    expect(result.isError).toBeUndefined();
-    expect(adapter.getExecutedCommands()).toContain('app:toggle-left-sidebar');
+  describe('plugin_execute_command allowlist', () => {
+    it('refuses every call when the allowlist is empty (default)', async () => {
+      const module = createPluginInteropModule(adapter);
+      const tool = module.tools().find((t) => t.name === 'plugin_execute_command')!;
+      const result = await tool.handler({ commandId: 'app:toggle-left-sidebar' });
+      expect(result.isError).toBe(true);
+      expect(getText(result)).toContain('Command execution disabled');
+      expect(adapter.getExecutedCommands()).not.toContain('app:toggle-left-sidebar');
+    });
+
+    it('refuses commands not on the allowlist', async () => {
+      const module = createPluginInteropModule(adapter, {
+        getExecuteCommandAllowlist: () => ['app:reload'],
+      });
+      const tool = module.tools().find((t) => t.name === 'plugin_execute_command')!;
+      const result = await tool.handler({ commandId: 'app:toggle-left-sidebar' });
+      expect(result.isError).toBe(true);
+      expect(getText(result)).toContain('not on the executeCommand allowlist');
+      expect(adapter.getExecutedCommands()).not.toContain('app:toggle-left-sidebar');
+    });
+
+    it('runs commands that are on the allowlist', async () => {
+      const module = createPluginInteropModule(adapter, {
+        getExecuteCommandAllowlist: () => ['app:toggle-left-sidebar'],
+      });
+      const tool = module.tools().find((t) => t.name === 'plugin_execute_command')!;
+      const result = await tool.handler({ commandId: 'app:toggle-left-sidebar' });
+      expect(result.isError).toBeUndefined();
+      expect(adapter.getExecutedCommands()).toContain('app:toggle-left-sidebar');
+    });
+
+    it('reads the allowlist lazily on each call', async () => {
+      let allowed: string[] = [];
+      const module = createPluginInteropModule(adapter, {
+        getExecuteCommandAllowlist: () => allowed,
+      });
+      const tool = module.tools().find((t) => t.name === 'plugin_execute_command')!;
+
+      // First call: not on list.
+      const r1 = await tool.handler({ commandId: 'app:reload' });
+      expect(r1.isError).toBe(true);
+
+      // User adds the command — next call should succeed without re-creating
+      // the module.
+      allowed = ['app:reload'];
+      const r2 = await tool.handler({ commandId: 'app:reload' });
+      expect(r2.isError).toBeUndefined();
+    });
   });
 });

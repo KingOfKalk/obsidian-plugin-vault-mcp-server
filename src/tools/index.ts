@@ -9,7 +9,19 @@ import { createUiModule } from './ui';
 import { createVaultModule } from './vault';
 import { createWorkspaceModule } from './workspace';
 
-export type ModuleFactory = (adapter: ObsidianAdapter) => ToolModule;
+/**
+ * Options passed through to every module factory. Modules ignore fields
+ * they don't care about; only plugin-interop currently reads
+ * `getExecuteCommandAllowlist`.
+ */
+export interface ModuleOptions {
+  getExecuteCommandAllowlist?: () => string[];
+}
+
+export type ModuleFactory = (
+  adapter: ObsidianAdapter,
+  options?: ModuleOptions,
+) => ToolModule;
 
 export const MODULE_FACTORIES: ModuleFactory[] = [
   createVaultModule,
@@ -22,6 +34,9 @@ export const MODULE_FACTORIES: ModuleFactory[] = [
   createExtrasModule,
 ];
 
-export function discoverModules(adapter: ObsidianAdapter): ToolModule[] {
-  return MODULE_FACTORIES.map((factory) => factory(adapter));
+export function discoverModules(
+  adapter: ObsidianAdapter,
+  options: ModuleOptions = {},
+): ToolModule[] {
+  return MODULE_FACTORIES.map((factory) => factory(adapter, options));
 }

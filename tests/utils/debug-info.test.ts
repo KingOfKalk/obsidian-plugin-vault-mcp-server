@@ -65,7 +65,7 @@ function makeModule(
 }
 
 const baseSettings: McpPluginSettings = {
-  schemaVersion: 7,
+  schemaVersion: 8,
   serverAddress: '127.0.0.1',
   port: 28741,
   authEnabled: true,
@@ -77,6 +77,7 @@ const baseSettings: McpPluginSettings = {
   customTlsKeyPath: null,
   debugMode: true,
   autoStart: false,
+  executeCommandAllowlist: [],
   moduleStates: {},
 };
 

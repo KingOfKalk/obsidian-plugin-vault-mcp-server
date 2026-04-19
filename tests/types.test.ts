@@ -22,8 +22,8 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.moduleStates).toEqual({});
   });
 
-  it('should have schema version 7', () => {
-    expect(DEFAULT_SETTINGS.schemaVersion).toBe(7);
+  it('should have schema version 8', () => {
+    expect(DEFAULT_SETTINGS.schemaVersion).toBe(8);
   });
 
   it('has bring-your-own-cert disabled by default', () => {

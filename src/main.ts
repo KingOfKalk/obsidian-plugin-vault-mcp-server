@@ -242,7 +242,10 @@ export default class McpPlugin extends Plugin {
   }
 
   private registerDiscoveredModules(): void {
-    for (const module of discoverModules(this.adapter)) {
+    const modules = discoverModules(this.adapter, {
+      getExecuteCommandAllowlist: () => this.settings.executeCommandAllowlist,
+    });
+    for (const module of modules) {
       this.registry.registerModule(module);
     }
     this.registry.applyState(this.settings.moduleStates);
