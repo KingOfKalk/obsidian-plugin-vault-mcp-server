@@ -134,6 +134,80 @@ describe('vault handlers', () => {
       const result = await handlers.renameFile({ path: '../test.md', newName: 'new.md' });
       expect(result.isError).toBe(true);
     });
+
+    it('should reject newName containing forward slashes', async () => {
+      adapter.addFile('notes/old.md', 'content');
+      const result = await handlers.renameFile({
+        path: 'notes/old.md',
+        newName: 'sub/dir',
+      });
+      expect(result.isError).toBe(true);
+      expect(getText(result)).toBe('Error: Invalid rename target');
+      // File untouched — still at original path.
+      expect(await adapter.readFile('notes/old.md')).toBe('content');
+    });
+
+    it('should reject newName attempting directory traversal', async () => {
+      adapter.addFile('notes/old.md', 'content');
+      const result = await handlers.renameFile({
+        path: 'notes/old.md',
+        newName: '../escape',
+      });
+      expect(result.isError).toBe(true);
+      expect(getText(result)).toBe('Error: Invalid rename target');
+      expect(await adapter.readFile('notes/old.md')).toBe('content');
+    });
+
+    it('should reject empty newName', async () => {
+      adapter.addFile('notes/old.md', 'content');
+      const result = await handlers.renameFile({
+        path: 'notes/old.md',
+        newName: '',
+      });
+      expect(result.isError).toBe(true);
+      expect(getText(result)).toBe('Error: Invalid rename target');
+    });
+
+    it('should reject whitespace-only newName', async () => {
+      adapter.addFile('notes/old.md', 'content');
+      const result = await handlers.renameFile({
+        path: 'notes/old.md',
+        newName: '   ',
+      });
+      expect(result.isError).toBe(true);
+      expect(getText(result)).toBe('Error: Invalid rename target');
+    });
+
+    it('should reject newName with Windows-style backslashes', async () => {
+      adapter.addFile('notes/old.md', 'content');
+      const result = await handlers.renameFile({
+        path: 'notes/old.md',
+        newName: 'foo\\bar',
+      });
+      expect(result.isError).toBe(true);
+      expect(getText(result)).toBe('Error: Invalid rename target');
+    });
+
+    it('should reject newName containing null bytes', async () => {
+      adapter.addFile('notes/old.md', 'content');
+      const result = await handlers.renameFile({
+        path: 'notes/old.md',
+        newName: 'foo\0bar',
+      });
+      expect(result.isError).toBe(true);
+      expect(getText(result)).toBe('Error: Invalid rename target');
+    });
+
+    it('should not echo the user-supplied newName in the error', async () => {
+      adapter.addFile('notes/old.md', 'content');
+      const result = await handlers.renameFile({
+        path: 'notes/old.md',
+        newName: '../../etc/passwd',
+      });
+      expect(result.isError).toBe(true);
+      expect(getText(result)).not.toContain('etc/passwd');
+      expect(getText(result)).not.toContain('..');
+    });
   });
 
   describe('moveFile', () => {
