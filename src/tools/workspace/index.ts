@@ -4,6 +4,7 @@ import { ToolModule, ToolDefinition, annotations } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateVaultPath } from '../../utils/path-guard';
 import { handleToolError } from '../shared/errors';
+import { describeTool } from '../shared/describe';
 
 type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
 
@@ -50,14 +51,26 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
       return [
         {
           name: 'workspace_get_active_leaf',
-          description: 'Get active pane info',
+          description: describeTool({
+            summary: 'Get info about the currently-focused leaf (pane).',
+            returns: 'JSON: { id, type, ... } describing the active leaf.',
+            errors: ['"No active leaf" if no leaf is focused.'],
+          }),
           schema: {},
           handler: h.getActiveLeaf,
           annotations: annotations.read,
         },
         {
           name: 'workspace_open_file',
-          description: 'Open a file in a pane',
+          description: describeTool({
+            summary: 'Open a file in a leaf, optionally requesting a view mode.',
+            args: [
+              'path (string): Vault-relative file path.',
+              'mode (enum, optional): "source" | "preview" | "live".',
+            ],
+            returns: 'Plain text "Opened: <path>".',
+            errors: ['"Path must not traverse outside the vault" on traversal attempts.'],
+          }),
           schema: {
             path: z
               .string()
@@ -74,14 +87,22 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
         },
         {
           name: 'workspace_list_leaves',
-          description: 'List all open files and panes',
+          description: describeTool({
+            summary: 'List every open leaf and the file it holds.',
+            returns: 'JSON: [{ path, leafId }].',
+          }),
           schema: {},
           handler: h.listLeaves,
           annotations: annotations.read,
         },
         {
           name: 'workspace_set_active_leaf',
-          description: 'Set focus on a leaf by ID',
+          description: describeTool({
+            summary: 'Focus a specific leaf by id.',
+            args: ['leafId (string): Leaf id from workspace_list_leaves.'],
+            returns: 'Plain text "Active leaf set" on success.',
+            errors: ['"Leaf not found" if the id does not match any leaf.'],
+          }),
           schema: {
             leafId: z
               .string()
@@ -94,7 +115,10 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
         },
         {
           name: 'workspace_get_layout',
-          description: 'Get workspace layout summary',
+          description: describeTool({
+            summary: 'Get a summary of the current workspace layout.',
+            returns: 'JSON: Obsidian\'s layout descriptor (nested splits and leaves).',
+          }),
           schema: {},
           handler: h.getLayout,
           annotations: annotations.read,

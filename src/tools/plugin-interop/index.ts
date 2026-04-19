@@ -3,6 +3,7 @@ import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { ToolModule, ToolDefinition, annotations } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { handleToolError } from '../shared/errors';
+import { describeTool } from '../shared/describe';
 
 type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
 
@@ -57,14 +58,21 @@ export function createPluginInteropModule(adapter: ObsidianAdapter): ToolModule 
       return [
         {
           name: 'plugin_list',
-          description: 'List installed plugins with status',
+          description: describeTool({
+            summary: 'List every installed community plugin with its enabled flag.',
+            returns: 'JSON: [{ id, name, enabled, ... }].',
+          }),
           schema: {},
           handler: h.listPlugins,
           annotations: annotations.readExternal,
         },
         {
           name: 'plugin_check',
-          description: 'Check if a plugin is installed and enabled',
+          description: describeTool({
+            summary: 'Check whether a plugin is installed and enabled.',
+            args: ['pluginId (string, 1..200): Plugin id, e.g. "dataview".'],
+            returns: 'JSON: { pluginId, installed, enabled }.',
+          }),
           schema: {
             pluginId: z
               .string()
@@ -77,7 +85,12 @@ export function createPluginInteropModule(adapter: ObsidianAdapter): ToolModule 
         },
         {
           name: 'plugin_dataview_query',
-          description: 'Execute a Dataview query',
+          description: describeTool({
+            summary: 'Execute a Dataview (DQL / dataview-js) query.',
+            args: ['query (string, 1..10000): Dataview query text.'],
+            returns: 'JSON envelope with the query echoed; full execution requires the Dataview plugin at runtime.',
+            errors: ['"Dataview plugin is not installed or enabled" if the plugin is missing.'],
+          }),
           schema: {
             query: z
               .string()
@@ -90,7 +103,12 @@ export function createPluginInteropModule(adapter: ObsidianAdapter): ToolModule 
         },
         {
           name: 'plugin_templater_execute',
-          description: 'Execute a Templater template',
+          description: describeTool({
+            summary: 'Execute a Templater template file.',
+            args: ['templatePath (string): Vault-relative path to the Templater template.'],
+            returns: 'JSON envelope noting the template path; full execution requires the Templater plugin.',
+            errors: ['"Templater plugin is not installed or enabled" if the plugin is missing.'],
+          }),
           schema: {
             templatePath: z
               .string()
@@ -103,7 +121,13 @@ export function createPluginInteropModule(adapter: ObsidianAdapter): ToolModule 
         },
         {
           name: 'plugin_execute_command',
-          description: 'Execute an Obsidian command by ID',
+          description: describeTool({
+            summary: 'Execute any Obsidian command by its id.',
+            args: ['commandId (string, 1..200): Command id, e.g. "app:reload".'],
+            returns: 'Plain text "Executed command: <id>" or an error if the command is unknown.',
+            examples: ['Use when: triggering "editor:save-file" programmatically.'],
+            errors: ['"Command not found" if the id is not registered.'],
+          }),
           schema: {
             commandId: z
               .string()
