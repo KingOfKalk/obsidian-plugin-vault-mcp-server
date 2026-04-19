@@ -8,8 +8,33 @@ import { makeResponse, readResponseFormat } from '../shared/response';
 
 type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
 
-function textResult(text: string): CallToolResult {
-  return { content: [{ type: 'text', text }] };
+function renderKeyValue(obj: Record<string, unknown>): string {
+  const entries = Object.entries(obj);
+  if (entries.length === 0) return '_No entries._';
+  return entries.map(([k, v]) => `- **${k}**: ${String(v)}`).join('\n');
+}
+
+function renderPathList(items: string[], empty = 'No matches.'): string {
+  if (items.length === 0) return empty;
+  return items.map((p) => `- ${p}`).join('\n');
+}
+
+function renderPaginatedPaths(
+  page: {
+    total: number;
+    count: number;
+    items: string[];
+    has_more: boolean;
+    next_offset?: number;
+  },
+  label: string,
+): string {
+  const header = `**${String(page.total)} ${label}${page.total === 1 ? '' : 's'}**`;
+  const body = renderPathList(page.items);
+  const footer = page.has_more
+    ? `\n\n_Showing ${String(page.count)} of ${String(page.total)} — next offset: ${String(page.next_offset ?? '')}_`
+    : '';
+  return `${header}\n\n${body}${footer}`;
 }
 
 export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
@@ -51,17 +76,39 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
     searchFrontmatter(params): Promise<CallToolResult> {
       try {
         const path = validateVaultPath(params.path as string, vaultPath);
-        const frontmatter = adapter.getFrontmatter(path);
-        return Promise.resolve(textResult(JSON.stringify(frontmatter ?? {})));
+        const frontmatter = adapter.getFrontmatter(path) ?? {};
+        return Promise.resolve(
+          makeResponse(
+            { path, frontmatter },
+            (v) =>
+              `**${v.path}** frontmatter:\n${renderKeyValue(v.frontmatter)}`,
+            readResponseFormat(params),
+          ),
+        );
       } catch (error) {
         return Promise.resolve(handleToolError(error));
       }
     },
 
-    searchTags(_params): Promise<CallToolResult> {
+    searchTags(params): Promise<CallToolResult> {
       try {
         const allTags = adapter.getAllTags();
-        return Promise.resolve(textResult(JSON.stringify(allTags)));
+        return Promise.resolve(
+          makeResponse(
+            { tags: allTags },
+            (v) => {
+              const entries = Object.entries(v.tags);
+              if (entries.length === 0) return 'No tags in this vault.';
+              return entries
+                .map(
+                  ([tag, files]) =>
+                    `- **${tag}** — ${String(files.length)} file${files.length === 1 ? '' : 's'}`,
+                )
+                .join('\n');
+            },
+            readResponseFormat(params),
+          ),
+        );
       } catch (error) {
         return Promise.resolve(handleToolError(error));
       }
@@ -71,7 +118,19 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
       try {
         const path = validateVaultPath(params.path as string, vaultPath);
         const headings = adapter.getHeadings(path);
-        return Promise.resolve(textResult(JSON.stringify(headings)));
+        return Promise.resolve(
+          makeResponse(
+            { path, headings },
+            (v) => {
+              if (v.headings.length === 0) return `**${v.path}** has no headings.`;
+              const lines = v.headings.map(
+                (h) => `${'#'.repeat(h.level)} ${h.heading}`,
+              );
+              return `**${v.path}**\n\n${lines.join('\n')}`;
+            },
+            readResponseFormat(params),
+          ),
+        );
       } catch (error) {
         return Promise.resolve(handleToolError(error));
       }
@@ -81,7 +140,19 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
       try {
         const path = validateVaultPath(params.path as string, vaultPath);
         const links = adapter.getLinks(path);
-        return Promise.resolve(textResult(JSON.stringify(links)));
+        return Promise.resolve(
+          makeResponse(
+            { path, links },
+            (v) => {
+              if (v.links.length === 0) return `**${v.path}** has no outgoing links.`;
+              const lines = v.links.map(
+                (l) => `- ${l.displayText ? `[${l.displayText}](${l.link})` : l.link}`,
+              );
+              return `**${v.path}** links to:\n${lines.join('\n')}`;
+            },
+            readResponseFormat(params),
+          ),
+        );
       } catch (error) {
         return Promise.resolve(handleToolError(error));
       }
@@ -91,7 +162,17 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
       try {
         const path = validateVaultPath(params.path as string, vaultPath);
         const embeds = adapter.getEmbeds(path);
-        return Promise.resolve(textResult(JSON.stringify(embeds)));
+        return Promise.resolve(
+          makeResponse(
+            { path, embeds },
+            (v) => {
+              if (v.embeds.length === 0) return `**${v.path}** has no embeds.`;
+              const lines = v.embeds.map((e) => `- ${e.link}`);
+              return `**${v.path}** embeds:\n${lines.join('\n')}`;
+            },
+            readResponseFormat(params),
+          ),
+        );
       } catch (error) {
         return Promise.resolve(handleToolError(error));
       }
@@ -101,25 +182,68 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
       try {
         const path = validateVaultPath(params.path as string, vaultPath);
         const backlinks = adapter.getBacklinks(path);
-        return Promise.resolve(textResult(JSON.stringify(backlinks)));
+        return Promise.resolve(
+          makeResponse(
+            { path, backlinks },
+            (v) =>
+              v.backlinks.length === 0
+                ? `**${v.path}** has no backlinks.`
+                : `**${v.path}** is linked from:\n${renderPathList(v.backlinks)}`,
+            readResponseFormat(params),
+          ),
+        );
       } catch (error) {
         return Promise.resolve(handleToolError(error));
       }
     },
 
-    searchResolvedLinks(_params): Promise<CallToolResult> {
+    searchResolvedLinks(params): Promise<CallToolResult> {
       try {
         const links = adapter.getResolvedLinks();
-        return Promise.resolve(textResult(JSON.stringify(links)));
+        return Promise.resolve(
+          makeResponse(
+            { links },
+            (v) => {
+              const entries = Object.entries(v.links);
+              if (entries.length === 0) return 'No resolved links in this vault.';
+              return entries
+                .map(([src, targets]) => {
+                  const targetLines = Object.entries(targets)
+                    .map(([tgt, count]) => `  - ${tgt} (×${String(count)})`)
+                    .join('\n');
+                  return `- **${src}**\n${targetLines}`;
+                })
+                .join('\n');
+            },
+            readResponseFormat(params),
+          ),
+        );
       } catch (error) {
         return Promise.resolve(handleToolError(error));
       }
     },
 
-    searchUnresolvedLinks(_params): Promise<CallToolResult> {
+    searchUnresolvedLinks(params): Promise<CallToolResult> {
       try {
         const links = adapter.getUnresolvedLinks();
-        return Promise.resolve(textResult(JSON.stringify(links)));
+        return Promise.resolve(
+          makeResponse(
+            { links },
+            (v) => {
+              const entries = Object.entries(v.links);
+              if (entries.length === 0) return 'No unresolved links in this vault.';
+              return entries
+                .map(([src, targets]) => {
+                  const targetLines = Object.entries(targets)
+                    .map(([tgt, count]) => `  - ${tgt} (×${String(count)})`)
+                    .join('\n');
+                  return `- **${src}**\n${targetLines}`;
+                })
+                .join('\n');
+            },
+            readResponseFormat(params),
+          ),
+        );
       } catch (error) {
         return Promise.resolve(handleToolError(error));
       }
@@ -128,7 +252,6 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
     searchBlockReferences(params): Promise<CallToolResult> {
       try {
         const path = validateVaultPath(params.path as string, vaultPath);
-        // Block references are lines containing ^block-id patterns
         return adapter.getFileContent(path).then((content) => {
           const blockRefs = content
             .split('\n')
@@ -137,8 +260,16 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
               const match = /\^([\w-]+)\s*$/.exec(line);
               return match ? { id: match[1], line: line.trim() } : null;
             })
-            .filter(Boolean);
-          return textResult(JSON.stringify(blockRefs));
+            .filter((ref): ref is { id: string; line: string } => ref !== null);
+          return makeResponse(
+            { path, blockRefs },
+            (v) => {
+              if (v.blockRefs.length === 0) return `**${v.path}** has no block references.`;
+              const lines = v.blockRefs.map((b) => `- **^${b.id}** — ${b.line}`);
+              return `**${v.path}** block references:\n${lines.join('\n')}`;
+            },
+            readResponseFormat(params),
+          );
         });
       } catch (error) {
         return Promise.resolve(handleToolError(error));
@@ -152,7 +283,13 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
         const allTags = adapter.getAllTags();
         const files = allTags[normalizedTag] ?? [];
         const page = paginate(files, readPagination(params));
-        return Promise.resolve(textResult(JSON.stringify(page)));
+        return Promise.resolve(
+          makeResponse(
+            page,
+            (v) => renderPaginatedPaths(v, `file tagged ${normalizedTag}`),
+            readResponseFormat(params),
+          ),
+        );
       } catch (error) {
         return Promise.resolve(handleToolError(error));
       }
@@ -171,7 +308,13 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
           }
         }
         const page = paginate(matching, readPagination(params));
-        return Promise.resolve(textResult(JSON.stringify(page)));
+        return Promise.resolve(
+          makeResponse(
+            page,
+            (v) => renderPaginatedPaths(v, `file with ${key}=${value}`),
+            readResponseFormat(params),
+          ),
+        );
       } catch (error) {
         return Promise.resolve(handleToolError(error));
       }

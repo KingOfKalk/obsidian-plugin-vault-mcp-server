@@ -15,6 +15,11 @@ export const filePathSchema = {
     .min(1)
     .max(4096)
     .describe('File path relative to vault root'),
+  ...responseFormatField,
+};
+
+export const readOnlySchema = {
+  ...responseFormatField,
 };
 
 export const searchByTagSchema = {

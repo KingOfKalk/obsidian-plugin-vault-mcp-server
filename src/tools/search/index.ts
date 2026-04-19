@@ -7,6 +7,7 @@ import {
   filePathSchema,
   searchByTagSchema,
   searchByFrontmatterSchema,
+  readOnlySchema,
 } from './schemas';
 
 export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
@@ -52,7 +53,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
             summary: 'List every tag used anywhere in the vault with the files that use it.',
             returns: 'JSON: Record<tag, string[]>. Each key is the tag including leading #.',
           }),
-          schema: {},
+          schema: readOnlySchema,
           handler: handlers.searchTags,
           annotations: annotations.read,
         },
@@ -110,7 +111,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
             summary: 'Get the vault-wide map of resolved links (targets that exist).',
             returns: 'JSON: Record<source, Record<target, count>>.',
           }),
-          schema: {},
+          schema: readOnlySchema,
           handler: handlers.searchResolvedLinks,
           annotations: annotations.read,
         },
@@ -121,7 +122,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
             returns: 'JSON: Record<source, Record<target, count>>.',
             examples: ['Use when: hunting for broken [[wikilinks]] to clean up.'],
           }),
-          schema: {},
+          schema: readOnlySchema,
           handler: handlers.searchUnresolvedLinks,
           annotations: annotations.read,
         },

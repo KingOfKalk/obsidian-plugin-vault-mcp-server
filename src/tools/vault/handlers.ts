@@ -4,6 +4,7 @@ import { validateVaultPath } from '../../utils/path-guard';
 import { truncateText } from '../shared/truncate';
 import { handleToolError } from '../shared/errors';
 import { paginate, readPagination } from '../shared/pagination';
+import { makeResponse, readResponseFormat } from '../shared/response';
 import { BINARY_BYTE_LIMIT } from '../../constants';
 
 export class WriteMutex {
@@ -33,13 +34,50 @@ function textResult(text: string): CallToolResult {
   return { content: [{ type: 'text', text }] };
 }
 
-function truncatedResult(text: string, hint?: string): CallToolResult {
-  const result = truncateText(text, hint ? { hint } : {});
-  return { content: [{ type: 'text', text: result.text }] };
-}
-
 function errorResult(message: string): CallToolResult {
   return handleToolError(new Error(message));
+}
+
+function renderFolderListing(
+  path: string,
+  folders: string[],
+  files: string[],
+): string {
+  if (folders.length === 0 && files.length === 0) {
+    return `\`${path}\` is empty.`;
+  }
+  const lines: string[] = [`**${path}**`];
+  if (folders.length > 0) {
+    lines.push('', 'Folders:', ...folders.map((f) => `- ${f}/`));
+  }
+  if (files.length > 0) {
+    lines.push('', 'Files:', ...files.map((f) => `- ${f}`));
+  }
+  return lines.join('\n');
+}
+
+function renderRecursiveListing(
+  path: string,
+  folders: string[],
+  files: string[],
+  total: number,
+  hasMore: boolean,
+  nextOffset: number | undefined,
+): string {
+  const folderLine = folders.length > 0 ? `${String(folders.length)} folders` : '0 folders';
+  const fileLine = `${String(files.length)} of ${String(total)} files`;
+  const header = `**${path}** — ${folderLine}, ${fileLine}`;
+  const lines: string[] = [header];
+  if (folders.length > 0) {
+    lines.push('', 'Folders:', ...folders.map((f) => `- ${f}/`));
+  }
+  if (files.length > 0) {
+    lines.push('', 'Files:', ...files.map((f) => `- ${f}`));
+  }
+  if (hasMore) {
+    lines.push('', `_More files available — next offset: ${String(nextOffset ?? '')}_`);
+  }
+  return lines.join('\n');
 }
 
 const RENAME_TARGET_PATTERN = /^[^/\\\x00]+$/;
@@ -95,10 +133,20 @@ export function createHandlers(
       try {
         const path = validateVaultPath(params.path as string, vaultPath);
         const content = await adapter.readFile(path);
-        return truncatedResult(
-          content,
-          'Read a specific range via editor_* tools or ask for a summary.',
+        const result = makeResponse(
+          { path, content },
+          (v) => v.content,
+          readResponseFormat(params),
         );
+        const firstBlock = result.content[0];
+        const text = firstBlock.type === 'text' ? firstBlock.text : '';
+        const truncated = truncateText(text, {
+          hint: 'Read a specific range via editor_* tools or ask for a summary.',
+        });
+        return {
+          ...result,
+          content: [{ type: 'text' as const, text: truncated.text }],
+        };
       } catch (error) {
         return handleToolError(error);
       }
@@ -150,13 +198,17 @@ export function createHandlers(
         if (!stat) {
           return errorResult(`File not found: ${path}`);
         }
-        return textResult(
-          JSON.stringify({
-            path,
-            size: stat.size,
-            created: new Date(stat.ctime).toISOString(),
-            modified: new Date(stat.mtime).toISOString(),
-          }),
+        const payload = {
+          path,
+          size: stat.size,
+          created: new Date(stat.ctime).toISOString(),
+          modified: new Date(stat.mtime).toISOString(),
+        };
+        return makeResponse(
+          payload,
+          (v) =>
+            `**${v.path}**\n- size: ${String(v.size)} bytes\n- created: ${v.created}\n- modified: ${v.modified}`,
+          readResponseFormat(params),
         );
       } catch (error) {
         return handleToolError(error);
@@ -248,7 +300,14 @@ export function createHandlers(
       try {
         const path = validateVaultPath(params.path as string, vaultPath);
         const result = adapter.list(path);
-        return Promise.resolve(textResult(JSON.stringify(result)));
+        return Promise.resolve(
+          makeResponse(
+            result,
+            (v) =>
+              renderFolderListing(path, v.folders, v.files),
+            readResponseFormat(params),
+          ),
+        );
       } catch (error) {
         return Promise.resolve(handleToolError(error));
       }
@@ -260,15 +319,24 @@ export function createHandlers(
         const result = adapter.listRecursive(path);
         const pagination = readPagination(params);
         const filesPage = paginate(result.files, pagination);
-        return Promise.resolve(
-          truncatedResult(
-            JSON.stringify({
-              folders: result.folders,
-              ...filesPage,
-            }),
-            'Shrink limit, advance offset, or list a narrower subfolder.',
-          ),
+        const payload = {
+          folders: result.folders,
+          ...filesPage,
+        };
+        const wrapped = makeResponse(
+          payload,
+          (v) => renderRecursiveListing(path, v.folders, v.items, v.total, v.has_more, v.next_offset),
+          readResponseFormat(params),
         );
+        const firstBlock = wrapped.content[0];
+        const text = firstBlock.type === 'text' ? firstBlock.text : '';
+        const truncated = truncateText(text, {
+          hint: 'Shrink limit, advance offset, or list a narrower subfolder.',
+        });
+        return Promise.resolve({
+          ...wrapped,
+          content: [{ type: 'text' as const, text: truncated.text }],
+        });
       } catch (error) {
         return Promise.resolve(handleToolError(error));
       }

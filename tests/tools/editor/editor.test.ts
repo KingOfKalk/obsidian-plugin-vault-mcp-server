@@ -64,13 +64,13 @@ describe('editor module', () => {
       expect(adapter.getActiveFileContent()).toBe('Hello Beautiful World');
     });
 
-    it('should get and set cursor', async () => {
+    it('should get and set cursor (json format)', async () => {
       adapter.setActiveEditor('test.md', 'Hello');
       const module = createEditorModule(adapter);
       const setCursor = module.tools().find((t) => t.name === 'editor_set_cursor')!;
       await setCursor.handler({ line: 0, ch: 3 });
       const getCursor = module.tools().find((t) => t.name === 'editor_get_cursor')!;
-      const result = await getCursor.handler({});
+      const result = await getCursor.handler({ response_format: 'json' });
       const pos = JSON.parse(getText(result)) as { line: number; ch: number };
       expect(pos).toEqual({ line: 0, ch: 3 });
     });

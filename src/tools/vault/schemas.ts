@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { base64Schema } from '../../utils/validation';
 import { paginationFields } from '../shared/pagination';
+import { responseFormatField } from '../shared/response';
 
 const path = z
   .string()
@@ -24,6 +25,7 @@ export const createFileSchema = {
 
 export const readFileSchema = {
   path,
+  ...responseFormatField,
 };
 
 export const updateFileSchema = {
@@ -49,6 +51,7 @@ export const appendFileSchema = {
 
 export const getMetadataSchema = {
   path,
+  ...responseFormatField,
 };
 
 export const renameFileSchema = {
@@ -113,11 +116,13 @@ export const renameFolderSchema = {
 
 export const listFolderSchema = {
   path: folderPath.describe('Folder path to list (non-recursive)'),
+  ...responseFormatField,
 };
 
 export const listRecursiveSchema = {
   path: folderPath.describe('Folder path to list recursively'),
   ...paginationFields,
+  ...responseFormatField,
 };
 
 export const readBinarySchema = {
