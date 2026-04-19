@@ -2,6 +2,7 @@ import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateVaultPath } from '../../utils/path-guard';
 import { truncateText } from '../shared/truncate';
+import { handleToolError } from '../shared/errors';
 import { BINARY_BYTE_LIMIT } from '../../constants';
 
 export class WriteMutex {
@@ -37,7 +38,7 @@ function truncatedResult(text: string, hint?: string): CallToolResult {
 }
 
 function errorResult(message: string): CallToolResult {
-  return { content: [{ type: 'text', text: `Error: ${message}` }], isError: true };
+  return handleToolError(new Error(message));
 }
 
 const RENAME_TARGET_PATTERN = /^[^/\\\x00]+$/;
@@ -85,7 +86,7 @@ export function createHandlers(
           return textResult(`Created file: ${path}`);
         });
       } catch (error) {
-        return errorResult(error instanceof Error ? error.message : String(error));
+        return handleToolError(error);
       }
     },
 
@@ -98,7 +99,7 @@ export function createHandlers(
           'Read a specific range via editor_* tools or ask for a summary.',
         );
       } catch (error) {
-        return errorResult(error instanceof Error ? error.message : String(error));
+        return handleToolError(error);
       }
     },
 
@@ -111,7 +112,7 @@ export function createHandlers(
           return textResult(`Updated file: ${path}`);
         });
       } catch (error) {
-        return errorResult(error instanceof Error ? error.message : String(error));
+        return handleToolError(error);
       }
     },
 
@@ -123,7 +124,7 @@ export function createHandlers(
           return textResult(`Deleted file: ${path}`);
         });
       } catch (error) {
-        return errorResult(error instanceof Error ? error.message : String(error));
+        return handleToolError(error);
       }
     },
 
@@ -137,7 +138,7 @@ export function createHandlers(
           return textResult(`Appended to file: ${path}`);
         });
       } catch (error) {
-        return errorResult(error instanceof Error ? error.message : String(error));
+        return handleToolError(error);
       }
     },
 
@@ -157,7 +158,7 @@ export function createHandlers(
           }),
         );
       } catch (error) {
-        return errorResult(error instanceof Error ? error.message : String(error));
+        return handleToolError(error);
       }
     },
 
@@ -182,7 +183,7 @@ export function createHandlers(
           return textResult(`Renamed file: ${path} → ${newPath}`);
         });
       } catch (error) {
-        return errorResult(error instanceof Error ? error.message : String(error));
+        return handleToolError(error);
       }
     },
 
@@ -195,7 +196,7 @@ export function createHandlers(
           return textResult(`Moved file: ${path} → ${newPath}`);
         });
       } catch (error) {
-        return errorResult(error instanceof Error ? error.message : String(error));
+        return handleToolError(error);
       }
     },
 
@@ -206,7 +207,7 @@ export function createHandlers(
         await adapter.copyFile(sourcePath, destPath);
         return textResult(`Copied file: ${sourcePath} → ${destPath}`);
       } catch (error) {
-        return errorResult(error instanceof Error ? error.message : String(error));
+        return handleToolError(error);
       }
     },
 
@@ -216,7 +217,7 @@ export function createHandlers(
         await adapter.createFolder(path);
         return textResult(`Created folder: ${path}`);
       } catch (error) {
-        return errorResult(error instanceof Error ? error.message : String(error));
+        return handleToolError(error);
       }
     },
 
@@ -227,7 +228,7 @@ export function createHandlers(
         await adapter.deleteFolder(path, recursive);
         return textResult(`Deleted folder: ${path}`);
       } catch (error) {
-        return errorResult(error instanceof Error ? error.message : String(error));
+        return handleToolError(error);
       }
     },
 
@@ -238,7 +239,7 @@ export function createHandlers(
         await adapter.renameFile(path, newPath);
         return textResult(`Renamed folder: ${path} → ${newPath}`);
       } catch (error) {
-        return errorResult(error instanceof Error ? error.message : String(error));
+        return handleToolError(error);
       }
     },
 
@@ -248,7 +249,7 @@ export function createHandlers(
         const result = adapter.list(path);
         return Promise.resolve(textResult(JSON.stringify(result)));
       } catch (error) {
-        return Promise.resolve(errorResult(error instanceof Error ? error.message : String(error)));
+        return Promise.resolve(handleToolError(error));
       }
     },
 
@@ -263,7 +264,7 @@ export function createHandlers(
           ),
         );
       } catch (error) {
-        return Promise.resolve(errorResult(error instanceof Error ? error.message : String(error)));
+        return Promise.resolve(handleToolError(error));
       }
     },
 
@@ -279,7 +280,7 @@ export function createHandlers(
         const base64 = Buffer.from(data).toString('base64');
         return textResult(base64);
       } catch (error) {
-        return errorResult(error instanceof Error ? error.message : String(error));
+        return handleToolError(error);
       }
     },
 
@@ -293,7 +294,7 @@ export function createHandlers(
           return textResult(`Wrote binary file: ${path}`);
         });
       } catch (error) {
-        return errorResult(error instanceof Error ? error.message : String(error));
+        return handleToolError(error);
       }
     },
   };

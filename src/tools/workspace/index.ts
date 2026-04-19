@@ -3,11 +3,12 @@ import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { ToolModule, ToolDefinition, annotations } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateVaultPath } from '../../utils/path-guard';
+import { handleToolError } from '../shared/errors';
 
 type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
 
 function text(t: string): CallToolResult { return { content: [{ type: 'text', text: t }] }; }
-function err(m: string): CallToolResult { return { content: [{ type: 'text', text: `Error: ${m}` }], isError: true }; }
+function err(m: string): CallToolResult { return handleToolError(new Error(m)); }
 
 function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
   const vaultPath = adapter.getVaultPath();

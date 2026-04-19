@@ -2,6 +2,7 @@ import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateVaultPath } from '../../utils/path-guard';
 import { truncateText } from '../shared/truncate';
+import { handleToolError } from '../shared/errors';
 
 type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
 
@@ -12,10 +13,6 @@ function textResult(text: string): CallToolResult {
 function truncatedResult(text: string, hint?: string): CallToolResult {
   const result = truncateText(text, hint ? { hint } : {});
   return { content: [{ type: 'text', text: result.text }] };
-}
-
-function errorResult(message: string): CallToolResult {
-  return { content: [{ type: 'text', text: `Error: ${message}` }], isError: true };
 }
 
 export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
@@ -31,7 +28,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
           'Narrow the query or add filters to reduce match count.',
         );
       } catch (error) {
-        return errorResult(error instanceof Error ? error.message : String(error));
+        return handleToolError(error);
       }
     },
 
@@ -41,7 +38,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
         const frontmatter = adapter.getFrontmatter(path);
         return Promise.resolve(textResult(JSON.stringify(frontmatter ?? {})));
       } catch (error) {
-        return Promise.resolve(errorResult(error instanceof Error ? error.message : String(error)));
+        return Promise.resolve(handleToolError(error));
       }
     },
 
@@ -50,7 +47,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
         const allTags = adapter.getAllTags();
         return Promise.resolve(textResult(JSON.stringify(allTags)));
       } catch (error) {
-        return Promise.resolve(errorResult(error instanceof Error ? error.message : String(error)));
+        return Promise.resolve(handleToolError(error));
       }
     },
 
@@ -60,7 +57,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
         const headings = adapter.getHeadings(path);
         return Promise.resolve(textResult(JSON.stringify(headings)));
       } catch (error) {
-        return Promise.resolve(errorResult(error instanceof Error ? error.message : String(error)));
+        return Promise.resolve(handleToolError(error));
       }
     },
 
@@ -70,7 +67,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
         const links = adapter.getLinks(path);
         return Promise.resolve(textResult(JSON.stringify(links)));
       } catch (error) {
-        return Promise.resolve(errorResult(error instanceof Error ? error.message : String(error)));
+        return Promise.resolve(handleToolError(error));
       }
     },
 
@@ -80,7 +77,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
         const embeds = adapter.getEmbeds(path);
         return Promise.resolve(textResult(JSON.stringify(embeds)));
       } catch (error) {
-        return Promise.resolve(errorResult(error instanceof Error ? error.message : String(error)));
+        return Promise.resolve(handleToolError(error));
       }
     },
 
@@ -90,7 +87,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
         const backlinks = adapter.getBacklinks(path);
         return Promise.resolve(textResult(JSON.stringify(backlinks)));
       } catch (error) {
-        return Promise.resolve(errorResult(error instanceof Error ? error.message : String(error)));
+        return Promise.resolve(handleToolError(error));
       }
     },
 
@@ -99,7 +96,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
         const links = adapter.getResolvedLinks();
         return Promise.resolve(textResult(JSON.stringify(links)));
       } catch (error) {
-        return Promise.resolve(errorResult(error instanceof Error ? error.message : String(error)));
+        return Promise.resolve(handleToolError(error));
       }
     },
 
@@ -108,7 +105,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
         const links = adapter.getUnresolvedLinks();
         return Promise.resolve(textResult(JSON.stringify(links)));
       } catch (error) {
-        return Promise.resolve(errorResult(error instanceof Error ? error.message : String(error)));
+        return Promise.resolve(handleToolError(error));
       }
     },
 
@@ -128,7 +125,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
           return textResult(JSON.stringify(blockRefs));
         });
       } catch (error) {
-        return Promise.resolve(errorResult(error instanceof Error ? error.message : String(error)));
+        return Promise.resolve(handleToolError(error));
       }
     },
 
@@ -140,7 +137,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
         const files = allTags[normalizedTag] ?? [];
         return Promise.resolve(textResult(JSON.stringify(files)));
       } catch (error) {
-        return Promise.resolve(errorResult(error instanceof Error ? error.message : String(error)));
+        return Promise.resolve(handleToolError(error));
       }
     },
 
@@ -158,7 +155,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
         }
         return Promise.resolve(textResult(JSON.stringify(matching)));
       } catch (error) {
-        return Promise.resolve(errorResult(error instanceof Error ? error.message : String(error)));
+        return Promise.resolve(handleToolError(error));
       }
     },
   };
