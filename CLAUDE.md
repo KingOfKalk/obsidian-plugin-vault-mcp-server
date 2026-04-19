@@ -17,7 +17,6 @@
 - Run `npm run typecheck` for type-checking
 - Strict TypeScript ESLint rules are enforced: no `any` types, explicit return types, no unsafe returns/assignments
 - The mock file `tests/__mocks__/obsidian.ts` has eslint-disable for `any`-related rules since Obsidian API mocks require loose typing
-- The `tests/settings.test.ts` has pre-existing warnings for missing return types on local helpers — do not introduce new warnings
 
 ## Development Workflow
 

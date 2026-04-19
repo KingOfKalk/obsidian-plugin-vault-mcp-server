@@ -540,16 +540,15 @@ describe('McpSettingsTab MCP config display', () => {
 });
 
 describe('McpSettingsTab server controls', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let mockPlugin: Record<string, any>;
+  let mockPlugin: Record<string, unknown>;
 
-  function createMockPlugin(isRunning: boolean, clients = 0) {
+  function createMockPlugin(isRunning: boolean, clients = 0): Record<string, unknown> {
     return {
       settings: { ...DEFAULT_SETTINGS, accessKey: 'test-key', authEnabled: true },
       httpServer: isRunning
         ? { isRunning: true, connectedClients: clients }
         : null,
-      registry: { getModules: () => [] },
+      registry: { getModules: (): unknown[] => [] },
       startServer: vi.fn().mockResolvedValue(undefined),
       stopServer: vi.fn().mockResolvedValue(undefined),
       restartServer: vi.fn().mockResolvedValue(undefined),
