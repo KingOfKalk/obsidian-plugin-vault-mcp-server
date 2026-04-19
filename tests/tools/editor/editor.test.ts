@@ -74,5 +74,70 @@ describe('editor module', () => {
       const pos = JSON.parse(getText(result)) as { line: number; ch: number };
       expect(pos).toEqual({ line: 0, ch: 3 });
     });
+
+    describe('bounds checking', () => {
+      it('rejects negative line in editor_set_cursor', async () => {
+        adapter.setActiveEditor('test.md', 'line1\nline2');
+        const module = createEditorModule(adapter);
+        const tool = module.tools().find((t) => t.name === 'editor_set_cursor')!;
+        const result = await tool.handler({ line: -1, ch: 0 });
+        expect(result.isError).toBe(true);
+        expect(getText(result)).toContain('non-negative');
+      });
+
+      it('rejects line beyond EOF in editor_set_cursor', async () => {
+        adapter.setActiveEditor('test.md', 'line1\nline2'); // lineCount === 2
+        const module = createEditorModule(adapter);
+        const tool = module.tools().find((t) => t.name === 'editor_set_cursor')!;
+        const result = await tool.handler({ line: 99, ch: 0 });
+        expect(result.isError).toBe(true);
+        expect(getText(result)).toContain('out of range');
+      });
+
+      it('rejects non-integer positions in editor_insert', async () => {
+        adapter.setActiveEditor('test.md', 'hello');
+        const module = createEditorModule(adapter);
+        const tool = module.tools().find((t) => t.name === 'editor_insert')!;
+        const result = await tool.handler({ line: 0.5, ch: 0, text: 'x' });
+        expect(result.isError).toBe(true);
+      });
+
+      it('accepts editor_insert at the last valid line', async () => {
+        adapter.setActiveEditor('test.md', 'line1\nline2\nline3');
+        const module = createEditorModule(adapter);
+        const tool = module.tools().find((t) => t.name === 'editor_insert')!;
+        // lineCount === 3 → line index 2 is the last valid line.
+        const result = await tool.handler({ line: 2, ch: 0, text: 'x' });
+        expect(result.isError).toBeUndefined();
+      });
+
+      it('rejects out-of-range fromLine in editor_replace', async () => {
+        adapter.setActiveEditor('test.md', 'only');
+        const module = createEditorModule(adapter);
+        const tool = module.tools().find((t) => t.name === 'editor_replace')!;
+        const result = await tool.handler({
+          fromLine: 5,
+          fromCh: 0,
+          toLine: 5,
+          toCh: 1,
+          text: 'x',
+        });
+        expect(result.isError).toBe(true);
+        expect(getText(result)).toContain('out of range');
+      });
+
+      it('rejects negative toCh in editor_delete', async () => {
+        adapter.setActiveEditor('test.md', 'hello');
+        const module = createEditorModule(adapter);
+        const tool = module.tools().find((t) => t.name === 'editor_delete')!;
+        const result = await tool.handler({
+          fromLine: 0,
+          fromCh: 0,
+          toLine: 0,
+          toCh: -1,
+        });
+        expect(result.isError).toBe(true);
+      });
+    });
   });
 });
