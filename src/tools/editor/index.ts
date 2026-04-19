@@ -170,16 +170,105 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
     metadata: { id: 'editor', name: 'Editor Operations', description: 'Access and manipulate the active editor' },
     tools(): ToolDefinition[] {
       return [
-        { name: 'editor_get_content', description: 'Get content of active editor', schema: {}, handler: h.getContent, annotations: annotations.read },
-        { name: 'editor_get_active_file', description: 'Get active file path', schema: {}, handler: h.getActivePath, annotations: annotations.read },
-        { name: 'editor_insert', description: 'Insert text at position', schema: { line: z.number().int().min(0), ch: z.number().int().min(0), text: z.string() }, handler: h.insert, annotations: annotations.additive },
-        { name: 'editor_replace', description: 'Replace text in range', schema: { fromLine: z.number().int().min(0), fromCh: z.number().int().min(0), toLine: z.number().int().min(0), toCh: z.number().int().min(0), text: z.string() }, handler: h.replace, annotations: annotations.destructive },
-        { name: 'editor_delete', description: 'Delete text in range', schema: { fromLine: z.number().int().min(0), fromCh: z.number().int().min(0), toLine: z.number().int().min(0), toCh: z.number().int().min(0) }, handler: h.deleteRange, annotations: annotations.destructive },
-        { name: 'editor_get_cursor', description: 'Get cursor position', schema: {}, handler: h.getCursor, annotations: annotations.read },
-        { name: 'editor_set_cursor', description: 'Set cursor position', schema: { line: z.number().int().min(0), ch: z.number().int().min(0) }, handler: h.setCursor, annotations: annotations.additive },
-        { name: 'editor_get_selection', description: 'Get current selection', schema: {}, handler: h.getSelection, annotations: annotations.read },
-        { name: 'editor_set_selection', description: 'Set selection range', schema: { fromLine: z.number().int().min(0), fromCh: z.number().int().min(0), toLine: z.number().int().min(0), toCh: z.number().int().min(0) }, handler: h.setSelection, annotations: annotations.additive },
-        { name: 'editor_get_line_count', description: 'Get line count of active editor', schema: {}, handler: h.getLineCount, annotations: annotations.read },
+        {
+          name: 'editor_get_content',
+          description: 'Get content of active editor',
+          schema: {},
+          handler: h.getContent,
+          annotations: annotations.read,
+        },
+        {
+          name: 'editor_get_active_file',
+          description: 'Get active file path',
+          schema: {},
+          handler: h.getActivePath,
+          annotations: annotations.read,
+        },
+        {
+          name: 'editor_insert',
+          description: 'Insert text at position',
+          schema: {
+            line: z.number().int().min(0).describe('Zero-based line index'),
+            ch: z.number().int().min(0).describe('Zero-based column index'),
+            text: z
+              .string()
+              .max(5_000_000)
+              .describe('Text to insert at (line, ch)'),
+          },
+          handler: h.insert,
+          annotations: annotations.additive,
+        },
+        {
+          name: 'editor_replace',
+          description: 'Replace text in range',
+          schema: {
+            fromLine: z.number().int().min(0).describe('Start line (inclusive, zero-based)'),
+            fromCh: z.number().int().min(0).describe('Start column (inclusive, zero-based)'),
+            toLine: z.number().int().min(0).describe('End line (exclusive, zero-based)'),
+            toCh: z.number().int().min(0).describe('End column (exclusive, zero-based)'),
+            text: z
+              .string()
+              .max(5_000_000)
+              .describe('Replacement text for the range'),
+          },
+          handler: h.replace,
+          annotations: annotations.destructive,
+        },
+        {
+          name: 'editor_delete',
+          description: 'Delete text in range',
+          schema: {
+            fromLine: z.number().int().min(0).describe('Start line (inclusive)'),
+            fromCh: z.number().int().min(0).describe('Start column (inclusive)'),
+            toLine: z.number().int().min(0).describe('End line (exclusive)'),
+            toCh: z.number().int().min(0).describe('End column (exclusive)'),
+          },
+          handler: h.deleteRange,
+          annotations: annotations.destructive,
+        },
+        {
+          name: 'editor_get_cursor',
+          description: 'Get cursor position',
+          schema: {},
+          handler: h.getCursor,
+          annotations: annotations.read,
+        },
+        {
+          name: 'editor_set_cursor',
+          description: 'Set cursor position',
+          schema: {
+            line: z.number().int().min(0).describe('Zero-based line index'),
+            ch: z.number().int().min(0).describe('Zero-based column index'),
+          },
+          handler: h.setCursor,
+          annotations: annotations.additive,
+        },
+        {
+          name: 'editor_get_selection',
+          description: 'Get current selection',
+          schema: {},
+          handler: h.getSelection,
+          annotations: annotations.read,
+        },
+        {
+          name: 'editor_set_selection',
+          description: 'Set selection range',
+          schema: {
+            fromLine: z.number().int().min(0).describe('Start line (inclusive)'),
+            fromCh: z.number().int().min(0).describe('Start column (inclusive)'),
+            toLine: z.number().int().min(0).describe('End line (exclusive)'),
+            toCh: z.number().int().min(0).describe('End column (exclusive)'),
+          },
+          handler: h.setSelection,
+          annotations: annotations.additive,
+        },
+        {
+          name: 'editor_get_line_count',
+          description: 'Get line count of active editor',
+          schema: {},
+          handler: h.getLineCount,
+          annotations: annotations.read,
+        },
       ];
     },
   };

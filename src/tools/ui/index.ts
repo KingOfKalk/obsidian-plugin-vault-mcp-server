@@ -40,9 +40,57 @@ export function createUiModule(adapter: ObsidianAdapter): ToolModule {
     metadata: { id: 'ui', name: 'UI Interactions', description: 'Show notices, modals, and prompts in Obsidian' },
     tools(): ToolDefinition[] {
       return [
-        { name: 'ui_notice', description: 'Show a notice/notification', schema: { message: z.string(), duration: z.number().optional() }, handler: h.showNotice, annotations: annotations.additive },
-        { name: 'ui_confirm', description: 'Show a confirmation modal', schema: { message: z.string() }, handler: h.showConfirm, annotations: annotations.additive },
-        { name: 'ui_prompt', description: 'Show an input prompt modal', schema: { message: z.string(), defaultValue: z.string().optional() }, handler: h.showPrompt, annotations: annotations.additive },
+        {
+          name: 'ui_notice',
+          description: 'Show a notice/notification',
+          schema: {
+            message: z
+              .string()
+              .min(1)
+              .max(1000)
+              .describe('Notice text to show to the user'),
+            duration: z
+              .number()
+              .int()
+              .min(0)
+              .max(60_000)
+              .optional()
+              .describe('Milliseconds before the notice auto-dismisses (0 = sticky)'),
+          },
+          handler: h.showNotice,
+          annotations: annotations.additive,
+        },
+        {
+          name: 'ui_confirm',
+          description: 'Show a confirmation modal',
+          schema: {
+            message: z
+              .string()
+              .min(1)
+              .max(1000)
+              .describe('Question to present in the confirmation modal'),
+          },
+          handler: h.showConfirm,
+          annotations: annotations.additive,
+        },
+        {
+          name: 'ui_prompt',
+          description: 'Show an input prompt modal',
+          schema: {
+            message: z
+              .string()
+              .min(1)
+              .max(1000)
+              .describe('Prompt label to show in the input modal'),
+            defaultValue: z
+              .string()
+              .max(1000)
+              .optional()
+              .describe('Pre-filled value for the input field'),
+          },
+          handler: h.showPrompt,
+          annotations: annotations.additive,
+        },
       ];
     },
   };

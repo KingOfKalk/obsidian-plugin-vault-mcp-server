@@ -47,11 +47,57 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
     metadata: { id: 'workspace', name: 'Workspace and Navigation', description: 'Manage panes, open files, and navigate the workspace' },
     tools(): ToolDefinition[] {
       return [
-        { name: 'workspace_get_active_leaf', description: 'Get active pane info', schema: {}, handler: h.getActiveLeaf, annotations: annotations.read },
-        { name: 'workspace_open_file', description: 'Open a file in a pane', schema: { path: z.string().min(1), mode: z.string().optional() }, handler: h.openFile, annotations: annotations.additive },
-        { name: 'workspace_list_leaves', description: 'List all open files and panes', schema: {}, handler: h.listLeaves, annotations: annotations.read },
-        { name: 'workspace_set_active_leaf', description: 'Set focus on a leaf by ID', schema: { leafId: z.string().min(1) }, handler: h.setActiveLeaf, annotations: annotations.additive },
-        { name: 'workspace_get_layout', description: 'Get workspace layout summary', schema: {}, handler: h.getLayout, annotations: annotations.read },
+        {
+          name: 'workspace_get_active_leaf',
+          description: 'Get active pane info',
+          schema: {},
+          handler: h.getActiveLeaf,
+          annotations: annotations.read,
+        },
+        {
+          name: 'workspace_open_file',
+          description: 'Open a file in a pane',
+          schema: {
+            path: z
+              .string()
+              .min(1)
+              .max(4096)
+              .describe('Vault-relative file path to open'),
+            mode: z
+              .enum(['source', 'preview', 'live'])
+              .optional()
+              .describe('Optional view mode for the opened leaf'),
+          },
+          handler: h.openFile,
+          annotations: annotations.additive,
+        },
+        {
+          name: 'workspace_list_leaves',
+          description: 'List all open files and panes',
+          schema: {},
+          handler: h.listLeaves,
+          annotations: annotations.read,
+        },
+        {
+          name: 'workspace_set_active_leaf',
+          description: 'Set focus on a leaf by ID',
+          schema: {
+            leafId: z
+              .string()
+              .min(1)
+              .max(200)
+              .describe('Leaf id returned by workspace_list_leaves'),
+          },
+          handler: h.setActiveLeaf,
+          annotations: annotations.additive,
+        },
+        {
+          name: 'workspace_get_layout',
+          description: 'Get workspace layout summary',
+          schema: {},
+          handler: h.getLayout,
+          annotations: annotations.read,
+        },
       ];
     },
   };
