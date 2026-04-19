@@ -215,6 +215,52 @@ describe('search handlers', () => {
     });
   });
 
+  describe('markdown rendering (default format)', () => {
+    it('searchFrontmatter renders the property list', async () => {
+      adapter.addFile('a.md', 'x');
+      adapter.setMetadata('a.md', { frontmatter: { title: 'T', status: 'done' } });
+      const result = await handlers.searchFrontmatter({ path: 'a.md' });
+      expect(getText(result)).toContain('**a.md** frontmatter');
+      expect(getText(result)).toContain('**title**: T');
+    });
+
+    it('searchTags renders tag counts', async () => {
+      adapter.addFile('a.md', 'x');
+      adapter.setMetadata('a.md', { tags: ['#foo', '#bar'] });
+      const result = await handlers.searchTags({});
+      expect(getText(result)).toContain('**#foo**');
+    });
+
+    it('searchHeadings renders as a nested outline', async () => {
+      adapter.addFile('a.md', '# h1\n## h2');
+      adapter.setMetadata('a.md', {
+        headings: [
+          { heading: 'h1', level: 1 },
+          { heading: 'h2', level: 2 },
+        ],
+      });
+      const result = await handlers.searchHeadings({ path: 'a.md' });
+      expect(getText(result)).toContain('# h1');
+      expect(getText(result)).toContain('## h2');
+    });
+
+    it('searchBacklinks renders a bullet list of sources', async () => {
+      adapter.addFile('src.md', 'x');
+      adapter.setMetadata('src.md', { links: [{ link: 'target.md' }] });
+      adapter.addFile('target.md', 'x');
+      const result = await handlers.searchBacklinks({ path: 'target.md' });
+      expect(getText(result)).toContain('src.md');
+    });
+
+    it('searchByTag renders the paginated envelope in markdown', async () => {
+      adapter.addFile('a.md', 'x');
+      adapter.setMetadata('a.md', { tags: ['#project'] });
+      const result = await handlers.searchByTag({ tag: 'project' });
+      expect(getText(result)).toContain('**1 file tagged #project**');
+      expect(getText(result)).toContain('- a.md');
+    });
+  });
+
   describe('searchBlockReferences', () => {
     it('should find block references (json)', async () => {
       adapter.addFile('test.md', 'Some content ^block-1\nMore text\nAnother block ^ref-2');

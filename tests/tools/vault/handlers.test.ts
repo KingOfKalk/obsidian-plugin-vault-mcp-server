@@ -105,6 +105,13 @@ describe('vault handlers', () => {
   });
 
   describe('getMetadata', () => {
+    it('renders markdown by default with size and dates', async () => {
+      adapter.addFile('test.md', 'content', { ctime: 1000, mtime: 2000 });
+      const result = await handlers.getMetadata({ path: 'test.md' });
+      expect(getText(result)).toContain('**test.md**');
+      expect(getText(result)).toContain('size: 7 bytes');
+    });
+
     it('should return file metadata (json format)', async () => {
       adapter.addFile('test.md', 'content', { ctime: 1000, mtime: 2000 });
       const result = await handlers.getMetadata({
@@ -282,6 +289,22 @@ describe('vault handlers', () => {
     });
   });
 
+  describe('listFolder markdown rendering', () => {
+    it('renders markdown by default with folders and files sections', async () => {
+      adapter.addFolder('notes');
+      adapter.addFile('notes/a.md', 'a');
+      const result = await handlers.listFolder({ path: 'notes' });
+      expect(getText(result)).toContain('**notes**');
+      expect(getText(result)).toContain('Files:');
+    });
+
+    it('renders an empty-folder message when nothing to list', async () => {
+      adapter.addFolder('empty');
+      const result = await handlers.listFolder({ path: 'empty' });
+      expect(getText(result)).toContain('`empty` is empty.');
+    });
+  });
+
   describe('listFolder', () => {
     it('should list folder contents (json format)', async () => {
       adapter.addFolder('notes');
@@ -294,6 +317,19 @@ describe('vault handlers', () => {
       const data = JSON.parse(getText(result)) as { files: string[]; folders: string[] };
       expect(data.files).toHaveLength(2);
       expect(result.structuredContent).toBeDefined();
+    });
+  });
+
+  describe('listRecursive markdown rendering', () => {
+    it('renders a recursive listing with pagination hint', async () => {
+      adapter.addFolder('lots');
+      for (let i = 0; i < 5; i++) {
+        adapter.addFile(`lots/f-${String(i)}.md`, 'x');
+      }
+      const result = await handlers.listRecursive({ path: 'lots', limit: 2 });
+      const text = getText(result);
+      expect(text).toContain('**lots**');
+      expect(text).toContain('next offset: 2');
     });
   });
 
