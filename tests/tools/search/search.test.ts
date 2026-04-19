@@ -56,6 +56,19 @@ describe('search handlers', () => {
       const data = JSON.parse(getText(result)) as Array<{ path: string }>;
       expect(data).toHaveLength(1);
     });
+
+    it('truncates oversized results with a clear footer', async () => {
+      // Build a payload well over CHARACTER_LIMIT by indexing many matching
+      // lines in one file.
+      const big = Array.from({ length: 5000 }, (_, i) => `match ${String(i)}`).join(
+        '\n',
+      );
+      adapter.addFile('big.md', big);
+      const result = await handlers.searchFulltext({ query: 'match' });
+      const out = getText(result);
+      expect(out).toContain('[TRUNCATED:');
+      expect(out).toContain('Narrow the query');
+    });
   });
 
   describe('searchFrontmatter', () => {
