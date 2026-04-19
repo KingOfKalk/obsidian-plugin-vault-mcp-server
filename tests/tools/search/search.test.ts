@@ -83,36 +83,43 @@ describe('search handlers', () => {
   });
 
   describe('searchFrontmatter', () => {
-    it('should return frontmatter for a file', async () => {
+    it('should return frontmatter for a file (json)', async () => {
       adapter.addFile('test.md', 'content');
       adapter.setMetadata('test.md', { frontmatter: { title: 'My Note', tags: ['project'] } });
-      const result = await handlers.searchFrontmatter({ path: 'test.md' });
-      const data = JSON.parse(getText(result)) as Record<string, unknown>;
-      expect(data.title).toBe('My Note');
+      const result = await handlers.searchFrontmatter({
+        path: 'test.md',
+        response_format: 'json',
+      });
+      const data = JSON.parse(getText(result)) as {
+        path: string;
+        frontmatter: Record<string, unknown>;
+      };
+      expect(data.frontmatter.title).toBe('My Note');
+      expect(result.structuredContent).toMatchObject({ path: 'test.md' });
     });
 
-    it('should return empty object when no frontmatter', async () => {
+    it('renders markdown when no frontmatter', async () => {
       adapter.addFile('test.md', 'content');
       const result = await handlers.searchFrontmatter({ path: 'test.md' });
-      expect(getText(result)).toBe('{}');
+      expect(getText(result)).toContain('test.md');
     });
   });
 
   describe('searchTags', () => {
-    it('should return all tags with file associations', async () => {
+    it('should return all tags with file associations (json)', async () => {
       adapter.addFile('a.md', 'content');
       adapter.setMetadata('a.md', { tags: ['#project', '#work'] });
       adapter.addFile('b.md', 'content');
       adapter.setMetadata('b.md', { tags: ['#project'] });
-      const result = await handlers.searchTags({});
-      const data = JSON.parse(getText(result)) as Record<string, string[]>;
-      expect(data['#project']).toHaveLength(2);
-      expect(data['#work']).toHaveLength(1);
+      const result = await handlers.searchTags({ response_format: 'json' });
+      const data = JSON.parse(getText(result)) as { tags: Record<string, string[]> };
+      expect(data.tags['#project']).toHaveLength(2);
+      expect(data.tags['#work']).toHaveLength(1);
     });
   });
 
   describe('searchHeadings', () => {
-    it('should return headings for a file', async () => {
+    it('should return headings for a file (json)', async () => {
       adapter.addFile('test.md', '# Title\n## Subtitle');
       adapter.setMetadata('test.md', {
         headings: [
@@ -120,80 +127,107 @@ describe('search handlers', () => {
           { heading: 'Subtitle', level: 2 },
         ],
       });
-      const result = await handlers.searchHeadings({ path: 'test.md' });
-      const data = JSON.parse(getText(result)) as Array<{ heading: string; level: number }>;
-      expect(data).toHaveLength(2);
-      expect(data[0].heading).toBe('Title');
+      const result = await handlers.searchHeadings({
+        path: 'test.md',
+        response_format: 'json',
+      });
+      const data = JSON.parse(getText(result)) as {
+        headings: Array<{ heading: string; level: number }>;
+      };
+      expect(data.headings).toHaveLength(2);
+      expect(data.headings[0].heading).toBe('Title');
     });
   });
 
   describe('searchOutgoingLinks', () => {
-    it('should return links for a file', async () => {
+    it('should return links for a file (json)', async () => {
       adapter.addFile('test.md', 'content');
       adapter.setMetadata('test.md', {
         links: [{ link: 'other.md', displayText: 'Other' }],
       });
-      const result = await handlers.searchOutgoingLinks({ path: 'test.md' });
-      const data = JSON.parse(getText(result)) as Array<{ link: string }>;
-      expect(data).toHaveLength(1);
-      expect(data[0].link).toBe('other.md');
+      const result = await handlers.searchOutgoingLinks({
+        path: 'test.md',
+        response_format: 'json',
+      });
+      const data = JSON.parse(getText(result)) as {
+        links: Array<{ link: string }>;
+      };
+      expect(data.links).toHaveLength(1);
+      expect(data.links[0].link).toBe('other.md');
     });
   });
 
   describe('searchBacklinks', () => {
-    it('should return files linking to the target', async () => {
+    it('should return files linking to the target (json)', async () => {
       adapter.addFile('source.md', 'links to target');
       adapter.setMetadata('source.md', {
         links: [{ link: 'target.md' }],
       });
       adapter.addFile('target.md', 'target content');
-      const result = await handlers.searchBacklinks({ path: 'target.md' });
-      const data = JSON.parse(getText(result)) as string[];
-      expect(data).toContain('source.md');
+      const result = await handlers.searchBacklinks({
+        path: 'target.md',
+        response_format: 'json',
+      });
+      const data = JSON.parse(getText(result)) as { backlinks: string[] };
+      expect(data.backlinks).toContain('source.md');
     });
   });
 
   describe('searchByTag', () => {
-    it('should find files by tag', async () => {
+    it('should find files by tag (json)', async () => {
       adapter.addFile('a.md', 'content');
       adapter.setMetadata('a.md', { tags: ['#project'] });
       adapter.addFile('b.md', 'content');
       adapter.setMetadata('b.md', { tags: ['#personal'] });
-      const result = await handlers.searchByTag({ tag: '#project' });
+      const result = await handlers.searchByTag({
+        tag: '#project',
+        response_format: 'json',
+      });
       const page = JSON.parse(getText(result)) as { items: string[] };
-      const data = page.items;
-      expect(data).toEqual(['a.md']);
+      expect(page.items).toEqual(['a.md']);
     });
 
     it('should handle tag without # prefix', async () => {
       adapter.addFile('a.md', 'content');
       adapter.setMetadata('a.md', { tags: ['#project'] });
-      const result = await handlers.searchByTag({ tag: 'project' });
+      const result = await handlers.searchByTag({
+        tag: 'project',
+        response_format: 'json',
+      });
       const page = JSON.parse(getText(result)) as { items: string[] };
       expect(page.items).toEqual(['a.md']);
     });
   });
 
   describe('searchByFrontmatter', () => {
-    it('should find files by frontmatter value', async () => {
+    it('should find files by frontmatter value (json)', async () => {
       adapter.addFile('a.md', 'content');
       adapter.setMetadata('a.md', { frontmatter: { status: 'done' } });
       adapter.addFile('b.md', 'content');
       adapter.setMetadata('b.md', { frontmatter: { status: 'draft' } });
-      const result = await handlers.searchByFrontmatter({ key: 'status', value: 'done' });
+      const result = await handlers.searchByFrontmatter({
+        key: 'status',
+        value: 'done',
+        response_format: 'json',
+      });
       const page = JSON.parse(getText(result)) as { items: string[] };
       expect(page.items).toEqual(['a.md']);
     });
   });
 
   describe('searchBlockReferences', () => {
-    it('should find block references', async () => {
+    it('should find block references (json)', async () => {
       adapter.addFile('test.md', 'Some content ^block-1\nMore text\nAnother block ^ref-2');
-      const result = await handlers.searchBlockReferences({ path: 'test.md' });
-      const data = JSON.parse(getText(result)) as Array<{ id: string }>;
-      expect(data).toHaveLength(2);
-      expect(data[0].id).toBe('block-1');
-      expect(data[1].id).toBe('ref-2');
+      const result = await handlers.searchBlockReferences({
+        path: 'test.md',
+        response_format: 'json',
+      });
+      const data = JSON.parse(getText(result)) as {
+        blockRefs: Array<{ id: string }>;
+      };
+      expect(data.blockRefs).toHaveLength(2);
+      expect(data.blockRefs[0].id).toBe('block-1');
+      expect(data.blockRefs[1].id).toBe('ref-2');
     });
   });
 });

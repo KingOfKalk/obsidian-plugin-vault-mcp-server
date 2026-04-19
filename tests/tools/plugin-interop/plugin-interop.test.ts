@@ -19,21 +19,21 @@ describe('plugin interop module', () => {
     expect(module.tools()).toHaveLength(5);
   });
 
-  it('should list installed plugins', async () => {
+  it('should list installed plugins (json)', async () => {
     adapter.addInstalledPlugin('dataview', 'Dataview', true);
     adapter.addInstalledPlugin('templater-obsidian', 'Templater', false);
     const module = createPluginInteropModule(adapter);
     const tool = module.tools().find((t) => t.name === 'plugin_list')!;
-    const result = await tool.handler({});
-    const data = JSON.parse(getText(result)) as Array<{ id: string }>;
-    expect(data).toHaveLength(2);
+    const result = await tool.handler({ response_format: 'json' });
+    const data = JSON.parse(getText(result)) as { plugins: Array<{ id: string }> };
+    expect(data.plugins).toHaveLength(2);
   });
 
-  it('should check plugin status', async () => {
+  it('should check plugin status (json)', async () => {
     adapter.addInstalledPlugin('dataview', 'Dataview', true);
     const module = createPluginInteropModule(adapter);
     const tool = module.tools().find((t) => t.name === 'plugin_check')!;
-    const result = await tool.handler({ pluginId: 'dataview' });
+    const result = await tool.handler({ pluginId: 'dataview', response_format: 'json' });
     const data = JSON.parse(getText(result)) as { installed: boolean; enabled: boolean };
     expect(data.installed).toBe(true);
     expect(data.enabled).toBe(true);

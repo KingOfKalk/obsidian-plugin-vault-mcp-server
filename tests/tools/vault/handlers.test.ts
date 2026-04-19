@@ -105,12 +105,16 @@ describe('vault handlers', () => {
   });
 
   describe('getMetadata', () => {
-    it('should return file metadata', async () => {
+    it('should return file metadata (json format)', async () => {
       adapter.addFile('test.md', 'content', { ctime: 1000, mtime: 2000 });
-      const result = await handlers.getMetadata({ path: 'test.md' });
+      const result = await handlers.getMetadata({
+        path: 'test.md',
+        response_format: 'json',
+      });
       const data = JSON.parse(getText(result)) as Record<string, unknown>;
       expect(data.path).toBe('test.md');
       expect(data.size).toBe(7);
+      expect(result.structuredContent).toMatchObject({ path: 'test.md' });
     });
 
     it('should return error for nonexistent file', async () => {
@@ -279,23 +283,30 @@ describe('vault handlers', () => {
   });
 
   describe('listFolder', () => {
-    it('should list folder contents', async () => {
+    it('should list folder contents (json format)', async () => {
       adapter.addFolder('notes');
       adapter.addFile('notes/a.md', 'a');
       adapter.addFile('notes/b.md', 'b');
-      const result = await handlers.listFolder({ path: 'notes' });
+      const result = await handlers.listFolder({
+        path: 'notes',
+        response_format: 'json',
+      });
       const data = JSON.parse(getText(result)) as { files: string[]; folders: string[] };
       expect(data.files).toHaveLength(2);
+      expect(result.structuredContent).toBeDefined();
     });
   });
 
   describe('listRecursive', () => {
-    it('should list folder contents recursively with pagination metadata', async () => {
+    it('should list folder contents recursively with pagination metadata (json format)', async () => {
       adapter.addFolder('notes');
       adapter.addFolder('notes/sub');
       adapter.addFile('notes/a.md', 'a');
       adapter.addFile('notes/sub/b.md', 'b');
-      const result = await handlers.listRecursive({ path: 'notes' });
+      const result = await handlers.listRecursive({
+        path: 'notes',
+        response_format: 'json',
+      });
       const data = JSON.parse(getText(result)) as {
         folders: string[];
         total: number;
@@ -313,7 +324,12 @@ describe('vault handlers', () => {
       for (let i = 0; i < 10; i++) {
         adapter.addFile(`lots/f-${String(i).padStart(2, '0')}.md`, 'x');
       }
-      const result = await handlers.listRecursive({ path: 'lots', limit: 3, offset: 5 });
+      const result = await handlers.listRecursive({
+        path: 'lots',
+        limit: 3,
+        offset: 5,
+        response_format: 'json',
+      });
       const page = JSON.parse(getText(result)) as {
         total: number;
         count: number;

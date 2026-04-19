@@ -5,6 +5,11 @@ import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateVaultPath } from '../../utils/path-guard';
 import { handleToolError } from '../shared/errors';
 import { describeTool } from '../shared/describe';
+import {
+  makeResponse,
+  readResponseFormat,
+  responseFormatField,
+} from '../shared/response';
 
 type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
 
@@ -14,10 +19,20 @@ function err(m: string): CallToolResult { return handleToolError(new Error(m)); 
 function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
   const vaultPath = adapter.getVaultPath();
   return {
-    getActiveLeaf: (): Promise<CallToolResult> => {
+    getActiveLeaf: (params): Promise<CallToolResult> => {
       const info = adapter.getActiveLeafInfo();
       if (!info) return Promise.resolve(err('No active leaf'));
-      return Promise.resolve(text(JSON.stringify(info)));
+      return Promise.resolve(
+        makeResponse(
+          info,
+          (v) => {
+            const id = typeof v.id === 'string' ? v.id : 'unknown';
+            const type = typeof v.type === 'string' ? v.type : 'unknown';
+            return `Active leaf: ${id} (${type})`;
+          },
+          readResponseFormat(params),
+        ),
+      );
     },
     async openFile(params): Promise<CallToolResult> {
       try {
@@ -28,17 +43,32 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
         return err(error instanceof Error ? error.message : String(error));
       }
     },
-    listLeaves: (): Promise<CallToolResult> => {
+    listLeaves: (params): Promise<CallToolResult> => {
       const files = adapter.getOpenFiles();
-      return Promise.resolve(text(JSON.stringify(files)));
+      return Promise.resolve(
+        makeResponse(
+          { leaves: files },
+          (v) =>
+            v.leaves.length === 0
+              ? 'No open leaves.'
+              : v.leaves.map((f) => `- [${f.leafId}] ${f.path}`).join('\n'),
+          readResponseFormat(params),
+        ),
+      );
     },
     setActiveLeaf: (params): Promise<CallToolResult> => {
       const ok = adapter.setActiveLeaf(params.leafId as string);
       return Promise.resolve(ok ? text('Active leaf set') : err('Leaf not found'));
     },
-    getLayout: (): Promise<CallToolResult> => {
+    getLayout: (params): Promise<CallToolResult> => {
       const layout = adapter.getWorkspaceLayout();
-      return Promise.resolve(text(JSON.stringify(layout)));
+      return Promise.resolve(
+        makeResponse(
+          layout,
+          (v) => '```json\n' + JSON.stringify(v, null, 2) + '\n```',
+          readResponseFormat(params),
+        ),
+      );
     },
   };
 }
@@ -56,7 +86,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
             returns: 'JSON: { id, type, ... } describing the active leaf.',
             errors: ['"No active leaf" if no leaf is focused.'],
           }),
-          schema: {},
+          schema: { ...responseFormatField },
           handler: h.getActiveLeaf,
           annotations: annotations.read,
         },
@@ -91,7 +121,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
             summary: 'List every open leaf and the file it holds.',
             returns: 'JSON: [{ path, leafId }].',
           }),
-          schema: {},
+          schema: { ...responseFormatField },
           handler: h.listLeaves,
           annotations: annotations.read,
         },
@@ -119,7 +149,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
             summary: 'Get a summary of the current workspace layout.',
             returns: 'JSON: Obsidian\'s layout descriptor (nested splits and leaves).',
           }),
-          schema: {},
+          schema: { ...responseFormatField },
           handler: h.getLayout,
           annotations: annotations.read,
         },

@@ -4,6 +4,11 @@ import { ToolModule, ToolDefinition, annotations } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { handleToolError } from '../shared/errors';
 import { describeTool } from '../shared/describe';
+import {
+  makeResponse,
+  readResponseFormat,
+  responseFormatField,
+} from '../shared/response';
 import type { ModuleOptions } from '../index';
 
 type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
@@ -16,26 +21,53 @@ function createHandlers(
   getExecuteCommandAllowlist: () => string[],
 ): Record<string, Handler> {
   return {
-    listPlugins: (): Promise<CallToolResult> => {
+    listPlugins: (params): Promise<CallToolResult> => {
       const plugins = adapter.getInstalledPlugins();
-      return Promise.resolve(text(JSON.stringify(plugins)));
+      return Promise.resolve(
+        makeResponse(
+          { plugins },
+          (v) =>
+            v.plugins.length === 0
+              ? 'No community plugins installed.'
+              : v.plugins
+                  .map(
+                    (p) =>
+                      `- **${p.name ?? p.id}** (\`${p.id}\`) — ${p.enabled ? 'enabled' : 'disabled'}`,
+                  )
+                  .join('\n'),
+          readResponseFormat(params),
+        ),
+      );
     },
     checkPlugin: (params): Promise<CallToolResult> => {
       const pluginId = params.pluginId as string;
       const enabled = adapter.isPluginEnabled(pluginId);
       const plugins = adapter.getInstalledPlugins();
       const installed = plugins.some((p) => p.id === pluginId);
-      return Promise.resolve(text(JSON.stringify({ pluginId, installed, enabled })));
+      return Promise.resolve(
+        makeResponse(
+          { pluginId, installed, enabled },
+          (v) =>
+            `**${v.pluginId}** — ${v.installed ? 'installed' : 'not installed'}, ${v.enabled ? 'enabled' : 'disabled'}`,
+          readResponseFormat(params),
+        ),
+      );
     },
     dataviewQuery: (params): Promise<CallToolResult> => {
       if (!adapter.isPluginEnabled('dataview')) {
         return Promise.resolve(err('Dataview plugin is not installed or enabled'));
       }
-      // Dataview integration requires the Dataview API which is only available at runtime
-      return Promise.resolve(text(JSON.stringify({
+      const payload = {
         note: 'Dataview query execution requires the Dataview plugin API at runtime',
         query: params.query as string,
-      })));
+      };
+      return Promise.resolve(
+        makeResponse(
+          payload,
+          (v) => `_${v.note}_\n\n\`\`\`dataview\n${v.query}\n\`\`\``,
+          readResponseFormat(params),
+        ),
+      );
     },
     templaterExecute: (params): Promise<CallToolResult> => {
       if (!adapter.isPluginEnabled('templater-obsidian')) {
@@ -87,7 +119,7 @@ export function createPluginInteropModule(
             summary: 'List every installed community plugin with its enabled flag.',
             returns: 'JSON: [{ id, name, enabled, ... }].',
           }),
-          schema: {},
+          schema: { ...responseFormatField },
           handler: h.listPlugins,
           annotations: annotations.readExternal,
         },
@@ -104,6 +136,7 @@ export function createPluginInteropModule(
               .min(1)
               .max(200)
               .describe('Community plugin id (e.g. "dataview")'),
+            ...responseFormatField,
           },
           handler: h.checkPlugin,
           annotations: annotations.readExternal,
@@ -122,6 +155,7 @@ export function createPluginInteropModule(
               .min(1)
               .max(10_000)
               .describe('Dataview query (DQL or Dataview-js)'),
+            ...responseFormatField,
           },
           handler: h.dataviewQuery,
           annotations: annotations.readExternal,

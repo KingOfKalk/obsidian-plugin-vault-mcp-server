@@ -4,6 +4,11 @@ import { ToolModule, ToolDefinition, annotations } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { handleToolError } from '../shared/errors';
 import { describeTool } from '../shared/describe';
+import {
+  makeResponse,
+  readResponseFormat,
+  responseFormatField,
+} from '../shared/response';
 
 type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
 
@@ -46,15 +51,27 @@ function assertEditorPosition(
 
 function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
   return {
-    getContent: (): Promise<CallToolResult> => {
+    getContent: (params): Promise<CallToolResult> => {
       const content = adapter.getActiveFileContent();
       if (content === null) return Promise.resolve(err('No active editor'));
-      return Promise.resolve(text(content));
+      return Promise.resolve(
+        makeResponse(
+          { content },
+          (v) => v.content,
+          readResponseFormat(params),
+        ),
+      );
     },
-    getActivePath: (): Promise<CallToolResult> => {
+    getActivePath: (params): Promise<CallToolResult> => {
       const path = adapter.getActiveFilePath();
       if (path === null) return Promise.resolve(err('No active file'));
-      return Promise.resolve(text(path));
+      return Promise.resolve(
+        makeResponse(
+          { path },
+          (v) => v.path,
+          readResponseFormat(params),
+        ),
+      );
     },
     insert: (params): Promise<CallToolResult> => {
       const lineCount = adapter.getActiveLineCount();
@@ -113,10 +130,16 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
       );
       return Promise.resolve(ok ? text('Text deleted') : err('No active editor'));
     },
-    getCursor: (): Promise<CallToolResult> => {
+    getCursor: (params): Promise<CallToolResult> => {
       const pos = adapter.getCursorPosition();
       if (!pos) return Promise.resolve(err('No active editor'));
-      return Promise.resolve(text(JSON.stringify(pos)));
+      return Promise.resolve(
+        makeResponse(
+          pos,
+          (v) => `line ${String(v.line)}, ch ${String(v.ch)}`,
+          readResponseFormat(params),
+        ),
+      );
     },
     setCursor: (params): Promise<CallToolResult> => {
       const lineCount = adapter.getActiveLineCount();
@@ -134,10 +157,17 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
       );
       return Promise.resolve(ok ? text('Cursor set') : err('No active editor'));
     },
-    getSelection: (): Promise<CallToolResult> => {
+    getSelection: (params): Promise<CallToolResult> => {
       const sel = adapter.getSelection();
       if (!sel) return Promise.resolve(err('No active editor or selection'));
-      return Promise.resolve(text(JSON.stringify(sel)));
+      return Promise.resolve(
+        makeResponse(
+          sel,
+          (v) =>
+            `${String(v.from.line)}:${String(v.from.ch)} → ${String(v.to.line)}:${String(v.to.ch)}\n\n${v.text}`,
+          readResponseFormat(params),
+        ),
+      );
     },
     setSelection: (params): Promise<CallToolResult> => {
       const lineCount = adapter.getActiveLineCount();
@@ -158,10 +188,16 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
       );
       return Promise.resolve(ok ? text('Selection set') : err('No active editor'));
     },
-    getLineCount: (): Promise<CallToolResult> => {
+    getLineCount: (params): Promise<CallToolResult> => {
       const count = adapter.getActiveLineCount();
       if (count === null) return Promise.resolve(err('No active editor'));
-      return Promise.resolve(text(String(count)));
+      return Promise.resolve(
+        makeResponse(
+          { lineCount: count },
+          (v) => String(v.lineCount),
+          readResponseFormat(params),
+        ),
+      );
     },
   };
 }
@@ -179,7 +215,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             returns: 'Plain text: the editor\'s current content.',
             errors: ['"No active editor" if no markdown view is focused.'],
           }),
-          schema: {},
+          schema: { ...responseFormatField },
           handler: h.getContent,
           annotations: annotations.read,
         },
@@ -190,7 +226,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             returns: 'Plain text: the path, e.g. "notes/today.md".',
             errors: ['"No active file" if no file is open.'],
           }),
-          schema: {},
+          schema: { ...responseFormatField },
           handler: h.getActivePath,
           annotations: annotations.read,
         },
@@ -280,7 +316,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             returns: 'JSON: { line, ch } (zero-based).',
             errors: ['"No active editor" if no markdown view is focused.'],
           }),
-          schema: {},
+          schema: { ...responseFormatField },
           handler: h.getCursor,
           annotations: annotations.read,
         },
@@ -312,7 +348,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             returns: 'JSON: { from: {line, ch}, to: {line, ch}, text }.',
             errors: ['"No active editor or selection" if nothing is selected.'],
           }),
-          schema: {},
+          schema: { ...responseFormatField },
           handler: h.getSelection,
           annotations: annotations.read,
         },
@@ -346,7 +382,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             returns: 'Plain text: the line count as a decimal integer.',
             errors: ['"No active editor" if no markdown view is focused.'],
           }),
-          schema: {},
+          schema: { ...responseFormatField },
           handler: h.getLineCount,
           annotations: annotations.read,
         },
