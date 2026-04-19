@@ -5,8 +5,29 @@ import { truncateText } from '../shared/truncate';
 import { handleToolError } from '../shared/errors';
 import { paginate, readPagination } from '../shared/pagination';
 import { makeResponse, readResponseFormat } from '../shared/response';
+import type { InferredParams } from '../../registry/types';
+import type {
+  searchFulltextSchema,
+  filePathSchema,
+  searchByTagSchema,
+  searchByFrontmatterSchema,
+  readOnlySchema,
+} from './schemas';
 
-type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
+export interface SearchHandlers {
+  searchFulltext: (params: InferredParams<typeof searchFulltextSchema>) => Promise<CallToolResult>;
+  searchFrontmatter: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
+  searchTags: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
+  searchHeadings: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
+  searchOutgoingLinks: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
+  searchEmbeds: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
+  searchBacklinks: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
+  searchResolvedLinks: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
+  searchUnresolvedLinks: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
+  searchBlockReferences: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
+  searchByTag: (params: InferredParams<typeof searchByTagSchema>) => Promise<CallToolResult>;
+  searchByFrontmatter: (params: InferredParams<typeof searchByFrontmatterSchema>) => Promise<CallToolResult>;
+}
 
 function renderKeyValue(obj: Record<string, unknown>): string {
   const entries = Object.entries(obj);
@@ -37,13 +58,13 @@ function renderPaginatedPaths(
   return `${header}\n\n${body}${footer}`;
 }
 
-export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
+export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
   const vaultPath = adapter.getVaultPath();
 
   return {
     async searchFulltext(params): Promise<CallToolResult> {
       try {
-        const query = params.query as string;
+        const query = params.query;
         const all = await adapter.searchContent(query);
         const page = paginate(all, readPagination(params));
         const result = makeResponse(
@@ -75,7 +96,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
 
     searchFrontmatter(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path as string, vaultPath);
+        const path = validateVaultPath(params.path, vaultPath);
         const frontmatter = adapter.getFrontmatter(path) ?? {};
         return Promise.resolve(
           makeResponse(
@@ -116,7 +137,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
 
     searchHeadings(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path as string, vaultPath);
+        const path = validateVaultPath(params.path, vaultPath);
         const headings = adapter.getHeadings(path);
         return Promise.resolve(
           makeResponse(
@@ -138,7 +159,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
 
     searchOutgoingLinks(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path as string, vaultPath);
+        const path = validateVaultPath(params.path, vaultPath);
         const links = adapter.getLinks(path);
         return Promise.resolve(
           makeResponse(
@@ -160,7 +181,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
 
     searchEmbeds(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path as string, vaultPath);
+        const path = validateVaultPath(params.path, vaultPath);
         const embeds = adapter.getEmbeds(path);
         return Promise.resolve(
           makeResponse(
@@ -180,7 +201,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
 
     searchBacklinks(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path as string, vaultPath);
+        const path = validateVaultPath(params.path, vaultPath);
         const backlinks = adapter.getBacklinks(path);
         return Promise.resolve(
           makeResponse(
@@ -251,7 +272,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
 
     searchBlockReferences(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path as string, vaultPath);
+        const path = validateVaultPath(params.path, vaultPath);
         return adapter.getFileContent(path).then((content) => {
           const blockRefs = content
             .split('\n')
@@ -278,7 +299,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
 
     searchByTag(params): Promise<CallToolResult> {
       try {
-        const tag = params.tag as string;
+        const tag = params.tag;
         const normalizedTag = tag.startsWith('#') ? tag : `#${tag}`;
         const allTags = adapter.getAllTags();
         const files = allTags[normalizedTag] ?? [];
@@ -297,8 +318,8 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
 
     searchByFrontmatter(params): Promise<CallToolResult> {
       try {
-        const key = params.key as string;
-        const value = params.value as string;
+        const key = params.key;
+        const value = params.value;
         const allFiles = adapter.getAllFiles();
         const matching: string[] = [];
         for (const filePath of allFiles) {

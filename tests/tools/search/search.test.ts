@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
-import { createSearchHandlers } from '../../../src/tools/search/handlers';
+import { createSearchHandlers, type SearchHandlers } from '../../../src/tools/search/handlers';
 import { createSearchModule } from '../../../src/tools/search/index';
 
 function getText(result: CallToolResult): string {
@@ -33,7 +33,7 @@ describe('search module', () => {
 
 describe('search handlers', () => {
   let adapter: MockObsidianAdapter;
-  let handlers: Record<string, (params: Record<string, unknown>) => Promise<CallToolResult>>;
+  let handlers: SearchHandlers;
 
   beforeEach(() => {
     adapter = new MockObsidianAdapter();

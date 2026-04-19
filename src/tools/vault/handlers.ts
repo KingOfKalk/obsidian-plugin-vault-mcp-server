@@ -6,6 +6,25 @@ import { handleToolError } from '../shared/errors';
 import { paginate, readPagination } from '../shared/pagination';
 import { makeResponse, readResponseFormat } from '../shared/response';
 import { BINARY_BYTE_LIMIT } from '../../constants';
+import type { InferredParams } from '../../registry/types';
+import type {
+  createFileSchema,
+  readFileSchema,
+  updateFileSchema,
+  deleteFileSchema,
+  appendFileSchema,
+  getMetadataSchema,
+  renameFileSchema,
+  moveFileSchema,
+  copyFileSchema,
+  createFolderSchema,
+  deleteFolderSchema,
+  renameFolderSchema,
+  listFolderSchema,
+  listRecursiveSchema,
+  readBinarySchema,
+  writeBinarySchema,
+} from './schemas';
 
 export class WriteMutex {
   private locks: Map<string, Promise<void>> = new Map();
@@ -92,36 +111,37 @@ function isValidRenameTarget(value: unknown): value is string {
   );
 }
 
+export interface VaultHandlers {
+  createFile: (params: InferredParams<typeof createFileSchema>) => Promise<CallToolResult>;
+  readFile: (params: InferredParams<typeof readFileSchema>) => Promise<CallToolResult>;
+  updateFile: (params: InferredParams<typeof updateFileSchema>) => Promise<CallToolResult>;
+  deleteFile: (params: InferredParams<typeof deleteFileSchema>) => Promise<CallToolResult>;
+  appendFile: (params: InferredParams<typeof appendFileSchema>) => Promise<CallToolResult>;
+  renameFile: (params: InferredParams<typeof renameFileSchema>) => Promise<CallToolResult>;
+  moveFile: (params: InferredParams<typeof moveFileSchema>) => Promise<CallToolResult>;
+  copyFile: (params: InferredParams<typeof copyFileSchema>) => Promise<CallToolResult>;
+  getMetadata: (params: InferredParams<typeof getMetadataSchema>) => Promise<CallToolResult>;
+  createFolder: (params: InferredParams<typeof createFolderSchema>) => Promise<CallToolResult>;
+  deleteFolder: (params: InferredParams<typeof deleteFolderSchema>) => Promise<CallToolResult>;
+  renameFolder: (params: InferredParams<typeof renameFolderSchema>) => Promise<CallToolResult>;
+  listFolder: (params: InferredParams<typeof listFolderSchema>) => Promise<CallToolResult>;
+  listRecursive: (params: InferredParams<typeof listRecursiveSchema>) => Promise<CallToolResult>;
+  readBinary: (params: InferredParams<typeof readBinarySchema>) => Promise<CallToolResult>;
+  writeBinary: (params: InferredParams<typeof writeBinarySchema>) => Promise<CallToolResult>;
+}
+
 export function createHandlers(
   adapter: ObsidianAdapter,
   mutex: WriteMutex,
-): {
-  createFile: (params: Record<string, unknown>) => Promise<CallToolResult>;
-  readFile: (params: Record<string, unknown>) => Promise<CallToolResult>;
-  updateFile: (params: Record<string, unknown>) => Promise<CallToolResult>;
-  deleteFile: (params: Record<string, unknown>) => Promise<CallToolResult>;
-  appendFile: (params: Record<string, unknown>) => Promise<CallToolResult>;
-  renameFile: (params: Record<string, unknown>) => Promise<CallToolResult>;
-  moveFile: (params: Record<string, unknown>) => Promise<CallToolResult>;
-  copyFile: (params: Record<string, unknown>) => Promise<CallToolResult>;
-  getMetadata: (params: Record<string, unknown>) => Promise<CallToolResult>;
-  createFolder: (params: Record<string, unknown>) => Promise<CallToolResult>;
-  deleteFolder: (params: Record<string, unknown>) => Promise<CallToolResult>;
-  renameFolder: (params: Record<string, unknown>) => Promise<CallToolResult>;
-  listFolder: (params: Record<string, unknown>) => Promise<CallToolResult>;
-  listRecursive: (params: Record<string, unknown>) => Promise<CallToolResult>;
-  readBinary: (params: Record<string, unknown>) => Promise<CallToolResult>;
-  writeBinary: (params: Record<string, unknown>) => Promise<CallToolResult>;
-} {
+): VaultHandlers {
   const vaultPath = adapter.getVaultPath();
 
   return {
     async createFile(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path as string, vaultPath);
-        const content = params.content as string;
+        const path = validateVaultPath(params.path, vaultPath);
         return await mutex.acquire(path, async () => {
-          await adapter.createFile(path, content);
+          await adapter.createFile(path, params.content);
           return textResult(`Created file: ${path}`);
         });
       } catch (error) {
@@ -131,7 +151,7 @@ export function createHandlers(
 
     async readFile(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path as string, vaultPath);
+        const path = validateVaultPath(params.path, vaultPath);
         const content = await adapter.readFile(path);
         const result = makeResponse(
           { path, content },
@@ -154,10 +174,9 @@ export function createHandlers(
 
     async updateFile(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path as string, vaultPath);
-        const content = params.content as string;
+        const path = validateVaultPath(params.path, vaultPath);
         return await mutex.acquire(path, async () => {
-          await adapter.modifyFile(path, content);
+          await adapter.modifyFile(path, params.content);
           return textResult(`Updated file: ${path}`);
         });
       } catch (error) {
@@ -167,7 +186,7 @@ export function createHandlers(
 
     async deleteFile(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path as string, vaultPath);
+        const path = validateVaultPath(params.path, vaultPath);
         return await mutex.acquire(path, async () => {
           await adapter.deleteFile(path);
           return textResult(`Deleted file: ${path}`);
@@ -179,11 +198,10 @@ export function createHandlers(
 
     async appendFile(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path as string, vaultPath);
-        const content = params.content as string;
+        const path = validateVaultPath(params.path, vaultPath);
         return await mutex.acquire(path, async () => {
           const existing = await adapter.readFile(path);
-          await adapter.modifyFile(path, existing + content);
+          await adapter.modifyFile(path, existing + params.content);
           return textResult(`Appended to file: ${path}`);
         });
       } catch (error) {
@@ -193,7 +211,7 @@ export function createHandlers(
 
     async getMetadata(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path as string, vaultPath);
+        const path = validateVaultPath(params.path, vaultPath);
         const stat = await adapter.stat(path);
         if (!stat) {
           return errorResult(`File not found: ${path}`);
@@ -217,14 +235,12 @@ export function createHandlers(
 
     async renameFile(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path as string, vaultPath);
-        const rawNewName = params.newName;
-        if (!isValidRenameTarget(rawNewName)) {
+        const path = validateVaultPath(params.path, vaultPath);
+        if (!isValidRenameTarget(params.newName)) {
           return errorResult('Invalid rename target');
         }
-        const newName = rawNewName;
         const parts = path.split('/');
-        parts[parts.length - 1] = newName;
+        parts[parts.length - 1] = params.newName;
         const newPath = parts.join('/');
         try {
           validateVaultPath(newPath, vaultPath);
@@ -242,8 +258,8 @@ export function createHandlers(
 
     async moveFile(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path as string, vaultPath);
-        const newPath = validateVaultPath(params.newPath as string, vaultPath);
+        const path = validateVaultPath(params.path, vaultPath);
+        const newPath = validateVaultPath(params.newPath, vaultPath);
         return await mutex.acquire(path, async () => {
           await adapter.renameFile(path, newPath);
           return textResult(`Moved file: ${path} → ${newPath}`);
@@ -255,8 +271,8 @@ export function createHandlers(
 
     async copyFile(params): Promise<CallToolResult> {
       try {
-        const sourcePath = validateVaultPath(params.sourcePath as string, vaultPath);
-        const destPath = validateVaultPath(params.destPath as string, vaultPath);
+        const sourcePath = validateVaultPath(params.sourcePath, vaultPath);
+        const destPath = validateVaultPath(params.destPath, vaultPath);
         await adapter.copyFile(sourcePath, destPath);
         return textResult(`Copied file: ${sourcePath} → ${destPath}`);
       } catch (error) {
@@ -266,7 +282,7 @@ export function createHandlers(
 
     async createFolder(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path as string, vaultPath);
+        const path = validateVaultPath(params.path, vaultPath);
         await adapter.createFolder(path);
         return textResult(`Created folder: ${path}`);
       } catch (error) {
@@ -276,9 +292,8 @@ export function createHandlers(
 
     async deleteFolder(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path as string, vaultPath);
-        const recursive = (params.recursive as boolean) ?? false;
-        await adapter.deleteFolder(path, recursive);
+        const path = validateVaultPath(params.path, vaultPath);
+        await adapter.deleteFolder(path, params.recursive ?? false);
         return textResult(`Deleted folder: ${path}`);
       } catch (error) {
         return handleToolError(error);
@@ -287,8 +302,8 @@ export function createHandlers(
 
     async renameFolder(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path as string, vaultPath);
-        const newPath = validateVaultPath(params.newPath as string, vaultPath);
+        const path = validateVaultPath(params.path, vaultPath);
+        const newPath = validateVaultPath(params.newPath, vaultPath);
         await adapter.renameFile(path, newPath);
         return textResult(`Renamed folder: ${path} → ${newPath}`);
       } catch (error) {
@@ -298,13 +313,12 @@ export function createHandlers(
 
     listFolder(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path as string, vaultPath);
+        const path = validateVaultPath(params.path, vaultPath);
         const result = adapter.list(path);
         return Promise.resolve(
           makeResponse(
             result,
-            (v) =>
-              renderFolderListing(path, v.folders, v.files),
+            (v) => renderFolderListing(path, v.folders, v.files),
             readResponseFormat(params),
           ),
         );
@@ -315,7 +329,7 @@ export function createHandlers(
 
     listRecursive(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path as string, vaultPath);
+        const path = validateVaultPath(params.path, vaultPath);
         const result = adapter.listRecursive(path);
         const pagination = readPagination(params);
         const filesPage = paginate(result.files, pagination);
@@ -325,7 +339,15 @@ export function createHandlers(
         };
         const wrapped = makeResponse(
           payload,
-          (v) => renderRecursiveListing(path, v.folders, v.items, v.total, v.has_more, v.next_offset),
+          (v) =>
+            renderRecursiveListing(
+              path,
+              v.folders,
+              v.items,
+              v.total,
+              v.has_more,
+              v.next_offset,
+            ),
           readResponseFormat(params),
         );
         const firstBlock = wrapped.content[0];
@@ -344,7 +366,7 @@ export function createHandlers(
 
     async readBinary(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path as string, vaultPath);
+        const path = validateVaultPath(params.path, vaultPath);
         const data = await adapter.readBinary(path);
         if (data.byteLength > BINARY_BYTE_LIMIT) {
           return errorResult(
@@ -360,11 +382,13 @@ export function createHandlers(
 
     async writeBinary(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path as string, vaultPath);
-        const base64 = params.data as string;
-        const buffer = Buffer.from(base64, 'base64');
+        const path = validateVaultPath(params.path, vaultPath);
+        const buffer = Buffer.from(params.data, 'base64');
         return await mutex.acquire(path, async () => {
-          await adapter.writeBinary(path, buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength));
+          await adapter.writeBinary(
+            path,
+            buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
+          );
           return textResult(`Wrote binary file: ${path}`);
         });
       } catch (error) {

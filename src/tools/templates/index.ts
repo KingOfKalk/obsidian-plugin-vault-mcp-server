@@ -1,12 +1,16 @@
 import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { ToolModule, ToolDefinition, annotations } from '../../registry/types';
+import {
+  ToolModule,
+  ToolDefinition,
+  annotations,
+  defineTool,
+  type InferredParams,
+} from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateVaultPath } from '../../utils/path-guard';
 import { handleToolError } from '../shared/errors';
 import { describeTool } from '../shared/describe';
-
-type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
 
 function text(t: string): CallToolResult { return { content: [{ type: 'text', text: t }] }; }
 function err(m: string): CallToolResult { return handleToolError(new Error(m)); }
@@ -27,7 +31,43 @@ function expandVariables(template: string, variables: Record<string, string>): s
   return result;
 }
 
-function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
+const listTemplatesSchema = {};
+
+const createFromTemplateSchema = {
+  templatePath: z
+    .string()
+    .min(1)
+    .max(4096)
+    .describe('Vault-relative path to the template source file'),
+  destPath: z
+    .string()
+    .min(1)
+    .max(4096)
+    .describe('Vault-relative path for the new file'),
+  variables: z
+    .record(z.string(), z.string())
+    .optional()
+    .describe('Template variables keyed by name (e.g. { title: "Today" })'),
+};
+
+const expandVariablesSchema = {
+  template: z
+    .string()
+    .max(100_000)
+    .describe('Template text containing {{variable}} placeholders'),
+  variables: z
+    .record(z.string(), z.string())
+    .optional()
+    .describe('Template variables keyed by name'),
+};
+
+interface TemplatesHandlers {
+  listTemplates: (params: InferredParams<typeof listTemplatesSchema>) => Promise<CallToolResult>;
+  createFromTemplate: (params: InferredParams<typeof createFromTemplateSchema>) => Promise<CallToolResult>;
+  expandVariables: (params: InferredParams<typeof expandVariablesSchema>) => Promise<CallToolResult>;
+}
+
+function createHandlers(adapter: ObsidianAdapter): TemplatesHandlers {
   const vaultPath = adapter.getVaultPath();
   const templatesFolder = 'templates';
 
@@ -42,9 +82,9 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
     },
     async createFromTemplate(params): Promise<CallToolResult> {
       try {
-        const templatePath = validateVaultPath(params.templatePath as string, vaultPath);
-        const destPath = validateVaultPath(params.destPath as string, vaultPath);
-        const variables = (params.variables as Record<string, string>) ?? {};
+        const templatePath = validateVaultPath(params.templatePath, vaultPath);
+        const destPath = validateVaultPath(params.destPath, vaultPath);
+        const variables = params.variables ?? {};
         const templateContent = await adapter.readFile(templatePath);
         const expanded = expandVariables(templateContent, variables);
         await adapter.createFile(destPath, expanded);
@@ -55,9 +95,8 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
     },
     expandVariables: (params): Promise<CallToolResult> => {
       try {
-        const template = params.template as string;
-        const variables = (params.variables as Record<string, string>) ?? {};
-        const result = expandVariables(template, variables);
+        const variables = params.variables ?? {};
+        const result = expandVariables(params.template, variables);
         return Promise.resolve(text(result));
       } catch (error) {
         return Promise.resolve(err(error instanceof Error ? error.message : String(error)));
@@ -72,17 +111,17 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
     metadata: { id: 'templates', name: 'Templates and Content Generation', description: 'List, create from, and expand templates' },
     tools(): ToolDefinition[] {
       return [
-        {
+        defineTool({
           name: 'template_list',
           description: describeTool({
             summary: 'List files in the vault\'s "templates" folder.',
             returns: 'JSON: string[] of template file paths. Empty array if the folder is missing.',
           }),
-          schema: {},
+          schema: listTemplatesSchema,
           handler: h.listTemplates,
           annotations: annotations.read,
-        },
-        {
+        }),
+        defineTool({
           name: 'template_create_from',
           description: describeTool({
             summary: 'Create a file by expanding {{variable}} placeholders in a template.',
@@ -97,26 +136,11 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
               '"File already exists" if destPath is taken.',
             ],
           }),
-          schema: {
-            templatePath: z
-              .string()
-              .min(1)
-              .max(4096)
-              .describe('Vault-relative path to the template source file'),
-            destPath: z
-              .string()
-              .min(1)
-              .max(4096)
-              .describe('Vault-relative path for the new file'),
-            variables: z
-              .record(z.string(), z.string())
-              .optional()
-              .describe('Template variables keyed by name (e.g. { title: "Today" })'),
-          },
+          schema: createFromTemplateSchema,
           handler: h.createFromTemplate,
           annotations: annotations.additive,
-        },
-        {
+        }),
+        defineTool({
           name: 'template_expand',
           description: describeTool({
             summary: 'Expand {{variable}} placeholders in a supplied string without writing any file.',
@@ -126,19 +150,10 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
             ],
             returns: 'Plain text: the expanded string.',
           }),
-          schema: {
-            template: z
-              .string()
-              .max(100_000)
-              .describe('Template text containing {{variable}} placeholders'),
-            variables: z
-              .record(z.string(), z.string())
-              .optional()
-              .describe('Template variables keyed by name'),
-          },
+          schema: expandVariablesSchema,
           handler: h.expandVariables,
           annotations: annotations.read,
-        },
+        }),
       ];
     },
   };
