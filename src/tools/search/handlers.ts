@@ -3,6 +3,7 @@ import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateVaultPath } from '../../utils/path-guard';
 import { truncateText } from '../shared/truncate';
 import { handleToolError } from '../shared/errors';
+import { paginate, readPagination } from '../shared/pagination';
 
 type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
 
@@ -22,10 +23,11 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
     async searchFulltext(params): Promise<CallToolResult> {
       try {
         const query = params.query as string;
-        const results = await adapter.searchContent(query);
+        const all = await adapter.searchContent(query);
+        const page = paginate(all, readPagination(params));
         return truncatedResult(
-          JSON.stringify(results),
-          'Narrow the query or add filters to reduce match count.',
+          JSON.stringify(page),
+          'Narrow the query, shrink limit, or advance offset.',
         );
       } catch (error) {
         return handleToolError(error);
@@ -135,7 +137,8 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
         const normalizedTag = tag.startsWith('#') ? tag : `#${tag}`;
         const allTags = adapter.getAllTags();
         const files = allTags[normalizedTag] ?? [];
-        return Promise.resolve(textResult(JSON.stringify(files)));
+        const page = paginate(files, readPagination(params));
+        return Promise.resolve(textResult(JSON.stringify(page)));
       } catch (error) {
         return Promise.resolve(handleToolError(error));
       }
@@ -153,7 +156,8 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
             matching.push(filePath);
           }
         }
-        return Promise.resolve(textResult(JSON.stringify(matching)));
+        const page = paginate(matching, readPagination(params));
+        return Promise.resolve(textResult(JSON.stringify(page)));
       } catch (error) {
         return Promise.resolve(handleToolError(error));
       }

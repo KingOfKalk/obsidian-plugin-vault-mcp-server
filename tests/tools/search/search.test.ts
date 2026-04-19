@@ -46,15 +46,22 @@ describe('search handlers', () => {
       adapter.addFile('notes/b.md', 'Goodbye World');
       adapter.addFile('notes/c.md', 'Nothing here');
       const result = await handlers.searchFulltext({ query: 'World' });
-      const data = JSON.parse(getText(result)) as Array<{ path: string }>;
-      expect(data).toHaveLength(2);
+      const page = JSON.parse(getText(result)) as {
+        total: number;
+        items: Array<{ path: string }>;
+      };
+      expect(page.total).toBe(2);
+      expect(page.items).toHaveLength(2);
     });
 
     it('should be case-insensitive', async () => {
       adapter.addFile('test.md', 'Hello WORLD');
       const result = await handlers.searchFulltext({ query: 'world' });
-      const data = JSON.parse(getText(result)) as Array<{ path: string }>;
-      expect(data).toHaveLength(1);
+      const page = JSON.parse(getText(result)) as {
+        total: number;
+        items: Array<{ path: string }>;
+      };
+      expect(page.total).toBe(1);
     });
 
     it('truncates oversized results with a clear footer', async () => {
@@ -149,7 +156,8 @@ describe('search handlers', () => {
       adapter.addFile('b.md', 'content');
       adapter.setMetadata('b.md', { tags: ['#personal'] });
       const result = await handlers.searchByTag({ tag: '#project' });
-      const data = JSON.parse(getText(result)) as string[];
+      const page = JSON.parse(getText(result)) as { items: string[] };
+      const data = page.items;
       expect(data).toEqual(['a.md']);
     });
 
@@ -157,8 +165,8 @@ describe('search handlers', () => {
       adapter.addFile('a.md', 'content');
       adapter.setMetadata('a.md', { tags: ['#project'] });
       const result = await handlers.searchByTag({ tag: 'project' });
-      const data = JSON.parse(getText(result)) as string[];
-      expect(data).toEqual(['a.md']);
+      const page = JSON.parse(getText(result)) as { items: string[] };
+      expect(page.items).toEqual(['a.md']);
     });
   });
 
@@ -169,8 +177,8 @@ describe('search handlers', () => {
       adapter.addFile('b.md', 'content');
       adapter.setMetadata('b.md', { frontmatter: { status: 'draft' } });
       const result = await handlers.searchByFrontmatter({ key: 'status', value: 'done' });
-      const data = JSON.parse(getText(result)) as string[];
-      expect(data).toEqual(['a.md']);
+      const page = JSON.parse(getText(result)) as { items: string[] };
+      expect(page.items).toEqual(['a.md']);
     });
   });
 

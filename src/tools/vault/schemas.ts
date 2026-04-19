@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { base64Schema } from '../../utils/validation';
+import { paginationFields } from '../shared/pagination';
 
 const path = z
   .string()
@@ -116,6 +117,7 @@ export const listFolderSchema = {
 
 export const listRecursiveSchema = {
   path: folderPath.describe('Folder path to list recursively'),
+  ...paginationFields,
 };
 
 export const readBinarySchema = {
