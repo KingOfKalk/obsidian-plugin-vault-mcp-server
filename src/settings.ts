@@ -10,6 +10,7 @@ import {
   loadAndValidateCustomTls,
 } from './server/custom-tls';
 import { pickFile } from './utils/file-picker';
+import { reportError } from './utils/report-error';
 
 export class McpSettingsTab extends PluginSettingTab {
   plugin: McpPlugin;
@@ -59,9 +60,12 @@ export class McpSettingsTab extends PluginSettingTab {
           .setIcon('refresh-cw')
           .setTooltip(t('tooltip_restart_server'))
           .onClick(() => {
-            void this.plugin.restartServer().then(() => {
-              this.display();
-            });
+            this.plugin
+              .restartServer()
+              .then(() => {
+                this.display();
+              })
+              .catch(reportError('restart server', this.plugin.logger));
           }),
       );
     }
@@ -74,9 +78,16 @@ export class McpSettingsTab extends PluginSettingTab {
           const action = value
             ? this.plugin.startServer()
             : this.plugin.stopServer();
-          void action.then(() => {
-            this.display();
-          });
+          action
+            .then(() => {
+              this.display();
+            })
+            .catch(
+              reportError(
+                value ? 'start server' : 'stop server',
+                this.plugin.logger,
+              ),
+            );
         }),
     );
   }
@@ -147,9 +158,12 @@ export class McpSettingsTab extends PluginSettingTab {
           .setIcon('copy')
           .setTooltip(t('tooltip_copy_server_url'))
           .onClick(() => {
-            void navigator.clipboard.writeText(serverUrl).then(() => {
-              new Notice(t('notice_server_url_copied'));
-            });
+            navigator.clipboard
+              .writeText(serverUrl)
+              .then(() => {
+                new Notice(t('notice_server_url_copied'));
+              })
+              .catch(reportError('copy server URL', this.plugin.logger));
           }),
       );
 
@@ -184,11 +198,12 @@ export class McpSettingsTab extends PluginSettingTab {
             .setIcon('copy')
             .setTooltip(t('tooltip_copy_access_key'))
             .onClick(() => {
-              void navigator.clipboard
+              navigator.clipboard
                 .writeText(this.plugin.settings.accessKey)
                 .then(() => {
                   new Notice(t('notice_access_key_copied'));
-                });
+                })
+                .catch(reportError('copy access key', this.plugin.logger));
             }),
         )
         .addExtraButton((btn) =>
@@ -197,9 +212,12 @@ export class McpSettingsTab extends PluginSettingTab {
             .setTooltip(t('tooltip_generate'))
             .onClick(() => {
               this.plugin.settings.accessKey = generateAccessKey();
-              void this.plugin.saveSettings().then(() => {
-                this.display();
-              });
+              this.plugin
+                .saveSettings()
+                .then(() => {
+                  this.display();
+                })
+                .catch(reportError('save settings', this.plugin.logger));
             }),
         );
     }
@@ -232,10 +250,18 @@ export class McpSettingsTab extends PluginSettingTab {
               .setIcon('refresh-cw')
               .setTooltip(t('tooltip_regenerate_cert'))
               .onClick(() => {
-                void this.plugin.regenerateTlsCertificate().then(() => {
-                  new Notice(t('notice_tls_regenerated'));
-                  this.display();
-                });
+                this.plugin
+                  .regenerateTlsCertificate()
+                  .then(() => {
+                    new Notice(t('notice_tls_regenerated'));
+                    this.display();
+                  })
+                  .catch(
+                    reportError(
+                      'regenerate TLS certificate',
+                      this.plugin.logger,
+                    ),
+                  );
               }),
           );
       }
@@ -285,7 +311,9 @@ export class McpSettingsTab extends PluginSettingTab {
     const certError = createValidationError(certSetting);
     certSetting.addButton((btn) =>
       btn.setButtonText(t('button_browse')).onClick(() => {
-        void this.pickCustomTlsPath('cert');
+        this.pickCustomTlsPath('cert').catch(
+          reportError('pick custom TLS certificate', this.plugin.logger),
+        );
       }),
     );
 
@@ -300,7 +328,9 @@ export class McpSettingsTab extends PluginSettingTab {
     const keyError = createValidationError(keySetting);
     keySetting.addButton((btn) =>
       btn.setButtonText(t('button_browse')).onClick(() => {
-        void this.pickCustomTlsPath('key');
+        this.pickCustomTlsPath('key').catch(
+          reportError('pick custom TLS key', this.plugin.logger),
+        );
       }),
     );
 
@@ -385,11 +415,12 @@ export class McpSettingsTab extends PluginSettingTab {
           .setIcon('copy')
           .setTooltip(t('tooltip_copy_config'))
           .onClick(() => {
-            void navigator.clipboard
+            navigator.clipboard
               .writeText(this.buildMcpConfigJson())
               .then(() => {
                 new Notice(t('notice_config_copied'));
-              });
+              })
+              .catch(reportError('copy MCP client config', this.plugin.logger));
           }),
       );
   }
@@ -457,9 +488,11 @@ export class McpSettingsTab extends PluginSettingTab {
           .setIcon('trash')
           .setTooltip(t('tooltip_clear_log'))
           .onClick(() => {
-            void clearLogFile(this.plugin).then(() => {
-              new Notice(t('notice_log_cleared'));
-            });
+            clearLogFile(this.plugin)
+              .then(() => {
+                new Notice(t('notice_log_cleared'));
+              })
+              .catch(reportError('clear log file', this.plugin.logger));
           }),
       );
   }

@@ -11,6 +11,7 @@ import { discoverModules } from './tools';
 import { McpSettingsTab, migrateSettings } from './settings';
 import { t } from './lang/helpers';
 import { createLogFileSink } from './utils/log-file';
+import { reportError } from './utils/report-error';
 import { DebugInfoModal } from './ui/debug-info-modal';
 
 const ICON_MCP = 'plug';
@@ -49,9 +50,9 @@ export default class McpPlugin extends Plugin {
       t('ribbon_mcp_server'),
       () => {
         if (this.httpServer?.isRunning) {
-          void this.stopServer();
+          this.stopServer().catch(reportError('stop server', this.logger));
         } else {
-          void this.startServer();
+          this.startServer().catch(reportError('start server', this.logger));
         }
       },
     );
@@ -64,7 +65,7 @@ export default class McpPlugin extends Plugin {
       id: 'start-server',
       name: t('command_start_server'),
       callback: () => {
-        void this.startServer();
+        this.startServer().catch(reportError('start server', this.logger));
       },
     });
 
@@ -72,7 +73,7 @@ export default class McpPlugin extends Plugin {
       id: 'stop-server',
       name: t('command_stop_server'),
       callback: () => {
-        void this.stopServer();
+        this.stopServer().catch(reportError('stop server', this.logger));
       },
     });
 
@@ -80,7 +81,7 @@ export default class McpPlugin extends Plugin {
       id: 'restart-server',
       name: t('command_restart_server'),
       callback: () => {
-        void this.restartServer();
+        this.restartServer().catch(reportError('restart server', this.logger));
       },
     });
 
@@ -88,9 +89,12 @@ export default class McpPlugin extends Plugin {
       id: 'copy-access-key',
       name: t('command_copy_access_key'),
       callback: () => {
-        void navigator.clipboard.writeText(this.settings.accessKey).then(() => {
-          new Notice(t('notice_access_key_copied'));
-        });
+        navigator.clipboard
+          .writeText(this.settings.accessKey)
+          .then(() => {
+            new Notice(t('notice_access_key_copied'));
+          })
+          .catch(reportError('copy access key', this.logger));
       },
     });
 
@@ -122,7 +126,7 @@ export default class McpPlugin extends Plugin {
   }
 
   onunload(): void {
-    void this.stopServer();
+    this.stopServer().catch(reportError('stop server', this.logger));
   }
 
   async startServer(): Promise<void> {

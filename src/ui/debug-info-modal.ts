@@ -2,6 +2,7 @@ import { App, Modal, Notice } from 'obsidian';
 import type McpPlugin from '../main';
 import { collectDebugInfo } from '../utils/debug-info';
 import { t } from '../lang/helpers';
+import { reportError } from '../utils/report-error';
 
 /**
  * Modal that previews the debug bundle in a read-only textarea and
@@ -38,19 +39,24 @@ export class DebugInfoModal extends Modal {
     copyBtn.disabled = true;
 
     copyBtn.addEventListener('click', () => {
-      void navigator.clipboard.writeText(textarea.value).then(() => {
-        new Notice(t('notice_debug_info_copied'));
-      });
+      navigator.clipboard
+        .writeText(textarea.value)
+        .then(() => {
+          new Notice(t('notice_debug_info_copied'));
+        })
+        .catch(reportError('copy debug info', this.plugin.logger));
     });
 
     closeBtn.addEventListener('click', () => {
       this.close();
     });
 
-    void collectDebugInfo(this.plugin).then((bundle) => {
-      textarea.value = bundle;
-      copyBtn.disabled = false;
-    });
+    collectDebugInfo(this.plugin)
+      .then((bundle) => {
+        textarea.value = bundle;
+        copyBtn.disabled = false;
+      })
+      .catch(reportError('collect debug info', this.plugin.logger));
   }
 
   onClose(): void {
