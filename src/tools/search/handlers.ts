@@ -4,16 +4,12 @@ import { validateVaultPath } from '../../utils/path-guard';
 import { truncateText } from '../shared/truncate';
 import { handleToolError } from '../shared/errors';
 import { paginate, readPagination } from '../shared/pagination';
+import { makeResponse, readResponseFormat } from '../shared/response';
 
 type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
 
 function textResult(text: string): CallToolResult {
   return { content: [{ type: 'text', text }] };
-}
-
-function truncatedResult(text: string, hint?: string): CallToolResult {
-  const result = truncateText(text, hint ? { hint } : {});
-  return { content: [{ type: 'text', text: result.text }] };
 }
 
 export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
@@ -25,10 +21,28 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
         const query = params.query as string;
         const all = await adapter.searchContent(query);
         const page = paginate(all, readPagination(params));
-        return truncatedResult(
-          JSON.stringify(page),
-          'Narrow the query, shrink limit, or advance offset.',
+        const result = makeResponse(
+          page,
+          (v) => {
+            if (v.items.length === 0) return 'No matches.';
+            const lines = v.items.map(
+              (m) => `- ${m.path} (${String(m.matches.length)} match${m.matches.length === 1 ? '' : 'es'})`,
+            );
+            const pager = v.has_more
+              ? `\n\n_Showing ${String(v.count)} of ${String(v.total)} — next offset: ${String(v.next_offset ?? '')}_`
+              : '';
+            return `**${String(v.total)} result${v.total === 1 ? '' : 's'}**\n\n${lines.join('\n')}${pager}`;
+          },
+          readResponseFormat(params),
         );
+        const truncated = truncateText(
+          result.content[0].type === 'text' ? result.content[0].text : '',
+          { hint: 'Narrow the query, shrink limit, or advance offset.' },
+        );
+        return {
+          ...result,
+          content: [{ type: 'text' as const, text: truncated.text }],
+        };
       } catch (error) {
         return handleToolError(error);
       }

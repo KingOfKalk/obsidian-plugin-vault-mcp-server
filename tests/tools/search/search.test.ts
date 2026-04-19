@@ -41,40 +41,44 @@ describe('search handlers', () => {
   });
 
   describe('searchFulltext', () => {
-    it('should find files containing query', async () => {
+    it('returns paginated results in json format', async () => {
       adapter.addFile('notes/a.md', 'Hello World');
       adapter.addFile('notes/b.md', 'Goodbye World');
       adapter.addFile('notes/c.md', 'Nothing here');
-      const result = await handlers.searchFulltext({ query: 'World' });
+      const result = await handlers.searchFulltext({
+        query: 'World',
+        response_format: 'json',
+      });
       const page = JSON.parse(getText(result)) as {
         total: number;
+        count: number;
         items: Array<{ path: string }>;
       };
       expect(page.total).toBe(2);
+      expect(page.count).toBe(2);
       expect(page.items).toHaveLength(2);
+      expect(result.structuredContent).toMatchObject({ total: 2 });
     });
 
-    it('should be case-insensitive', async () => {
+    it('renders markdown by default and always attaches structuredContent', async () => {
       adapter.addFile('test.md', 'Hello WORLD');
       const result = await handlers.searchFulltext({ query: 'world' });
-      const page = JSON.parse(getText(result)) as {
-        total: number;
-        items: Array<{ path: string }>;
-      };
-      expect(page.total).toBe(1);
+      expect(getText(result)).toContain('**1 result**');
+      expect(getText(result)).toContain('test.md');
+      expect(result.structuredContent).toMatchObject({ total: 1 });
     });
 
-    it('truncates oversized results with a clear footer', async () => {
-      // Build a payload well over CHARACTER_LIMIT by indexing many matching
-      // lines in one file.
-      const big = Array.from({ length: 5000 }, (_, i) => `match ${String(i)}`).join(
+    it('truncates oversized json responses with a clear footer', async () => {
+      const bigMatches = Array.from({ length: 5000 }, (_, i) => `match ${String(i)}`).join(
         '\n',
       );
-      adapter.addFile('big.md', big);
-      const result = await handlers.searchFulltext({ query: 'match' });
-      const out = getText(result);
-      expect(out).toContain('[TRUNCATED:');
-      expect(out).toContain('Narrow the query');
+      adapter.addFile('big.md', bigMatches);
+      const result = await handlers.searchFulltext({
+        query: 'match',
+        response_format: 'json',
+        limit: 100,
+      });
+      expect(getText(result)).toContain('[TRUNCATED:');
     });
   });
 

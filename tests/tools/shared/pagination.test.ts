@@ -54,7 +54,12 @@ describe('search_fulltext pagination end-to-end', () => {
     }
     const handlers = createSearchHandlers(adapter);
 
-    const r1 = await handlers.searchFulltext({ query: 'match', limit: 10, offset: 0 });
+    const r1 = await handlers.searchFulltext({
+      query: 'match',
+      limit: 10,
+      offset: 0,
+      response_format: 'json',
+    });
     const p1 = JSON.parse(getText(r1)) as {
       total: number;
       count: number;
@@ -71,6 +76,7 @@ describe('search_fulltext pagination end-to-end', () => {
       query: 'match',
       limit: 10,
       offset: p1.next_offset,
+      response_format: 'json',
     });
     const p2 = JSON.parse(getText(r2)) as typeof p1;
     expect(p2.count).toBe(10);
@@ -81,6 +87,7 @@ describe('search_fulltext pagination end-to-end', () => {
       query: 'match',
       limit: 10,
       offset: p2.next_offset,
+      response_format: 'json',
     });
     const p3 = JSON.parse(getText(r3)) as typeof p1;
     expect(p3.count).toBe(5);
