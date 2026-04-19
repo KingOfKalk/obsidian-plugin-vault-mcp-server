@@ -63,8 +63,8 @@ PNGs. Use this whenever you need to verify a UI change visually.
 
 Read the PNG files with the `Read` tool — they render inline. Screenshots
 published to users land on the GitHub release page: `release.yml` captures
-`release-main.png`, `release-plugin-settings.png`, and `release-server-running.png`
-via `docker/scripts/release_screenshots.py` and attaches them as release assets.
+`release-settings.png` via `docker/scripts/release_screenshots.py` and
+attaches it as a release asset.
 
 ### Mandatory before/after screenshots for UI work
 

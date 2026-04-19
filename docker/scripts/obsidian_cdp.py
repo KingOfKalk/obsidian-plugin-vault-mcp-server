@@ -213,21 +213,53 @@ class ObsidianCDP:
             self.eval(f"app.commands.executeCommandById({json.dumps(command_id)})")
         )
 
-    def screenshot(self, output_path: str, fmt: str = "png") -> str:
+    def screenshot(
+        self,
+        output_path: str,
+        fmt: str = "png",
+        capture_beyond_viewport: bool = False,
+    ) -> str:
         """Capture the renderer surface to a PNG. Returns the absolute path written.
 
         Uses CDP `Page.captureScreenshot`, the same call obsidian-cli's
         `dev:screenshot` uses internally. No external screenshot tool needed.
+
+        Set `capture_beyond_viewport=True` to render the full document when a
+        modal or settings tab overflows the viewport — useful for capturing the
+        full Obsidian MCP settings tab in a single uncropped image.
         """
         result = self._send(
             "Page.captureScreenshot",
-            {"format": fmt, "captureBeyondViewport": False},
+            {"format": fmt, "captureBeyondViewport": capture_beyond_viewport},
         )
         data = base64.b64decode(result["data"])
         os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
         with open(output_path, "wb") as f:
             f.write(data)
         return os.path.abspath(output_path)
+
+    def set_color_scheme(self, scheme: str) -> None:
+        """Flip Obsidian's base color scheme at runtime.
+
+        `scheme` must be either `"moonstone"` (light) or `"obsidian"` (dark).
+        Uses the same JS sequence as the official `obsidian-system-dark-mode`
+        plugin: flip the in-memory theme, persist it, and trigger `css-change`
+        so all CSS variables re-evaluate.
+        """
+        if scheme not in ("moonstone", "obsidian"):
+            raise ValueError(
+                f"Unknown color scheme {scheme!r}; expected 'moonstone' or 'obsidian'"
+            )
+        self.eval(
+            f"""
+            (() => {{
+                const scheme = {json.dumps(scheme)};
+                app.setTheme(scheme);
+                app.vault.setConfig('theme', scheme);
+                app.workspace.trigger('css-change');
+            }})()
+            """
+        )
 
     def open_file(self, path: str) -> None:
         """Open a markdown file in the active leaf."""
