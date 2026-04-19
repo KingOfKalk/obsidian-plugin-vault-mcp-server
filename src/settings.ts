@@ -28,7 +28,32 @@ export class McpSettingsTab extends PluginSettingTab {
     this.renderServerSettings(containerEl);
     this.renderMcpConfig(containerEl);
     this.renderModuleToggles(containerEl);
+    this.renderExecuteCommandAllowlist(containerEl);
     this.renderDiagnostics(containerEl);
+  }
+
+  private renderExecuteCommandAllowlist(containerEl: HTMLElement): void {
+    containerEl.createEl('h2', { text: 'Execute Command Allowlist' });
+
+    containerEl.createEl('p', {
+      cls: 'setting-item-description',
+      text: 'The plugin_execute_command tool refuses every call by default. To enable specific Obsidian commands for MCP execution, list their ids here (one per line). Leave empty to keep the tool disabled.',
+    });
+
+    const current = this.plugin.settings.executeCommandAllowlist.join('\n');
+    const textarea = containerEl.createEl('textarea', {
+      cls: 'mcp-execute-command-allowlist',
+      attr: { rows: '6', placeholder: 'app:reload\neditor:save-file' },
+    });
+    textarea.value = current;
+    textarea.addEventListener('change', () => {
+      const next = textarea.value
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+      this.plugin.settings.executeCommandAllowlist = next;
+      void this.plugin.saveSettings();
+    });
   }
 
   private scheme(): 'http' | 'https' {
@@ -694,6 +719,17 @@ export function migrateSettings(
     if (data.useCustomTls === undefined) data.useCustomTls = false;
     if (data.customTlsCertPath === undefined) data.customTlsCertPath = null;
     if (data.customTlsKeyPath === undefined) data.customTlsKeyPath = null;
+  }
+
+  if ((data.schemaVersion as number) < 8) {
+    data.schemaVersion = 8;
+    // V7 -> V8: executeCommand allowlist. Default to empty (disabled) so
+    // existing installs cannot accidentally run destructive Obsidian
+    // commands via `plugin_execute_command` — users must opt in per
+    // command.
+    if (!Array.isArray(data.executeCommandAllowlist)) {
+      data.executeCommandAllowlist = [];
+    }
   }
 
   return data;

@@ -23,6 +23,12 @@ export interface McpPluginSettings {
   debugMode: boolean;
   /** Auto-start the MCP server when Obsidian launches */
   autoStart: boolean;
+  /**
+   * Allowlist of Obsidian command ids that `plugin_execute_command` is
+   * permitted to run. Empty (the default) means command execution is
+   * disabled and the tool refuses every call with a clear error.
+   */
+  executeCommandAllowlist: string[];
   /** Per-module enabled/disabled state, keyed by module ID */
   moduleStates: Record<string, ModuleState>;
 }
@@ -39,7 +45,7 @@ export interface ModuleState {
 }
 
 export const DEFAULT_SETTINGS: McpPluginSettings = {
-  schemaVersion: 7,
+  schemaVersion: 8,
   serverAddress: '127.0.0.1',
   port: 28741,
   authEnabled: false,
@@ -51,5 +57,6 @@ export const DEFAULT_SETTINGS: McpPluginSettings = {
   customTlsKeyPath: null,
   debugMode: false,
   autoStart: false,
+  executeCommandAllowlist: [],
   moduleStates: {},
 };

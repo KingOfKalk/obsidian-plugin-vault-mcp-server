@@ -4,13 +4,17 @@ import { ToolModule, ToolDefinition, annotations } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { handleToolError } from '../shared/errors';
 import { describeTool } from '../shared/describe';
+import type { ModuleOptions } from '../index';
 
 type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
 
 function text(t: string): CallToolResult { return { content: [{ type: 'text', text: t }] }; }
 function err(m: string): CallToolResult { return handleToolError(new Error(m)); }
 
-function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
+function createHandlers(
+  adapter: ObsidianAdapter,
+  getExecuteCommandAllowlist: () => string[],
+): Record<string, Handler> {
   return {
     listPlugins: (): Promise<CallToolResult> => {
       const plugins = adapter.getInstalledPlugins();
@@ -44,14 +48,35 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
     },
     executeCommand: (params): Promise<CallToolResult> => {
       const commandId = params.commandId as string;
+      const allowlist = getExecuteCommandAllowlist();
+      if (allowlist.length === 0) {
+        return Promise.resolve(
+          err(
+            'Command execution disabled — enable commands individually in Obsidian MCP settings.',
+          ),
+        );
+      }
+      if (!allowlist.includes(commandId)) {
+        return Promise.resolve(
+          err(
+            `Command "${commandId}" is not on the executeCommand allowlist. Add it in Obsidian MCP settings if you trust it.`,
+          ),
+        );
+      }
       const ok = adapter.executeCommand(commandId);
       return Promise.resolve(ok ? text(`Executed command: ${commandId}`) : err(`Command not found: ${commandId}`));
     },
   };
 }
 
-export function createPluginInteropModule(adapter: ObsidianAdapter): ToolModule {
-  const h = createHandlers(adapter);
+export function createPluginInteropModule(
+  adapter: ObsidianAdapter,
+  options: ModuleOptions = {},
+): ToolModule {
+  const h = createHandlers(
+    adapter,
+    options.getExecuteCommandAllowlist ?? ((): string[] => []),
+  );
   return {
     metadata: { id: 'plugin-interop', name: 'Plugin Interop', description: 'List plugins, check status, execute commands, and integrate with Dataview/Templater' },
     tools(): ToolDefinition[] {
