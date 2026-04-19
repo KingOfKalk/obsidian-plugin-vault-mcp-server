@@ -1,5 +1,60 @@
 # Changelog
 
+## [2.6.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.5.0...v2.6.0) (2026-04-19)
+
+
+### Features
+
+* **plugin-interop:** allowlist plugin_execute_command ([#212](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/212)) ([d27004e](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/d27004eabbed41712bc8b15b9de872de35793556)), closes [#181](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/181)
+* **tools:** add CHARACTER_LIMIT + truncation safety net for list/read tools ([#205](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/205)) ([fc7806b](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/fc7806b68ba5544bf418de604012833cd40ea229)), closes [#177](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/177)
+* **tools:** add response_format + structuredContent scaffolding ([#211](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/211)) ([f19751d](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/f19751dccf989eac1a53ddcf968b3861d2c9b5dc)), closes [#176](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/176)
+* **tools:** roll out `makeResponse` + `structuredContent` to all read tools ([#219](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/219)) ([82cee8d](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/82cee8db50aea9c759f9bb22dc3d8108a74d48aa))
+* **tools:** wire up limit/offset pagination on list and search tools ([#210](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/210)) ([d321e7a](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/d321e7a1096878bdc08ad2c2fc8f1e87567310b7)), closes [#178](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/178)
+
+
+### Bug Fixes
+
+* **ci:** use single light-mode settings screenshot in releases ([#197](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/197)) ([989ad51](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/989ad518adffc3d0862327ce22b50b350506f474)), closes [#171](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/171)
+* **server:** add idle session sweep and surface close errors ([#200](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/200)) ([72a1e66](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/72a1e66bb41e2aab6b690d7b0710fff5c6a02153)), closes [#184](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/184)
+* **tools:** bounds-check editor positions and guard workspace_open_file ([#202](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/202)) ([dd5ddc8](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/dd5ddc8619813c8b1e00b1a92876a476a0096a7f)), closes [#182](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/182)
+* **vault:** harden vault_rename against separators and whitespace-only names ([#194](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/194)) ([2884671](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/2884671404a2905fba7a51aed9253b4448d03fb6)), closes [#183](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/183)
+
+
+### Documentation
+
+* **ci:** add tool registry snapshot and docs drift check ([#203](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/203)) ([7c5aeea](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/7c5aeeaf2b1224c0c0a4f38af87c89129f633411)), closes [#189](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/189)
+* **tools:** expand tool descriptions to the mcp-builder template ([#209](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/209)) ([6fa3d72](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/6fa3d7258f5b6a8c2a9ff0bc99773705c7ed9f04)), closes [#179](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/179)
+
+
+### Code Refactoring
+
+* **main:** defer this.httpServer assignment until start() resolves ([#193](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/193)) ([e46f211](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/e46f211e3aa3f1bc43036163f6ee6914c8f36962)), closes [#161](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/161)
+* **main:** replace void fire-and-forget with reportError helper ([#196](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/196)) ([0fdd3b6](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/0fdd3b6f38b738d58880f64dc6d61a581a793d2b)), closes [#186](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/186)
+* **registry:** add generic ToolDefinition&lt;Shape&gt; + defineTool() helper ([#221](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/221)) ([f8b56ad](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/f8b56adf36371b06afe8f4f663b99e4e83af8a48))
+* **registry:** runtime-validate tool params at dispatch ([#207](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/207)) ([23ea7fd](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/23ea7fda28578f3c2c96d979fb72a107e063a547)), closes [#174](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/174)
+* **settings:** extract migrations into src/settings/migrations.ts ([#213](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/213)) ([9eb24a0](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/9eb24a0436d693d6d92d90c2e10879349f1f7893))
+* **settings:** split render sections into per-section files ([#215](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/215)) ([4c413f4](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/4c413f41d7729ddc54369a57f6faa715c07c5ce7)), closes [#214](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/214)
+* **tools:** centralise error handling with shared handleToolError ([#208](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/208)) ([150a9ca](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/150a9ca73f2d2bbd937c33e0607f527191117bd4)), closes [#180](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/180)
+* **tools:** drop every `as` cast from handler bodies ([#223](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/223)) ([708ba43](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/708ba430a4749b611d0c15b2c2ad9af59a6ae16b)), closes [#217](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/217)
+* **tools:** tighten Zod schemas with describes and bounds ([#206](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/206)) ([8f3d6ed](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/8f3d6ed219f8124b8738a1466f7f28d2c3ebfb92)), closes [#175](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/175)
+
+
+### Tests
+
+* **ci:** ratchet coverage thresholds toward the [#218](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/218) targets ([#222](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/222)) ([112c503](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/112c503ae2c771ecc994d2bd5a062b4bde6d0b63))
+* **ci:** unexclude main/settings from coverage and enforce thresholds ([#204](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/204)) ([ef80801](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/ef808015922a76f8cdef0f15b00629dfd41b63d5)), closes [#187](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/187)
+* **mocks:** replace any-typed obsidian mock with typed factories ([#201](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/201)) ([5e05172](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/5e051724341fb04c2a026a1b26374d47473b3e8a)), closes [#188](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/188)
+
+
+### Continuous Integration
+
+* **release:** surface all conventional commit types in CHANGELOG ([#199](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/199)) ([5720a92](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/5720a928f8d4da3773941e5daab2b455b4ff596b)), closes [#198](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/198)
+
+
+### Miscellaneous Chores
+
+* **tests/settings:** add return types to local helpers ([#225](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/225)) ([c3ce6b1](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/c3ce6b16d7205a14510e0c751abdd329ba312cf9)), closes [#224](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/224)
+
 ## [2.5.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.4.1...v2.5.0) (2026-04-18)
 
 
