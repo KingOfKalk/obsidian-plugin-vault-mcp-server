@@ -69,7 +69,9 @@ jobs:
       - name: Capture release screenshots
         run: |
           export DISPLAY=:99
-          Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset \
+          # 1920x1400 gives the settings tab enough vertical room on Xvfb even
+          # before we fall back to captureBeyondViewport in the capture script.
+          Xvfb :99 -screen 0 1920x1400x24 -ac +extension GLX +render -noreset \
             >/tmp/xvfb.log 2>&1 &
           eval "$(dbus-launch --sh-syntax)"
           sleep 1
@@ -109,14 +111,12 @@ jobs:
           python3 docker/scripts/release_screenshots.py \
             --out-dir /tmp/shots --port 9222
 
-      - name: Upload screenshot release assets
+      - name: Upload screenshot release asset
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release upload "$TAG" \
-            /tmp/shots/release-main.png \
-            /tmp/shots/release-plugin-settings.png \
-            /tmp/shots/release-server-running.png \
+            /tmp/shots/release-settings.png \
             --clobber
 
       - name: Append Screenshots section to release notes
@@ -131,10 +131,6 @@ jobs:
             echo
             echo "## Screenshots"
             echo
-            echo "![Main view](${BASE}/release-main.png)"
-            echo
-            echo "![Plugin settings](${BASE}/release-plugin-settings.png)"
-            echo
-            echo "![Server running](${BASE}/release-server-running.png)"
+            echo "![Plugin settings](${BASE}/release-settings.png)"
           } > /tmp/release-notes.md
           gh release edit "$TAG" --notes-file /tmp/release-notes.md
