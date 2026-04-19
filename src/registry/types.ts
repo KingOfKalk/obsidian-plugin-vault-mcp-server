@@ -3,12 +3,49 @@ import { CallToolResult, ToolAnnotations } from '@modelcontextprotocol/sdk/types
 
 export type { ToolAnnotations };
 
-export interface ToolDefinition {
+/**
+ * Inferred parameter type for a handler whose schema is `Shape` — the
+ * resolved output of `z.object(Shape).parse(...)` in the dispatcher.
+ */
+export type InferredParams<Shape extends z.ZodRawShape> = z.infer<
+  z.ZodObject<Shape>
+>;
+
+/**
+ * A tool's public contract. Generic over `Shape` so each handler can be
+ * typed against its own schema. `tools(): ToolDefinition[]` erases the
+ * generic at the module boundary — the dispatcher then treats every
+ * `handler` uniformly via the `TypedHandler` alias below.
+ */
+export interface ToolDefinition<
+  Shape extends z.ZodRawShape = z.ZodRawShape,
+> {
   name: string;
   description: string;
-  schema: Record<string, z.ZodType>;
-  handler: (params: Record<string, unknown>) => Promise<CallToolResult>;
+  schema: Shape;
+  handler: TypedHandler<Shape>;
   annotations: ToolAnnotations;
+}
+
+export type TypedHandler<Shape extends z.ZodRawShape> = (
+  params: InferredParams<Shape>,
+) => Promise<CallToolResult>;
+
+/**
+ * Define a single tool with full schema-driven type-checking on its handler
+ * — `schema` infers `Shape`, then `handler`'s `params` is typed as
+ * `z.infer<z.ZodObject<Shape>>`. Returns the erased `ToolDefinition` so
+ * modules can collect mixed-shape tools into a single array.
+ *
+ * Callers that want a handler defined in a separate factory (e.g.
+ * `createHandlers()`) can keep the untyped signature and pass the
+ * function here — TS still checks the schema and the handler's return
+ * type. The generic form below is the preferred one for new code.
+ */
+export function defineTool<Shape extends z.ZodRawShape>(
+  def: ToolDefinition<Shape>,
+): ToolDefinition {
+  return def as unknown as ToolDefinition;
 }
 
 /**
