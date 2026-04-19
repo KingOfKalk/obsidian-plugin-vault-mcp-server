@@ -1,8 +1,10 @@
 import { z } from 'zod';
 import { searchQuerySchema } from '../../utils/validation';
+import { paginationFields } from '../shared/pagination';
 
 export const searchFulltextSchema = {
   query: searchQuerySchema.describe('Case-insensitive substring to search for across file contents'),
+  ...paginationFields,
 };
 
 export const filePathSchema = {
@@ -19,6 +21,7 @@ export const searchByTagSchema = {
     .min(1)
     .max(200)
     .describe('Tag to search for (with or without leading #)'),
+  ...paginationFields,
 };
 
 export const searchByFrontmatterSchema = {
@@ -31,4 +34,5 @@ export const searchByFrontmatterSchema = {
     .string()
     .max(1000)
     .describe('Frontmatter property value to match exactly (stringified)'),
+  ...paginationFields,
 };

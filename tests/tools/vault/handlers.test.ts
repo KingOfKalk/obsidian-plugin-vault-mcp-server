@@ -290,15 +290,43 @@ describe('vault handlers', () => {
   });
 
   describe('listRecursive', () => {
-    it('should list folder contents recursively', async () => {
+    it('should list folder contents recursively with pagination metadata', async () => {
       adapter.addFolder('notes');
       adapter.addFolder('notes/sub');
       adapter.addFile('notes/a.md', 'a');
       adapter.addFile('notes/sub/b.md', 'b');
       const result = await handlers.listRecursive({ path: 'notes' });
-      const data = JSON.parse(getText(result)) as { files: string[]; folders: string[] };
-      expect(data.files).toHaveLength(2);
+      const data = JSON.parse(getText(result)) as {
+        folders: string[];
+        total: number;
+        count: number;
+        items: string[];
+      };
       expect(data.folders).toHaveLength(1);
+      expect(data.total).toBe(2);
+      expect(data.count).toBe(2);
+      expect(data.items).toHaveLength(2);
+    });
+
+    it('honours limit and offset on listRecursive', async () => {
+      adapter.addFolder('lots');
+      for (let i = 0; i < 10; i++) {
+        adapter.addFile(`lots/f-${String(i).padStart(2, '0')}.md`, 'x');
+      }
+      const result = await handlers.listRecursive({ path: 'lots', limit: 3, offset: 5 });
+      const page = JSON.parse(getText(result)) as {
+        total: number;
+        count: number;
+        offset: number;
+        has_more: boolean;
+        next_offset?: number;
+        items: string[];
+      };
+      expect(page.total).toBe(10);
+      expect(page.count).toBe(3);
+      expect(page.offset).toBe(5);
+      expect(page.has_more).toBe(true);
+      expect(page.next_offset).toBe(8);
     });
   });
 
@@ -370,15 +398,6 @@ describe('vault handlers truncation and size limits', () => {
   beforeEach(() => {
     adapter = new MockObsidianAdapter();
     handlers = createHandlers(adapter, new WriteMutex());
-  });
-
-  it('truncates oversized listRecursive output with a clear footer', async () => {
-    adapter.addFolder('lots');
-    for (let i = 0; i < 4000; i++) {
-      adapter.addFile(`lots/file-${String(i).padStart(5, '0')}.md`, 'x');
-    }
-    const result = await handlers.listRecursive({ path: 'lots' });
-    expect(getText(result)).toContain('[TRUNCATED:');
   });
 
   it('truncates oversized readFile content with a clear footer', async () => {

@@ -3,6 +3,7 @@ import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateVaultPath } from '../../utils/path-guard';
 import { truncateText } from '../shared/truncate';
 import { handleToolError } from '../shared/errors';
+import { paginate, readPagination } from '../shared/pagination';
 import { BINARY_BYTE_LIMIT } from '../../constants';
 
 export class WriteMutex {
@@ -257,10 +258,15 @@ export function createHandlers(
       try {
         const path = validateVaultPath(params.path as string, vaultPath);
         const result = adapter.listRecursive(path);
+        const pagination = readPagination(params);
+        const filesPage = paginate(result.files, pagination);
         return Promise.resolve(
           truncatedResult(
-            JSON.stringify(result),
-            'List a subfolder instead of the whole vault to reduce the result size.',
+            JSON.stringify({
+              folders: result.folders,
+              ...filesPage,
+            }),
+            'Shrink limit, advance offset, or list a narrower subfolder.',
           ),
         );
       } catch (error) {
