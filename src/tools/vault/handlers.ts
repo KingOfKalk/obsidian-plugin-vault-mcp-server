@@ -33,6 +33,18 @@ function errorResult(message: string): CallToolResult {
   return { content: [{ type: 'text', text: `Error: ${message}` }], isError: true };
 }
 
+const RENAME_TARGET_PATTERN = /^[^/\\\x00]+$/;
+
+function isValidRenameTarget(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length > 0 &&
+    value.length <= 255 &&
+    value.trim().length > 0 &&
+    RENAME_TARGET_PATTERN.test(value)
+  );
+}
+
 export function createHandlers(
   adapter: ObsidianAdapter,
   mutex: WriteMutex,
@@ -142,11 +154,19 @@ export function createHandlers(
     async renameFile(params): Promise<CallToolResult> {
       try {
         const path = validateVaultPath(params.path as string, vaultPath);
-        const newName = params.newName as string;
+        const rawNewName = params.newName;
+        if (!isValidRenameTarget(rawNewName)) {
+          return errorResult('Invalid rename target');
+        }
+        const newName = rawNewName;
         const parts = path.split('/');
         parts[parts.length - 1] = newName;
         const newPath = parts.join('/');
-        validateVaultPath(newPath, vaultPath);
+        try {
+          validateVaultPath(newPath, vaultPath);
+        } catch {
+          return errorResult('Invalid rename target');
+        }
         return await mutex.acquire(path, async () => {
           await adapter.renameFile(path, newPath);
           return textResult(`Renamed file: ${path} → ${newPath}`);

@@ -29,7 +29,15 @@ export const getMetadataSchema = {
 
 export const renameFileSchema = {
   path: z.string().min(1).describe('Current file path'),
-  newName: z.string().min(1).describe('New file name (within the same folder)'),
+  newName: z
+    .string()
+    .min(1)
+    .max(255)
+    .regex(
+      /^[^/\\\x00]+$/,
+      'newName must not contain path separators or null bytes',
+    )
+    .describe('New file name (within the same folder)'),
 };
 
 export const moveFileSchema = {
