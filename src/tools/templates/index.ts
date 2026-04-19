@@ -70,9 +70,51 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
     metadata: { id: 'templates', name: 'Templates and Content Generation', description: 'List, create from, and expand templates' },
     tools(): ToolDefinition[] {
       return [
-        { name: 'template_list', description: 'List available templates', schema: {}, handler: h.listTemplates, annotations: annotations.read },
-        { name: 'template_create_from', description: 'Create a file from a template with variable substitution', schema: { templatePath: z.string().min(1), destPath: z.string().min(1), variables: z.record(z.string(), z.string()).optional() }, handler: h.createFromTemplate, annotations: annotations.additive },
-        { name: 'template_expand', description: 'Expand template variables in a string', schema: { template: z.string(), variables: z.record(z.string(), z.string()).optional() }, handler: h.expandVariables, annotations: annotations.read },
+        {
+          name: 'template_list',
+          description: 'List available templates',
+          schema: {},
+          handler: h.listTemplates,
+          annotations: annotations.read,
+        },
+        {
+          name: 'template_create_from',
+          description: 'Create a file from a template with variable substitution',
+          schema: {
+            templatePath: z
+              .string()
+              .min(1)
+              .max(4096)
+              .describe('Vault-relative path to the template source file'),
+            destPath: z
+              .string()
+              .min(1)
+              .max(4096)
+              .describe('Vault-relative path for the new file'),
+            variables: z
+              .record(z.string(), z.string())
+              .optional()
+              .describe('Template variables keyed by name (e.g. { title: "Today" })'),
+          },
+          handler: h.createFromTemplate,
+          annotations: annotations.additive,
+        },
+        {
+          name: 'template_expand',
+          description: 'Expand template variables in a string',
+          schema: {
+            template: z
+              .string()
+              .max(100_000)
+              .describe('Template text containing {{variable}} placeholders'),
+            variables: z
+              .record(z.string(), z.string())
+              .optional()
+              .describe('Template variables keyed by name'),
+          },
+          handler: h.expandVariables,
+          annotations: annotations.read,
+        },
       ];
     },
   };

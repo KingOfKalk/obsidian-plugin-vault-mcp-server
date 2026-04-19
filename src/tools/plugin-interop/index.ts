@@ -54,11 +54,65 @@ export function createPluginInteropModule(adapter: ObsidianAdapter): ToolModule 
     metadata: { id: 'plugin-interop', name: 'Plugin Interop', description: 'List plugins, check status, execute commands, and integrate with Dataview/Templater' },
     tools(): ToolDefinition[] {
       return [
-        { name: 'plugin_list', description: 'List installed plugins with status', schema: {}, handler: h.listPlugins, annotations: annotations.readExternal },
-        { name: 'plugin_check', description: 'Check if a plugin is installed and enabled', schema: { pluginId: z.string().min(1) }, handler: h.checkPlugin, annotations: annotations.readExternal },
-        { name: 'plugin_dataview_query', description: 'Execute a Dataview query', schema: { query: z.string().min(1) }, handler: h.dataviewQuery, annotations: annotations.readExternal },
-        { name: 'plugin_templater_execute', description: 'Execute a Templater template', schema: { templatePath: z.string().min(1) }, handler: h.templaterExecute, annotations: annotations.destructiveExternal },
-        { name: 'plugin_execute_command', description: 'Execute an Obsidian command by ID', schema: { commandId: z.string().min(1) }, handler: h.executeCommand, annotations: annotations.destructiveExternal },
+        {
+          name: 'plugin_list',
+          description: 'List installed plugins with status',
+          schema: {},
+          handler: h.listPlugins,
+          annotations: annotations.readExternal,
+        },
+        {
+          name: 'plugin_check',
+          description: 'Check if a plugin is installed and enabled',
+          schema: {
+            pluginId: z
+              .string()
+              .min(1)
+              .max(200)
+              .describe('Community plugin id (e.g. "dataview")'),
+          },
+          handler: h.checkPlugin,
+          annotations: annotations.readExternal,
+        },
+        {
+          name: 'plugin_dataview_query',
+          description: 'Execute a Dataview query',
+          schema: {
+            query: z
+              .string()
+              .min(1)
+              .max(10_000)
+              .describe('Dataview query (DQL or Dataview-js)'),
+          },
+          handler: h.dataviewQuery,
+          annotations: annotations.readExternal,
+        },
+        {
+          name: 'plugin_templater_execute',
+          description: 'Execute a Templater template',
+          schema: {
+            templatePath: z
+              .string()
+              .min(1)
+              .max(4096)
+              .describe('Vault-relative path to the Templater template'),
+          },
+          handler: h.templaterExecute,
+          annotations: annotations.destructiveExternal,
+        },
+        {
+          name: 'plugin_execute_command',
+          description: 'Execute an Obsidian command by ID',
+          schema: {
+            commandId: z
+              .string()
+              .min(1)
+              .max(200)
+              .describe('Obsidian command id (e.g. "app:reload")'),
+          },
+          handler: h.executeCommand,
+          annotations: annotations.destructiveExternal,
+        },
       ];
     },
   };

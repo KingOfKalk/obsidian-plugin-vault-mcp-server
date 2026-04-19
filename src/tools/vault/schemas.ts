@@ -1,34 +1,61 @@
 import { z } from 'zod';
+import { base64Schema } from '../../utils/validation';
+
+const path = z
+  .string()
+  .min(1)
+  .max(4096)
+  .describe('File path relative to vault root (POSIX-style, no leading slash)');
+
+const folderPath = z
+  .string()
+  .min(1)
+  .max(4096)
+  .describe('Folder path relative to vault root');
 
 export const createFileSchema = {
-  path: z.string().min(1).describe('File path relative to vault root'),
-  content: z.string().describe('File content'),
+  path,
+  content: z
+    .string()
+    .max(5_000_000)
+    .describe('Text content to write into the new file'),
 };
 
 export const readFileSchema = {
-  path: z.string().min(1).describe('File path relative to vault root'),
+  path,
 };
 
 export const updateFileSchema = {
-  path: z.string().min(1).describe('File path relative to vault root'),
-  content: z.string().describe('New file content'),
+  path,
+  content: z
+    .string()
+    .max(5_000_000)
+    .describe('Replacement content for the file'),
 };
 
 export const deleteFileSchema = {
-  path: z.string().min(1).describe('File path relative to vault root'),
+  path,
 };
 
 export const appendFileSchema = {
-  path: z.string().min(1).describe('File path relative to vault root'),
-  content: z.string().describe('Content to append'),
+  path,
+  content: z
+    .string()
+    .min(1)
+    .max(5_000_000)
+    .describe('Content to append to the end of the file'),
 };
 
 export const getMetadataSchema = {
-  path: z.string().min(1).describe('File path relative to vault root'),
+  path,
 };
 
 export const renameFileSchema = {
-  path: z.string().min(1).describe('Current file path'),
+  path: z
+    .string()
+    .min(1)
+    .max(4096)
+    .describe('Current file path to rename'),
   newName: z
     .string()
     .min(1)
@@ -37,46 +64,67 @@ export const renameFileSchema = {
       /^[^/\\\x00]+$/,
       'newName must not contain path separators or null bytes',
     )
-    .describe('New file name (within the same folder)'),
+    .describe('New file name within the same folder (no separators)'),
 };
 
 export const moveFileSchema = {
-  path: z.string().min(1).describe('Current file path'),
-  newPath: z.string().min(1).describe('New file path (different folder)'),
+  path: z
+    .string()
+    .min(1)
+    .max(4096)
+    .describe('Current file path'),
+  newPath: z
+    .string()
+    .min(1)
+    .max(4096)
+    .describe('New file path (different folder)'),
 };
 
 export const copyFileSchema = {
-  sourcePath: z.string().min(1).describe('Source file path'),
-  destPath: z.string().min(1).describe('Destination file path'),
+  sourcePath: z
+    .string()
+    .min(1)
+    .max(4096)
+    .describe('Source file path'),
+  destPath: z
+    .string()
+    .min(1)
+    .max(4096)
+    .describe('Destination file path'),
 };
 
 export const createFolderSchema = {
-  path: z.string().min(1).describe('Folder path to create'),
+  path: folderPath.describe('Folder path to create'),
 };
 
 export const deleteFolderSchema = {
-  path: z.string().min(1).describe('Folder path to delete'),
-  recursive: z.boolean().default(false).describe('Delete non-empty folders recursively'),
+  path: folderPath.describe('Folder path to delete'),
+  recursive: z
+    .boolean()
+    .default(false)
+    .describe('Delete non-empty folders recursively'),
 };
 
 export const renameFolderSchema = {
-  path: z.string().min(1).describe('Current folder path'),
-  newPath: z.string().min(1).describe('New folder path'),
+  path: folderPath.describe('Current folder path'),
+  newPath: folderPath.describe('New folder path'),
 };
 
 export const listFolderSchema = {
-  path: z.string().min(1).describe('Folder path to list'),
+  path: folderPath.describe('Folder path to list (non-recursive)'),
 };
 
 export const listRecursiveSchema = {
-  path: z.string().min(1).describe('Folder path to list recursively'),
+  path: folderPath.describe('Folder path to list recursively'),
 };
 
 export const readBinarySchema = {
-  path: z.string().min(1).describe('File path relative to vault root'),
+  path,
 };
 
 export const writeBinarySchema = {
-  path: z.string().min(1).describe('File path relative to vault root'),
-  data: z.string().min(1).describe('Base64-encoded file content'),
+  path,
+  data: base64Schema
+    .refine((val) => val.length > 0, 'Base64 content must not be empty')
+    .describe('Base64-encoded binary content (no leading data: prefix)'),
 };
