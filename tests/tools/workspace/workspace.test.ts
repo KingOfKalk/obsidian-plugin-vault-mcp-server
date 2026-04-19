@@ -48,4 +48,27 @@ describe('workspace module', () => {
     const result = await tool.handler({});
     expect(result.isError).toBeUndefined();
   });
+
+  describe('workspace_open_file path guard', () => {
+    it('rejects path traversal attempts', async () => {
+      const module = createWorkspaceModule(adapter);
+      const tool = module.tools().find((t) => t.name === 'workspace_open_file')!;
+      const result = await tool.handler({ path: '../../etc/passwd' });
+      expect(result.isError).toBe(true);
+    });
+
+    it('rejects empty path', async () => {
+      const module = createWorkspaceModule(adapter);
+      const tool = module.tools().find((t) => t.name === 'workspace_open_file')!;
+      const result = await tool.handler({ path: '' });
+      expect(result.isError).toBe(true);
+    });
+
+    it('rejects backslash separators', async () => {
+      const module = createWorkspaceModule(adapter);
+      const tool = module.tools().find((t) => t.name === 'workspace_open_file')!;
+      const result = await tool.handler({ path: 'a\\b.md' });
+      expect(result.isError).toBe(true);
+    });
+  });
 });

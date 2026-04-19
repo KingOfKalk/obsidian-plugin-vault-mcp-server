@@ -8,6 +8,40 @@ type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
 function text(t: string): CallToolResult { return { content: [{ type: 'text', text: t }] }; }
 function err(m: string): CallToolResult { return { content: [{ type: 'text', text: `Error: ${m}` }], isError: true }; }
 
+/**
+ * Require a value to be a non-negative safe integer. Defensive belt-and-braces
+ * alongside the Zod schema: until the dispatcher enforces `schema.parse()` at
+ * runtime (#174), handlers still receive untyped params and need the guard.
+ */
+function isNonNegativeInt(value: unknown): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isFinite(value) &&
+    Number.isInteger(value) &&
+    value >= 0
+  );
+}
+
+/**
+ * Validate a `(line, ch)` position against the editor's current line count.
+ * `allowEnd` extends the upper line bound by one to cover operations that can
+ * legitimately target EOF (e.g. inserting at the end of the last line).
+ */
+function assertEditorPosition(
+  line: unknown,
+  ch: unknown,
+  lineCount: number,
+  { allowEnd = false }: { allowEnd?: boolean } = {},
+): void {
+  if (!isNonNegativeInt(line) || !isNonNegativeInt(ch)) {
+    throw new RangeError('Position must be a non-negative integer pair');
+  }
+  const maxLine = allowEnd ? lineCount : lineCount - 1;
+  if (line > maxLine) {
+    throw new RangeError('Position is out of range for the active editor');
+  }
+}
+
 function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
   return {
     getContent: (): Promise<CallToolResult> => {
@@ -21,10 +55,37 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
       return Promise.resolve(text(path));
     },
     insert: (params): Promise<CallToolResult> => {
-      const ok = adapter.insertTextAt(params.line as number, params.ch as number, params.text as string);
+      const lineCount = adapter.getActiveLineCount();
+      if (lineCount === null) return Promise.resolve(err('No active editor'));
+      try {
+        assertEditorPosition(params.line, params.ch, lineCount, {
+          allowEnd: true,
+        });
+      } catch (error) {
+        return Promise.resolve(
+          err(error instanceof Error ? error.message : String(error)),
+        );
+      }
+      const ok = adapter.insertTextAt(
+        params.line as number,
+        params.ch as number,
+        params.text as string,
+      );
       return Promise.resolve(ok ? text('Text inserted') : err('No active editor'));
     },
     replace: (params): Promise<CallToolResult> => {
+      const lineCount = adapter.getActiveLineCount();
+      if (lineCount === null) return Promise.resolve(err('No active editor'));
+      try {
+        assertEditorPosition(params.fromLine, params.fromCh, lineCount);
+        assertEditorPosition(params.toLine, params.toCh, lineCount, {
+          allowEnd: true,
+        });
+      } catch (error) {
+        return Promise.resolve(
+          err(error instanceof Error ? error.message : String(error)),
+        );
+      }
       const ok = adapter.replaceRange(
         params.fromLine as number, params.fromCh as number,
         params.toLine as number, params.toCh as number, params.text as string,
@@ -32,6 +93,18 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
       return Promise.resolve(ok ? text('Text replaced') : err('No active editor'));
     },
     deleteRange: (params): Promise<CallToolResult> => {
+      const lineCount = adapter.getActiveLineCount();
+      if (lineCount === null) return Promise.resolve(err('No active editor'));
+      try {
+        assertEditorPosition(params.fromLine, params.fromCh, lineCount);
+        assertEditorPosition(params.toLine, params.toCh, lineCount, {
+          allowEnd: true,
+        });
+      } catch (error) {
+        return Promise.resolve(
+          err(error instanceof Error ? error.message : String(error)),
+        );
+      }
       const ok = adapter.deleteRange(
         params.fromLine as number, params.fromCh as number,
         params.toLine as number, params.toCh as number,
@@ -44,7 +117,19 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
       return Promise.resolve(text(JSON.stringify(pos)));
     },
     setCursor: (params): Promise<CallToolResult> => {
-      const ok = adapter.setCursorPosition(params.line as number, params.ch as number);
+      const lineCount = adapter.getActiveLineCount();
+      if (lineCount === null) return Promise.resolve(err('No active editor'));
+      try {
+        assertEditorPosition(params.line, params.ch, lineCount);
+      } catch (error) {
+        return Promise.resolve(
+          err(error instanceof Error ? error.message : String(error)),
+        );
+      }
+      const ok = adapter.setCursorPosition(
+        params.line as number,
+        params.ch as number,
+      );
       return Promise.resolve(ok ? text('Cursor set') : err('No active editor'));
     },
     getSelection: (): Promise<CallToolResult> => {
@@ -53,6 +138,18 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
       return Promise.resolve(text(JSON.stringify(sel)));
     },
     setSelection: (params): Promise<CallToolResult> => {
+      const lineCount = adapter.getActiveLineCount();
+      if (lineCount === null) return Promise.resolve(err('No active editor'));
+      try {
+        assertEditorPosition(params.fromLine, params.fromCh, lineCount);
+        assertEditorPosition(params.toLine, params.toCh, lineCount, {
+          allowEnd: true,
+        });
+      } catch (error) {
+        return Promise.resolve(
+          err(error instanceof Error ? error.message : String(error)),
+        );
+      }
       const ok = adapter.setSelection(
         params.fromLine as number, params.fromCh as number,
         params.toLine as number, params.toCh as number,
@@ -75,13 +172,13 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
       return [
         { name: 'editor_get_content', description: 'Get content of active editor', schema: {}, handler: h.getContent, annotations: annotations.read },
         { name: 'editor_get_active_file', description: 'Get active file path', schema: {}, handler: h.getActivePath, annotations: annotations.read },
-        { name: 'editor_insert', description: 'Insert text at position', schema: { line: z.number(), ch: z.number(), text: z.string() }, handler: h.insert, annotations: annotations.additive },
-        { name: 'editor_replace', description: 'Replace text in range', schema: { fromLine: z.number(), fromCh: z.number(), toLine: z.number(), toCh: z.number(), text: z.string() }, handler: h.replace, annotations: annotations.destructive },
-        { name: 'editor_delete', description: 'Delete text in range', schema: { fromLine: z.number(), fromCh: z.number(), toLine: z.number(), toCh: z.number() }, handler: h.deleteRange, annotations: annotations.destructive },
+        { name: 'editor_insert', description: 'Insert text at position', schema: { line: z.number().int().min(0), ch: z.number().int().min(0), text: z.string() }, handler: h.insert, annotations: annotations.additive },
+        { name: 'editor_replace', description: 'Replace text in range', schema: { fromLine: z.number().int().min(0), fromCh: z.number().int().min(0), toLine: z.number().int().min(0), toCh: z.number().int().min(0), text: z.string() }, handler: h.replace, annotations: annotations.destructive },
+        { name: 'editor_delete', description: 'Delete text in range', schema: { fromLine: z.number().int().min(0), fromCh: z.number().int().min(0), toLine: z.number().int().min(0), toCh: z.number().int().min(0) }, handler: h.deleteRange, annotations: annotations.destructive },
         { name: 'editor_get_cursor', description: 'Get cursor position', schema: {}, handler: h.getCursor, annotations: annotations.read },
-        { name: 'editor_set_cursor', description: 'Set cursor position', schema: { line: z.number(), ch: z.number() }, handler: h.setCursor, annotations: annotations.additive },
+        { name: 'editor_set_cursor', description: 'Set cursor position', schema: { line: z.number().int().min(0), ch: z.number().int().min(0) }, handler: h.setCursor, annotations: annotations.additive },
         { name: 'editor_get_selection', description: 'Get current selection', schema: {}, handler: h.getSelection, annotations: annotations.read },
-        { name: 'editor_set_selection', description: 'Set selection range', schema: { fromLine: z.number(), fromCh: z.number(), toLine: z.number(), toCh: z.number() }, handler: h.setSelection, annotations: annotations.additive },
+        { name: 'editor_set_selection', description: 'Set selection range', schema: { fromLine: z.number().int().min(0), fromCh: z.number().int().min(0), toLine: z.number().int().min(0), toCh: z.number().int().min(0) }, handler: h.setSelection, annotations: annotations.additive },
         { name: 'editor_get_line_count', description: 'Get line count of active editor', schema: {}, handler: h.getLineCount, annotations: annotations.read },
       ];
     },

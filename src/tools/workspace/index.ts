@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { ToolModule, ToolDefinition, annotations } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
+import { validateVaultPath } from '../../utils/path-guard';
 
 type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
 
@@ -9,6 +10,7 @@ function text(t: string): CallToolResult { return { content: [{ type: 'text', te
 function err(m: string): CallToolResult { return { content: [{ type: 'text', text: `Error: ${m}` }], isError: true }; }
 
 function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
+  const vaultPath = adapter.getVaultPath();
   return {
     getActiveLeaf: (): Promise<CallToolResult> => {
       const info = adapter.getActiveLeafInfo();
@@ -17,8 +19,9 @@ function createHandlers(adapter: ObsidianAdapter): Record<string, Handler> {
     },
     async openFile(params): Promise<CallToolResult> {
       try {
-        await adapter.openFile(params.path as string, params.mode as string | undefined);
-        return text(`Opened: ${params.path as string}`);
+        const path = validateVaultPath(params.path as string, vaultPath);
+        await adapter.openFile(path, params.mode as string | undefined);
+        return text(`Opened: ${path}`);
       } catch (error) {
         return err(error instanceof Error ? error.message : String(error));
       }
