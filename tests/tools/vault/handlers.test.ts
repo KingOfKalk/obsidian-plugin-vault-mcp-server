@@ -362,3 +362,39 @@ describe('WriteMutex', () => {
     expect(order[0]).toBe('b');
   });
 });
+
+describe('vault handlers truncation and size limits', () => {
+  let adapter: MockObsidianAdapter;
+  let handlers: ReturnType<typeof createHandlers>;
+
+  beforeEach(() => {
+    adapter = new MockObsidianAdapter();
+    handlers = createHandlers(adapter, new WriteMutex());
+  });
+
+  it('truncates oversized listRecursive output with a clear footer', async () => {
+    adapter.addFolder('lots');
+    for (let i = 0; i < 4000; i++) {
+      adapter.addFile(`lots/file-${String(i).padStart(5, '0')}.md`, 'x');
+    }
+    const result = await handlers.listRecursive({ path: 'lots' });
+    expect(getText(result)).toContain('[TRUNCATED:');
+  });
+
+  it('truncates oversized readFile content with a clear footer', async () => {
+    const big = 'x'.repeat(50_000);
+    adapter.addFile('big.md', big);
+    const result = await handlers.readFile({ path: 'big.md' });
+    expect(getText(result)).toContain('[TRUNCATED:');
+  });
+
+  it('refuses readBinary when the file is larger than the byte limit', async () => {
+    // Seed a 2 MiB blob via the writeBinary adapter path so the mock adapter
+    // returns a buffer that exceeds BINARY_BYTE_LIMIT (1 MiB).
+    const bigBuffer = new ArrayBuffer(2_000_000);
+    await adapter.writeBinary('huge.bin', bigBuffer);
+    const result = await handlers.readBinary({ path: 'huge.bin' });
+    expect(result.isError).toBe(true);
+    expect(getText(result)).toContain('too large');
+  });
+});

@@ -1,6 +1,8 @@
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateVaultPath } from '../../utils/path-guard';
+import { truncateText } from '../shared/truncate';
+import { BINARY_BYTE_LIMIT } from '../../constants';
 
 export class WriteMutex {
   private locks: Map<string, Promise<void>> = new Map();
@@ -27,6 +29,11 @@ export class WriteMutex {
 
 function textResult(text: string): CallToolResult {
   return { content: [{ type: 'text', text }] };
+}
+
+function truncatedResult(text: string, hint?: string): CallToolResult {
+  const result = truncateText(text, hint ? { hint } : {});
+  return { content: [{ type: 'text', text: result.text }] };
 }
 
 function errorResult(message: string): CallToolResult {
@@ -86,7 +93,10 @@ export function createHandlers(
       try {
         const path = validateVaultPath(params.path as string, vaultPath);
         const content = await adapter.readFile(path);
-        return textResult(content);
+        return truncatedResult(
+          content,
+          'Read a specific range via editor_* tools or ask for a summary.',
+        );
       } catch (error) {
         return errorResult(error instanceof Error ? error.message : String(error));
       }
@@ -246,7 +256,12 @@ export function createHandlers(
       try {
         const path = validateVaultPath(params.path as string, vaultPath);
         const result = adapter.listRecursive(path);
-        return Promise.resolve(textResult(JSON.stringify(result)));
+        return Promise.resolve(
+          truncatedResult(
+            JSON.stringify(result),
+            'List a subfolder instead of the whole vault to reduce the result size.',
+          ),
+        );
       } catch (error) {
         return Promise.resolve(errorResult(error instanceof Error ? error.message : String(error)));
       }
@@ -256,6 +271,11 @@ export function createHandlers(
       try {
         const path = validateVaultPath(params.path as string, vaultPath);
         const data = await adapter.readBinary(path);
+        if (data.byteLength > BINARY_BYTE_LIMIT) {
+          return errorResult(
+            `Binary file too large (${String(data.byteLength)} bytes, limit ${String(BINARY_BYTE_LIMIT)}). Fetch the file out-of-band or use a chunked read when available.`,
+          );
+        }
         const base64 = Buffer.from(data).toString('base64');
         return textResult(base64);
       } catch (error) {

@@ -1,11 +1,17 @@
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateVaultPath } from '../../utils/path-guard';
+import { truncateText } from '../shared/truncate';
 
 type Handler = (params: Record<string, unknown>) => Promise<CallToolResult>;
 
 function textResult(text: string): CallToolResult {
   return { content: [{ type: 'text', text }] };
+}
+
+function truncatedResult(text: string, hint?: string): CallToolResult {
+  const result = truncateText(text, hint ? { hint } : {});
+  return { content: [{ type: 'text', text: result.text }] };
 }
 
 function errorResult(message: string): CallToolResult {
@@ -20,7 +26,10 @@ export function createSearchHandlers(adapter: ObsidianAdapter): Record<string, H
       try {
         const query = params.query as string;
         const results = await adapter.searchContent(query);
-        return textResult(JSON.stringify(results));
+        return truncatedResult(
+          JSON.stringify(results),
+          'Narrow the query or add filters to reduce match count.',
+        );
       } catch (error) {
         return errorResult(error instanceof Error ? error.message : String(error));
       }
