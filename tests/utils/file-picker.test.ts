@@ -23,12 +23,12 @@ describe('pickFile', () => {
       canceled: false,
       filePaths: ['/tmp/my.crt'],
     });
-    (globalThis as unknown as WindowLike).require = ((m: string) => {
+    (globalThis as unknown as WindowLike).require = (m: string): unknown => {
       if (m === 'electron') {
         return { remote: { dialog: { showOpenDialog } } };
       }
       throw new Error(`unexpected require: ${m}`);
-    }) as RequireFn;
+    };
 
     const result = await pickFile({
       title: 'Pick a cert',
@@ -44,7 +44,7 @@ describe('pickFile', () => {
   });
 
   it('returns null when the user cancels the dialog', async () => {
-    (globalThis as unknown as WindowLike).require = ((m: string) => {
+    (globalThis as unknown as WindowLike).require = (m: string): unknown => {
       if (m === 'electron') {
         return {
           remote: {
@@ -57,7 +57,7 @@ describe('pickFile', () => {
         };
       }
       throw new Error(`unexpected require: ${m}`);
-    }) as RequireFn;
+    };
 
     const result = await pickFile({ title: 't', filters: [] });
     expect(result).toBeNull();
@@ -70,7 +70,7 @@ describe('pickFile', () => {
   });
 
   it('returns null when the dialog resolves without filePaths', async () => {
-    (globalThis as unknown as WindowLike).require = ((m: string) => {
+    (globalThis as unknown as WindowLike).require = (m: string): unknown => {
       if (m === 'electron') {
         return {
           remote: {
@@ -83,7 +83,7 @@ describe('pickFile', () => {
         };
       }
       throw new Error(`unexpected require: ${m}`);
-    }) as RequireFn;
+    };
 
     const result = await pickFile({ title: 't', filters: [] });
     expect(result).toBeNull();

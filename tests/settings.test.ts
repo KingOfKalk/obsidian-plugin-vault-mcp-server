@@ -765,11 +765,11 @@ describe('McpSettingsTab server controls', () => {
     ): Record<string, unknown> {
       const plugin = createMockPlugin(false);
       plugin.settings = { ...DEFAULT_SETTINGS, accessKey: 'test-key', authEnabled: true, port: portValue };
-      (plugin as unknown as Record<string, unknown>).lastStartError = lastStartError;
+      plugin.lastStartError = lastStartError;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
       const tab = new McpSettingsTab({} as any, plugin as any);
       tab.display();
-      return plugin as unknown as Record<string, unknown>;
+      return plugin;
     }
 
     it('shows the inline error under the Port field when lastStartError matches the current port', () => {
