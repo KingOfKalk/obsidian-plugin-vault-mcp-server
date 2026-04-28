@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.7.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.6.0...v2.7.0) (2026-04-28)
+
+
+### Features
+
+* **ci/release:** attach plugin zip to release assets ([#235](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/235)) ([ea48c94](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/ea48c947e216a86362fe585f3a2df869c1a7d498)), closes [#234](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/234)
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** Bump @vitest/coverage-v8 from 4.1.4 to 4.1.5 ([#228](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/228)) ([d187d6b](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/d187d6bcd89a5e3b0a35f0bebb95b63cf83302e0))
+* **deps-dev:** Bump eslint from 10.2.0 to 10.2.1 ([#227](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/227)) ([8af13d4](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/8af13d4e0901cb91473f2b237c42e8a932fd34ea))
+* **deps-dev:** Bump typescript from 6.0.2 to 6.0.3 ([#231](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/231)) ([6d42051](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/6d42051274a593fa25660bcde9354c46c74b29d9))
+* **deps-dev:** bump typescript-eslint from 8.58.2 to 8.59.0 ([#237](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/237)) ([b78cbc1](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/b78cbc14e9437b14fff559711edac2014a8eec4e)), closes [#236](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/236)
+* **deps-dev:** Bump vitest from 4.1.4 to 4.1.5 ([#230](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/230)) ([ef8499e](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/ef8499ec95b4bfda06ae25a9a549a8211bb3e236))
+* **deps:** Bump googleapis/release-please-action from 4 to 5 ([#226](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/226)) ([d5c80e3](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/d5c80e32fb2e662fa595bf72dcfd999d045e0d03))
+
 ## [2.6.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.5.0...v2.6.0) (2026-04-19)
 
 
