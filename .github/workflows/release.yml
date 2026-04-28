@@ -50,13 +50,25 @@ jobs:
             fs.writeFileSync('versions.json', JSON.stringify(versions, null, '\t') + '\n');
           "
 
+      - name: Build plugin zip
+        if: ${{ steps.release.outputs.release_created }}
+        env:
+          PLUGIN_ID: obsidian-mcp
+          VERSION: ${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.${{ steps.release.outputs.patch }}
+        run: |
+          mkdir -p "dist/${PLUGIN_ID}"
+          cp main.js manifest.json styles.css "dist/${PLUGIN_ID}/"
+          (cd dist && zip -r "../${PLUGIN_ID}-${VERSION}.zip" "${PLUGIN_ID}")
+
       - name: Upload plugin release assets
         if: ${{ steps.release.outputs.release_created }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.${{ steps.release.outputs.patch }}
         run: |
           gh release upload ${{ steps.release.outputs.tag_name }} \
             main.js \
             manifest.json \
             styles.css \
-            versions.json
+            versions.json \
+            "obsidian-mcp-${VERSION}.zip"

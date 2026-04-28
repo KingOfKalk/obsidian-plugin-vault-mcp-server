@@ -56,12 +56,22 @@ automatically.
 
 ### Option B — Manual install
 
-1. Download `main.js`, `manifest.json`, and `styles.css` from the
-   [latest release](https://github.com/KingOfKalk/obisdian-plugin-mcp/releases).
-2. Create the folder `<your-vault>/.obsidian/plugins/obsidian-mcp/`.
-3. Copy the three files into that folder.
-4. Reload Obsidian (`Ctrl/Cmd+R` or restart) and enable **MCP Server** under
+The simplest manual install uses the prebuilt zip attached to each release.
+The zip contains an `obsidian-mcp/` folder with `main.js`, `manifest.json`,
+and `styles.css` inside, ready to drop into your vault.
+
+1. Open the [latest release](https://github.com/KingOfKalk/obisdian-plugin-mcp/releases)
+   and download `obsidian-mcp-<version>.zip` from the **Assets** section.
+2. Extract the zip into `<your-vault>/.obsidian/plugins/`. You should end up
+   with the folder `<your-vault>/.obsidian/plugins/obsidian-mcp/` containing
+   the three plugin files.
+3. Reload Obsidian (`Ctrl/Cmd+R` or restart) and enable **MCP Server** under
    **Settings → Community plugins**.
+
+If you'd rather grab the files individually, download `main.js`,
+`manifest.json`, and `styles.css` from the same release, create the folder
+`<your-vault>/.obsidian/plugins/obsidian-mcp/` yourself, and drop the three
+files into it.
 
 ---
 
