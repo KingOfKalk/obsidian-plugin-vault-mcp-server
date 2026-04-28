@@ -285,7 +285,7 @@ export default class McpPlugin extends Plugin {
   async loadSettings(): Promise<void> {
     const raw = (await this.loadData()) as Record<string, unknown> | null;
     const migrated = raw ? migrateSettings(raw) : {};
-    this.settings = { ...DEFAULT_SETTINGS, ...migrated } as McpPluginSettings;
+    this.settings = { ...DEFAULT_SETTINGS, ...migrated };
   }
 
   async saveSettings(): Promise<void> {

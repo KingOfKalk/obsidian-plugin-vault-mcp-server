@@ -19,7 +19,7 @@ function createPlugin(persisted: Record<string, unknown> | null): TestPlugin {
   const plugin = new McpPlugin(
     app as unknown as App,
     manifest as unknown as PluginManifest,
-  ) as unknown as TestPlugin;
+  );
   const mutable = plugin as unknown as MutablePluginFields;
   mutable.app = app;
   mutable.manifest = manifest;
