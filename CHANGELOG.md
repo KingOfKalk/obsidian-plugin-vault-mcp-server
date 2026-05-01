@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.7.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.7.0...v2.7.1) (2026-05-01)
+
+
+### Miscellaneous Chores
+
+* **deps:** Bump zod from 4.3.6 to 4.4.1 ([#238](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/238)) ([30fd26d](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/30fd26d472c6860b26cd60b078113e7a583c79cf))
+
 ## [2.7.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.6.0...v2.7.0) (2026-04-28)
 
 
