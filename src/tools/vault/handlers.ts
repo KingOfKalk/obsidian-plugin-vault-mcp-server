@@ -374,7 +374,16 @@ export function createHandlers(
           );
         }
         const base64 = Buffer.from(data).toString('base64');
-        return textResult(base64);
+        return makeResponse(
+          {
+            path,
+            data: base64,
+            encoding: 'base64' as const,
+            size_bytes: data.byteLength,
+          },
+          (v) => v.data,
+          readResponseFormat(params),
+        );
       } catch (error) {
         return handleToolError(error);
       }

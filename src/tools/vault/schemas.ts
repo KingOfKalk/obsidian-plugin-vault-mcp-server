@@ -127,6 +127,7 @@ export const listRecursiveSchema = {
 
 export const readBinarySchema = {
   path,
+  ...responseFormatField,
 };
 
 export const writeBinarySchema = {
