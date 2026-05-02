@@ -260,6 +260,20 @@ the right header. Check:
 - Re-copy the **MCP Client Configuration** snippet after generating a new
   key; the snippet is rebuilt from the live key.
 
+### My client says "429 Too Many Requests"
+
+After 5 failed authentication attempts within 60 seconds from the same
+client IP, the server temporarily blocks that IP for 30 seconds and
+returns HTTP 429 with a `Retry-After` header. This is anti-brute-force
+protection and isn't configurable.
+
+- Wait the indicated number of seconds (the `Retry-After` header tells
+  you how long), then retry with the correct token.
+- A successful authentication clears the failure counter for that IP
+  immediately, so once you fix the token, the next request succeeds.
+- If you keep hitting this after fixing the token, an old client or
+  background process is probably still using the wrong key — close it.
+
 ### The server won't auto-start
 
 Auto-start is gated by auth. If **Require Bearer authentication** is on but

@@ -38,6 +38,42 @@ describe('authenticateRequest', () => {
       expect(result.error).toContain('Invalid access key');
     });
 
+    it('authenticates with equal tokens of equal length (timing-safe path)', () => {
+      const key = 'a'.repeat(32);
+      const req = createMockRequest({ authorization: `Bearer ${key}` });
+      const result = authenticateRequest(req, key, true);
+      expect(result.authenticated).toBe(true);
+    });
+
+    it('rejects unequal tokens of equal length (timing-safe path)', () => {
+      const key = 'a'.repeat(32);
+      const wrong = 'b'.repeat(32);
+      const req = createMockRequest({ authorization: `Bearer ${wrong}` });
+      const result = authenticateRequest(req, key, true);
+      expect(result.authenticated).toBe(false);
+      expect(result.error).toContain('Invalid access key');
+    });
+
+    it('rejects tokens of different length without leaking via short-circuit', () => {
+      const key = 'a'.repeat(32);
+      const shorter = 'a'.repeat(16);
+      const longer = 'a'.repeat(48);
+      expect(
+        authenticateRequest(
+          createMockRequest({ authorization: `Bearer ${shorter}` }),
+          key,
+          true,
+        ).authenticated,
+      ).toBe(false);
+      expect(
+        authenticateRequest(
+          createMockRequest({ authorization: `Bearer ${longer}` }),
+          key,
+          true,
+        ).authenticated,
+      ).toBe(false);
+    });
+
     it('should reject when access key is empty', () => {
       const req = createMockRequest({ authorization: 'Bearer something' });
       const result = authenticateRequest(req, '', true);
