@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { Logger } from '../utils/logger';
 import { ModuleRegistry } from '../registry/module-registry';
 import { ToolDefinition } from '../registry/types';
+import manifest from '../../manifest.json';
 
 export function createMcpServer(
   registry: ModuleRegistry,
@@ -11,8 +12,11 @@ export function createMcpServer(
 ): McpServer {
   const server = new McpServer(
     {
-      name: 'obsidian-mcp',
-      version: '0.0.0',
+      // {service}-mcp-server naming convention for the MCP protocol
+      // handshake. This is internal to the protocol and intentionally
+      // distinct from the npm package name and Obsidian plugin id.
+      name: 'obsidian-mcp-server',
+      version: manifest.version,
     },
     {
       capabilities: {
