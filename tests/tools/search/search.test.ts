@@ -17,10 +17,10 @@ describe('search module', () => {
     expect(module.metadata.id).toBe('search');
   });
 
-  it('should register 12 tools', () => {
+  it('should register 6 tools', () => {
     const adapter = new MockObsidianAdapter();
     const module = createSearchModule(adapter);
-    expect(module.tools()).toHaveLength(12);
+    expect(module.tools()).toHaveLength(6);
   });
 
   it('should have all read-only tools', () => {
@@ -311,15 +311,9 @@ describe('search tool descriptions document shared args', () => {
 
   it('documents response_format on tools that only spread responseFormatField', () => {
     for (const name of [
-      'search_frontmatter',
       'search_tags',
-      'search_headings',
-      'search_outgoing_links',
-      'search_embeds',
-      'search_backlinks',
       'search_resolved_links',
       'search_unresolved_links',
-      'search_block_references',
     ]) {
       const desc = descriptionFor(name);
       expect(desc).toContain('response_format (enum');

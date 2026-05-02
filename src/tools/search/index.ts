@@ -4,7 +4,6 @@ import { createSearchHandlers } from './handlers';
 import { describeTool } from '../shared/describe';
 import {
   searchFulltextSchema,
-  filePathSchema,
   searchByTagSchema,
   searchByFrontmatterSchema,
   readOnlySchema,
@@ -17,7 +16,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
     metadata: {
       id: 'search',
       name: 'Search and Metadata',
-      description: 'Search vault contents and query file metadata, tags, links, and frontmatter',
+      description: 'Vault-wide search across contents, tags, frontmatter, and link maps',
     },
 
     tools(): ToolDefinition[] {
@@ -36,18 +35,6 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           annotations: annotations.read,
         }),
         defineTool({
-          name: 'search_frontmatter',
-          description: describeTool({
-            summary: 'Get the parsed YAML frontmatter block for a file.',
-            args: ['path (string): Vault-relative path.'],
-            returns: 'JSON: the frontmatter object, or {} when absent.',
-            errors: ['"File not found" if the path does not exist.'],
-          }, filePathSchema),
-          schema: filePathSchema,
-          handler: handlers.searchFrontmatter,
-          annotations: annotations.read,
-        }),
-        defineTool({
           name: 'search_tags',
           description: describeTool({
             summary: 'List every tag used anywhere in the vault with the files that use it.',
@@ -55,54 +42,6 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           }, readOnlySchema),
           schema: readOnlySchema,
           handler: handlers.searchTags,
-          annotations: annotations.read,
-        }),
-        defineTool({
-          name: 'search_headings',
-          description: describeTool({
-            summary: 'List headings (with levels) for a file.',
-            args: ['path (string): Vault-relative path.'],
-            returns: 'JSON: [{ heading, level }].',
-            errors: ['"File not found" if the path does not exist.'],
-          }, filePathSchema),
-          schema: filePathSchema,
-          handler: handlers.searchHeadings,
-          annotations: annotations.read,
-        }),
-        defineTool({
-          name: 'search_outgoing_links',
-          description: describeTool({
-            summary: 'List outgoing links from a file.',
-            args: ['path (string): Vault-relative path.'],
-            returns: 'JSON: [{ link, displayText? }].',
-            errors: ['"File not found" if the path does not exist.'],
-          }, filePathSchema),
-          schema: filePathSchema,
-          handler: handlers.searchOutgoingLinks,
-          annotations: annotations.read,
-        }),
-        defineTool({
-          name: 'search_embeds',
-          description: describeTool({
-            summary: 'List embedded resources (![[...]]) referenced by a file.',
-            args: ['path (string): Vault-relative path.'],
-            returns: 'JSON: [{ link, displayText? }].',
-            errors: ['"File not found" if the path does not exist.'],
-          }, filePathSchema),
-          schema: filePathSchema,
-          handler: handlers.searchEmbeds,
-          annotations: annotations.read,
-        }),
-        defineTool({
-          name: 'search_backlinks',
-          description: describeTool({
-            summary: 'List files that link TO a given file (reverse links).',
-            args: ['path (string): Target file path.'],
-            returns: 'JSON: string[] of paths that reference the target.',
-            errors: ['"File not found" if the path does not exist.'],
-          }, filePathSchema),
-          schema: filePathSchema,
-          handler: handlers.searchBacklinks,
           annotations: annotations.read,
         }),
         defineTool({
@@ -124,18 +63,6 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           }, readOnlySchema),
           schema: readOnlySchema,
           handler: handlers.searchUnresolvedLinks,
-          annotations: annotations.read,
-        }),
-        defineTool({
-          name: 'search_block_references',
-          description: describeTool({
-            summary: 'List block references (^block-id) defined in a file.',
-            args: ['path (string): Vault-relative path.'],
-            returns: 'JSON: [{ id, line }].',
-            errors: ['"File not found" if the path does not exist.'],
-          }, filePathSchema),
-          schema: filePathSchema,
-          handler: handlers.searchBlockReferences,
           annotations: annotations.read,
         }),
         defineTool({
