@@ -124,4 +124,71 @@ describe('templates module', () => {
     expect(text).not.toContain('{{name}}');
     expect(text).not.toContain('{{date}}');
   });
+
+  describe('response_format support', () => {
+    it('documents response_format on template_list and template_expand', () => {
+      const module = createTemplatesModule(adapter);
+      const tools = module.tools();
+      for (const name of ['template_list', 'template_expand']) {
+        const tool = tools.find((t) => t.name === name)!;
+        expect(tool.description).toContain('response_format (enum');
+      }
+    });
+
+    it('template_list returns structuredContent with files when response_format=json', async () => {
+      adapter.addFolder('templates');
+      adapter.addFile('templates/a.md', 'a');
+      adapter.addFile('templates/b.md', 'b');
+      const module = createTemplatesModule(adapter);
+      const tool = module.tools().find((t) => t.name === 'template_list')!;
+      const result = await tool.handler({ response_format: 'json' });
+      expect(result.structuredContent).toEqual({
+        files: ['templates/a.md', 'templates/b.md'],
+      });
+      const data = JSON.parse(getText(result)) as { files: string[] };
+      expect(data.files).toEqual(['templates/a.md', 'templates/b.md']);
+    });
+
+    it('template_list markdown path stays a JSON array string for back-compat', async () => {
+      adapter.addFolder('templates');
+      adapter.addFile('templates/a.md', 'a');
+      const module = createTemplatesModule(adapter);
+      const tool = module.tools().find((t) => t.name === 'template_list')!;
+      const result = await tool.handler({});
+      const data = JSON.parse(getText(result)) as string[];
+      expect(data).toEqual(['templates/a.md']);
+      expect(result.structuredContent).toEqual({ files: ['templates/a.md'] });
+    });
+
+    it('template_list returns empty list with structuredContent when folder missing and json', async () => {
+      const module = createTemplatesModule(adapter);
+      const tool = module.tools().find((t) => t.name === 'template_list')!;
+      const result = await tool.handler({ response_format: 'json' });
+      expect(result.structuredContent).toEqual({ files: [] });
+    });
+
+    it('template_expand returns structuredContent.expanded when response_format=json', async () => {
+      const module = createTemplatesModule(adapter);
+      const tool = module.tools().find((t) => t.name === 'template_expand')!;
+      const result = await tool.handler({
+        template: 'Hello {{name}}',
+        variables: { name: 'World' },
+        response_format: 'json',
+      });
+      expect(result.structuredContent).toEqual({ expanded: 'Hello World' });
+      const data = JSON.parse(getText(result)) as { expanded: string };
+      expect(data.expanded).toBe('Hello World');
+    });
+
+    it('template_expand markdown path still returns the raw expanded string', async () => {
+      const module = createTemplatesModule(adapter);
+      const tool = module.tools().find((t) => t.name === 'template_expand')!;
+      const result = await tool.handler({
+        template: 'Hello {{name}}',
+        variables: { name: 'World' },
+      });
+      expect(getText(result)).toBe('Hello World');
+      expect(result.structuredContent).toEqual({ expanded: 'Hello World' });
+    });
+  });
 });

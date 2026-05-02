@@ -11,6 +11,11 @@ import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateVaultPath } from '../../utils/path-guard';
 import { FolderNotFoundError, handleToolError } from '../shared/errors';
 import { describeTool } from '../shared/describe';
+import {
+  makeResponse,
+  readResponseFormat,
+  responseFormatField,
+} from '../shared/response';
 
 function text(t: string): CallToolResult { return { content: [{ type: 'text', text: t }] }; }
 function err(m: string): CallToolResult { return handleToolError(new Error(m)); }
@@ -31,7 +36,9 @@ function expandVariables(template: string, variables: Record<string, string>): s
   return result;
 }
 
-const listTemplatesSchema = {};
+const listTemplatesSchema = {
+  ...responseFormatField,
+};
 
 const createFromTemplateSchema = {
   templatePath: z
@@ -59,6 +66,7 @@ const expandVariablesSchema = {
     .record(z.string(), z.string())
     .optional()
     .describe('Template variables keyed by name'),
+  ...responseFormatField,
 };
 
 interface TemplatesHandlers {
@@ -72,15 +80,28 @@ function createHandlers(adapter: ObsidianAdapter): TemplatesHandlers {
   const templatesFolder = 'templates';
 
   return {
-    listTemplates: (): Promise<CallToolResult> => {
+    listTemplates: (params): Promise<CallToolResult> => {
+      const format = readResponseFormat(params);
       try {
         const result = adapter.list(templatesFolder);
-        return Promise.resolve(text(JSON.stringify(result.files)));
-      } catch (err) {
-        if (err instanceof FolderNotFoundError) {
-          return Promise.resolve(text('[]'));
+        return Promise.resolve(
+          makeResponse(
+            { files: result.files },
+            (v) => JSON.stringify(v.files),
+            format,
+          ),
+        );
+      } catch (error) {
+        if (error instanceof FolderNotFoundError) {
+          return Promise.resolve(
+            makeResponse(
+              { files: [] as string[] },
+              (v) => JSON.stringify(v.files),
+              format,
+            ),
+          );
         }
-        return Promise.resolve(handleToolError(err));
+        return Promise.resolve(handleToolError(error));
       }
     },
     async createFromTemplate(params): Promise<CallToolResult> {
@@ -97,10 +118,13 @@ function createHandlers(adapter: ObsidianAdapter): TemplatesHandlers {
       }
     },
     expandVariables: (params): Promise<CallToolResult> => {
+      const format = readResponseFormat(params);
       try {
         const variables = params.variables ?? {};
-        const result = expandVariables(params.template, variables);
-        return Promise.resolve(text(result));
+        const expanded = expandVariables(params.template, variables);
+        return Promise.resolve(
+          makeResponse({ expanded }, (v) => v.expanded, format),
+        );
       } catch (error) {
         return Promise.resolve(err(error instanceof Error ? error.message : String(error)));
       }
@@ -119,7 +143,7 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary: 'List files in the vault\'s "templates" folder.',
             returns: 'JSON: string[] of template file paths. Empty array if the folder is missing.',
-          }),
+          }, listTemplatesSchema),
           schema: listTemplatesSchema,
           handler: h.listTemplates,
           annotations: annotations.read,
@@ -138,7 +162,7 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
               '"File not found" if templatePath is missing.',
               '"File already exists" if destPath is taken.',
             ],
-          }),
+          }, createFromTemplateSchema),
           schema: createFromTemplateSchema,
           handler: h.createFromTemplate,
           annotations: annotations.additive,
@@ -152,7 +176,7 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
               'variables (Record<string,string>, optional): Variable map.',
             ],
             returns: 'Plain text: the expanded string.',
-          }),
+          }, expandVariablesSchema),
           schema: expandVariablesSchema,
           handler: h.expandVariables,
           annotations: annotations.read,
