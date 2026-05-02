@@ -78,15 +78,17 @@ files into it.
 ## Basic setup (5 minutes)
 
 The shipping defaults are intentionally conservative: the server is **off**,
-auth is **off**, and binding is restricted to `127.0.0.1`. Walk through these
+**auth is on**, and binding is restricted to `127.0.0.1`. The plugin
+auto-generates a 32-byte access key on first load. Walk through these
 steps once after install:
 
 1. **Open the settings tab**: **Settings → MCP Server**.
-2. **Decide if you need authentication**:
-   - Local-only, single-user machine → leave **Require Bearer authentication**
-     off.
-   - Anything else (shared host, non-localhost binding, paranoia) → turn it on
-     and click **Generate** next to **Access Key**.
+2. **Copy the auto-generated access key**. The plugin already populated
+   it on first load; click the **Copy** button next to **Access Key**.
+   - If you'd rather run unauthenticated (only safe on a trusted,
+     localhost-only setup), toggle **Require Bearer authentication**
+     off, then explicitly toggle **Accept insecure mode** on. The
+     server refuses to bind without that second toggle.
 3. **(Optional) Pick which feature modules you want**. By default all core
    modules are enabled. Disable anything you don't need (principle of least
    privilege).
@@ -130,11 +132,12 @@ The settings tab is split into five sections.
 | **Server Address** | `127.0.0.1` | IPv4 address the server binds to. `127.0.0.1` is local-only. Setting this to `0.0.0.0` exposes the server on every network interface — only do that with auth enabled and a firewall in front. Requires a restart. |
 | **Port** | `28741` | TCP port to listen on. Any integer 1–65535. Restart required. |
 | **Server URL** | (read-only) | Full `http(s)://address:port/mcp` URL. The copy button puts it on your clipboard. |
-| **Require Bearer authentication** | off | Master switch for auth. When off, every request is accepted (only safe on `127.0.0.1`). When on, every request must carry `Authorization: Bearer <key>`. |
-| **Access Key** | (empty) | Visible only when auth is on. Use **Generate** to create a 64-char hex key (256 bits of entropy from `crypto.randomBytes`). The **Copy** button copies it without revealing it. |
+| **Require Bearer authentication** | **on** | Master switch for auth. When on, every request must carry `Authorization: Bearer <key>`. When off, the server **refuses to bind** unless you also turn on **Accept insecure mode** (see below). |
+| **Access Key** | (auto-generated) | Visible only when auth is on. On a fresh install with auth on, the plugin auto-generates a 32-byte base64url key on first load and persists it. Use **Generate** to rotate it. The **Copy** button copies it to the clipboard. |
+| **Accept insecure mode** | off | Visible only when auth is off. The server refuses to bind without this toggle, so you can't accidentally expose an unauthenticated MCP endpoint. Only safe on a trusted, localhost-only setup. |
 | **HTTPS** | off | Switch to HTTPS using a locally generated self-signed certificate. Restart required. See the FAQ for client-side trust. |
 | **TLS Certificate** | auto | Generated on the first HTTPS start, then cached in `data.json`. Use **Regenerate certificate** if you change the address or want a fresh key pair — clients will need to re-trust the new cert. |
-| **Auto-start on launch** | off | Start the MCP server automatically when Obsidian loads. If auth is enabled but no key is set, the server stays stopped and the reason is logged. |
+| **Auto-start on launch** | off | Start the MCP server automatically when Obsidian loads. The server still applies the auth/insecure-mode guard on auto-start, so a misconfigured install stays stopped and the reason is logged. |
 
 #### DNS Rebind Protection
 
@@ -192,7 +195,7 @@ There is also an **Extras** group for utility tools that don't mirror an
 Obsidian API. Extras are toggled **per tool**, not per module, and are off by
 default. Today this contains:
 
-- `get_date` — returns the current local time as ISO-8601 with offset.
+- `extras_get_date` — returns the current local time as ISO-8601 with offset.
 
 ### Execute Command Allowlist
 
@@ -318,9 +321,18 @@ hits the rate limiter, so it can't lock you out of authentication.
 
 ### The server won't auto-start
 
-Auto-start is gated by auth. If **Require Bearer authentication** is on but
-**Access Key** is empty, the server intentionally stays stopped and writes an
-`info` log entry explaining why. Either generate a key or disable auth.
+Auto-start is gated by the same checks as the manual start button.
+Two configurations cause an auto-start to fail silently with an `info`
+log entry:
+
+- **Require Bearer authentication** is on but **Access Key** is empty
+  (rare — the plugin auto-generates a key on first load, so this
+  usually only happens if you cleared the field manually).
+- **Require Bearer authentication** is off and **Accept insecure
+  mode** is also off. The server refuses to bind in this state so
+  unauthenticated traffic is never started by accident. Open the
+  settings tab to turn auth back on (and let the plugin generate a
+  key) or to explicitly accept insecure mode.
 
 ### "EADDRINUSE" / port conflict on start
 
@@ -344,7 +356,7 @@ again retries the start.
 
 - The module that ships the tool is disabled. Enable it under **Feature
   Modules**.
-- For Extras tools (e.g. `get_date`), the per-tool toggle is off by default.
+- For Extras tools (e.g. `extras_get_date`), the per-tool toggle is off by default.
 - The client cached the previous `tools/list` response. Reconnect.
 
 ### How do I expose the server to another machine on my LAN?

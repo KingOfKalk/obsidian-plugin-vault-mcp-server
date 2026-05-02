@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { ToolModule, ToolDefinition, annotations, defineTool } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { createHandlers, WriteMutex } from './handlers';
+import { createSearchHandlers } from '../search/handlers';
+import { filePathSchema as searchFilePathSchema } from '../search/schemas';
 import { describeTool } from '../shared/describe';
 import {
   createFileSchema,
@@ -82,6 +84,7 @@ const listRecursiveOutputSchema = {
 export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
   const mutex = new WriteMutex();
   const handlers = createHandlers(adapter, mutex);
+  const searchHandlers = createSearchHandlers(adapter);
 
   return {
     metadata: {
@@ -354,6 +357,78 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           schema: writeBinarySchema,
           handler: handlers.writeBinary,
           annotations: annotations.destructiveIdempotent,
+        }),
+        defineTool({
+          name: 'vault_get_frontmatter',
+          description: describeTool({
+            summary: 'Get the parsed YAML frontmatter block for a file.',
+            args: ['path (string): Vault-relative path.'],
+            returns: 'JSON: the frontmatter object, or {} when absent.',
+            errors: ['"File not found" if the path does not exist.'],
+          }, searchFilePathSchema),
+          schema: searchFilePathSchema,
+          handler: searchHandlers.searchFrontmatter,
+          annotations: annotations.read,
+        }),
+        defineTool({
+          name: 'vault_get_headings',
+          description: describeTool({
+            summary: 'List headings (with levels) for a file.',
+            args: ['path (string): Vault-relative path.'],
+            returns: 'JSON: [{ heading, level }].',
+            errors: ['"File not found" if the path does not exist.'],
+          }, searchFilePathSchema),
+          schema: searchFilePathSchema,
+          handler: searchHandlers.searchHeadings,
+          annotations: annotations.read,
+        }),
+        defineTool({
+          name: 'vault_get_outgoing_links',
+          description: describeTool({
+            summary: 'List outgoing links from a file.',
+            args: ['path (string): Vault-relative path.'],
+            returns: 'JSON: [{ link, displayText? }].',
+            errors: ['"File not found" if the path does not exist.'],
+          }, searchFilePathSchema),
+          schema: searchFilePathSchema,
+          handler: searchHandlers.searchOutgoingLinks,
+          annotations: annotations.read,
+        }),
+        defineTool({
+          name: 'vault_get_embeds',
+          description: describeTool({
+            summary: 'List embedded resources (![[...]]) referenced by a file.',
+            args: ['path (string): Vault-relative path.'],
+            returns: 'JSON: [{ link, displayText? }].',
+            errors: ['"File not found" if the path does not exist.'],
+          }, searchFilePathSchema),
+          schema: searchFilePathSchema,
+          handler: searchHandlers.searchEmbeds,
+          annotations: annotations.read,
+        }),
+        defineTool({
+          name: 'vault_get_backlinks',
+          description: describeTool({
+            summary: 'List files that link TO a given file (reverse links).',
+            args: ['path (string): Target file path.'],
+            returns: 'JSON: string[] of paths that reference the target.',
+            errors: ['"File not found" if the path does not exist.'],
+          }, searchFilePathSchema),
+          schema: searchFilePathSchema,
+          handler: searchHandlers.searchBacklinks,
+          annotations: annotations.read,
+        }),
+        defineTool({
+          name: 'vault_get_block_references',
+          description: describeTool({
+            summary: 'List block references (^block-id) defined in a file.',
+            args: ['path (string): Vault-relative path.'],
+            returns: 'JSON: [{ id, line }].',
+            errors: ['"File not found" if the path does not exist.'],
+          }, searchFilePathSchema),
+          schema: searchFilePathSchema,
+          handler: searchHandlers.searchBlockReferences,
+          annotations: annotations.read,
         }),
       ];
     },

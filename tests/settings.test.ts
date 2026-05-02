@@ -7,7 +7,7 @@ describe('migrateSettings', () => {
   it('should migrate v0 (no schemaVersion) to current schema', () => {
     const data: Record<string, unknown> = {};
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(9);
+    expect(result.schemaVersion).toBe(10);
     expect(result.port).toBe(28741);
     expect(result.accessKey).toBe('');
     expect(result.httpsEnabled).toBe(false);
@@ -25,7 +25,7 @@ describe('migrateSettings', () => {
       debugMode: true,
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(9);
+    expect(result.schemaVersion).toBe(10);
     expect(result.port).toBe(9999);
     expect(result.accessKey).toBe('my-key');
     expect(result.debugMode).toBe(true);
@@ -43,7 +43,7 @@ describe('migrateSettings', () => {
       moduleStates: {},
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(9);
+    expect(result.schemaVersion).toBe(10);
     expect(result.serverAddress).toBe('127.0.0.1');
     expect(result.autoStart).toBe(false);
   });
@@ -59,7 +59,7 @@ describe('migrateSettings', () => {
       moduleStates: {},
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(9);
+    expect(result.schemaVersion).toBe(10);
     expect(result.autoStart).toBe(false);
   });
 
@@ -78,7 +78,7 @@ describe('migrateSettings', () => {
       },
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(9);
+    expect(result.schemaVersion).toBe(10);
     expect(result.moduleStates).toEqual({
       vault: { enabled: true },
       editor: { enabled: false },
@@ -97,7 +97,7 @@ describe('migrateSettings', () => {
       moduleStates: {},
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(9);
+    expect(result.schemaVersion).toBe(10);
     expect(result.tlsCertificate).toBeNull();
   });
 
@@ -114,7 +114,7 @@ describe('migrateSettings', () => {
       moduleStates: {},
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(9);
+    expect(result.schemaVersion).toBe(10);
     expect(result.authEnabled).toBe(false);
   });
 
@@ -124,7 +124,7 @@ describe('migrateSettings', () => {
       accessKey: 'pre-existing-key',
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(9);
+    expect(result.schemaVersion).toBe(10);
     expect(result.authEnabled).toBe(false);
     expect(result.accessKey).toBe('pre-existing-key');
   });
@@ -135,7 +135,7 @@ describe('migrateSettings', () => {
       authEnabled: true,
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(9);
+    expect(result.schemaVersion).toBe(10);
     expect(result.authEnabled).toBe(true);
   });
 
@@ -173,7 +173,7 @@ describe('migrateSettings', () => {
       moduleStates: {},
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(9);
+    expect(result.schemaVersion).toBe(10);
     expect(result.useCustomTls).toBe(false);
     expect(result.customTlsCertPath).toBeNull();
     expect(result.customTlsKeyPath).toBeNull();
@@ -189,7 +189,7 @@ describe('migrateSettings', () => {
       customTlsKeyPath: '/etc/ssl/my.key',
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(9);
+    expect(result.schemaVersion).toBe(10);
     expect(result.useCustomTls).toBe(true);
     expect(result.customTlsCertPath).toBe('/etc/ssl/my.crt');
     expect(result.customTlsKeyPath).toBe('/etc/ssl/my.key');
@@ -201,7 +201,7 @@ describe('migrateSettings', () => {
       tlsCertificate: { cert: 'EXISTING_CERT', key: 'EXISTING_KEY' },
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(9);
+    expect(result.schemaVersion).toBe(10);
     expect(result.tlsCertificate).toEqual({
       cert: 'EXISTING_CERT',
       key: 'EXISTING_KEY',
@@ -213,7 +213,7 @@ describe('migrateSettings', () => {
       port: 3000,
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(9);
+    expect(result.schemaVersion).toBe(10);
     expect(result.port).toBe(3000);
     expect(result.accessKey).toBe('');
     expect(result.moduleStates).toEqual({});
@@ -222,7 +222,7 @@ describe('migrateSettings', () => {
     expect(result.authEnabled).toBe(false);
   });
 
-  it('should migrate v3 extras state to per-tool states (enabled -> get_date on)', () => {
+  it('should migrate v3 extras state to per-tool states (enabled -> extras_get_date on)', () => {
     const data: Record<string, unknown> = {
       schemaVersion: 3,
       serverAddress: '127.0.0.1',
@@ -234,12 +234,12 @@ describe('migrateSettings', () => {
       moduleStates: { extras: { enabled: true, readOnly: false } },
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(9);
+    expect(result.schemaVersion).toBe(10);
     const states = result.moduleStates as Record<
       string,
       { enabled: boolean; readOnly: boolean; toolStates?: Record<string, boolean> }
     >;
-    expect(states.extras.toolStates).toEqual({ get_date: true });
+    expect(states.extras.toolStates).toEqual({ extras_get_date: true });
   });
 
   it('should migrate v3 extras state to per-tool states (disabled -> empty)', () => {
@@ -255,7 +255,7 @@ describe('migrateSettings', () => {
     expect(states.extras.toolStates).toEqual({});
   });
 
-  it('should leave existing v4 toolStates untouched', () => {
+  it('renames get_date toolState to extras_get_date as part of the v9 → v10 hop and preserves siblings', () => {
     const data: Record<string, unknown> = {
       schemaVersion: 4,
       moduleStates: {
@@ -272,7 +272,7 @@ describe('migrateSettings', () => {
       { enabled: boolean; readOnly: boolean; toolStates?: Record<string, boolean> }
     >;
     expect(states.extras.toolStates).toEqual({
-      get_date: true,
+      extras_get_date: true,
       something_else: false,
     });
   });
@@ -283,18 +283,26 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.autoStart).toBe(false);
   });
 
-  it('should default authEnabled to false', () => {
-    expect(DEFAULT_SETTINGS.authEnabled).toBe(false);
+  it('should default authEnabled to true (secure-by-default)', () => {
+    expect(DEFAULT_SETTINGS.authEnabled).toBe(true);
   });
 
-  it('declares schemaVersion 9', () => {
-    expect(DEFAULT_SETTINGS.schemaVersion).toBe(9);
+  it('declares schemaVersion 10', () => {
+    expect(DEFAULT_SETTINGS.schemaVersion).toBe(10);
   });
 
   it('defaults custom TLS fields to off/null', () => {
     expect(DEFAULT_SETTINGS.useCustomTls).toBe(false);
     expect(DEFAULT_SETTINGS.customTlsCertPath).toBeNull();
     expect(DEFAULT_SETTINGS.customTlsKeyPath).toBeNull();
+  });
+
+  it('defaults iAcceptInsecureMode to false (refuse to bind without auth or explicit opt-in)', () => {
+    expect(DEFAULT_SETTINGS.iAcceptInsecureMode).toBe(false);
+  });
+
+  it('defaults seenInsecureWarning to false', () => {
+    expect(DEFAULT_SETTINGS.seenInsecureWarning).toBe(false);
   });
 });
 

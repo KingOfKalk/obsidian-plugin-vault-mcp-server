@@ -12,18 +12,18 @@ describe('vault module', () => {
     expect(module.metadata.name).toBe('Vault and File Operations');
   });
 
-  it('should register 16 tools', () => {
+  it('should register 22 tools', () => {
     const adapter = new MockObsidianAdapter();
     const module = createVaultModule(adapter);
     const tools = module.tools();
-    expect(tools).toHaveLength(16);
+    expect(tools).toHaveLength(22);
   });
 
-  it('should have 5 read-only tools', () => {
+  it('should have 11 read-only tools', () => {
     const adapter = new MockObsidianAdapter();
     const module = createVaultModule(adapter);
     const readOnlyTools = module.tools().filter((t) => t.annotations.readOnlyHint);
-    expect(readOnlyTools).toHaveLength(5);
+    expect(readOnlyTools).toHaveLength(11);
   });
 
   it('should have 11 write tools', () => {
@@ -44,7 +44,13 @@ describe('vault module', () => {
       'vault_create_folder',
       'vault_delete',
       'vault_delete_folder',
+      'vault_get_backlinks',
+      'vault_get_block_references',
+      'vault_get_embeds',
+      'vault_get_frontmatter',
+      'vault_get_headings',
       'vault_get_metadata',
+      'vault_get_outgoing_links',
       'vault_list',
       'vault_list_recursive',
       'vault_move',

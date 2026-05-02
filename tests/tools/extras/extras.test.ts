@@ -24,18 +24,18 @@ describe('Extras module', () => {
     expect(module.tools()).toHaveLength(1);
   });
 
-  it('registers get_date as a read-only tool', () => {
+  it('registers extras_get_date as a read-only tool', () => {
     const adapter = new MockObsidianAdapter();
     const module = createExtrasModule(adapter);
     const tool = module.tools()[0];
-    expect(tool.name).toBe('get_date');
+    expect(tool.name).toBe('extras_get_date');
     expect(tool.annotations.readOnlyHint).toBe(true);
   });
 
-  it('get_date returns a plain ISO-8601 string with timezone offset', async () => {
+  it('extras_get_date returns a plain ISO-8601 string with timezone offset', async () => {
     const adapter = new MockObsidianAdapter();
     const module = createExtrasModule(adapter);
-    const tool = module.tools().find((t) => t.name === 'get_date')!;
+    const tool = module.tools().find((t) => t.name === 'extras_get_date')!;
     const result = await tool.handler({});
     expect(result.isError).toBeUndefined();
 
@@ -44,10 +44,10 @@ describe('Extras module', () => {
     expect(content.text).toMatch(ISO_WITH_OFFSET);
   });
 
-  it('get_date encodes the current local UTC offset in the ISO string', async () => {
+  it('extras_get_date encodes the current local UTC offset in the ISO string', async () => {
     const adapter = new MockObsidianAdapter();
     const module = createExtrasModule(adapter);
-    const tool = module.tools().find((t) => t.name === 'get_date')!;
+    const tool = module.tools().find((t) => t.name === 'extras_get_date')!;
     const before = new Date().getTimezoneOffset();
     const result = await tool.handler({});
     const after = new Date().getTimezoneOffset();

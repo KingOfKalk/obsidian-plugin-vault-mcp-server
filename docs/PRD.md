@@ -94,7 +94,7 @@ Each category is a toggleable module. Modules self-register. The settings UI aut
 
 Utility tools that do not mirror an Obsidian API. Modules in this group render under a separate "Extras" heading in the settings UI (not under "Feature Modules"). Unlike core feature modules, Extras modules are not toggled as a single unit: the settings UI renders one toggle **per tool** within the Extras group, and the registry stores per-tool enable state on the module. All Extras tools are disabled by default — users opt in one tool at a time.
 
-- **R55** — `get_date` tool returns the current local datetime as a plain ISO-8601 string with timezone offset (e.g. `2026-04-16T14:32:05.123+02:00`). The offset is already encoded in the string, so no additional fields are returned. Disabled by default. Belongs to the "Extras" module group.
+- **R55** — `extras_get_date` tool returns the current local datetime as a plain ISO-8601 string with timezone offset (e.g. `2026-04-16T14:32:05.123+02:00`). The offset is already encoded in the string, so no additional fields are returned. Disabled by default. Belongs to the "Extras" module group.
 
 ### Internationalization (I18N)
 

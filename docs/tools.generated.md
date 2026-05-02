@@ -6,13 +6,13 @@ This file is regenerated from the tool registry and committed so CI can detect d
 
 | Module ID | Module Name | Count | Tools |
 |---|---|---|---|
-| `vault` | Vault and File Operations | 16 | vault_create, vault_read, vault_update, vault_delete, vault_append, vault_get_metadata, vault_rename, vault_move, vault_copy, vault_create_folder, vault_delete_folder, vault_rename_folder, vault_list, vault_list_recursive, vault_read_binary, vault_write_binary |
+| `vault` | Vault and File Operations | 22 | vault_create, vault_read, vault_update, vault_delete, vault_append, vault_get_metadata, vault_rename, vault_move, vault_copy, vault_create_folder, vault_delete_folder, vault_rename_folder, vault_list, vault_list_recursive, vault_read_binary, vault_write_binary, vault_get_frontmatter, vault_get_headings, vault_get_outgoing_links, vault_get_embeds, vault_get_backlinks, vault_get_block_references |
 | `editor` | Editor Operations | 10 | editor_get_content, editor_get_active_file, editor_insert, editor_replace, editor_delete, editor_get_cursor, editor_set_cursor, editor_get_selection, editor_set_selection, editor_get_line_count |
-| `search` | Search and Metadata | 12 | search_fulltext, search_frontmatter, search_tags, search_headings, search_outgoing_links, search_embeds, search_backlinks, search_resolved_links, search_unresolved_links, search_block_references, search_by_tag, search_by_frontmatter |
+| `search` | Search and Metadata | 6 | search_fulltext, search_tags, search_resolved_links, search_unresolved_links, search_by_tag, search_by_frontmatter |
 | `workspace` | Workspace and Navigation | 5 | workspace_get_active_leaf, workspace_open_file, workspace_list_leaves, workspace_set_active_leaf, workspace_get_layout |
 | `ui` | UI Interactions | 1 | ui_notice |
 | `templates` | Templates and Content Generation | 3 | template_list, template_create_from, template_expand |
-| `plugin-interop` | Plugin Interop | 5 | plugin_list, plugin_check, plugin_dataview_query, plugin_templater_execute, plugin_execute_command |
-| `extras` | Extras | 1 | get_date |
+| `plugin-interop` | Plugin Interop | 6 | plugin_list, plugin_check, plugin_dataview_query, plugin_dataview_describe_js_query, plugin_templater_describe_template, plugin_execute_command |
+| `extras` | Extras | 1 | extras_get_date |
 
-**Total tools:** 53 across 8 modules.
+**Total tools:** 54 across 8 modules.

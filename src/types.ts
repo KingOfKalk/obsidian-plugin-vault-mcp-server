@@ -50,6 +50,21 @@ export interface McpPluginSettings {
    * `curl`/native clients working.
    */
   requireOrigin: boolean;
+  /**
+   * Explicit acknowledgement that running the server with
+   * `authEnabled === false` is acceptable. Defaults to `false`.
+   * When `authEnabled === false && iAcceptInsecureMode !== true`, the
+   * server refuses to bind. Existing installs that were running
+   * default-insecure pre-v10 are grandfathered to `true` by the
+   * v9 → v10 migration so they keep working after upgrade.
+   */
+  iAcceptInsecureMode: boolean;
+  /**
+   * Internal one-shot flag: did we already show the user the
+   * "auth is disabled" grandfather notice on plugin load? Persisted so
+   * the warning fires exactly once, never again.
+   */
+  seenInsecureWarning: boolean;
   /** Per-module enabled/disabled state, keyed by module ID */
   moduleStates: Record<string, ModuleState>;
 }
@@ -78,10 +93,10 @@ export const DEFAULT_ALLOWED_HOSTS: readonly string[] = [
 ] as const;
 
 export const DEFAULT_SETTINGS: McpPluginSettings = {
-  schemaVersion: 9,
+  schemaVersion: 10,
   serverAddress: '127.0.0.1',
   port: 28741,
-  authEnabled: false,
+  authEnabled: true,
   accessKey: '',
   httpsEnabled: false,
   tlsCertificate: null,
@@ -95,5 +110,7 @@ export const DEFAULT_SETTINGS: McpPluginSettings = {
   allowedHosts: [...DEFAULT_ALLOWED_HOSTS],
   allowNullOrigin: false,
   requireOrigin: false,
+  iAcceptInsecureMode: false,
+  seenInsecureWarning: false,
   moduleStates: {},
 };

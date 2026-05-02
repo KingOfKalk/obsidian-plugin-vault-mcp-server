@@ -96,6 +96,41 @@ export function migrateV8ToV9(data: Settings): void {
   if (data.requireOrigin === undefined) data.requireOrigin = false;
 }
 
+export function migrateV9ToV10(data: Settings): void {
+  // Auth flips secure-by-default. Two carry-along concerns:
+  //   1. Existing installs that were running default-insecure
+  //      (authEnabled === false && accessKey === '') must keep
+  //      working after upgrade. Grandfather them by setting
+  //      iAcceptInsecureMode: true. The plugin will surface a
+  //      one-time notice on next load (tracked via
+  //      seenInsecureWarning) so they know about the new posture.
+  //   2. The `extras_get_date` tool was renamed from `get_date`. The
+  //      per-tool toolStates key needs the same rename so the user's
+  //      enabled/disabled choice carries over.
+  if (data.iAcceptInsecureMode === undefined) {
+    const wasDefaultInsecure =
+      data.authEnabled === false && data.accessKey === '';
+    data.iAcceptInsecureMode = wasDefaultInsecure;
+  }
+  if (data.seenInsecureWarning === undefined) {
+    data.seenInsecureWarning = false;
+  }
+
+  const moduleStates = (data.moduleStates ?? {}) as Record<
+    string,
+    { enabled?: boolean; toolStates?: Record<string, boolean> }
+  >;
+  const extras = moduleStates.extras;
+  if (extras && extras.toolStates && 'get_date' in extras.toolStates) {
+    const value = extras.toolStates.get_date;
+    delete extras.toolStates.get_date;
+    if (!('extras_get_date' in extras.toolStates)) {
+      extras.toolStates.extras_get_date = value;
+    }
+  }
+  data.moduleStates = moduleStates;
+}
+
 const HOPS: Array<{ target: number; run: MigrationHop }> = [
   { target: 1, run: migrateV0ToV1 },
   { target: 2, run: migrateV1ToV2 },
@@ -106,9 +141,10 @@ const HOPS: Array<{ target: number; run: MigrationHop }> = [
   { target: 7, run: migrateV6ToV7 },
   { target: 8, run: migrateV7ToV8 },
   { target: 9, run: migrateV8ToV9 },
+  { target: 10, run: migrateV9ToV10 },
 ];
 
-export const CURRENT_SCHEMA_VERSION = 9;
+export const CURRENT_SCHEMA_VERSION = 10;
 
 export function migrateSettings(data: Settings): Settings {
   const currentVersion =

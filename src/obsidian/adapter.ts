@@ -77,7 +77,30 @@ export interface ObsidianAdapter {
   getInstalledPlugins(): Array<{ id: string; name: string; enabled: boolean }>;
   isPluginEnabled(pluginId: string): boolean;
   executeCommand(commandId: string): boolean;
+  /**
+   * Return a thin, read-only wrapper over the Dataview plugin API so we
+   * can run DQL queries (`queryMarkdown`) without leaking
+   * `app.plugins.plugins.dataview` to the rest of the codebase.
+   * Returns `null` if Dataview is not installed/enabled or the API is
+   * not exposed at all (e.g. the plugin is mid-load).
+   */
+  getDataviewApi(): DataviewApi | null;
 }
+
+/**
+ * Minimal, read-only slice of Dataview's runtime API. Intentionally
+ * narrowed to just `queryMarkdown(query)` — the only surface we expose
+ * via `plugin_dataview_query`. Dataview's actual API has many more
+ * methods; we deliberately ignore them so we don't accidentally surface
+ * write-capable or JS-evaluating entry points.
+ */
+export interface DataviewApi {
+  queryMarkdown(query: string): Promise<DataviewQueryResult>;
+}
+
+export type DataviewQueryResult =
+  | { successful: true; value: string }
+  | { successful: false; error: string };
 
 export class RealObsidianAdapter implements ObsidianAdapter {
   constructor(private app: App) {}
@@ -422,6 +445,29 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   executeCommand(commandId: string): boolean {
     const appAny = this.app as any;
     return !!appAny.commands?.executeCommandById(commandId);
+  }
+
+  getDataviewApi(): DataviewApi | null {
+    const appAny = this.app as any;
+    const plugin = appAny.plugins?.plugins?.dataview;
+    const api = plugin?.api;
+    if (!api || typeof api.queryMarkdown !== 'function') {
+      return null;
+    }
+    return {
+      queryMarkdown: async (query: string): Promise<DataviewQueryResult> => {
+        // Dataview's queryMarkdown returns a Result<string, string>-style
+        // object with { successful, value | error }. Pass it through.
+        const out = await api.queryMarkdown(query);
+        if (out?.successful === true) {
+          return { successful: true, value: String(out.value ?? '') };
+        }
+        return {
+          successful: false,
+          error: String(out?.error ?? 'Dataview query failed'),
+        };
+      },
+    };
   }
 
   private getFile(path: string): TFile {
