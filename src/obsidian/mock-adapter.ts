@@ -1,4 +1,5 @@
 import { FileStat, ListResult, ObsidianAdapter } from './adapter';
+import { FolderNotFoundError } from '../tools/shared/errors';
 
 interface MockFileMetadata {
   frontmatter?: Record<string, unknown>;
@@ -138,7 +139,7 @@ export class MockObsidianAdapter implements ObsidianAdapter {
 
   async deleteFolder(path: string, recursive: boolean): Promise<void> {
     if (!this.folders.has(path)) {
-      throw new Error(`Folder not found: ${path}`);
+      throw new FolderNotFoundError(path);
     }
     const children = this.getDirectChildren(path);
     if (!recursive && (children.files.length > 0 || children.folders.length > 0)) {
@@ -171,14 +172,14 @@ export class MockObsidianAdapter implements ObsidianAdapter {
 
   list(path: string): ListResult {
     if (!this.folders.has(path) && path !== '/') {
-      throw new Error(`Folder not found: ${path}`);
+      throw new FolderNotFoundError(path);
     }
     return this.getDirectChildren(path);
   }
 
   listRecursive(path: string): ListResult {
     if (!this.folders.has(path) && path !== '/') {
-      throw new Error(`Folder not found: ${path}`);
+      throw new FolderNotFoundError(path);
     }
     const prefix = path === '/' ? '' : path + '/';
     const files: string[] = [];
