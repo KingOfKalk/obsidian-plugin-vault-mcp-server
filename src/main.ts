@@ -1,4 +1,5 @@
 import { Notice, Plugin, setIcon } from 'obsidian';
+import { randomBytes } from 'crypto';
 import { DEFAULT_SETTINGS, McpPluginSettings, TlsCertificateData } from './types';
 import { createLogger, Logger } from './utils/logger';
 import { ModuleRegistry } from './registry/module-registry';
@@ -29,6 +30,8 @@ export default class McpPlugin extends Plugin {
 
   async onload(): Promise<void> {
     await this.loadSettings();
+    await this.ensureAccessKey();
+    await this.maybeShowInsecureModeWarning();
 
     this.logger = createLogger('mcp-plugin', {
       debugMode: this.settings.debugMode,
@@ -106,23 +109,73 @@ export default class McpPlugin extends Plugin {
       },
     });
 
-    // Start server only when explicitly opted in. If auth is enabled, require
-    // a configured access key — otherwise every request would be rejected.
+    // Start server only when explicitly opted in. Gate on the same
+    // conditions startServer() itself checks so we never auto-start
+    // into a configuration the bind path will refuse anyway.
     const canAutoStart =
       this.settings.autoStart &&
-      (!this.settings.authEnabled || this.settings.accessKey.length > 0);
+      this.canBindServer();
     if (canAutoStart) {
       await this.startServer();
     } else {
       if (!this.settings.autoStart) {
         this.logger.info('MCP server not started: auto-start is disabled');
-      } else {
+      } else if (this.settings.authEnabled && this.settings.accessKey.length === 0) {
         this.logger.info(
           'MCP server not started: Bearer auth is on but no access key is configured',
+        );
+      } else if (!this.settings.authEnabled && !this.settings.iAcceptInsecureMode) {
+        this.logger.info(
+          'MCP server not started: auth is disabled and iAcceptInsecureMode is not set',
         );
       }
       this.updateStatusDisplay();
     }
+  }
+
+  /**
+   * On first load with the new secure-by-default posture, generate a
+   * fresh 32-byte access key if auth is enabled but the key is empty.
+   * Persist immediately so the user sees the value in settings without
+   * having to click Generate.
+   */
+  private async ensureAccessKey(): Promise<void> {
+    if (this.settings.authEnabled && this.settings.accessKey.length === 0) {
+      this.settings.accessKey = randomBytes(32).toString('base64url');
+      await this.saveSettings();
+    }
+  }
+
+  /**
+   * Show a one-time notice when the v9 → v10 migration grandfathered
+   * the user into insecure mode. Tracked via `seenInsecureWarning` so
+   * the notice fires exactly once.
+   */
+  private async maybeShowInsecureModeWarning(): Promise<void> {
+    if (
+      !this.settings.authEnabled &&
+      this.settings.iAcceptInsecureMode &&
+      !this.settings.seenInsecureWarning
+    ) {
+      new Notice(
+        t('notice_grandfather_warning'),
+        15000,
+      );
+      this.settings.seenInsecureWarning = true;
+      await this.saveSettings();
+    }
+  }
+
+  /**
+   * Predicate for both the auto-start path and the manual start path.
+   * Returns false if auth is off but the user has not explicitly
+   * opted into insecure mode, or if auth is on but no key is set yet.
+   */
+  private canBindServer(): boolean {
+    if (this.settings.authEnabled) {
+      return this.settings.accessKey.length > 0;
+    }
+    return this.settings.iAcceptInsecureMode === true;
   }
 
   onunload(): void {
@@ -130,6 +183,12 @@ export default class McpPlugin extends Plugin {
   }
 
   async startServer(): Promise<void> {
+    if (!this.settings.authEnabled && !this.settings.iAcceptInsecureMode) {
+      const message = t('notice_insecure_mode_refused');
+      this.logger.error(`Failed to start MCP server: ${message}`);
+      new Notice(message, 12000);
+      return;
+    }
     const attemptedPort = this.settings.port;
     let tls: TlsCertificateData | undefined;
     if (this.settings.httpsEnabled) {

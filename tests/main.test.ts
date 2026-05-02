@@ -51,15 +51,19 @@ describe('McpPlugin.onload autoStart behaviour', () => {
     expect(startSpy).not.toHaveBeenCalled();
   });
 
-  it('starts the server when autoStart is true and an access key is set', async () => {
+  it('starts the server when autoStart is true, authEnabled is true, and an access key is set', async () => {
     const plugin = createPlugin({
-      schemaVersion: 3,
+      schemaVersion: 10,
       serverAddress: '127.0.0.1',
       port: 28741,
       accessKey: 'configured-key',
       httpsEnabled: false,
+      tlsCertificate: null,
       debugMode: false,
       autoStart: true,
+      authEnabled: true,
+      iAcceptInsecureMode: false,
+      seenInsecureWarning: true,
       moduleStates: {},
     });
     const startSpy = vi.spyOn(plugin, 'startServer').mockResolvedValue();
@@ -69,9 +73,9 @@ describe('McpPlugin.onload autoStart behaviour', () => {
     expect(startSpy).toHaveBeenCalled();
   });
 
-  it('does not start the server when autoStart is true, auth is required, but no access key is set', async () => {
+  it('auto-starts the server when autoStart is true and authEnabled is on with an empty key (a key is auto-generated on first load)', async () => {
     const plugin = createPlugin({
-      schemaVersion: 6,
+      schemaVersion: 10,
       serverAddress: '127.0.0.1',
       port: 28741,
       accessKey: '',
@@ -80,6 +84,55 @@ describe('McpPlugin.onload autoStart behaviour', () => {
       debugMode: false,
       autoStart: true,
       authEnabled: true,
+      iAcceptInsecureMode: false,
+      seenInsecureWarning: true,
+      moduleStates: {},
+    });
+    const startSpy = vi.spyOn(plugin, 'startServer').mockResolvedValue();
+
+    await plugin.onload();
+
+    // After ensureAccessKey() auto-generates a 32-byte key, the
+    // canBindServer() guard is satisfied and the server auto-starts.
+    expect(plugin.settings.accessKey).not.toBe('');
+    expect(startSpy).toHaveBeenCalled();
+  });
+
+  it('starts the server when autoStart is true, auth is off, and the user explicitly accepted insecure mode', async () => {
+    const plugin = createPlugin({
+      schemaVersion: 10,
+      serverAddress: '127.0.0.1',
+      port: 28741,
+      accessKey: '',
+      httpsEnabled: false,
+      tlsCertificate: null,
+      debugMode: false,
+      autoStart: true,
+      authEnabled: false,
+      iAcceptInsecureMode: true,
+      seenInsecureWarning: true,
+      moduleStates: {},
+    });
+    const startSpy = vi.spyOn(plugin, 'startServer').mockResolvedValue();
+
+    await plugin.onload();
+
+    expect(startSpy).toHaveBeenCalled();
+  });
+
+  it('refuses to auto-start when authEnabled is off and iAcceptInsecureMode is not set', async () => {
+    const plugin = createPlugin({
+      schemaVersion: 10,
+      serverAddress: '127.0.0.1',
+      port: 28741,
+      accessKey: '',
+      httpsEnabled: false,
+      tlsCertificate: null,
+      debugMode: false,
+      autoStart: true,
+      authEnabled: false,
+      iAcceptInsecureMode: false,
+      seenInsecureWarning: true,
       moduleStates: {},
     });
     const startSpy = vi.spyOn(plugin, 'startServer').mockResolvedValue();
@@ -89,24 +142,29 @@ describe('McpPlugin.onload autoStart behaviour', () => {
     expect(startSpy).not.toHaveBeenCalled();
   });
 
-  it('starts the server when autoStart is true and Bearer auth is disabled, even without an access key', async () => {
+  it('auto-generates a 32-byte access key on first load when authEnabled is true and the key is empty', async () => {
     const plugin = createPlugin({
-      schemaVersion: 6,
+      schemaVersion: 10,
       serverAddress: '127.0.0.1',
       port: 28741,
       accessKey: '',
       httpsEnabled: false,
       tlsCertificate: null,
       debugMode: false,
-      autoStart: true,
-      authEnabled: false,
+      autoStart: false,
+      authEnabled: true,
+      iAcceptInsecureMode: false,
+      seenInsecureWarning: true,
       moduleStates: {},
     });
-    const startSpy = vi.spyOn(plugin, 'startServer').mockResolvedValue();
+    vi.spyOn(plugin, 'startServer').mockResolvedValue();
 
     await plugin.onload();
 
-    expect(startSpy).toHaveBeenCalled();
+    expect(plugin.settings.accessKey).not.toBe('');
+    // base64url of 32 bytes is 43 chars (no padding).
+    expect(plugin.settings.accessKey).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(plugin.saveData).toHaveBeenCalled();
   });
 
   it('swaps the ribbon icon glyph when the server transitions between stopped and running', async () => {

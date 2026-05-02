@@ -29,12 +29,22 @@ const en = {
   notice_server_url_copied: 'MCP server URL copied to clipboard',
   setting_auth_enabled_name: 'Require Bearer authentication',
   setting_auth_enabled_desc:
-    'When on, the server requires a valid Bearer access key on every MCP request. When off, requests are accepted without authentication — only safe on a trusted, localhost-only setup.',
+    'When on, the server requires a valid Bearer access key on every MCP request. When off, the server refuses to bind unless "Accept insecure mode" is also on — so unauthenticated traffic is never started by accident.',
   setting_access_key_name: 'Access Key',
-  setting_access_key_desc: 'Bearer token for authenticating MCP clients',
+  setting_access_key_desc:
+    'Bearer token for authenticating MCP clients. Auto-generated on first load (32 bytes, base64url) if this field is empty when auth is on.',
   placeholder_access_key: 'Enter access key',
   tooltip_copy_access_key: 'Copy access key',
   notice_access_key_copied: 'Access key copied to clipboard',
+  notice_access_key_generated:
+    'Generated a fresh 32-byte access key. Open MCP settings to copy it.',
+  setting_insecure_mode_name: 'Accept insecure mode',
+  setting_insecure_mode_desc:
+    'Acknowledge that you want the server to bind with authentication disabled. Required (in addition to turning auth off) for the server to start. Only safe on a trusted, localhost-only setup.',
+  notice_insecure_mode_refused:
+    'MCP server refused to start: authentication is disabled but "Accept insecure mode" is not on. Open MCP settings to enable auth or accept insecure mode.',
+  notice_grandfather_warning:
+    'MCP authentication is disabled. The plugin used to default to that, but new installs are secure-by-default. Open MCP settings to turn auth on (recommended) or to keep insecure mode explicitly.',
   tooltip_generate: 'Generate',
   setting_https_name: 'HTTPS',
   setting_https_desc:

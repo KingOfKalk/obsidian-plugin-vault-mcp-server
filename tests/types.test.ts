@@ -22,8 +22,8 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.moduleStates).toEqual({});
   });
 
-  it('should have schema version 9', () => {
-    expect(DEFAULT_SETTINGS.schemaVersion).toBe(9);
+  it('should have schema version 10', () => {
+    expect(DEFAULT_SETTINGS.schemaVersion).toBe(10);
   });
 
   it('should have loopback-only Origin and Host allowlists by default', () => {
@@ -44,8 +44,16 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.customTlsKeyPath).toBeNull();
   });
 
-  it('should have Bearer authentication disabled by default', () => {
-    expect(DEFAULT_SETTINGS.authEnabled).toBe(false);
+  it('should have Bearer authentication enabled by default (secure-by-default)', () => {
+    expect(DEFAULT_SETTINGS.authEnabled).toBe(true);
+  });
+
+  it('should have iAcceptInsecureMode set to false by default', () => {
+    expect(DEFAULT_SETTINGS.iAcceptInsecureMode).toBe(false);
+  });
+
+  it('should have seenInsecureWarning set to false by default', () => {
+    expect(DEFAULT_SETTINGS.seenInsecureWarning).toBe(false);
   });
 
   it('should have a null TLS certificate by default', () => {

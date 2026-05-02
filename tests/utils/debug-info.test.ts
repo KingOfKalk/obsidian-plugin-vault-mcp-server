@@ -65,7 +65,7 @@ function makeModule(
 }
 
 const baseSettings: McpPluginSettings = {
-  schemaVersion: 9,
+  schemaVersion: 10,
   serverAddress: '127.0.0.1',
   port: 28741,
   authEnabled: true,
@@ -87,6 +87,8 @@ const baseSettings: McpPluginSettings = {
   allowedHosts: ['127.0.0.1', 'localhost'],
   allowNullOrigin: false,
   requireOrigin: false,
+  iAcceptInsecureMode: false,
+  seenInsecureWarning: true,
   moduleStates: {},
 };
 

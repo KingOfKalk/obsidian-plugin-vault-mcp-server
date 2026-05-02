@@ -9,6 +9,7 @@ import {
   migrateV6ToV7,
   migrateV7ToV8,
   migrateV8ToV9,
+  migrateV9ToV10,
   migrateSettings,
   CURRENT_SCHEMA_VERSION,
 } from '../../src/settings/migrations';
@@ -147,6 +148,91 @@ describe('settings migrations — per-version hops', () => {
     expect(data.allowedHosts).toEqual(['my.example']);
     expect(data.allowNullOrigin).toBe(true);
     expect(data.requireOrigin).toBe(true);
+  });
+
+  it('V9 -> V10 grandfathers default-insecure installs to iAcceptInsecureMode: true', () => {
+    // Pre-v10 default was authEnabled: false + accessKey: ''. Those
+    // installs would refuse to bind on the new posture; preserve their
+    // behaviour by setting iAcceptInsecureMode: true so the server
+    // keeps starting after upgrade. The plugin will surface a one-time
+    // notice on next load (gated by seenInsecureWarning).
+    const data: Record<string, unknown> = {
+      authEnabled: false,
+      accessKey: '',
+    };
+    migrateV9ToV10(data);
+    expect(data.iAcceptInsecureMode).toBe(true);
+    expect(data.seenInsecureWarning).toBe(false);
+  });
+
+  it('V9 -> V10 leaves iAcceptInsecureMode: false when the user explicitly set authEnabled: true', () => {
+    const data: Record<string, unknown> = {
+      authEnabled: true,
+      accessKey: 'real-key',
+    };
+    migrateV9ToV10(data);
+    expect(data.iAcceptInsecureMode).toBe(false);
+    expect(data.seenInsecureWarning).toBe(false);
+  });
+
+  it('V9 -> V10 leaves iAcceptInsecureMode: false when auth was off but the user had set an access key', () => {
+    // The "auth off + key present" shape implies the user toggled auth
+    // off deliberately at some point — not the historical default.
+    // Keep them on the strict posture so they hit the insecure-mode
+    // notice and choose explicitly.
+    const data: Record<string, unknown> = {
+      authEnabled: false,
+      accessKey: 'a-key',
+    };
+    migrateV9ToV10(data);
+    expect(data.iAcceptInsecureMode).toBe(false);
+  });
+
+  it('V9 -> V10 renames extras.toolStates.get_date to extras_get_date', () => {
+    const data: Record<string, unknown> = {
+      moduleStates: {
+        extras: {
+          enabled: true,
+          toolStates: { get_date: true, other: false },
+        },
+      },
+    };
+    migrateV9ToV10(data);
+    const states = data.moduleStates as Record<
+      string,
+      { toolStates?: Record<string, boolean> }
+    >;
+    expect(states.extras.toolStates).toEqual({
+      extras_get_date: true,
+      other: false,
+    });
+  });
+
+  it('V9 -> V10 leaves extras.toolStates alone when it does not contain get_date', () => {
+    const data: Record<string, unknown> = {
+      moduleStates: {
+        extras: {
+          enabled: true,
+          toolStates: { extras_get_date: true },
+        },
+      },
+    };
+    migrateV9ToV10(data);
+    const states = data.moduleStates as Record<
+      string,
+      { toolStates?: Record<string, boolean> }
+    >;
+    expect(states.extras.toolStates).toEqual({ extras_get_date: true });
+  });
+
+  it('V9 -> V10 preserves an existing iAcceptInsecureMode setting', () => {
+    const data: Record<string, unknown> = {
+      authEnabled: false,
+      accessKey: '',
+      iAcceptInsecureMode: false,
+    };
+    migrateV9ToV10(data);
+    expect(data.iAcceptInsecureMode).toBe(false);
   });
 });
 

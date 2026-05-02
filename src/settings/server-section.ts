@@ -195,10 +195,30 @@ export function renderServerSettingsSection(
     .addToggle((toggle) =>
       toggle.setValue(plugin.settings.authEnabled).onChange(async (value) => {
         plugin.settings.authEnabled = value;
+        // Turning auth on clears the explicit insecure-mode flag so the
+        // user has to opt into it again if they later turn auth back off.
+        if (value && plugin.settings.iAcceptInsecureMode) {
+          plugin.settings.iAcceptInsecureMode = false;
+        }
         await plugin.saveSettings();
         refresh();
       }),
     );
+
+  if (!plugin.settings.authEnabled) {
+    new Setting(containerEl)
+      .setName(t('setting_insecure_mode_name'))
+      .setDesc(t('setting_insecure_mode_desc'))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(plugin.settings.iAcceptInsecureMode)
+          .onChange(async (value) => {
+            plugin.settings.iAcceptInsecureMode = value;
+            await plugin.saveSettings();
+            refresh();
+          }),
+      );
+  }
 
   if (plugin.settings.authEnabled) {
     new Setting(containerEl)
