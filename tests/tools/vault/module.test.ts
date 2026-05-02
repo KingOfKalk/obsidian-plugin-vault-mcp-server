@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
 import { createVaultModule } from '../../../src/tools/vault/index';
 import { createHandlers, WriteMutex } from '../../../src/tools/vault/handlers';
+import { createSearchHandlers } from '../../../src/tools/search/handlers';
 
 describe('vault module', () => {
   it('should have correct metadata', () => {
@@ -198,6 +199,130 @@ describe('vault read tools — outputSchema declarations', () => {
     // future change cannot silently add one without re-checking that the
     // handler also emits a matching structuredContent slot.
     expect(tool.outputSchema).toBeUndefined();
+  });
+
+  it('vault_get_frontmatter declares outputSchema and parses against handler output', async () => {
+    const tool = findTool('vault_get_frontmatter');
+    const schema = getStructured(tool);
+
+    const adapter = new MockObsidianAdapter();
+    adapter.addFile('note.md', '');
+    adapter.setMetadata('note.md', { frontmatter: { status: 'done', tags: ['x'] } });
+    const handlers = createSearchHandlers(adapter);
+
+    const result = await handlers.searchFrontmatter({
+      path: 'note.md',
+      response_format: 'json',
+    });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.path).toBe('note.md');
+    expect(parsed.frontmatter).toEqual({ status: 'done', tags: ['x'] });
+  });
+
+  it('vault_get_headings declares outputSchema and parses against handler output', async () => {
+    const tool = findTool('vault_get_headings');
+    const schema = getStructured(tool);
+
+    const adapter = new MockObsidianAdapter();
+    adapter.addFile('note.md', '');
+    adapter.setMetadata('note.md', {
+      headings: [
+        { heading: 'Top', level: 1 },
+        { heading: 'Sub', level: 2 },
+      ],
+    });
+    const handlers = createSearchHandlers(adapter);
+
+    const result = await handlers.searchHeadings({
+      path: 'note.md',
+      response_format: 'json',
+    });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.headings).toEqual([
+      { heading: 'Top', level: 1 },
+      { heading: 'Sub', level: 2 },
+    ]);
+  });
+
+  it('vault_get_outgoing_links declares outputSchema and parses against handler output', async () => {
+    const tool = findTool('vault_get_outgoing_links');
+    const schema = getStructured(tool);
+
+    const adapter = new MockObsidianAdapter();
+    adapter.addFile('a.md', '');
+    adapter.setMetadata('a.md', {
+      links: [{ link: 'b', displayText: 'Bee' }, { link: 'c' }],
+    });
+    const handlers = createSearchHandlers(adapter);
+
+    const result = await handlers.searchOutgoingLinks({
+      path: 'a.md',
+      response_format: 'json',
+    });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.path).toBe('a.md');
+    expect(parsed.links).toEqual([
+      { link: 'b', displayText: 'Bee' },
+      { link: 'c' },
+    ]);
+  });
+
+  it('vault_get_embeds declares outputSchema and parses against handler output', async () => {
+    const tool = findTool('vault_get_embeds');
+    const schema = getStructured(tool);
+
+    const adapter = new MockObsidianAdapter();
+    adapter.addFile('a.md', '');
+    adapter.setMetadata('a.md', {
+      embeds: [{ link: 'image.png' }],
+    });
+    const handlers = createSearchHandlers(adapter);
+
+    const result = await handlers.searchEmbeds({
+      path: 'a.md',
+      response_format: 'json',
+    });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.embeds).toEqual([{ link: 'image.png' }]);
+  });
+
+  it('vault_get_backlinks declares outputSchema and parses against handler output', async () => {
+    const tool = findTool('vault_get_backlinks');
+    const schema = getStructured(tool);
+
+    const adapter = new MockObsidianAdapter();
+    adapter.addFile('a.md', '');
+    adapter.addFile('b.md', '');
+    adapter.setMetadata('b.md', { links: [{ link: 'a' }] });
+    const handlers = createSearchHandlers(adapter);
+
+    const result = await handlers.searchBacklinks({
+      path: 'a.md',
+      response_format: 'json',
+    });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.path).toBe('a.md');
+    expect(parsed.backlinks).toEqual(['b.md']);
+  });
+
+  it('vault_get_block_references declares outputSchema and parses against handler output', async () => {
+    const tool = findTool('vault_get_block_references');
+    const schema = getStructured(tool);
+
+    const adapter = new MockObsidianAdapter();
+    adapter.addFile('note.md', 'A line ^anchor-1\nAnother ^anchor-2\n');
+    const handlers = createSearchHandlers(adapter);
+
+    const result = await handlers.searchBlockReferences({
+      path: 'note.md',
+      response_format: 'json',
+    });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.path).toBe('note.md');
+    expect(parsed.blockRefs).toEqual([
+      { id: 'anchor-1', line: 'A line ^anchor-1' },
+      { id: 'anchor-2', line: 'Another ^anchor-2' },
+    ]);
   });
 });
 
