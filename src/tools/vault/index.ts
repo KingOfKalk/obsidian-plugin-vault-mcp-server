@@ -81,6 +81,77 @@ const listRecursiveOutputSchema = {
     .describe('Offset to use in the next request when has_more is true.'),
 };
 
+/**
+ * Output schemas for the `vault_get_*` single-path getters. These tools were
+ * renamed from `search_get_*` by #255 and use search handlers, but they live
+ * in the vault module today and so their `outputSchema` declarations live
+ * alongside the rest of the vault read schemas (Batch B of #248).
+ */
+const getFrontmatterOutputSchema = {
+  path: z.string().describe('Vault-relative path that was inspected.'),
+  frontmatter: z
+    .record(z.string(), z.unknown())
+    .describe('Parsed YAML frontmatter object, or {} when absent.'),
+};
+
+const getHeadingsOutputSchema = {
+  path: z.string().describe('Vault-relative path that was inspected.'),
+  headings: z
+    .array(
+      z.object({
+        heading: z.string().describe('Heading text.'),
+        level: z.number().describe('Heading level (1..6).'),
+      }),
+    )
+    .describe('Headings in document order.'),
+};
+
+const getOutgoingLinksOutputSchema = {
+  path: z.string().describe('Vault-relative path that was inspected.'),
+  links: z
+    .array(
+      z.object({
+        link: z.string().describe('Link target.'),
+        displayText: z
+          .string()
+          .optional()
+          .describe('Optional alias used in [[link|alias]] notation.'),
+      }),
+    )
+    .describe('Outgoing links from this file.'),
+};
+
+const getEmbedsOutputSchema = {
+  path: z.string().describe('Vault-relative path that was inspected.'),
+  embeds: z
+    .array(
+      z.object({
+        link: z.string().describe('Embed target.'),
+        displayText: z.string().optional().describe('Optional alias.'),
+      }),
+    )
+    .describe('Embeds (![[...]]) referenced by this file.'),
+};
+
+const getBacklinksOutputSchema = {
+  path: z.string().describe('Target path that was queried.'),
+  backlinks: z
+    .array(z.string())
+    .describe('Vault-relative paths of files that link TO the target.'),
+};
+
+const getBlockReferencesOutputSchema = {
+  path: z.string().describe('Vault-relative path that was inspected.'),
+  blockRefs: z
+    .array(
+      z.object({
+        id: z.string().describe('Block-reference id (without the leading ^).'),
+        line: z.string().describe('The line of text the block-reference is on.'),
+      }),
+    )
+    .describe('Block references defined in this file.'),
+};
+
 export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
   const mutex = new WriteMutex();
   const handlers = createHandlers(adapter, mutex);
@@ -367,6 +438,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             errors: ['"File not found" if the path does not exist.'],
           }, searchFilePathSchema),
           schema: searchFilePathSchema,
+          outputSchema: getFrontmatterOutputSchema,
           handler: searchHandlers.searchFrontmatter,
           annotations: annotations.read,
         }),
@@ -379,6 +451,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             errors: ['"File not found" if the path does not exist.'],
           }, searchFilePathSchema),
           schema: searchFilePathSchema,
+          outputSchema: getHeadingsOutputSchema,
           handler: searchHandlers.searchHeadings,
           annotations: annotations.read,
         }),
@@ -391,6 +464,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             errors: ['"File not found" if the path does not exist.'],
           }, searchFilePathSchema),
           schema: searchFilePathSchema,
+          outputSchema: getOutgoingLinksOutputSchema,
           handler: searchHandlers.searchOutgoingLinks,
           annotations: annotations.read,
         }),
@@ -403,6 +477,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             errors: ['"File not found" if the path does not exist.'],
           }, searchFilePathSchema),
           schema: searchFilePathSchema,
+          outputSchema: getEmbedsOutputSchema,
           handler: searchHandlers.searchEmbeds,
           annotations: annotations.read,
         }),
@@ -415,6 +490,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             errors: ['"File not found" if the path does not exist.'],
           }, searchFilePathSchema),
           schema: searchFilePathSchema,
+          outputSchema: getBacklinksOutputSchema,
           handler: searchHandlers.searchBacklinks,
           annotations: annotations.read,
         }),
@@ -427,6 +503,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             errors: ['"File not found" if the path does not exist.'],
           }, searchFilePathSchema),
           schema: searchFilePathSchema,
+          outputSchema: getBlockReferencesOutputSchema,
           handler: searchHandlers.searchBlockReferences,
           annotations: annotations.read,
         }),
