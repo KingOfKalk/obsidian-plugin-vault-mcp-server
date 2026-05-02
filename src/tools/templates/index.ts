@@ -9,7 +9,7 @@ import {
 } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateVaultPath } from '../../utils/path-guard';
-import { handleToolError } from '../shared/errors';
+import { FolderNotFoundError, handleToolError } from '../shared/errors';
 import { describeTool } from '../shared/describe';
 
 function text(t: string): CallToolResult { return { content: [{ type: 'text', text: t }] }; }
@@ -76,8 +76,11 @@ function createHandlers(adapter: ObsidianAdapter): TemplatesHandlers {
       try {
         const result = adapter.list(templatesFolder);
         return Promise.resolve(text(JSON.stringify(result.files)));
-      } catch {
-        return Promise.resolve(text('[]'));
+      } catch (err) {
+        if (err instanceof FolderNotFoundError) {
+          return Promise.resolve(text('[]'));
+        }
+        return Promise.resolve(handleToolError(err));
       }
     },
     async createFromTemplate(params): Promise<CallToolResult> {
