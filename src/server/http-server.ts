@@ -5,8 +5,9 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { Logger } from '../utils/logger';
-import { authenticateRequest, sendAuthError } from './auth';
+import { authenticateRequest, sendAuthError, sendRateLimitError } from './auth';
 import { applyCorsHeaders, handlePreflight, CorsOptions, DEFAULT_CORS_OPTIONS } from './cors';
+import { FailureRateLimiter, normalizeIp } from './rate-limiter';
 
 export interface HttpServerOptions {
   host: string;
@@ -50,6 +51,7 @@ export class HttpMcpServer {
   private sessions = new Map<string, Session>();
   private sweepTimer: ReturnType<typeof setInterval> | null = null;
   private clock: () => number;
+  private rateLimiter: FailureRateLimiter;
 
   constructor(
     serverFactory: McpServerFactory,
@@ -61,6 +63,7 @@ export class HttpMcpServer {
     this.logger = logger;
     this.options = options;
     this.clock = clock;
+    this.rateLimiter = new FailureRateLimiter({ clock });
   }
 
   get connectedClients(): number {
@@ -187,15 +190,36 @@ export class HttpMcpServer {
 
     applyCorsHeaders(res, corsOptions);
 
+    const clientIp = normalizeIp(req.socket.remoteAddress);
+
+    if (this.options.authEnabled) {
+      const limit = this.rateLimiter.check(clientIp);
+      if (limit.blocked) {
+        this.logger.warn('Authentication rate-limited', {
+          ip: clientIp,
+          retryAfterMs: limit.retryAfterMs,
+        });
+        sendRateLimitError(res, limit.retryAfterMs ?? 1000);
+        return;
+      }
+    }
+
     const authResult = authenticateRequest(
       req,
       this.options.accessKey,
       this.options.authEnabled,
     );
     if (!authResult.authenticated) {
+      if (this.options.authEnabled) {
+        this.rateLimiter.recordFailure(clientIp);
+      }
       this.logger.warn('Authentication failed', { error: authResult.error });
       sendAuthError(res, authResult.error ?? 'Authentication failed');
       return;
+    }
+
+    if (this.options.authEnabled) {
+      this.rateLimiter.recordSuccess(clientIp);
     }
 
     this.logger.debug(`${req.method ?? 'UNKNOWN'} ${req.url ?? '/'}`);
