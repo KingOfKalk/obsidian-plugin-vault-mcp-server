@@ -4,7 +4,7 @@ import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import manifest from '../../manifest.json';
 import { Logger } from '../../src/utils/logger';
 import { ModuleRegistry } from '../../src/registry/module-registry';
-import { ToolDefinition, annotations } from '../../src/registry/types';
+import { ToolDefinition, ToolModule, annotations } from '../../src/registry/types';
 import { PermissionError } from '../../src/tools/shared/errors';
 
 interface CapturedServerInfo {
@@ -16,10 +16,22 @@ interface CapturedOptions {
   capabilities?: { tools?: unknown };
 }
 
+interface CapturedRegisterToolCall {
+  name: string;
+  config: {
+    description?: string;
+    inputSchema?: unknown;
+    outputSchema?: unknown;
+    annotations?: unknown;
+  };
+}
+
 const capturedConstructorArgs: Array<{
   serverInfo: CapturedServerInfo;
   options: CapturedOptions;
 }> = [];
+
+const capturedRegisterToolCalls: CapturedRegisterToolCall[] = [];
 
 vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => {
   class FakeMcpServer {
@@ -27,9 +39,11 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => {
     constructor(serverInfo: CapturedServerInfo, options: CapturedOptions) {
       capturedConstructorArgs.push({ serverInfo, options });
     }
-    registerTool(): void {
-      // no-op — createMcpServer registers active tools, but our test
-      // registry is empty.
+    registerTool(
+      name: string,
+      config: CapturedRegisterToolCall['config'],
+    ): void {
+      capturedRegisterToolCalls.push({ name, config });
     }
   }
   return { McpServer: FakeMcpServer };
@@ -42,6 +56,7 @@ function makeLogger(): Logger {
 describe('createMcpServer', () => {
   beforeEach(() => {
     capturedConstructorArgs.length = 0;
+    capturedRegisterToolCalls.length = 0;
   });
 
   it('advertises the server as "obsidian-mcp-server" per the {service}-mcp-server convention', async () => {
@@ -74,6 +89,64 @@ describe('createMcpServer', () => {
     createMcpServer(registry, makeLogger());
 
     expect(capturedConstructorArgs[0].options.capabilities?.tools).toBeDefined();
+  });
+
+  it('forwards outputSchema to registerTool when defined, and undefined when absent', async () => {
+    const { createMcpServer } = await import('../../src/server/mcp-server');
+
+    const inputSchema = { foo: z.string() };
+    const outputSchema = { result: z.string() };
+
+    const toolWithOutputSchema = {
+      name: 'tool_with_output',
+      description: 'has output schema',
+      schema: inputSchema,
+      outputSchema,
+      handler: () =>
+        Promise.resolve({ content: [{ type: 'text' as const, text: 'ok' }] }),
+      annotations: annotations.read,
+    } as unknown as ToolDefinition;
+
+    const toolWithoutOutputSchema = {
+      name: 'tool_without_output',
+      description: 'no output schema',
+      schema: inputSchema,
+      handler: () =>
+        Promise.resolve({ content: [{ type: 'text' as const, text: 'ok' }] }),
+      annotations: annotations.read,
+    } as unknown as ToolDefinition;
+
+    const stubModule: ToolModule = {
+      metadata: {
+        id: 'stub',
+        name: 'Stub',
+        description: 'test',
+      },
+      tools: () => [toolWithOutputSchema, toolWithoutOutputSchema],
+    };
+
+    const registry = new ModuleRegistry(makeLogger());
+    registry.registerModule(stubModule);
+
+    createMcpServer(registry, makeLogger());
+
+    expect(capturedRegisterToolCalls).toHaveLength(2);
+
+    const withOutput = capturedRegisterToolCalls.find(
+      (c) => c.name === 'tool_with_output',
+    );
+    expect(withOutput).toBeDefined();
+    expect(withOutput?.config.outputSchema).toBe(outputSchema);
+    expect(withOutput?.config.inputSchema).toBe(inputSchema);
+
+    const withoutOutput = capturedRegisterToolCalls.find(
+      (c) => c.name === 'tool_without_output',
+    );
+    expect(withoutOutput).toBeDefined();
+    expect(withoutOutput?.config.outputSchema).toBeUndefined();
+    // The field IS present in the config object (we forward it
+    // unconditionally) — but its value is undefined.
+    expect('outputSchema' in (withoutOutput?.config ?? {})).toBe(true);
   });
 });
 

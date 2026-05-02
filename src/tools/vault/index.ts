@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { ToolModule, ToolDefinition, annotations, defineTool } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { createHandlers, WriteMutex } from './handlers';
@@ -20,6 +21,63 @@ import {
   readBinarySchema,
   writeBinarySchema,
 } from './schemas';
+
+/**
+ * Output schemas for the read tools that emit `structuredContent`. Each
+ * shape mirrors what the corresponding handler in `./handlers.ts` puts on
+ * `result.structuredContent` — declaring them here lets modern MCP clients
+ * validate / introspect the typed payload.
+ *
+ * `vault_read_binary` intentionally has no entry: its handler returns
+ * plain text (a base64 string), with no `structuredContent` slot. The MCP
+ * SDK requires `structuredContent` to be present whenever `outputSchema`
+ * is declared, so retrofitting this tool is deferred to a follow-up.
+ */
+const readFileOutputSchema = {
+  path: z.string().describe('Vault-relative path that was read.'),
+  content: z.string().describe('Full UTF-8 file content.'),
+};
+
+const getMetadataOutputSchema = {
+  path: z.string().describe('Vault-relative path that was inspected.'),
+  size: z.number().describe('File size in bytes.'),
+  created: z
+    .string()
+    .describe('Creation timestamp as an ISO-8601 string.'),
+  modified: z
+    .string()
+    .describe('Last-modification timestamp as an ISO-8601 string.'),
+};
+
+const listFolderOutputSchema = {
+  files: z
+    .array(z.string())
+    .describe('Direct file children of the listed folder (names only).'),
+  folders: z
+    .array(z.string())
+    .describe('Direct subfolders of the listed folder (names only).'),
+};
+
+const listRecursiveOutputSchema = {
+  folders: z
+    .array(z.string())
+    .describe('All folders found under the listed path (recursive).'),
+  total: z
+    .number()
+    .describe('Total number of files matched before pagination.'),
+  count: z.number().describe('Number of files in this page.'),
+  offset: z.number().describe('Offset of the first item in this page.'),
+  items: z
+    .array(z.string())
+    .describe('Files in this page (vault-relative paths).'),
+  has_more: z
+    .boolean()
+    .describe('True when there are more files past this page.'),
+  next_offset: z
+    .number()
+    .optional()
+    .describe('Offset to use in the next request when has_more is true.'),
+};
 
 export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
   const mutex = new WriteMutex();
@@ -72,6 +130,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             ],
           }),
           schema: readFileSchema,
+          outputSchema: readFileOutputSchema,
           handler: handlers.readFile,
           annotations: annotations.read,
         }),
@@ -133,6 +192,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             errors: ['"File not found" if the path does not exist.'],
           }),
           schema: getMetadataSchema,
+          outputSchema: getMetadataOutputSchema,
           handler: handlers.getMetadata,
           annotations: annotations.read,
         }),
@@ -242,6 +302,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             errors: ['"Folder not found" if path does not exist.'],
           }),
           schema: listFolderSchema,
+          outputSchema: listFolderOutputSchema,
           handler: handlers.listFolder,
           annotations: annotations.read,
         }),
@@ -258,6 +319,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             errors: ['"Folder not found" if path does not exist.'],
           }),
           schema: listRecursiveSchema,
+          outputSchema: listRecursiveOutputSchema,
           handler: handlers.listRecursive,
           annotations: annotations.read,
         }),
