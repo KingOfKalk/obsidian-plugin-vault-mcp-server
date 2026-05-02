@@ -119,7 +119,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
             summary: 'Get info about the currently-focused leaf (pane).',
             returns: 'JSON: { id, type, ... } describing the active leaf.',
             errors: ['"No active leaf" if no leaf is focused.'],
-          }),
+          }, readOnlySchema),
           schema: readOnlySchema,
           handler: h.getActiveLeaf,
           annotations: annotations.read,
@@ -144,7 +144,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary: 'List every open leaf and the file it holds.',
             returns: 'JSON: [{ path, leafId }].',
-          }),
+          }, readOnlySchema),
           schema: readOnlySchema,
           handler: h.listLeaves,
           annotations: annotations.read,
@@ -166,7 +166,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary: 'Get a summary of the current workspace layout.',
             returns: 'JSON: Obsidian\'s layout descriptor (nested splits and leaves).',
-          }),
+          }, readOnlySchema),
           schema: readOnlySchema,
           handler: h.getLayout,
           annotations: annotations.read,
