@@ -136,6 +136,28 @@ The settings tab is split into five sections.
 | **TLS Certificate** | auto | Generated on the first HTTPS start, then cached in `data.json`. Use **Regenerate certificate** if you change the address or want a fresh key pair — clients will need to re-trust the new cert. |
 | **Auto-start on launch** | off | Start the MCP server automatically when Obsidian loads. If auth is enabled but no key is set, the server stays stopped and the reason is logged. |
 
+#### DNS Rebind Protection
+
+Even though the server binds to `127.0.0.1`, a hostile webpage in your
+browser can use **DNS rebinding** to point `attacker.com` at `127.0.0.1`
+and reach the loopback port. The server defends against this by
+allowlisting the inbound `Origin` and `Host` headers — anything else is
+rejected with a `403`.
+
+| Setting | Default | What it does |
+|---|---|---|
+| **Allowed Origins** | `http://127.0.0.1`, `http://localhost`, `https://127.0.0.1`, `https://localhost` | Exact-match list (one per line). If the request's `Origin` header isn't on the list, it's rejected. Include the port if your client sends it (e.g. `http://127.0.0.1:28741`). |
+| **Allowed Hosts** | `127.0.0.1`, `localhost` | Hostname-only list (one per line). The port portion of the inbound `Host` header is stripped before comparison. |
+| **Allow Origin: null** | off | When on, requests with `Origin: null` (sandboxed iframes, `file://` pages) are accepted. |
+| **Require Origin header** | off | When on, every request must carry an `Origin` header. Tightens browser-side checks but rejects server-side and CLI clients (`curl`, native MCP clients) that don't send `Origin`. |
+
+The settings tab warns you if you add a non-loopback entry to either
+list — only widen the allowlist if you understand the DNS-rebind risk.
+
+Rejections are logged at `warn` with the client IP, method, path, and
+the offending `Origin`/`Host` values. Body and Authorization headers are
+never logged.
+
 ### 3. MCP Client Configuration
 
 A single row with a **Copy** button. The JSON snippet is built live from your
@@ -273,6 +295,26 @@ protection and isn't configurable.
   immediately, so once you fix the token, the next request succeeds.
 - If you keep hitting this after fixing the token, an old client or
   background process is probably still using the wrong key — close it.
+
+### My client says "403 Forbidden" / "Origin not allowlisted" / "Host not allowlisted"
+
+DNS-rebind protection rejected the request. The server only accepts
+requests whose `Origin` and `Host` headers are on the allowlists in
+**Server Settings → DNS Rebind Protection**. Causes and fixes:
+
+- **Browser client on a non-default origin**: add the exact origin
+  (`scheme://host[:port]`) to **Allowed Origins**. The compare is exact —
+  `http://127.0.0.1` and `http://127.0.0.1:28741` are different entries.
+- **Custom hostname** (you mapped `obsidian.local` to `127.0.0.1`): add
+  the hostname to **Allowed Hosts**.
+- **`Origin: null`** (sandboxed iframe, `file://`): turn on **Allow
+  Origin: null**.
+- **`curl`/CLI without `Origin`** rejected: only happens when **Require
+  Origin header** is on. Either send an `Origin` header or turn the
+  setting off.
+
+The rejection is logged at `warn` with the offending values and never
+hits the rate limiter, so it can't lock you out of authentication.
 
 ### The server won't auto-start
 

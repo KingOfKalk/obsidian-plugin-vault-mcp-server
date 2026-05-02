@@ -69,6 +69,25 @@ const en = {
     'MCP server not started — bring-your-own certificate is invalid: {message}',
   setting_autostart_name: 'Auto-start on launch',
   setting_autostart_desc: 'Start MCP server automatically when Obsidian launches',
+
+  // Settings — DNS Rebind Protection subsection (Origin / Host validation)
+  heading_dns_rebind: 'DNS Rebind Protection',
+  setting_allowed_origins_name: 'Allowed Origins',
+  setting_allowed_origins_desc:
+    'One per line. Requests whose Origin header is not on this list are rejected with 403. Default: loopback only (http(s)://127.0.0.1, http(s)://localhost). Match is exact — include the port if your client sends it.',
+  setting_allowed_hosts_name: 'Allowed Hosts',
+  setting_allowed_hosts_desc:
+    'One per line. Requests whose Host header (port stripped) is not on this list are rejected with 403. Default: 127.0.0.1, localhost.',
+  setting_allow_null_origin_name: 'Allow Origin: null',
+  setting_allow_null_origin_desc:
+    'When on, requests with `Origin: null` (sandboxed iframes, file://) are accepted. Off by default — only enable if you know you need it.',
+  setting_require_origin_name: 'Require Origin header',
+  setting_require_origin_desc:
+    'When on, every request must carry an Origin header. Tightens browser-side checks but breaks server-side and CLI clients (curl, native MCP clients) that do not send Origin.',
+  warning_non_loopback_origin:
+    'Warning: One or more Origins point outside loopback. This widens the attack surface — only do this if you understand DNS-rebind risks.',
+  warning_non_loopback_host:
+    'Warning: One or more Hosts point outside loopback. This widens the attack surface — only do this if you understand DNS-rebind risks.',
   setting_debug_name: 'Debug Mode',
   setting_debug_desc: 'Enable verbose logging of MCP requests and responses',
 

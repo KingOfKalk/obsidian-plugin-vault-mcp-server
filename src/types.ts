@@ -29,6 +29,27 @@ export interface McpPluginSettings {
    * disabled and the tool refuses every call with a clear error.
    */
   executeCommandAllowlist: string[];
+  /**
+   * Origins (scheme + host [+ port]) allowed to issue requests. Used to
+   * block DNS-rebind attacks. Defaults to the loopback variants only.
+   */
+  allowedOrigins: string[];
+  /**
+   * Hostnames allowed to appear in the `Host` header. The port portion is
+   * stripped before comparison. Defaults to `127.0.0.1` and `localhost`.
+   */
+  allowedHosts: string[];
+  /**
+   * When true, requests with `Origin: null` (sandboxed iframes, file://)
+   * are accepted. Default false.
+   */
+  allowNullOrigin: boolean;
+  /**
+   * When true, every request must carry an `Origin` header — server-side
+   * MCP clients without `Origin` get rejected. Default false to keep
+   * `curl`/native clients working.
+   */
+  requireOrigin: boolean;
   /** Per-module enabled/disabled state, keyed by module ID */
   moduleStates: Record<string, ModuleState>;
 }
@@ -44,8 +65,20 @@ export interface ModuleState {
   toolStates?: Record<string, boolean>;
 }
 
+export const DEFAULT_ALLOWED_ORIGINS: readonly string[] = [
+  'http://127.0.0.1',
+  'http://localhost',
+  'https://127.0.0.1',
+  'https://localhost',
+] as const;
+
+export const DEFAULT_ALLOWED_HOSTS: readonly string[] = [
+  '127.0.0.1',
+  'localhost',
+] as const;
+
 export const DEFAULT_SETTINGS: McpPluginSettings = {
-  schemaVersion: 8,
+  schemaVersion: 9,
   serverAddress: '127.0.0.1',
   port: 28741,
   authEnabled: false,
@@ -58,5 +91,9 @@ export const DEFAULT_SETTINGS: McpPluginSettings = {
   debugMode: false,
   autoStart: false,
   executeCommandAllowlist: [],
+  allowedOrigins: [...DEFAULT_ALLOWED_ORIGINS],
+  allowedHosts: [...DEFAULT_ALLOWED_HOSTS],
+  allowNullOrigin: false,
+  requireOrigin: false,
   moduleStates: {},
 };

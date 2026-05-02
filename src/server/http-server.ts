@@ -8,6 +8,7 @@ import { Logger } from '../utils/logger';
 import { authenticateRequest, sendAuthError, sendRateLimitError } from './auth';
 import { applyCorsHeaders, handlePreflight, CorsOptions, DEFAULT_CORS_OPTIONS } from './cors';
 import { FailureRateLimiter, normalizeIp } from './rate-limiter';
+import { validateOriginHost, type OriginHostOptions } from './origin-host';
 
 export interface HttpServerOptions {
   host: string;
@@ -28,7 +29,24 @@ export interface HttpServerOptions {
    * to disable the sweep entirely.
    */
   sessionSweepIntervalMs?: number;
+  /**
+   * DNS-rebind protection. When omitted, defaults to loopback-only Origin
+   * and Host allowlists; pass an explicit object to widen.
+   */
+  originHost?: OriginHostOptions;
 }
+
+const DEFAULT_ORIGIN_HOST_OPTIONS: OriginHostOptions = {
+  allowedOrigins: [
+    'http://127.0.0.1',
+    'http://localhost',
+    'https://127.0.0.1',
+    'https://localhost',
+  ],
+  allowedHosts: ['127.0.0.1', 'localhost'],
+  allowNullOrigin: false,
+  requireOrigin: false,
+};
 
 export type McpServerFactory = () => McpServer;
 
@@ -184,13 +202,35 @@ export class HttpMcpServer {
     res: ServerResponse,
     corsOptions: CorsOptions,
   ): Promise<void> {
+    const clientIp = normalizeIp(req.socket.remoteAddress);
+
+    // DNS-rebind protection: validate Origin and Host before anything
+    // else, including the CORS preflight. The rejection still carries
+    // CORS headers so the browser can surface a clearer failure message.
+    const originHostOpts = this.options.originHost ?? DEFAULT_ORIGIN_HOST_OPTIONS;
+    const originHostResult = validateOriginHost(req, originHostOpts);
+    if (!originHostResult.ok) {
+      this.logger.warn('Request rejected: origin/host validation failed', {
+        ip: clientIp,
+        method: req.method ?? 'UNKNOWN',
+        path: req.url ?? '/',
+        origin: originHostResult.origin,
+        host: originHostResult.host,
+        reason: originHostResult.reason,
+      });
+      applyCorsHeaders(res, corsOptions);
+      if (!res.headersSent) {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: originHostResult.reason }));
+      }
+      return;
+    }
+
     if (handlePreflight(req, res, corsOptions)) {
       return;
     }
 
     applyCorsHeaders(res, corsOptions);
-
-    const clientIp = normalizeIp(req.socket.remoteAddress);
 
     if (this.options.authEnabled) {
       const limit = this.rateLimiter.check(clientIp);

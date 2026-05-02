@@ -152,6 +152,12 @@ export default class McpPlugin extends Plugin {
         authEnabled: this.settings.authEnabled,
         accessKey: this.settings.accessKey,
         tls,
+        originHost: {
+          allowedOrigins: this.settings.allowedOrigins,
+          allowedHosts: this.settings.allowedHosts,
+          allowNullOrigin: this.settings.allowNullOrigin,
+          requireOrigin: this.settings.requireOrigin,
+        },
       },
     );
 
