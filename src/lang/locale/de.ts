@@ -78,6 +78,25 @@ const de: Partial<Record<keyof typeof en, string>> = {
     'MCP-Server nicht gestartet — das eigene Zertifikat ist ungültig: {message}',
   setting_autostart_name: 'Beim Start automatisch starten',
   setting_autostart_desc: 'MCP-Server automatisch starten, wenn Obsidian gestartet wird',
+
+  // DNS Rebind Protection
+  heading_dns_rebind: 'DNS-Rebind-Schutz',
+  setting_allowed_origins_name: 'Erlaubte Origins',
+  setting_allowed_origins_desc:
+    'Ein Eintrag pro Zeile. Anfragen mit einem Origin-Header außerhalb dieser Liste werden mit 403 abgelehnt. Standard: nur Loopback (http(s)://127.0.0.1, http(s)://localhost). Vergleich ist exakt — Port mit angeben, falls dein Client einen sendet.',
+  setting_allowed_hosts_name: 'Erlaubte Hosts',
+  setting_allowed_hosts_desc:
+    'Ein Eintrag pro Zeile. Anfragen mit einem Host-Header (ohne Port) außerhalb dieser Liste werden mit 403 abgelehnt. Standard: 127.0.0.1, localhost.',
+  setting_allow_null_origin_name: 'Origin: null erlauben',
+  setting_allow_null_origin_desc:
+    'Wenn aktiviert, werden Anfragen mit „Origin: null" (Sandbox-iframes, file://) akzeptiert. Standardmäßig aus — nur einschalten, wenn du es wirklich brauchst.',
+  setting_require_origin_name: 'Origin-Header verpflichtend',
+  setting_require_origin_desc:
+    'Wenn aktiviert, muss jede Anfrage einen Origin-Header tragen. Verschärft die Browser-Prüfung, bricht aber Server- und CLI-Clients (curl, native MCP-Clients), die keinen Origin senden.',
+  warning_non_loopback_origin:
+    'Warnung: Mindestens ein Origin liegt außerhalb von Loopback. Das vergrößert die Angriffsfläche — nur aktivieren, wenn du DNS-Rebind-Risiken verstehst.',
+  warning_non_loopback_host:
+    'Warnung: Mindestens ein Host liegt außerhalb von Loopback. Das vergrößert die Angriffsfläche — nur aktivieren, wenn du DNS-Rebind-Risiken verstehst.',
   setting_debug_name: 'Debug-Modus',
   setting_debug_desc: 'Ausführliches Protokollieren von MCP-Anfragen und -Antworten',
 

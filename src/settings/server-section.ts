@@ -9,6 +9,34 @@ import {
 } from './validation';
 import { renderHttpsSection } from './https-section';
 
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
+const LOOPBACK_ORIGIN_PREFIXES = [
+  'http://127.0.0.1',
+  'http://localhost',
+  'https://127.0.0.1',
+  'https://localhost',
+  'http://[::1]',
+  'https://[::1]',
+];
+
+function parseLines(value: string): string[] {
+  return value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
+function hasNonLoopbackHost(hosts: string[]): boolean {
+  return hosts.some((h) => !LOOPBACK_HOSTS.has(h.toLowerCase()));
+}
+
+function hasNonLoopbackOrigin(origins: string[]): boolean {
+  return origins.some((o) => {
+    const lower = o.toLowerCase();
+    return !LOOPBACK_ORIGIN_PREFIXES.some((prefix) => lower === prefix || lower.startsWith(prefix + ':'));
+  });
+}
+
 function scheme(plugin: McpPlugin): 'http' | 'https' {
   return plugin.settings.httpsEnabled ? 'https' : 'http';
 }
@@ -236,6 +264,95 @@ export function renderServerSettingsSection(
       toggle.setValue(plugin.settings.autoStart).onChange(async (value) => {
         plugin.settings.autoStart = value;
         await plugin.saveSettings();
+      }),
+    );
+
+  renderDnsRebindSection(containerEl, plugin, refresh);
+}
+
+/**
+ * "DNS Rebind Protection" subsection — Origin/Host allowlists plus the
+ * two boolean knobs (`allowNullOrigin`, `requireOrigin`). Validation is
+ * done in `src/server/origin-host.ts`; this UI just edits the settings.
+ */
+function renderDnsRebindSection(
+  containerEl: HTMLElement,
+  plugin: McpPlugin,
+  refresh: () => void,
+): void {
+  containerEl.createEl('h3', { text: t('heading_dns_rebind') });
+
+  const originsSetting = new Setting(containerEl)
+    .setName(t('setting_allowed_origins_name'))
+    .setDesc(t('setting_allowed_origins_desc'));
+  const originsTextarea = containerEl.createEl('textarea', {
+    cls: 'mcp-allowed-origins',
+    attr: {
+      rows: '4',
+      placeholder: 'http://127.0.0.1\nhttp://localhost',
+    },
+  });
+  originsTextarea.value = plugin.settings.allowedOrigins.join('\n');
+  const originWarning = createValidationError(originsSetting);
+  if (hasNonLoopbackOrigin(plugin.settings.allowedOrigins)) {
+    originWarning.show(t('warning_non_loopback_origin'));
+  }
+  originsTextarea.addEventListener('change', () => {
+    const next = parseLines(originsTextarea.value);
+    plugin.settings.allowedOrigins = next;
+    if (hasNonLoopbackOrigin(next)) {
+      originWarning.show(t('warning_non_loopback_origin'));
+    } else {
+      originWarning.clear();
+    }
+    plugin
+      .saveSettings()
+      .catch(reportError('save allowedOrigins', plugin.logger));
+  });
+
+  const hostsSetting = new Setting(containerEl)
+    .setName(t('setting_allowed_hosts_name'))
+    .setDesc(t('setting_allowed_hosts_desc'));
+  const hostsTextarea = containerEl.createEl('textarea', {
+    cls: 'mcp-allowed-hosts',
+    attr: { rows: '3', placeholder: '127.0.0.1\nlocalhost' },
+  });
+  hostsTextarea.value = plugin.settings.allowedHosts.join('\n');
+  const hostWarning = createValidationError(hostsSetting);
+  if (hasNonLoopbackHost(plugin.settings.allowedHosts)) {
+    hostWarning.show(t('warning_non_loopback_host'));
+  }
+  hostsTextarea.addEventListener('change', () => {
+    const next = parseLines(hostsTextarea.value);
+    plugin.settings.allowedHosts = next;
+    if (hasNonLoopbackHost(next)) {
+      hostWarning.show(t('warning_non_loopback_host'));
+    } else {
+      hostWarning.clear();
+    }
+    plugin
+      .saveSettings()
+      .catch(reportError('save allowedHosts', plugin.logger));
+  });
+
+  new Setting(containerEl)
+    .setName(t('setting_allow_null_origin_name'))
+    .setDesc(t('setting_allow_null_origin_desc'))
+    .addToggle((toggle) =>
+      toggle.setValue(plugin.settings.allowNullOrigin).onChange(async (value) => {
+        plugin.settings.allowNullOrigin = value;
+        await plugin.saveSettings();
+      }),
+    );
+
+  new Setting(containerEl)
+    .setName(t('setting_require_origin_name'))
+    .setDesc(t('setting_require_origin_desc'))
+    .addToggle((toggle) =>
+      toggle.setValue(plugin.settings.requireOrigin).onChange(async (value) => {
+        plugin.settings.requireOrigin = value;
+        await plugin.saveSettings();
+        refresh();
       }),
     );
 }

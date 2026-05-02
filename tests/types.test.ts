@@ -22,8 +22,20 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.moduleStates).toEqual({});
   });
 
-  it('should have schema version 8', () => {
-    expect(DEFAULT_SETTINGS.schemaVersion).toBe(8);
+  it('should have schema version 9', () => {
+    expect(DEFAULT_SETTINGS.schemaVersion).toBe(9);
+  });
+
+  it('should have loopback-only Origin and Host allowlists by default', () => {
+    expect(DEFAULT_SETTINGS.allowedOrigins).toEqual([
+      'http://127.0.0.1',
+      'http://localhost',
+      'https://127.0.0.1',
+      'https://localhost',
+    ]);
+    expect(DEFAULT_SETTINGS.allowedHosts).toEqual(['127.0.0.1', 'localhost']);
+    expect(DEFAULT_SETTINGS.allowNullOrigin).toBe(false);
+    expect(DEFAULT_SETTINGS.requireOrigin).toBe(false);
   });
 
   it('has bring-your-own-cert disabled by default', () => {

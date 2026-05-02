@@ -8,6 +8,7 @@ import {
   migrateV5ToV6,
   migrateV6ToV7,
   migrateV7ToV8,
+  migrateV8ToV9,
   migrateSettings,
   CURRENT_SCHEMA_VERSION,
 } from '../../src/settings/migrations';
@@ -118,6 +119,34 @@ describe('settings migrations — per-version hops', () => {
     };
     migrateV7ToV8(data);
     expect(data.executeCommandAllowlist).toEqual(['app:reload']);
+  });
+
+  it('V8 -> V9 seeds DNS-rebind allowlists with loopback defaults', () => {
+    const data: Record<string, unknown> = {};
+    migrateV8ToV9(data);
+    expect(data.allowedOrigins).toEqual([
+      'http://127.0.0.1',
+      'http://localhost',
+      'https://127.0.0.1',
+      'https://localhost',
+    ]);
+    expect(data.allowedHosts).toEqual(['127.0.0.1', 'localhost']);
+    expect(data.allowNullOrigin).toBe(false);
+    expect(data.requireOrigin).toBe(false);
+  });
+
+  it('V8 -> V9 preserves user-supplied allowlists', () => {
+    const data: Record<string, unknown> = {
+      allowedOrigins: ['http://my.example'],
+      allowedHosts: ['my.example'],
+      allowNullOrigin: true,
+      requireOrigin: true,
+    };
+    migrateV8ToV9(data);
+    expect(data.allowedOrigins).toEqual(['http://my.example']);
+    expect(data.allowedHosts).toEqual(['my.example']);
+    expect(data.allowNullOrigin).toBe(true);
+    expect(data.requireOrigin).toBe(true);
   });
 });
 

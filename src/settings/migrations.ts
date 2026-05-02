@@ -77,6 +77,25 @@ export function migrateV7ToV8(data: Settings): void {
   }
 }
 
+export function migrateV8ToV9(data: Settings): void {
+  // DNS-rebind protection. Default to loopback-only allowlists so the
+  // loopback-bound server rejects hostile webpages that resolve
+  // attacker.com to 127.0.0.1 and try to fetch the MCP endpoint.
+  if (!Array.isArray(data.allowedOrigins)) {
+    data.allowedOrigins = [
+      'http://127.0.0.1',
+      'http://localhost',
+      'https://127.0.0.1',
+      'https://localhost',
+    ];
+  }
+  if (!Array.isArray(data.allowedHosts)) {
+    data.allowedHosts = ['127.0.0.1', 'localhost'];
+  }
+  if (data.allowNullOrigin === undefined) data.allowNullOrigin = false;
+  if (data.requireOrigin === undefined) data.requireOrigin = false;
+}
+
 const HOPS: Array<{ target: number; run: MigrationHop }> = [
   { target: 1, run: migrateV0ToV1 },
   { target: 2, run: migrateV1ToV2 },
@@ -86,9 +105,10 @@ const HOPS: Array<{ target: number; run: MigrationHop }> = [
   { target: 6, run: migrateV5ToV6 },
   { target: 7, run: migrateV6ToV7 },
   { target: 8, run: migrateV7ToV8 },
+  { target: 9, run: migrateV8ToV9 },
 ];
 
-export const CURRENT_SCHEMA_VERSION = 8;
+export const CURRENT_SCHEMA_VERSION = 9;
 
 export function migrateSettings(data: Settings): Settings {
   const currentVersion =
