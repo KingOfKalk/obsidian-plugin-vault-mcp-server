@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';
+import { FolderNotFoundError } from '../../src/tools/shared/errors';
 
 describe('MockObsidianAdapter', () => {
   let adapter: MockObsidianAdapter;
@@ -171,6 +172,10 @@ describe('MockObsidianAdapter', () => {
 
     it('should throw when listing a nonexistent folder', () => {
       expect(() => adapter.list('missing')).toThrow('Folder not found');
+    });
+
+    it('should throw FolderNotFoundError (typed) when listing a nonexistent folder', () => {
+      expect(() => adapter.list('missing')).toThrow(FolderNotFoundError);
     });
   });
 

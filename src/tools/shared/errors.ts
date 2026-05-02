@@ -14,6 +14,24 @@ export class NotFoundError extends Error {
   }
 }
 
+/**
+ * The vault path resolves to nothing — there is no file or folder there.
+ * Use `FolderNotFoundError` / `FileNotFoundError` when the type is known.
+ */
+export class FolderNotFoundError extends NotFoundError {
+  constructor(path: string) {
+    super(`Folder not found: ${path}`);
+    this.name = 'FolderNotFoundError';
+  }
+}
+
+export class FileNotFoundError extends NotFoundError {
+  constructor(path: string) {
+    super(`File not found: ${path}`);
+    this.name = 'FileNotFoundError';
+  }
+}
+
 export class PermissionError extends Error {
   constructor(message: string) {
     super(message);

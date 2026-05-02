@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unnecessary-type-assertion */
 import { App, Notice, TFile, TFolder, TAbstractFile, Vault } from 'obsidian';
+import { FolderNotFoundError } from '../tools/shared/errors';
 
 export interface FileStat {
   size: number;
@@ -434,7 +435,7 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   private getFolder(path: string): TFolder {
     const folder = this.app.vault.getAbstractFileByPath(path);
     if (!(folder instanceof TFolder)) {
-      throw new Error(`Folder not found: ${path}`);
+      throw new FolderNotFoundError(path);
     }
     return folder;
   }
