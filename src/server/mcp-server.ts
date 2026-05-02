@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { Logger } from '../utils/logger';
 import { ModuleRegistry } from '../registry/module-registry';
 import { ToolDefinition } from '../registry/types';
+import { handleToolError } from '../tools/shared/errors';
 import manifest from '../../manifest.json';
 
 export function createMcpServer(
@@ -41,14 +42,18 @@ export function createToolDispatcher(
 ): (params: unknown) => Promise<CallToolResult> {
   const inputSchema = z.object(tool.schema).strict();
   return async (params: unknown): Promise<CallToolResult> => {
-    let parsed: Record<string, unknown>;
     try {
-      parsed = inputSchema.parse(params ?? {});
+      const parsed = inputSchema.parse(params ?? {});
+      return await tool.handler(parsed);
     } catch (error) {
+      // ZodError keeps the dispatcher's friendlier path-joined format —
+      // richer than handleToolError's ZodError branch, and a `warn` not
+      // `error` because invalid input is a client problem, not a server one.
       if (error instanceof z.ZodError) {
         const message = error.issues
           .map((issue) => {
-            const path = issue.path.length > 0 ? issue.path.join('.') : '<root>';
+            const path =
+              issue.path.length > 0 ? issue.path.join('.') : '<root>';
             return `${path}: ${issue.message}`;
           })
           .join('; ');
@@ -60,17 +65,14 @@ export function createToolDispatcher(
           isError: true,
         };
       }
-      throw error;
-    }
-    try {
-      return await tool.handler(parsed);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      logger.error(`Tool "${tool.name}" error: ${message}`);
-      return {
-        content: [{ type: 'text' as const, text: `Error: ${message}` }],
-        isError: true,
-      };
+      // Anything else — non-Zod parse-time crash (e.g. a custom .refine()
+      // throwing) OR handler-time throw — gets routed through the shared
+      // handleToolError so typed errors (NotFoundError, PermissionError, …)
+      // produce consistent envelopes. Pass the raw Error as structured
+      // log data so the stack is captured server-side; the response itself
+      // never includes the stack (handleToolError uses error.message only).
+      logger.error(`Tool "${tool.name}" error`, error);
+      return handleToolError(error);
     }
   };
 }
