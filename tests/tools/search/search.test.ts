@@ -277,3 +277,54 @@ describe('search handlers', () => {
     });
   });
 });
+
+describe('search tool descriptions document shared args', () => {
+  function descriptionFor(name: string): string {
+    const adapter = new MockObsidianAdapter();
+    const tool = createSearchModule(adapter)
+      .tools()
+      .find((t) => t.name === name);
+    if (!tool) throw new Error(`Tool ${name} not found`);
+    return tool.description;
+  }
+
+  it('documents pagination and response_format on search_fulltext', () => {
+    const desc = descriptionFor('search_fulltext');
+    expect(desc).toContain('limit (integer');
+    expect(desc).toContain('offset (integer');
+    expect(desc).toContain('response_format (enum');
+  });
+
+  it('documents pagination and response_format on search_by_tag', () => {
+    const desc = descriptionFor('search_by_tag');
+    expect(desc).toContain('limit (integer');
+    expect(desc).toContain('offset (integer');
+    expect(desc).toContain('response_format (enum');
+  });
+
+  it('documents pagination and response_format on search_by_frontmatter', () => {
+    const desc = descriptionFor('search_by_frontmatter');
+    expect(desc).toContain('limit (integer');
+    expect(desc).toContain('offset (integer');
+    expect(desc).toContain('response_format (enum');
+  });
+
+  it('documents response_format on tools that only spread responseFormatField', () => {
+    for (const name of [
+      'search_frontmatter',
+      'search_tags',
+      'search_headings',
+      'search_outgoing_links',
+      'search_embeds',
+      'search_backlinks',
+      'search_resolved_links',
+      'search_unresolved_links',
+      'search_block_references',
+    ]) {
+      const desc = descriptionFor(name);
+      expect(desc).toContain('response_format (enum');
+      expect(desc).not.toContain('limit (integer');
+      expect(desc).not.toContain('offset (integer');
+    }
+  });
+});

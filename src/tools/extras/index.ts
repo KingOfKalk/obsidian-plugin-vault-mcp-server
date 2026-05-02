@@ -75,7 +75,7 @@ export function createExtrasModule(adapter: ObsidianAdapter): ToolModule {
             summary: 'Get the current local datetime as an ISO-8601 string with timezone offset.',
             returns: 'Plain text: e.g. "2026-04-19T08:30:00.000+02:00".',
             examples: ['Use when: stamping a daily note with the current local time.'],
-          }),
+          }, getDateSchema),
           schema: getDateSchema,
           handler: h.getDate,
           annotations: annotations.read,

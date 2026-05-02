@@ -194,3 +194,28 @@ describe('vault read tools — outputSchema declarations', () => {
     expect(tool.outputSchema).toBeUndefined();
   });
 });
+
+describe('vault tool descriptions document shared args', () => {
+  function descriptionFor(name: string): string {
+    const adapter = new MockObsidianAdapter();
+    const tool = createVaultModule(adapter)
+      .tools()
+      .find((t) => t.name === name);
+    if (!tool) throw new Error(`Tool ${name} not found`);
+    return tool.description;
+  }
+
+  it('documents pagination and response_format on vault_list_recursive', () => {
+    const desc = descriptionFor('vault_list_recursive');
+    expect(desc).toContain('limit (integer');
+    expect(desc).toContain('offset (integer');
+    expect(desc).toContain('response_format (enum');
+  });
+
+  it('documents response_format on read-only tools that spread responseFormatField', () => {
+    for (const name of ['vault_read', 'vault_get_metadata', 'vault_list']) {
+      const desc = descriptionFor(name);
+      expect(desc).toContain('response_format (enum');
+    }
+  });
+});
