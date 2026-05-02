@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { ToolModule, ToolDefinition, annotations, defineTool } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { createSearchHandlers } from './handlers';
@@ -8,6 +9,65 @@ import {
   searchByFrontmatterSchema,
   readOnlySchema,
 } from './schemas';
+
+/**
+ * Output schemas for the search tools that emit `structuredContent`. Each
+ * shape mirrors what the corresponding handler in `./handlers.ts` puts on
+ * `result.structuredContent` — declaring them lets modern MCP clients
+ * validate / introspect the typed payload (Batch B of #248).
+ */
+const searchFulltextOutputSchema = {
+  total: z.number().describe('Total number of matched files before pagination.'),
+  count: z.number().describe('Number of matches in this page.'),
+  offset: z.number().describe('Offset of the first item in this page.'),
+  items: z
+    .array(
+      z.object({
+        path: z.string().describe('Vault-relative path of the matching file.'),
+        matches: z
+          .array(z.string())
+          .describe('Lines from the file that contain the query.'),
+      }),
+    )
+    .describe('Matches in this page.'),
+  has_more: z
+    .boolean()
+    .describe('True when more results are available past this page.'),
+  next_offset: z
+    .number()
+    .optional()
+    .describe('Offset to use in the next request when has_more is true.'),
+};
+
+const searchTagsOutputSchema = {
+  tags: z
+    .record(z.string(), z.array(z.string()))
+    .describe('Map of tag (with leading #) to vault-relative file paths that use it.'),
+};
+
+const searchLinksMapOutputSchema = {
+  links: z
+    .record(z.string(), z.record(z.string(), z.number()))
+    .describe('Map of source file path to map of target file path to reference count.'),
+};
+
+const paginatedPathPageOutputSchema = {
+  total: z
+    .number()
+    .describe('Total number of matching files before pagination.'),
+  count: z.number().describe('Number of files in this page.'),
+  offset: z.number().describe('Offset of the first item in this page.'),
+  items: z
+    .array(z.string())
+    .describe('Vault-relative file paths in this page.'),
+  has_more: z
+    .boolean()
+    .describe('True when there are more files past this page.'),
+  next_offset: z
+    .number()
+    .optional()
+    .describe('Offset to use in the next request when has_more is true.'),
+};
 
 export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
   const handlers = createSearchHandlers(adapter);
@@ -31,6 +91,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
             errors: ['"Query must not be empty" on empty input.'],
           }, searchFulltextSchema),
           schema: searchFulltextSchema,
+          outputSchema: searchFulltextOutputSchema,
           handler: handlers.searchFulltext,
           annotations: annotations.read,
         }),
@@ -41,6 +102,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
             returns: 'JSON: Record<tag, string[]>. Each key is the tag including leading #.',
           }, readOnlySchema),
           schema: readOnlySchema,
+          outputSchema: searchTagsOutputSchema,
           handler: handlers.searchTags,
           annotations: annotations.read,
         }),
@@ -51,6 +113,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
             returns: 'JSON: Record<source, Record<target, count>>.',
           }, readOnlySchema),
           schema: readOnlySchema,
+          outputSchema: searchLinksMapOutputSchema,
           handler: handlers.searchResolvedLinks,
           annotations: annotations.read,
         }),
@@ -62,6 +125,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
             examples: ['Use when: hunting for broken [[wikilinks]] to clean up.'],
           }, readOnlySchema),
           schema: readOnlySchema,
+          outputSchema: searchLinksMapOutputSchema,
           handler: handlers.searchUnresolvedLinks,
           annotations: annotations.read,
         }),
@@ -73,6 +137,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
             returns: 'JSON: string[] of vault-relative file paths.',
           }, searchByTagSchema),
           schema: searchByTagSchema,
+          outputSchema: paginatedPathPageOutputSchema,
           handler: handlers.searchByTag,
           annotations: annotations.read,
         }),
@@ -88,6 +153,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
             examples: ['Use when: "find all notes where status == done".'],
           }, searchByFrontmatterSchema),
           schema: searchByFrontmatterSchema,
+          outputSchema: paginatedPathPageOutputSchema,
           handler: handlers.searchByFrontmatter,
           annotations: annotations.read,
         }),

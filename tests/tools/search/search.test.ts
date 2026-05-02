@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
 import { createSearchHandlers, type SearchHandlers } from '../../../src/tools/search/handlers';
@@ -320,5 +321,185 @@ describe('search tool descriptions document shared args', () => {
       expect(desc).not.toContain('limit (integer');
       expect(desc).not.toContain('offset (integer');
     }
+  });
+});
+
+/**
+ * Batch B of #248: every search tool that emits `structuredContent` must
+ * declare an `outputSchema`, and that schema must accurately describe the
+ * payload the handler produces. Strict-mode parsing catches drift between
+ * the markdown renderer and the structured payload.
+ */
+describe('search read tools — outputSchema declarations', () => {
+  function getStructured(
+    tool: { outputSchema?: z.ZodRawShape },
+  ): z.ZodObject<z.ZodRawShape> {
+    if (!tool.outputSchema) {
+      throw new Error('expected outputSchema to be declared');
+    }
+    return z.object(tool.outputSchema).strict();
+  }
+
+  function findTool(
+    name: string,
+  ): { name: string; outputSchema?: z.ZodRawShape } {
+    const adapter = new MockObsidianAdapter();
+    const module = createSearchModule(adapter);
+    const tool = module.tools().find((t) => t.name === name);
+    if (!tool) throw new Error(`tool ${name} not found`);
+    return tool;
+  }
+
+  it('search_fulltext declares outputSchema and parses with has_more=false', async () => {
+    const tool = findTool('search_fulltext');
+    const schema = getStructured(tool);
+
+    const adapter = new MockObsidianAdapter();
+    adapter.addFile('a.md', 'Hello World');
+    adapter.addFile('b.md', 'Goodbye World');
+    const handlers = createSearchHandlers(adapter);
+
+    const result = await handlers.searchFulltext({
+      query: 'World',
+      response_format: 'json',
+    });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.total).toBe(2);
+    expect(parsed.count).toBe(2);
+    expect(parsed.has_more).toBe(false);
+    expect(parsed.next_offset).toBeUndefined();
+    expect(parsed.items).toHaveLength(2);
+  });
+
+  it('search_fulltext parses with has_more=true and next_offset', async () => {
+    const tool = findTool('search_fulltext');
+    const schema = getStructured(tool);
+
+    const adapter = new MockObsidianAdapter();
+    for (let i = 0; i < 5; i++) {
+      adapter.addFile(`f-${String(i)}.md`, 'World');
+    }
+    const handlers = createSearchHandlers(adapter);
+
+    const result = await handlers.searchFulltext({
+      query: 'World',
+      limit: 2,
+      response_format: 'json',
+    });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.total).toBe(5);
+    expect(parsed.count).toBe(2);
+    expect(parsed.has_more).toBe(true);
+    expect(parsed.next_offset).toBe(2);
+  });
+
+  it('search_tags declares outputSchema and parses against handler output', async () => {
+    const tool = findTool('search_tags');
+    const schema = getStructured(tool);
+
+    const adapter = new MockObsidianAdapter();
+    adapter.addFile('a.md', '');
+    adapter.setMetadata('a.md', { tags: ['#project'] });
+    const handlers = createSearchHandlers(adapter);
+
+    const result = await handlers.searchTags({ response_format: 'json' });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.tags).toEqual({ '#project': ['a.md'] });
+  });
+
+  it('search_resolved_links declares outputSchema and parses against handler output', async () => {
+    const tool = findTool('search_resolved_links');
+    const schema = getStructured(tool);
+
+    const adapter = new MockObsidianAdapter();
+    adapter.addFile('a.md', '');
+    adapter.addFile('b.md', '');
+    adapter.setMetadata('a.md', { links: [{ link: 'b' }] });
+    const handlers = createSearchHandlers(adapter);
+
+    const result = await handlers.searchResolvedLinks({
+      response_format: 'json',
+    });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.links).toEqual({ 'a.md': { 'b.md': 1 } });
+  });
+
+  it('search_unresolved_links declares outputSchema and parses against handler output', async () => {
+    const tool = findTool('search_unresolved_links');
+    const schema = getStructured(tool);
+
+    const adapter = new MockObsidianAdapter();
+    adapter.addFile('a.md', '');
+    adapter.setMetadata('a.md', { links: [{ link: 'missing' }] });
+    const handlers = createSearchHandlers(adapter);
+
+    const result = await handlers.searchUnresolvedLinks({
+      response_format: 'json',
+    });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.links).toEqual({ 'a.md': { missing: 1 } });
+  });
+
+  it('search_by_tag declares outputSchema and parses with has_more=false', async () => {
+    const tool = findTool('search_by_tag');
+    const schema = getStructured(tool);
+
+    const adapter = new MockObsidianAdapter();
+    adapter.addFile('a.md', '');
+    adapter.setMetadata('a.md', { tags: ['#project'] });
+    const handlers = createSearchHandlers(adapter);
+
+    const result = await handlers.searchByTag({
+      tag: 'project',
+      response_format: 'json',
+    });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.total).toBe(1);
+    expect(parsed.has_more).toBe(false);
+    expect(parsed.next_offset).toBeUndefined();
+    expect(parsed.items).toEqual(['a.md']);
+  });
+
+  it('search_by_tag parses with has_more=true and next_offset', async () => {
+    const tool = findTool('search_by_tag');
+    const schema = getStructured(tool);
+
+    const adapter = new MockObsidianAdapter();
+    for (let i = 0; i < 5; i++) {
+      adapter.addFile(`f-${String(i)}.md`, '');
+      adapter.setMetadata(`f-${String(i)}.md`, { tags: ['#project'] });
+    }
+    const handlers = createSearchHandlers(adapter);
+
+    const result = await handlers.searchByTag({
+      tag: 'project',
+      limit: 2,
+      response_format: 'json',
+    });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.total).toBe(5);
+    expect(parsed.count).toBe(2);
+    expect(parsed.has_more).toBe(true);
+    expect(parsed.next_offset).toBe(2);
+  });
+
+  it('search_by_frontmatter declares outputSchema and parses against handler output', async () => {
+    const tool = findTool('search_by_frontmatter');
+    const schema = getStructured(tool);
+
+    const adapter = new MockObsidianAdapter();
+    adapter.addFile('a.md', '');
+    adapter.setMetadata('a.md', { frontmatter: { status: 'done' } });
+    const handlers = createSearchHandlers(adapter);
+
+    const result = await handlers.searchByFrontmatter({
+      key: 'status',
+      value: 'done',
+      response_format: 'json',
+    });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.total).toBe(1);
+    expect(parsed.has_more).toBe(false);
+    expect(parsed.items).toEqual(['a.md']);
   });
 });
