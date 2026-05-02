@@ -1,4 +1,9 @@
-import { FileStat, ListResult, ObsidianAdapter } from './adapter';
+import {
+  DataviewApi,
+  FileStat,
+  ListResult,
+  ObsidianAdapter,
+} from './adapter';
 import { FolderNotFoundError } from '../tools/shared/errors';
 
 interface MockFileMetadata {
@@ -441,6 +446,16 @@ export class MockObsidianAdapter implements ObsidianAdapter {
   executeCommand(commandId: string): boolean {
     this.executedCommands.push(commandId);
     return true;
+  }
+
+  private dataviewApi: DataviewApi | null = null;
+
+  getDataviewApi(): DataviewApi | null {
+    return this.dataviewApi;
+  }
+
+  setDataviewApi(api: DataviewApi | null): void {
+    this.dataviewApi = api;
   }
 
   // Test helpers

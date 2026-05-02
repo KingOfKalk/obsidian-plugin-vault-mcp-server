@@ -54,6 +54,33 @@ export class TimeoutError extends Error {
 }
 
 /**
+ * The user-requested third-party plugin (e.g. Dataview, Templater) is
+ * not installed or is currently disabled in Obsidian.
+ */
+export class PluginNotInstalledError extends Error {
+  constructor(pluginId: string) {
+    super(`Plugin not installed or disabled: ${pluginId}`);
+    this.name = 'PluginNotInstalledError';
+  }
+}
+
+/**
+ * The third-party plugin is enabled but does not currently expose the
+ * API surface we need (typically because it is mid-load or its API
+ * changed in a newer version).
+ */
+export class PluginApiUnavailableError extends Error {
+  constructor(pluginId: string, reason?: string) {
+    super(
+      reason
+        ? `Plugin API unavailable for ${pluginId}: ${reason}`
+        : `Plugin API unavailable for ${pluginId}`,
+    );
+    this.name = 'PluginApiUnavailableError';
+  }
+}
+
+/**
  * Map any caught value to a well-formed CallToolResult with `isError: true`.
  * Callers can use this as a single `catch` target so they don't need to
  * maintain their own per-module `errorResult()` helper.
@@ -82,6 +109,12 @@ export function handleToolError(error: unknown): CallToolResult {
   }
   if (error instanceof TimeoutError) {
     return errorFrom(`Operation timed out: ${error.message}`);
+  }
+  if (error instanceof PluginNotInstalledError) {
+    return errorFrom(error.message);
+  }
+  if (error instanceof PluginApiUnavailableError) {
+    return errorFrom(error.message);
   }
   const message = error instanceof Error ? error.message : String(error);
   return errorFrom(message);

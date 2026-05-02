@@ -8,7 +8,11 @@ import {
   type InferredParams,
 } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
-import { handleToolError } from '../shared/errors';
+import {
+  PluginApiUnavailableError,
+  PluginNotInstalledError,
+  handleToolError,
+} from '../shared/errors';
 import { describeTool } from '../shared/describe';
 import {
   makeResponse,
@@ -36,7 +40,16 @@ const dataviewSchema = {
     .string()
     .min(1)
     .max(10_000)
-    .describe('Dataview query (DQL or Dataview-js)'),
+    .describe('Dataview DQL query text. JavaScript queries are not executed by this tool — see plugin_dataview_describe_js_query.'),
+  ...responseFormatField,
+};
+
+const dataviewJsSchema = {
+  query: z
+    .string()
+    .min(1)
+    .max(10_000)
+    .describe('Dataview-JS source. Returned verbatim — execution is the host client\'s responsibility.'),
   ...responseFormatField,
 };
 
@@ -46,6 +59,7 @@ const templaterSchema = {
     .min(1)
     .max(4096)
     .describe('Vault-relative path to the Templater template'),
+  ...responseFormatField,
 };
 
 const executeCommandSchema = {
@@ -60,7 +74,12 @@ interface PluginInteropHandlers {
   listPlugins: (params: InferredParams<typeof listSchema>) => Promise<CallToolResult>;
   checkPlugin: (params: InferredParams<typeof checkSchema>) => Promise<CallToolResult>;
   dataviewQuery: (params: InferredParams<typeof dataviewSchema>) => Promise<CallToolResult>;
-  templaterExecute: (params: InferredParams<typeof templaterSchema>) => Promise<CallToolResult>;
+  dataviewDescribeJsQuery: (
+    params: InferredParams<typeof dataviewJsSchema>,
+  ) => Promise<CallToolResult>;
+  templaterDescribeTemplate: (
+    params: InferredParams<typeof templaterSchema>,
+  ) => Promise<CallToolResult>;
   executeCommand: (params: InferredParams<typeof executeCommandSchema>) => Promise<CallToolResult>;
 }
 
@@ -100,30 +119,62 @@ function createHandlers(
         ),
       );
     },
-    dataviewQuery: (params): Promise<CallToolResult> => {
-      if (!adapter.isPluginEnabled('dataview')) {
-        return Promise.resolve(err('Dataview plugin is not installed or enabled'));
+    dataviewQuery: async (params): Promise<CallToolResult> => {
+      try {
+        if (!adapter.isPluginEnabled('dataview')) {
+          throw new PluginNotInstalledError('dataview');
+        }
+        const api = adapter.getDataviewApi();
+        if (!api) {
+          throw new PluginApiUnavailableError(
+            'dataview',
+            'queryMarkdown is not exposed',
+          );
+        }
+        const result = await api.queryMarkdown(params.query);
+        if (!result.successful) {
+          return err(`Dataview query failed: ${result.error}`);
+        }
+        return makeResponse(
+          { query: params.query, markdown: result.value },
+          (v) => v.markdown,
+          readResponseFormat(params),
+        );
+      } catch (error) {
+        return handleToolError(error);
       }
+    },
+    dataviewDescribeJsQuery: (params): Promise<CallToolResult> => {
+      // Stub-only: return the JS source verbatim plus a note. We do NOT
+      // evaluate Dataview-JS — that would arbitrary-eval user input
+      // against the Obsidian app handle.
       const payload = {
-        note: 'Dataview query execution requires the Dataview plugin API at runtime',
         query: params.query,
+        note: 'Dataview JS execution is intentionally not performed by this server. Run the source against the Dataview API on the host that owns the vault.',
       };
       return Promise.resolve(
         makeResponse(
           payload,
-          (v) => `_${v.note}_\n\n\`\`\`dataview\n${v.query}\n\`\`\``,
+          (v) => `_${v.note}_\n\n\`\`\`dataviewjs\n${v.query}\n\`\`\``,
           readResponseFormat(params),
         ),
       );
     },
-    templaterExecute: (params): Promise<CallToolResult> => {
-      if (!adapter.isPluginEnabled('templater-obsidian')) {
-        return Promise.resolve(err('Templater plugin is not installed or enabled'));
-      }
-      return Promise.resolve(text(JSON.stringify({
-        note: 'Templater execution requires the Templater plugin API at runtime',
+    templaterDescribeTemplate: (params): Promise<CallToolResult> => {
+      // Stub-only: echo the template path. We do NOT call Templater's
+      // execution surface — Templater can run arbitrary user JS, so
+      // execution must stay client-side.
+      const payload = {
         templatePath: params.templatePath,
-      })));
+        note: 'Templater execution is intentionally not performed by this server. The host client must run the template via the Templater API.',
+      };
+      return Promise.resolve(
+        makeResponse(
+          payload,
+          (v) => `_${v.note}_\n\nTemplate path: \`${v.templatePath}\``,
+          readResponseFormat(params),
+        ),
+      );
     },
     executeCommand: (params): Promise<CallToolResult> => {
       const allowlist = getExecuteCommandAllowlist();
@@ -187,26 +238,40 @@ export function createPluginInteropModule(
         defineTool({
           name: 'plugin_dataview_query',
           description: describeTool({
-            summary: 'Execute a Dataview (DQL / dataview-js) query.',
-            args: ['query (string, 1..10000): Dataview query text.'],
-            returns: 'JSON envelope with the query echoed; full execution requires the Dataview plugin at runtime.',
-            errors: ['"Dataview plugin is not installed or enabled" if the plugin is missing.'],
+            summary: 'Execute a Dataview DQL query and return the rendered markdown.',
+            args: ['query (string, 1..10000): Dataview DQL query text. Use plugin_dataview_describe_js_query for Dataview-JS sources.'],
+            returns: 'Plain text: the markdown that Dataview rendered. JSON form returns { query, markdown }.',
+            errors: [
+              '"Plugin not installed or disabled: dataview" if Dataview is missing.',
+              '"Plugin API unavailable for dataview" if Dataview is loaded but its API is not yet exposed.',
+              '"Dataview query failed: <reason>" if the query parses but does not execute cleanly.',
+            ],
           }, dataviewSchema),
           schema: dataviewSchema,
           handler: h.dataviewQuery,
           annotations: annotations.readExternal,
         }),
         defineTool({
-          name: 'plugin_templater_execute',
+          name: 'plugin_dataview_describe_js_query',
           description: describeTool({
-            summary: 'Execute a Templater template file.',
+            summary: 'Echo a Dataview-JS source for client-side execution. Returns the source and a note that the host must run it.',
+            args: ['query (string, 1..10000): Dataview-JS source.'],
+            returns: 'JSON: { query, note }. The server never evaluates Dataview-JS.',
+          }, dataviewJsSchema),
+          schema: dataviewJsSchema,
+          handler: h.dataviewDescribeJsQuery,
+          annotations: annotations.readExternal,
+        }),
+        defineTool({
+          name: 'plugin_templater_describe_template',
+          description: describeTool({
+            summary: 'Echo a Templater template path for client-side execution. Returns the path and a note that the host must run it via Templater.',
             args: ['templatePath (string): Vault-relative path to the Templater template.'],
-            returns: 'JSON envelope noting the template path; full execution requires the Templater plugin.',
-            errors: ['"Templater plugin is not installed or enabled" if the plugin is missing.'],
-          }),
+            returns: 'JSON: { templatePath, note }. The server never executes Templater itself.',
+          }, templaterSchema),
           schema: templaterSchema,
-          handler: h.templaterExecute,
-          annotations: annotations.destructiveExternal,
+          handler: h.templaterDescribeTemplate,
+          annotations: annotations.readExternal,
         }),
         defineTool({
           name: 'plugin_execute_command',
