@@ -98,6 +98,44 @@ const setSelectionSchema = {
   toCh: z.number().int().min(0).describe('End column (exclusive)'),
 };
 
+/**
+ * Output schemas for the editor read tools that emit `structuredContent`
+ * (Batch C of #248). Each shape mirrors what the corresponding handler in
+ * this file puts on `result.structuredContent`.
+ */
+const getContentOutputSchema = {
+  content: z.string().describe('Full text content of the active editor.'),
+};
+
+const getActiveFileOutputSchema = {
+  path: z.string().describe('Vault-relative path of the active file.'),
+};
+
+const getCursorOutputSchema = {
+  line: z.number().describe('Zero-based line index of the cursor.'),
+  ch: z.number().describe('Zero-based column index of the cursor.'),
+};
+
+const getSelectionOutputSchema = {
+  from: z
+    .object({
+      line: z.number().describe('Zero-based start line (inclusive).'),
+      ch: z.number().describe('Zero-based start column (inclusive).'),
+    })
+    .describe('Selection start.'),
+  to: z
+    .object({
+      line: z.number().describe('Zero-based end line (exclusive).'),
+      ch: z.number().describe('Zero-based end column (exclusive).'),
+    })
+    .describe('Selection end.'),
+  text: z.string().describe('Selected text.'),
+};
+
+const getLineCountOutputSchema = {
+  lineCount: z.number().describe('Number of lines in the active editor.'),
+};
+
 interface EditorHandlers {
   getContent: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
   getActivePath: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
@@ -278,6 +316,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             errors: ['"No active editor" if no markdown view is focused.'],
           }, readOnlySchema),
           schema: readOnlySchema,
+          outputSchema: getContentOutputSchema,
           handler: h.getContent,
           annotations: annotations.read,
         }),
@@ -289,6 +328,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             errors: ['"No active file" if no file is open.'],
           }, readOnlySchema),
           schema: readOnlySchema,
+          outputSchema: getActiveFileOutputSchema,
           handler: h.getActivePath,
           annotations: annotations.read,
         }),
@@ -358,6 +398,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             errors: ['"No active editor" if no markdown view is focused.'],
           }, readOnlySchema),
           schema: readOnlySchema,
+          outputSchema: getCursorOutputSchema,
           handler: h.getCursor,
           annotations: annotations.read,
         }),
@@ -387,6 +428,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             errors: ['"No active editor or selection" if nothing is selected.'],
           }, readOnlySchema),
           schema: readOnlySchema,
+          outputSchema: getSelectionOutputSchema,
           handler: h.getSelection,
           annotations: annotations.read,
         }),
@@ -416,6 +458,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             errors: ['"No active editor" if no markdown view is focused.'],
           }, readOnlySchema),
           schema: readOnlySchema,
+          outputSchema: getLineCountOutputSchema,
           handler: h.getLineCount,
           annotations: annotations.read,
         }),

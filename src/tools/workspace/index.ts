@@ -42,6 +42,40 @@ const setActiveLeafSchema = {
     .describe('Leaf id returned by workspace_list_leaves'),
 };
 
+/**
+ * Output schemas for the workspace read tools that emit `structuredContent`
+ * (Batch C of #248). Two of these are `.passthrough()`-tested because their
+ * payload comes from an Obsidian-internal shape whose set of fields is not
+ * under our control:
+ *
+ * - `workspace_get_active_leaf` — adapter returns `{ id, type, filePath }`
+ *   today, but Obsidian's leaf state may grow more fields in future versions.
+ * - `workspace_get_layout` — fully opaque pass-through of
+ *   `app.workspace.getLayout()`. Schema is empty; tests rely on
+ *   `.passthrough()` to assert "an object, contents not described".
+ */
+const getActiveLeafOutputSchema = {
+  id: z.string().describe('Leaf id (Obsidian-internal handle).'),
+  type: z.string().describe('View type for the leaf, e.g. "markdown".'),
+  filePath: z
+    .string()
+    .nullable()
+    .describe('Vault-relative path of the file in this leaf, or null when none.'),
+};
+
+const listLeavesOutputSchema = {
+  leaves: z
+    .array(
+      z.object({
+        leafId: z.string().describe('Obsidian-internal leaf id.'),
+        path: z.string().describe('Vault-relative path of the file in this leaf.'),
+      }),
+    )
+    .describe('All open leaves that hold a file.'),
+};
+
+const getLayoutOutputSchema: z.ZodRawShape = {};
+
 interface WorkspaceHandlers {
   getActiveLeaf: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
   openFile: (params: InferredParams<typeof openFileSchema>) => Promise<CallToolResult>;
@@ -121,6 +155,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
             errors: ['"No active leaf" if no leaf is focused.'],
           }, readOnlySchema),
           schema: readOnlySchema,
+          outputSchema: getActiveLeafOutputSchema,
           handler: h.getActiveLeaf,
           annotations: annotations.read,
         }),
@@ -146,6 +181,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
             returns: 'JSON: [{ path, leafId }].',
           }, readOnlySchema),
           schema: readOnlySchema,
+          outputSchema: listLeavesOutputSchema,
           handler: h.listLeaves,
           annotations: annotations.read,
         }),
@@ -168,6 +204,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
             returns: 'JSON: Obsidian\'s layout descriptor (nested splits and leaves).',
           }, readOnlySchema),
           schema: readOnlySchema,
+          outputSchema: getLayoutOutputSchema,
           handler: h.getLayout,
           annotations: annotations.read,
         }),
