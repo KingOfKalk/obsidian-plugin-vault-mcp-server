@@ -71,11 +71,13 @@ export class Logger {
 
     const json = JSON.stringify(entry);
 
+    // stdio MCP transports require stdout to carry only JSON-RPC frames.
+    // Route every level through stderr so swapping transport doesn't corrupt the stream.
     switch (level) {
       case 'debug':
       case 'info':
         // eslint-disable-next-line no-console
-        console.log(json);
+        console.error(json);
         break;
       case 'warn':
         // eslint-disable-next-line no-console
