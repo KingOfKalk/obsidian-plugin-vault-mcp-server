@@ -90,6 +90,7 @@ function registerTools(
       {
         description: tool.description,
         inputSchema: tool.schema,
+        outputSchema: tool.outputSchema,
         annotations: tool.annotations,
       },
       createToolDispatcher(tool, logger),
