@@ -10,9 +10,9 @@ This file is regenerated from the tool registry and committed so CI can detect d
 | `editor` | Editor Operations | 10 | editor_get_content, editor_get_active_file, editor_insert, editor_replace, editor_delete, editor_get_cursor, editor_set_cursor, editor_get_selection, editor_set_selection, editor_get_line_count |
 | `search` | Search and Metadata | 12 | search_fulltext, search_frontmatter, search_tags, search_headings, search_outgoing_links, search_embeds, search_backlinks, search_resolved_links, search_unresolved_links, search_block_references, search_by_tag, search_by_frontmatter |
 | `workspace` | Workspace and Navigation | 5 | workspace_get_active_leaf, workspace_open_file, workspace_list_leaves, workspace_set_active_leaf, workspace_get_layout |
-| `ui` | UI Interactions | 3 | ui_notice, ui_confirm, ui_prompt |
+| `ui` | UI Interactions | 1 | ui_notice |
 | `templates` | Templates and Content Generation | 3 | template_list, template_create_from, template_expand |
 | `plugin-interop` | Plugin Interop | 5 | plugin_list, plugin_check, plugin_dataview_query, plugin_templater_execute, plugin_execute_command |
 | `extras` | Extras | 1 | get_date |
 
-**Total tools:** 55 across 8 modules.
+**Total tools:** 53 across 8 modules.
