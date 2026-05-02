@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
 import { createEditorModule } from '../../../src/tools/editor/index';
@@ -139,5 +140,82 @@ describe('editor module', () => {
         expect(result.isError).toBe(true);
       });
     });
+  });
+});
+
+/**
+ * Batch C of #248: every editor read tool that emits `structuredContent`
+ * must declare an `outputSchema`, and that schema must accurately describe
+ * the payload the handler produces. Strict-mode parsing catches drift
+ * between the markdown renderer and the structured payload.
+ */
+describe('editor read tools — outputSchema declarations', () => {
+  function getStructured(
+    tool: { outputSchema?: z.ZodRawShape },
+  ): z.ZodObject<z.ZodRawShape> {
+    if (!tool.outputSchema) {
+      throw new Error('expected outputSchema to be declared');
+    }
+    return z.object(tool.outputSchema).strict();
+  }
+
+  it('editor_get_content declares outputSchema and parses against handler output', async () => {
+    const adapter = new MockObsidianAdapter();
+    adapter.setActiveEditor('note.md', '# Hello\nWorld');
+    const tool = createEditorModule(adapter).tools().find((t) => t.name === 'editor_get_content')!;
+    const schema = getStructured(tool);
+
+    const result = await tool.handler({ response_format: 'json' });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.content).toBe('# Hello\nWorld');
+  });
+
+  it('editor_get_active_file declares outputSchema and parses against handler output', async () => {
+    const adapter = new MockObsidianAdapter();
+    adapter.setActiveEditor('notes/today.md', 'content');
+    const tool = createEditorModule(adapter).tools().find((t) => t.name === 'editor_get_active_file')!;
+    const schema = getStructured(tool);
+
+    const result = await tool.handler({ response_format: 'json' });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.path).toBe('notes/today.md');
+  });
+
+  it('editor_get_cursor declares outputSchema and parses against handler output', async () => {
+    const adapter = new MockObsidianAdapter();
+    adapter.setActiveEditor('note.md', 'one\ntwo\nthree');
+    adapter.setCursorPosition(1, 2);
+    const tool = createEditorModule(adapter).tools().find((t) => t.name === 'editor_get_cursor')!;
+    const schema = getStructured(tool);
+
+    const result = await tool.handler({ response_format: 'json' });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.line).toBe(1);
+    expect(parsed.ch).toBe(2);
+  });
+
+  it('editor_get_selection declares outputSchema and parses against handler output', async () => {
+    const adapter = new MockObsidianAdapter();
+    adapter.setActiveEditor('note.md', 'one\ntwo\nthree');
+    adapter.setSelection(0, 0, 0, 3);
+    const tool = createEditorModule(adapter).tools().find((t) => t.name === 'editor_get_selection')!;
+    const schema = getStructured(tool);
+
+    const result = await tool.handler({ response_format: 'json' });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.from).toEqual({ line: 0, ch: 0 });
+    expect(parsed.to).toEqual({ line: 0, ch: 3 });
+    expect(parsed.text).toBe('one');
+  });
+
+  it('editor_get_line_count declares outputSchema and parses against handler output', async () => {
+    const adapter = new MockObsidianAdapter();
+    adapter.setActiveEditor('note.md', 'one\ntwo\nthree');
+    const tool = createEditorModule(adapter).tools().find((t) => t.name === 'editor_get_line_count')!;
+    const schema = getStructured(tool);
+
+    const result = await tool.handler({ response_format: 'json' });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.lineCount).toBe(3);
   });
 });

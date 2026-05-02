@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
 import { createWorkspaceModule } from '../../../src/tools/workspace/index';
@@ -70,5 +71,71 @@ describe('workspace module', () => {
       const result = await tool.handler({ path: 'a\\b.md' });
       expect(result.isError).toBe(true);
     });
+  });
+});
+
+/**
+ * Batch C of #248: every workspace read tool that emits `structuredContent`
+ * must declare an `outputSchema`, and that schema must accurately describe
+ * the payload the handler produces.
+ *
+ * Two of the three tools — `workspace_get_active_leaf` and
+ * `workspace_get_layout` — return Obsidian-internal shapes whose set of
+ * fields is not under our control. Their schemas declare the documented
+ * fields the adapter actually returns; tests use `.passthrough()` so future
+ * Obsidian versions can add fields without churning this suite.
+ */
+describe('workspace read tools — outputSchema declarations', () => {
+  function getStructured(
+    tool: { outputSchema?: z.ZodRawShape },
+    { passthrough = false } = {},
+  ): z.ZodObject<z.ZodRawShape> {
+    if (!tool.outputSchema) {
+      throw new Error('expected outputSchema to be declared');
+    }
+    const obj = z.object(tool.outputSchema);
+    return passthrough ? obj.passthrough() : obj.strict();
+  }
+
+  it('workspace_get_active_leaf declares outputSchema (passthrough) and parses against handler output', async () => {
+    // Obsidian's leaf state may carry additional fields beyond { id, type, filePath } in
+    // future versions; .passthrough() absorbs those without test churn.
+    const adapter = new MockObsidianAdapter();
+    adapter.addFile('test.md', 'content');
+    adapter.addOpenLeaf('test.md', 'leaf-1');
+    adapter.setActiveLeafId('leaf-1');
+    const tool = createWorkspaceModule(adapter).tools().find((t) => t.name === 'workspace_get_active_leaf')!;
+    const schema = getStructured(tool, { passthrough: true });
+
+    const result = await tool.handler({ response_format: 'json' });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.id).toBe('leaf-1');
+    expect(parsed.type).toBe('markdown');
+    expect(parsed.filePath).toBe('test.md');
+  });
+
+  it('workspace_list_leaves declares outputSchema (strict) and parses against handler output', async () => {
+    const adapter = new MockObsidianAdapter();
+    adapter.addFile('a.md', 'A');
+    adapter.addOpenLeaf('a.md', 'leaf-A');
+    const tool = createWorkspaceModule(adapter).tools().find((t) => t.name === 'workspace_list_leaves')!;
+    const schema = getStructured(tool);
+
+    const result = await tool.handler({ response_format: 'json' });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.leaves).toEqual([{ leafId: 'leaf-A', path: 'a.md' }]);
+  });
+
+  it('workspace_get_layout declares outputSchema (passthrough) and parses against handler output', async () => {
+    // Obsidian's layout descriptor (returned by app.workspace.getLayout()) is
+    // an opaque nested tree whose internal shape is not stable across versions.
+    // The schema is `{}` so .passthrough() accepts any object.
+    const adapter = new MockObsidianAdapter();
+    const tool = createWorkspaceModule(adapter).tools().find((t) => t.name === 'workspace_get_layout')!;
+    const schema = getStructured(tool, { passthrough: true });
+
+    const result = await tool.handler({ response_format: 'json' });
+    const parsed = schema.parse(result.structuredContent);
+    expect(typeof parsed).toBe('object');
   });
 });
