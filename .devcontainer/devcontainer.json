@@ -1,0 +1,53 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/debian
+{
+  "name": "development",
+  // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:4.0.8-24-trixie",
+
+  // Features to add to the dev container. More info: https://containers.dev/features.
+  "features": {
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:latest": {
+      "moby": "false"
+    },
+    "ghcr.io/devcontainers/features/github-cli:latest": {},
+    "ghcr.io/devcontainers-extra/features/claude-code:2": {},
+    "ghcr.io/devcontainers-extra/features/zsh-plugins:latest": {
+      "plugins": "gh"
+    }
+  },
+  "remoteEnv": {
+    "LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
+  },
+  // Configure tool-specific properties.
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "bierner.markdown-mermaid",
+        "EditorConfig.EditorConfig",
+        "esbenp.prettier-vscode",
+        "yzhang.markdown-all-in-one"
+      ],
+      "settings": {
+        "chat.agent.enabled": false,
+        "editor.formatOnSave": true,
+        "git.openRepositoryInParentFolders": "always",
+        "telemetry.telemetryLevel": "off",
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "terminal.integrated.profiles.linux": {
+          "zsh": {
+            "path": "zsh",
+            "icon": "terminal-bash"
+          }
+        }
+      }
+    }
+  }
+
+  // Use 'forwardPorts' to make a list of ports inside the container available locally.
+  // "forwardPorts": [],
+
+  // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+  // "remoteUser": "root"
+}
