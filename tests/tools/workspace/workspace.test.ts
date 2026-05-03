@@ -87,11 +87,14 @@ describe('workspace module', () => {
  */
 describe('workspace read tools — outputSchema declarations', () => {
   function getStructured(
-    tool: { outputSchema?: z.ZodRawShape },
+    tool: { outputSchema?: z.ZodRawShape | z.ZodTypeAny },
     { passthrough = false } = {},
   ): z.ZodObject<z.ZodRawShape> {
     if (!tool.outputSchema) {
       throw new Error('expected outputSchema to be declared');
+    }
+    if (tool.outputSchema instanceof z.ZodType) {
+      throw new Error('expected outputSchema to be a raw shape, not a full Zod schema');
     }
     const obj = z.object(tool.outputSchema);
     return passthrough ? obj.passthrough() : obj.strict();

@@ -437,17 +437,20 @@ describe('search tool descriptions document shared args', () => {
  */
 describe('search read tools — outputSchema declarations', () => {
   function getStructured(
-    tool: { outputSchema?: z.ZodRawShape },
+    tool: { outputSchema?: z.ZodRawShape | z.ZodTypeAny },
   ): z.ZodObject<z.ZodRawShape> {
     if (!tool.outputSchema) {
       throw new Error('expected outputSchema to be declared');
+    }
+    if (tool.outputSchema instanceof z.ZodType) {
+      throw new Error('expected outputSchema to be a raw shape, not a full Zod schema');
     }
     return z.object(tool.outputSchema).strict();
   }
 
   function findTool(
     name: string,
-  ): { name: string; outputSchema?: z.ZodRawShape } {
+  ): { name: string; outputSchema?: z.ZodRawShape | z.ZodTypeAny } {
     const adapter = new MockObsidianAdapter();
     const module = createSearchModule(adapter);
     const tool = module.tools().find((t) => t.name === name);
