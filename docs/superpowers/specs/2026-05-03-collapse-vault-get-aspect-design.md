@@ -12,14 +12,14 @@ per-aspect documentation or strict output typing.
 
 The six tools being collapsed:
 
-| Removed tool | Returns |
-|---|---|
-| `vault_get_frontmatter` | parsed YAML frontmatter object |
-| `vault_get_headings` | `[{ heading, level }]` |
-| `vault_get_outgoing_links` | `[{ link, displayText? }]` |
-| `vault_get_embeds` | `[{ link, displayText? }]` |
-| `vault_get_backlinks` | `string[]` of backlinking files |
-| `vault_get_block_references` | `[{ id, line }]` |
+| Removed tool                 | Returns                         |
+| ---------------------------- | ------------------------------- |
+| `vault_get_frontmatter`      | parsed YAML frontmatter object  |
+| `vault_get_headings`         | `[{ heading, level }]`          |
+| `vault_get_outgoing_links`   | `[{ link, displayText? }]`      |
+| `vault_get_embeds`           | `[{ link, displayText? }]`      |
+| `vault_get_backlinks`        | `string[]` of backlinking files |
+| `vault_get_block_references` | `[{ id, line }]`                |
 
 All six already share input shape `{ path }` and route through the same
 handler family in [`src/tools/search/handlers.ts`](../../../src/tools/search/handlers.ts)
