@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getMimeType, isTextMime, parseVaultUri, createFileHandler, createIndexHandler } from '../../src/server/resources';
+import { getMimeType, isTextMime, parseVaultUri, createFileHandler, createIndexHandler, registerResources } from '../../src/server/resources';
 import { CHARACTER_LIMIT } from '../../src/constants';
 import { PathTraversalError } from '../../src/utils/path-guard';
 import { Logger } from '../../src/utils/logger';
@@ -266,5 +266,26 @@ describe('indexHandler', () => {
       adapter.getVaultPath(),
     );
     expect(parsedPath).toBe('Notizen/Übersicht.md');
+  });
+});
+
+describe('registerResources', () => {
+  it('registers vault-index (static) and vault-file (template)', () => {
+    const adapter = new MockObsidianAdapter();
+
+    interface Capture { name: string; uriOrTemplate: unknown; metadata: Record<string, unknown> }
+    const calls: Capture[] = [];
+    const fakeServer = {
+      registerResource(name: string, uriOrTemplate: unknown, metadata: Record<string, unknown>): void {
+        calls.push({ name, uriOrTemplate, metadata });
+      },
+    };
+
+    registerResources(fakeServer as never, adapter, makeLogger());
+
+    expect(calls.map((c) => c.name)).toEqual(['vault-index', 'vault-file']);
+    expect(calls[0].uriOrTemplate).toBe('obsidian://vault/index');
+    // Template is a class instance from the SDK — we just verify shape.
+    expect(typeof calls[1].uriOrTemplate).toBe('object');
   });
 });

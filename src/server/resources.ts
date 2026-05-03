@@ -1,5 +1,7 @@
 import { posix } from 'path';
 import type { ReadResourceResult } from '@modelcontextprotocol/sdk/types.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { validateVaultPath, PathTraversalError } from '../utils/path-guard';
 import type { ObsidianAdapter } from '../obsidian/adapter';
 import type { Logger } from '../utils/logger';
@@ -200,4 +202,36 @@ export function createIndexHandler(
       ],
     };
   };
+}
+
+const FILE_TEMPLATE_URI = 'obsidian://vault/{+path}';
+
+export function registerResources(
+  server: McpServer,
+  adapter: ObsidianAdapter,
+  logger: Logger,
+): void {
+  const indexHandler = createIndexHandler(adapter, logger);
+  const fileHandler = createFileHandler(adapter, logger);
+
+  server.registerResource(
+    'vault-index',
+    VAULT_INDEX_URI,
+    {
+      description:
+        'JSON listing of every file and folder in the vault, with ready-to-use obsidian://vault/{path} URIs and mime types. Truncated past 25 000 characters.',
+      mimeType: 'application/json',
+    },
+    (uri: URL) => indexHandler(uri),
+  );
+
+  server.registerResource(
+    'vault-file',
+    new ResourceTemplate(FILE_TEMPLATE_URI, { list: undefined }),
+    {
+      description:
+        'Read any file in the vault by obsidian://vault/{path}. Text files (markdown, txt, json, csv, yaml, html, svg) return TextResourceContents; other files up to 1 MiB return base64 BlobResourceContents.',
+    },
+    (uri: URL, variables) => fileHandler(uri, variables as VaultUriVariables),
+  );
 }
