@@ -315,6 +315,9 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             summary: 'Get the full text content of the currently active editor.',
             returns: 'Plain text: the editor\'s current content.',
             errors: ['"No active editor" if no markdown view is focused.'],
+            seeAlso: [
+              'vault_read — when reading any file by path, not just the active one.',
+            ],
           }, readOnlySchema),
           schema: readOnlySchema,
           outputSchema: getContentOutputSchema,

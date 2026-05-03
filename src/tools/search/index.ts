@@ -114,6 +114,9 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary: 'Get the vault-wide map of resolved links (targets that exist).',
             returns: 'JSON: Record<source, Record<target, count>>.',
+            seeAlso: [
+              'search_unresolved_links — when you want broken/dangling links instead.',
+            ],
           }, readOnlySchema),
           schema: readOnlySchema,
           outputSchema: searchLinksMapOutputSchema,
@@ -127,6 +130,9 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
             summary: 'Get the vault-wide map of unresolved links (targets that do not exist).',
             returns: 'JSON: Record<source, Record<target, count>>.',
             examples: ['Use when: hunting for broken [[wikilinks]] to clean up.'],
+            seeAlso: [
+              'search_resolved_links — when you want only links that successfully resolve.',
+            ],
           }, readOnlySchema),
           schema: readOnlySchema,
           outputSchema: searchLinksMapOutputSchema,

@@ -217,6 +217,9 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
               '"File not found" if the path does not exist.',
               '"Path must not traverse outside the vault" on traversal attempts.',
             ],
+            seeAlso: [
+              'editor_get_content — when reading the file currently open in the editor (no path needed).',
+            ],
           }, readFileSchema),
           schema: readFileSchema,
           outputSchema: readFileOutputSchema,
@@ -283,6 +286,9 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             returns: 'JSON: { path, size, created (ISO), modified (ISO) }.',
             examples: ['Use when: checking if a note has changed recently.'],
             errors: ['"File not found" if the path does not exist.'],
+            seeAlso: [
+              'extras_get_date — when you need the current date in a specific format, not a file\'s timestamp.',
+            ],
           }, getMetadataSchema),
           schema: getMetadataSchema,
           outputSchema: getMetadataOutputSchema,
@@ -400,6 +406,9 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             returns: 'JSON: { files: string[], folders: string[] } (names only, no recursion).',
             examples: ['Use when: inspecting the top level of the vault.'],
             errors: ['"Folder not found" if path does not exist.'],
+            seeAlso: [
+              'vault_list_recursive — when you also need files in subfolders.',
+            ],
           }, listFolderSchema),
           schema: listFolderSchema,
           outputSchema: listFolderOutputSchema,
@@ -418,6 +427,9 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
               'Don\'t use when: the folder is very large — list a narrower subfolder.',
             ],
             errors: ['"Folder not found" if path does not exist.'],
+            seeAlso: [
+              'vault_list — when you only need direct children of one folder.',
+            ],
           }, listRecursiveSchema),
           schema: listRecursiveSchema,
           outputSchema: listRecursiveOutputSchema,
