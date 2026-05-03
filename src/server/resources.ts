@@ -159,18 +159,24 @@ export function createIndexHandler(
 ): IndexHandler {
   return async (_uri) => {
     const list = adapter.listRecursive('');
+    // Stable order so truncation is deterministic across calls and adapters.
+    const sortedFiles = [...list.files].sort();
+    const sortedFolders = [...list.folders].sort();
+
     const files: IndexEntry[] = await Promise.all(
-      list.files.map(async (path) => {
+      sortedFiles.map(async (path) => {
         const stat = await adapter.stat(path);
         return {
-          uri: 'obsidian://vault/' + encodeURI(path),
+          // encodeURIComponent per segment so reserved characters (?, #, etc.)
+          // are properly escaped while keeping path slashes literal.
+          uri: 'obsidian://vault/' + path.split('/').map(encodeURIComponent).join('/'),
           name: basename(path),
           mimeType: getMimeType(path),
           size: stat?.size ?? 0,
         };
       }),
     );
-    const folders = [...list.folders];
+    const folders = sortedFolders;
 
     let payload: IndexPayload = { files, folders, truncated: false };
     let serialised = JSON.stringify(payload);

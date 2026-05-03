@@ -267,6 +267,31 @@ describe('indexHandler', () => {
     );
     expect(parsedPath).toBe('Notizen/Übersicht.md');
   });
+
+  it('escapes reserved URI characters in filenames (? # etc.)', async () => {
+    const adapter = new MockObsidianAdapter();
+    adapter.addFile('weird?name.md', 'x');
+    const handler = createIndexHandler(adapter, makeLogger());
+
+    const result = await handler(new URL('obsidian://vault/index'));
+    const payload = JSON.parse((result.contents[0] as { text: string }).text) as {
+      files: Array<{ uri: string; name: string }>;
+    };
+    const entry = payload.files[0];
+
+    // ? must be percent-encoded to round-trip through URL parsing
+    expect(entry.uri).toBe('obsidian://vault/weird%3Fname.md');
+    expect(entry.name).toBe('weird?name.md');
+
+    // Round-trip: parsing the emitted URI yields the original path
+    const url = new URL(entry.uri);
+    const parsedPath = parseVaultUri(
+      url,
+      { path: decodeURIComponent(url.pathname.replace(/^\//, '')) },
+      adapter.getVaultPath(),
+    );
+    expect(parsedPath).toBe('weird?name.md');
+  });
 });
 
 describe('registerResources', () => {
