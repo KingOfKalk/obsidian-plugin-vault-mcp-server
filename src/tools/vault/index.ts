@@ -3,7 +3,6 @@ import { ToolModule, ToolDefinition, annotations, defineTool } from '../../regis
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { createHandlers, WriteMutex } from './handlers';
 import { createSearchHandlers } from '../search/handlers';
-import { filePathSchema as searchFilePathSchema } from '../search/schemas';
 import { describeTool } from '../shared/describe';
 import {
   createFileSchema,
@@ -22,6 +21,7 @@ import {
   listRecursiveSchema,
   readBinarySchema,
   writeBinarySchema,
+  getAspectSchema,
 } from './schemas';
 
 /**
@@ -77,75 +77,83 @@ const listRecursiveOutputSchema = {
 };
 
 /**
- * Output schemas for the `vault_get_*` single-path getters. These tools were
- * renamed from `search_get_*` by #255 and use search handlers, but they live
- * in the vault module today and so their `outputSchema` declarations live
- * alongside the rest of the vault read schemas (Batch B of #248).
+ * Output schema for `vault_get_aspect` (#294). The tool replaces six
+ * structurally-identical `vault_get_*` getters with one tool that takes a
+ * required `aspect` enum, so the output schema is a discriminated union
+ * over the six aspects. Each variant mirrors the corresponding former
+ * per-tool shape 1:1, plus an `aspect` literal as the discriminator.
  */
-const getFrontmatterOutputSchema = {
-  path: z.string().describe('Vault-relative path that was inspected.'),
-  frontmatter: z
-    .record(z.string(), z.unknown())
-    .describe('Parsed YAML frontmatter object, or {} when absent.'),
-};
-
-const getHeadingsOutputSchema = {
-  path: z.string().describe('Vault-relative path that was inspected.'),
-  headings: z
-    .array(
-      z.object({
-        heading: z.string().describe('Heading text.'),
-        level: z.number().describe('Heading level (1..6).'),
-      }),
-    )
-    .describe('Headings in document order.'),
-};
-
-const getOutgoingLinksOutputSchema = {
-  path: z.string().describe('Vault-relative path that was inspected.'),
-  links: z
-    .array(
-      z.object({
-        link: z.string().describe('Link target.'),
-        displayText: z
-          .string()
-          .optional()
-          .describe('Optional alias used in [[link|alias]] notation.'),
-      }),
-    )
-    .describe('Outgoing links from this file.'),
-};
-
-const getEmbedsOutputSchema = {
-  path: z.string().describe('Vault-relative path that was inspected.'),
-  embeds: z
-    .array(
-      z.object({
-        link: z.string().describe('Embed target.'),
-        displayText: z.string().optional().describe('Optional alias.'),
-      }),
-    )
-    .describe('Embeds (![[...]]) referenced by this file.'),
-};
-
-const getBacklinksOutputSchema = {
-  path: z.string().describe('Target path that was queried.'),
-  backlinks: z
-    .array(z.string())
-    .describe('Vault-relative paths of files that link TO the target.'),
-};
-
-const getBlockReferencesOutputSchema = {
-  path: z.string().describe('Vault-relative path that was inspected.'),
-  blockRefs: z
-    .array(
-      z.object({
-        id: z.string().describe('Block-reference id (without the leading ^).'),
-        line: z.string().describe('The line of text the block-reference is on.'),
-      }),
-    )
-    .describe('Block references defined in this file.'),
-};
+const getAspectOutputSchema = z.discriminatedUnion('aspect', [
+  z.object({
+    aspect: z.literal('frontmatter'),
+    path: z.string().describe('Vault-relative path that was inspected.'),
+    frontmatter: z
+      .record(z.string(), z.unknown())
+      .describe('Parsed YAML frontmatter object, or {} when absent.'),
+  }),
+  z.object({
+    aspect: z.literal('headings'),
+    path: z.string().describe('Vault-relative path that was inspected.'),
+    headings: z
+      .array(
+        z.object({
+          heading: z.string().describe('Heading text.'),
+          level: z.number().describe('Heading level (1..6).'),
+        }),
+      )
+      .describe('Headings in document order.'),
+  }),
+  z.object({
+    aspect: z.literal('outgoing_links'),
+    path: z.string().describe('Vault-relative path that was inspected.'),
+    links: z
+      .array(
+        z.object({
+          link: z.string().describe('Link target.'),
+          displayText: z
+            .string()
+            .optional()
+            .describe('Optional alias used in [[link|alias]] notation.'),
+        }),
+      )
+      .describe('Outgoing links from this file.'),
+  }),
+  z.object({
+    aspect: z.literal('embeds'),
+    path: z.string().describe('Vault-relative path that was inspected.'),
+    embeds: z
+      .array(
+        z.object({
+          link: z.string().describe('Embed target.'),
+          displayText: z.string().optional().describe('Optional alias.'),
+        }),
+      )
+      .describe('Embeds (![[...]]) referenced by this file.'),
+  }),
+  z.object({
+    aspect: z.literal('backlinks'),
+    path: z.string().describe('Target path that was queried.'),
+    backlinks: z
+      .array(z.string())
+      .describe('Vault-relative paths of files that link TO the target.'),
+  }),
+  z.object({
+    aspect: z.literal('block_references'),
+    path: z.string().describe('Vault-relative path that was inspected.'),
+    blockRefs: z
+      .array(
+        z.object({
+          id: z
+            .string()
+            .describe('Block-reference id (without the leading ^).'),
+          line: z
+            .string()
+            .describe('The line of text the block-reference is on.'),
+        }),
+      )
+      .describe('Block references defined in this file.'),
+  }),
+]);
 
 /**
  * Output schema for `vault_read_binary` (Batch D of #248). The handler now
@@ -167,8 +175,8 @@ const readBinaryOutputSchema = {
 
 export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
   const mutex = new WriteMutex();
-  const handlers = createHandlers(adapter, mutex);
   const searchHandlers = createSearchHandlers(adapter);
+  const handlers = createHandlers(adapter, mutex, searchHandlers);
 
   return {
     metadata: {
@@ -473,87 +481,34 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           annotations: annotations.destructiveIdempotent,
         }),
         defineTool({
-          name: 'vault_get_frontmatter',
-          title: 'Get frontmatter',
+          name: 'vault_get_aspect',
+          title: 'Get file aspect',
           description: describeTool({
-            summary: 'Get the parsed YAML frontmatter block for a file.',
-            args: ['path (string): Vault-relative path.'],
-            returns: 'JSON: the frontmatter object, or {} when absent.',
+            summary:
+              'Get one metadata aspect of a file: frontmatter, headings, ' +
+              'outgoing links, embeds, backlinks, or block references.',
+            args: [
+              'path (string): Vault-relative path to the file.',
+              'aspect (enum): Which aspect to return. See the enum description ' +
+                'for the shape returned by each value.',
+            ],
+            returns:
+              'JSON: a discriminated union keyed on `aspect`. ' +
+              'frontmatter → { path, aspect: "frontmatter", frontmatter }. ' +
+              'headings → { path, aspect: "headings", headings: [{heading, level}] }. ' +
+              'outgoing_links → { path, aspect: "outgoing_links", links: [{link, displayText?}] }. ' +
+              'embeds → { path, aspect: "embeds", embeds: [{link, displayText?}] }. ' +
+              'backlinks → { path, aspect: "backlinks", backlinks: string[] }. ' +
+              'block_references → { path, aspect: "block_references", blockRefs: [{id, line}] }.',
+            examples: [
+              'Use when: "list the headings in README.md" → { path: "README.md", aspect: "headings" }.',
+              'Use when: "what links to this note?" → { path: "ideas.md", aspect: "backlinks" }.',
+            ],
             errors: ['"File not found" if the path does not exist.'],
-          }, searchFilePathSchema),
-          schema: searchFilePathSchema,
-          outputSchema: getFrontmatterOutputSchema,
-          handler: searchHandlers.searchFrontmatter,
-          annotations: annotations.read,
-        }),
-        defineTool({
-          name: 'vault_get_headings',
-          title: 'Get headings',
-          description: describeTool({
-            summary: 'List headings (with levels) for a file.',
-            args: ['path (string): Vault-relative path.'],
-            returns: 'JSON: [{ heading, level }].',
-            errors: ['"File not found" if the path does not exist.'],
-          }, searchFilePathSchema),
-          schema: searchFilePathSchema,
-          outputSchema: getHeadingsOutputSchema,
-          handler: searchHandlers.searchHeadings,
-          annotations: annotations.read,
-        }),
-        defineTool({
-          name: 'vault_get_outgoing_links',
-          title: 'Get outgoing links',
-          description: describeTool({
-            summary: 'List outgoing links from a file.',
-            args: ['path (string): Vault-relative path.'],
-            returns: 'JSON: [{ link, displayText? }].',
-            errors: ['"File not found" if the path does not exist.'],
-          }, searchFilePathSchema),
-          schema: searchFilePathSchema,
-          outputSchema: getOutgoingLinksOutputSchema,
-          handler: searchHandlers.searchOutgoingLinks,
-          annotations: annotations.read,
-        }),
-        defineTool({
-          name: 'vault_get_embeds',
-          title: 'Get embeds',
-          description: describeTool({
-            summary: 'List embedded resources (![[...]]) referenced by a file.',
-            args: ['path (string): Vault-relative path.'],
-            returns: 'JSON: [{ link, displayText? }].',
-            errors: ['"File not found" if the path does not exist.'],
-          }, searchFilePathSchema),
-          schema: searchFilePathSchema,
-          outputSchema: getEmbedsOutputSchema,
-          handler: searchHandlers.searchEmbeds,
-          annotations: annotations.read,
-        }),
-        defineTool({
-          name: 'vault_get_backlinks',
-          title: 'Get backlinks',
-          description: describeTool({
-            summary: 'List files that link TO a given file (reverse links).',
-            args: ['path (string): Target file path.'],
-            returns: 'JSON: string[] of paths that reference the target.',
-            errors: ['"File not found" if the path does not exist.'],
-          }, searchFilePathSchema),
-          schema: searchFilePathSchema,
-          outputSchema: getBacklinksOutputSchema,
-          handler: searchHandlers.searchBacklinks,
-          annotations: annotations.read,
-        }),
-        defineTool({
-          name: 'vault_get_block_references',
-          title: 'Get block references',
-          description: describeTool({
-            summary: 'List block references (^block-id) defined in a file.',
-            args: ['path (string): Vault-relative path.'],
-            returns: 'JSON: [{ id, line }].',
-            errors: ['"File not found" if the path does not exist.'],
-          }, searchFilePathSchema),
-          schema: searchFilePathSchema,
-          outputSchema: getBlockReferencesOutputSchema,
-          handler: searchHandlers.searchBlockReferences,
+          }, getAspectSchema),
+          schema: getAspectSchema,
+          outputSchema: getAspectOutputSchema,
+          handler: handlers.getAspect,
           annotations: annotations.read,
         }),
       ];

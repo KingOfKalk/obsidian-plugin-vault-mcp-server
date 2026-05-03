@@ -76,7 +76,7 @@ describe('summarize-note handler', () => {
 });
 
 describe('find-related handler', () => {
-  it('returns a single user-role text message naming search_fulltext and vault_get_backlinks', async () => {
+  it('returns a single user-role text message naming search_fulltext and vault_get_aspect', async () => {
     const adapter = new MockObsidianAdapter();
     const handler = createFindRelatedHandler(adapter);
 
@@ -89,7 +89,8 @@ describe('find-related handler', () => {
     const text = (message.content as { type: 'text'; text: string }).text;
     expect(text).toContain('notes/foo.md');
     expect(text).toContain('search_fulltext');
-    expect(text).toContain('vault_get_backlinks');
+    expect(text).toContain('vault_get_aspect');
+    expect(text).toContain('backlinks');
   });
 
   it('throws PathTraversalError on a traversal path', async () => {

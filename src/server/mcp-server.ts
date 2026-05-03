@@ -24,7 +24,7 @@ export const SERVER_INSTRUCTIONS = `This server exposes an Obsidian vault as MCP
 - Prefer \`search_fulltext\` (or other \`search_*\` tools) before \`vault_read\` when you don't already know the file path.
 - \`editor_*\` tools operate on the **active** file only — open one with \`workspace_open_file\` first if needed.
 - Paths are vault-relative with forward slashes (e.g. \`notes/foo.md\`); never absolute filesystem paths.
-- Frontmatter, headings, links, embeds, backlinks, and block refs are exposed as separate \`vault_get_*\` tools — don't parse them out of \`vault_read\` output.`;
+- Frontmatter, headings, links, embeds, backlinks, and block refs are exposed via the \`vault_get_aspect\` tool (call it with the matching \`aspect\` enum value) — don't parse them out of \`vault_read\` output.`;
 
 export function createMcpServer(
   registry: ModuleRegistry,

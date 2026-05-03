@@ -136,3 +136,37 @@ export const writeBinarySchema = {
     .refine((val) => val.length > 0, 'Base64 content must not be empty')
     .describe('Base64-encoded binary content (no leading data: prefix)'),
 };
+
+/**
+ * Input schema for `vault_get_aspect`. Replaces six former `vault_get_*`
+ * single-path getters with one tool that takes a required `aspect` enum.
+ * The enum's `.describe()` carries the per-aspect documentation that used
+ * to live in each tool's prose description, so Claude reads it on every
+ * tool-list refresh.
+ */
+export const getAspectSchema = {
+  path: z
+    .string()
+    .min(1)
+    .max(4096)
+    .describe('Vault-relative path to the file.'),
+  aspect: z
+    .enum([
+      'frontmatter',
+      'headings',
+      'outgoing_links',
+      'embeds',
+      'backlinks',
+      'block_references',
+    ])
+    .describe(
+      'Which metadata aspect to return. ' +
+        '"frontmatter" → parsed YAML frontmatter object, or {} when absent. ' +
+        '"headings" → [{ heading, level }] in document order. ' +
+        '"outgoing_links" → [{ link, displayText? }] for [[...]] links. ' +
+        '"embeds" → [{ link, displayText? }] for ![[...]] embeds. ' +
+        '"backlinks" → string[] of vault paths that link TO this file. ' +
+        '"block_references" → [{ id, line }] for ^block-ids defined in this file.',
+    ),
+  ...responseFormatField,
+};

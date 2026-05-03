@@ -28,6 +28,22 @@ connect to the server and read or modify your vault programmatically.
 
 ---
 
+## Breaking changes in this release
+
+The six single-aspect getters have been collapsed into one tool. If your
+LLM client or scripts hard-code the old names, update calls as follows:
+
+| Old call | New call |
+|---|---|
+| `vault_get_frontmatter({ path })` | `vault_get_aspect({ path, aspect: "frontmatter" })` |
+| `vault_get_headings({ path })` | `vault_get_aspect({ path, aspect: "headings" })` |
+| `vault_get_outgoing_links({ path })` | `vault_get_aspect({ path, aspect: "outgoing_links" })` |
+| `vault_get_embeds({ path })` | `vault_get_aspect({ path, aspect: "embeds" })` |
+| `vault_get_backlinks({ path })` | `vault_get_aspect({ path, aspect: "backlinks" })` |
+| `vault_get_block_references({ path })` | `vault_get_aspect({ path, aspect: "block_references" })` |
+
+---
+
 ## Installation
 
 ### Option A — Install via BRAT (recommended while in beta)
@@ -265,7 +281,7 @@ This server exposes an Obsidian vault as MCP tools.
 - Prefer `search_fulltext` (or other `search_*` tools) before `vault_read` when you don't already know the file path.
 - `editor_*` tools operate on the **active** file only — open one with `workspace_open_file` first if needed.
 - Paths are vault-relative with forward slashes (e.g. `notes/foo.md`); never absolute filesystem paths.
-- Frontmatter, headings, links, embeds, backlinks, and block refs are exposed as separate `vault_get_*` tools — don't parse them out of `vault_read` output.
+- Frontmatter, headings, links, embeds, backlinks, and block refs are exposed via the `vault_get_aspect` tool (call it with the matching `aspect` enum value) — don't parse them out of `vault_read` output.
 ```
 
 Source of truth: [`src/server/mcp-server.ts`](https://github.com/KingOfKalk/obsidian-plugin-mcp/blob/main/src/server/mcp-server.ts)
@@ -300,7 +316,7 @@ How the prompts appear depends on the host. Claude Code, for example, surfaces t
 ### Available prompts
 
 - **`summarize-note`** — argument: `path` (vault-relative). Asks Claude to read the note with `vault_read` and produce a concise summary.
-- **`find-related`** — argument: `path` (vault-relative). Asks Claude to read the seed note, then cross-reference it with `search_fulltext` and `vault_get_backlinks` and report the most relevant connections.
+- **`find-related`** — argument: `path` (vault-relative). Asks Claude to read the seed note, then cross-reference it with `search_fulltext` and `vault_get_aspect` (with `aspect: "backlinks"`) and report the most relevant connections.
 - **`expand-template`** — argument: `template` (vault-relative path to a template file in the vault's `templates/` folder). Reads the template, surfaces the placeholders that need values, and asks Claude to collect them and call `template_expand` (or `template_create_from` if the user wants a new note written).
 
 ### Autocomplete
