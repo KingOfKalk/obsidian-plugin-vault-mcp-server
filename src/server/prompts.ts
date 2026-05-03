@@ -88,8 +88,8 @@ export function createExpandTemplateHandler(
     const body = await adapter.readFile(template);
     const placeholders = extractPlaceholders(body);
     const text = placeholders.length === 0
-      ? `Expand the template at \`${template}\`. It has no user-fillable placeholders — call \`template_expand\` directly with the template body.`
-      : `Expand the template at \`${template}\`. It contains these placeholders: \`${placeholders.join(', ')}\`. Ask the user for values for each placeholder, then call \`template_expand\` with the template body and the variables. If the user wants the result written to a new note, use \`template_create_from\` instead.`;
+      ? `Expand the template at \`${template}\`. It has no user-fillable placeholders — read it with \`vault_read\` and pass the body to \`template_expand\` directly.`
+      : `Expand the template at \`${template}\`. It contains these placeholders: \`${placeholders.join(', ')}\`. First read the template with \`vault_read\`, then ask the user for values for each placeholder and call \`template_expand\` with the body and the variables. If the user wants the result written to a new note, use \`template_create_from\` (which takes the template path, not the body) instead.`;
     return userTextMessage(text);
   };
 }
