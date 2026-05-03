@@ -48,6 +48,7 @@ export function createUiModule(adapter: ObsidianAdapter): ToolModule {
       return [
         defineTool({
           name: 'ui_notice',
+          title: 'Show notice',
           description: describeTool({
             summary: 'Show a transient notice/toast in Obsidian.',
             args: [
