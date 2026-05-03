@@ -131,6 +131,13 @@ export function migrateV9ToV10(data: Settings): void {
   data.moduleStates = moduleStates;
 }
 
+export function migrateV10ToV11(data: Settings): void {
+  // Default the new resources surface on for existing installs. They
+  // can disable it in Server Settings if they prefer a tools-only
+  // server. See docs/superpowers/specs/2026-05-03-mcp-resources-vault-files-design.md.
+  if (data.resourcesEnabled === undefined) data.resourcesEnabled = true;
+}
+
 const HOPS: Array<{ target: number; run: MigrationHop }> = [
   { target: 1, run: migrateV0ToV1 },
   { target: 2, run: migrateV1ToV2 },
@@ -142,9 +149,10 @@ const HOPS: Array<{ target: number; run: MigrationHop }> = [
   { target: 8, run: migrateV7ToV8 },
   { target: 9, run: migrateV8ToV9 },
   { target: 10, run: migrateV9ToV10 },
+  { target: 11, run: migrateV10ToV11 },
 ];
 
-export const CURRENT_SCHEMA_VERSION = 10;
+export const CURRENT_SCHEMA_VERSION = 11;
 
 export function migrateSettings(data: Settings): Settings {
   const currentVersion =
