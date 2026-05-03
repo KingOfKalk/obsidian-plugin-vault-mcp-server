@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 import {
   handleToolError,
+  BinaryTooLargeError,
   NotFoundError,
   PermissionError,
   ValidationError,
@@ -71,5 +72,26 @@ describe('handleToolError', () => {
     const result = handleToolError('oops');
     expect(result.isError).toBe(true);
     expect(getText(result)).toBe('Error: oops');
+  });
+});
+
+describe('BinaryTooLargeError', () => {
+  it('renders a clear message including size and limit', () => {
+    const err = new BinaryTooLargeError(2_000_000, 1_048_576);
+    expect(err.name).toBe('BinaryTooLargeError');
+    expect(err.message).toBe(
+      'Binary file too large (2000000 bytes, limit 1048576). Fetch the file out-of-band or use a chunked read when available.',
+    );
+    expect(err.sizeBytes).toBe(2_000_000);
+    expect(err.limitBytes).toBe(1_048_576);
+  });
+
+  it('handleToolError maps BinaryTooLargeError to an isError CallToolResult with the same message', () => {
+    const result = handleToolError(new BinaryTooLargeError(2_000_000, 1_048_576));
+    expect(result.isError).toBe(true);
+    expect(result.content[0]).toMatchObject({
+      type: 'text',
+      text: 'Error: Binary file too large (2000000 bytes, limit 1048576). Fetch the file out-of-band or use a chunked read when available.',
+    });
   });
 });
