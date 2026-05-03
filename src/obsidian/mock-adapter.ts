@@ -197,6 +197,7 @@ export class MockObsidianAdapter implements ObsidianAdapter {
       }
     }
     for (const folderPath of this.folders) {
+      if (folderPath === '/') continue; // root sentinel — never user-visible
       if (folderPath !== path && (isRoot || folderPath.startsWith(prefix))) {
         folders.push(folderPath);
       }
@@ -508,6 +509,7 @@ export class MockObsidianAdapter implements ObsidianAdapter {
       }
     }
     for (const folderPath of this.folders) {
+      if (folderPath === '/') continue; // root sentinel — never user-visible
       if (
         folderPath !== path &&
         folderPath.startsWith(prefix) &&

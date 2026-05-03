@@ -167,7 +167,7 @@ export function createIndexHandler(
         size: stat?.size ?? 0,
       });
     }
-    const folders = list.folders.filter((f) => f !== '/');
+    const folders = [...list.folders];
 
     let payload: IndexPayload = { files, folders, truncated: false };
     let serialised = JSON.stringify(payload);
