@@ -3,7 +3,7 @@ import { getMimeType, isTextMime, parseVaultUri, createFileHandler } from '../..
 import { PathTraversalError } from '../../src/utils/path-guard';
 import { Logger } from '../../src/utils/logger';
 import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';
-import { BinaryTooLargeError } from '../../src/tools/shared/errors';
+import { BinaryTooLargeError, FileNotFoundError } from '../../src/tools/shared/errors';
 
 function makeLogger(): Logger {
   return new Logger('test', { debugMode: false, accessKey: '' });
@@ -177,5 +177,14 @@ describe('fileHandler — binary', () => {
       new URL('obsidian://vault/big.png'),
       { path: 'big.png' },
     )).rejects.toBeInstanceOf(BinaryTooLargeError);
+  });
+
+  it('throws FileNotFoundError for a missing binary file', async () => {
+    const adapter = new MockObsidianAdapter();
+    const handler = createFileHandler(adapter, makeLogger());
+    await expect(handler(
+      new URL('obsidian://vault/missing.png'),
+      { path: 'missing.png' },
+    )).rejects.toBeInstanceOf(FileNotFoundError);
   });
 });
