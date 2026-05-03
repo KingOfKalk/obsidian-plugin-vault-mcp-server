@@ -7,6 +7,7 @@ import { ToolDefinition } from '../registry/types';
 import { handleToolError } from '../tools/shared/errors';
 import { createToolContext, type SdkExtra } from '../registry/tool-context';
 import { registerResources } from './resources';
+import { registerPrompts } from './prompts';
 import type { ObsidianAdapter } from '../obsidian/adapter';
 import type { McpPluginSettings } from '../types';
 import manifest from '../../manifest.json';
@@ -35,12 +36,16 @@ export function createMcpServer(
     tools: Record<string, never>;
     logging: Record<string, never>;
     resources?: Record<string, never>;
+    prompts?: Record<string, never>;
   } = {
     tools: {},
     logging: {},
   };
   if (settings.resourcesEnabled) {
     capabilities.resources = {};
+  }
+  if (settings.promptsEnabled) {
+    capabilities.prompts = {};
   }
 
   const server = new McpServer(
@@ -60,6 +65,9 @@ export function createMcpServer(
   registerTools(server, registry, logger);
   if (settings.resourcesEnabled) {
     registerResources(server, adapter, logger);
+  }
+  if (settings.promptsEnabled) {
+    registerPrompts(server, adapter, logger);
   }
 
   return server;

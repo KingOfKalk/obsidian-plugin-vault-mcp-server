@@ -82,6 +82,9 @@ const en = {
   setting_resources_enabled_name: 'Expose vault files as MCP resources',
   setting_resources_enabled_desc:
     'When on, MCP hosts can browse and read vault files via the resources surface (obsidian://vault/{path}) in addition to tools. Restart the server to apply changes.',
+  setting_prompts_enabled_name: 'Expose MCP slash-command prompts',
+  setting_prompts_enabled_desc:
+    'When on, MCP hosts can run canned vault workflows (/summarize-note, /find-related, /expand-template) via the prompts surface. Restart the server to apply changes.',
 
   // Settings — DNS Rebind Protection subsection (Origin / Host validation)
   heading_dns_rebind: 'DNS Rebind Protection',

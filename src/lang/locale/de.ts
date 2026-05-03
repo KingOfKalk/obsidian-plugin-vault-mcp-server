@@ -81,6 +81,9 @@ const de: Partial<Record<keyof typeof en, string>> = {
   setting_resources_enabled_name: 'Vault-Dateien als MCP-Ressourcen freigeben',
   setting_resources_enabled_desc:
     'Wenn aktiviert, können MCP-Hosts Vault-Dateien zusätzlich zu den Tools über die Resources-Schnittstelle (obsidian://vault/{Pfad}) lesen und durchsuchen. Server neu starten, damit die Änderung wirksam wird.',
+  setting_prompts_enabled_name: 'MCP-Slash-Befehle freigeben',
+  setting_prompts_enabled_desc:
+    'Wenn aktiviert, können MCP-Hosts vorgefertigte Vault-Abläufe (/summarize-note, /find-related, /expand-template) über die Prompts-Schnittstelle ausführen. Server neu starten, damit die Änderung wirksam wird.',
 
   // DNS Rebind Protection
   heading_dns_rebind: 'DNS-Rebind-Schutz',

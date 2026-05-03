@@ -11,6 +11,7 @@ import {
   migrateV8ToV9,
   migrateV9ToV10,
   migrateV10ToV11,
+  migrateV11ToV12,
   migrateSettings,
   CURRENT_SCHEMA_VERSION,
 } from '../../src/settings/migrations';
@@ -257,6 +258,26 @@ describe('migrateV10ToV11', () => {
   });
 });
 
+describe('migrateV11ToV12', () => {
+  it('sets promptsEnabled: true for installs without the field', () => {
+    const data = {} as Record<string, unknown>;
+    migrateV11ToV12(data);
+    expect(data.promptsEnabled).toBe(true);
+  });
+
+  it('preserves an explicit false', () => {
+    const data = { promptsEnabled: false } as Record<string, unknown>;
+    migrateV11ToV12(data);
+    expect(data.promptsEnabled).toBe(false);
+  });
+
+  it('preserves an explicit true', () => {
+    const data = { promptsEnabled: true } as Record<string, unknown>;
+    migrateV11ToV12(data);
+    expect(data.promptsEnabled).toBe(true);
+  });
+});
+
 describe('migrateSettings — composition', () => {
   it('migrates V0 (no schemaVersion) all the way to current', () => {
     const result = migrateSettings({}) as { schemaVersion: number };
@@ -284,12 +305,23 @@ describe('migrateSettings — composition', () => {
     expect(JSON.stringify(data)).toBe(before);
   });
 
-  it('migrates a v10 install to v11 with resourcesEnabled defaulted on', () => {
+  it('migrates a v10 install to v12 with resourcesEnabled and promptsEnabled defaulted on', () => {
     const result = migrateSettings({ schemaVersion: 10 }) as {
       schemaVersion: number;
       resourcesEnabled: boolean;
+      promptsEnabled: boolean;
     };
-    expect(result.schemaVersion).toBe(11);
+    expect(result.schemaVersion).toBe(12);
     expect(result.resourcesEnabled).toBe(true);
+    expect(result.promptsEnabled).toBe(true);
+  });
+
+  it('migrates a v11 install to v12 with promptsEnabled defaulted on', () => {
+    const result = migrateSettings({ schemaVersion: 11 }) as {
+      schemaVersion: number;
+      promptsEnabled: boolean;
+    };
+    expect(result.schemaVersion).toBe(12);
+    expect(result.promptsEnabled).toBe(true);
   });
 });

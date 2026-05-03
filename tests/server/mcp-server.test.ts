@@ -16,7 +16,12 @@ interface CapturedServerInfo {
 }
 
 interface CapturedOptions {
-  capabilities?: { tools?: unknown; logging?: unknown; resources?: unknown };
+  capabilities?: {
+    tools?: unknown;
+    logging?: unknown;
+    resources?: unknown;
+    prompts?: unknown;
+  };
   instructions?: string;
 }
 
@@ -24,6 +29,11 @@ interface CapturedRegisterResourceCall {
   name: string;
   uriOrTemplate: unknown;
   metadata: Record<string, unknown>;
+}
+
+interface CapturedRegisterPromptCall {
+  name: string;
+  config: Record<string, unknown>;
 }
 
 interface CapturedRegisterToolCall {
@@ -44,6 +54,7 @@ const capturedConstructorArgs: Array<{
 
 const capturedRegisterToolCalls: CapturedRegisterToolCall[] = [];
 const capturedRegisterResourceCalls: CapturedRegisterResourceCall[] = [];
+const capturedRegisterPromptCalls: CapturedRegisterPromptCall[] = [];
 
 vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => {
   class FakeMcpServer {
@@ -59,6 +70,9 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => {
     }
     registerResource(name: string, uriOrTemplate: unknown, metadata: Record<string, unknown>): void {
       capturedRegisterResourceCalls.push({ name, uriOrTemplate, metadata });
+    }
+    registerPrompt(name: string, config: Record<string, unknown>): void {
+      capturedRegisterPromptCalls.push({ name, config });
     }
   }
   class FakeResourceTemplate {
@@ -76,6 +90,7 @@ describe('createMcpServer', () => {
     capturedConstructorArgs.length = 0;
     capturedRegisterToolCalls.length = 0;
     capturedRegisterResourceCalls.length = 0;
+    capturedRegisterPromptCalls.length = 0;
   });
 
   it('advertises the server as "obsidian-mcp-server" per the {service}-mcp-server convention', async () => {
@@ -252,6 +267,36 @@ describe('createMcpServer', () => {
     const caps = capturedConstructorArgs[0].options.capabilities;
     expect(caps).not.toHaveProperty('resources');
     expect(capturedRegisterResourceCalls).toHaveLength(0);
+  });
+
+  it('declares the prompts capability and registers all three prompts when promptsEnabled', async () => {
+    const { createMcpServer } = await import('../../src/server/mcp-server');
+    const registry = new ModuleRegistry(makeLogger());
+    const adapter = new MockObsidianAdapter();
+    const settings = { ...DEFAULT_SETTINGS, promptsEnabled: true };
+
+    createMcpServer(registry, adapter, settings, makeLogger());
+
+    const caps = capturedConstructorArgs[0].options.capabilities;
+    expect(caps).toMatchObject({ prompts: {} });
+    expect(capturedRegisterPromptCalls.map((c) => c.name)).toEqual([
+      'summarize-note',
+      'find-related',
+      'expand-template',
+    ]);
+  });
+
+  it('omits the prompts capability and skips registration when promptsEnabled is false', async () => {
+    const { createMcpServer } = await import('../../src/server/mcp-server');
+    const registry = new ModuleRegistry(makeLogger());
+    const adapter = new MockObsidianAdapter();
+    const settings = { ...DEFAULT_SETTINGS, promptsEnabled: false };
+
+    createMcpServer(registry, adapter, settings, makeLogger());
+
+    const caps = capturedConstructorArgs[0].options.capabilities;
+    expect(caps).not.toHaveProperty('prompts');
+    expect(capturedRegisterPromptCalls).toHaveLength(0);
   });
 });
 
