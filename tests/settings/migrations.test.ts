@@ -283,4 +283,13 @@ describe('migrateSettings — composition', () => {
     migrateSettings(data);
     expect(JSON.stringify(data)).toBe(before);
   });
+
+  it('migrates a v10 install to v11 with resourcesEnabled defaulted on', () => {
+    const result = migrateSettings({ schemaVersion: 10 }) as {
+      schemaVersion: number;
+      resourcesEnabled: boolean;
+    };
+    expect(result.schemaVersion).toBe(11);
+    expect(result.resourcesEnabled).toBe(true);
+  });
 });
