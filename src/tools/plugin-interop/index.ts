@@ -70,6 +70,44 @@ const executeCommandSchema = {
     .describe('Obsidian command id (e.g. "app:reload")'),
 };
 
+/**
+ * Output schemas for the plugin-interop read tools that emit
+ * `structuredContent` (Batch D of #248). Each shape mirrors what the
+ * corresponding handler in this file puts on `result.structuredContent`.
+ */
+const pluginListOutputSchema = {
+  plugins: z
+    .array(
+      z.object({
+        id: z.string().describe('Plugin id (e.g. "dataview").'),
+        name: z.string().describe('Human-readable plugin name.'),
+        enabled: z.boolean().describe('Whether the plugin is currently enabled.'),
+      }),
+    )
+    .describe('All installed community plugins.'),
+};
+
+const pluginCheckOutputSchema = {
+  pluginId: z.string().describe('Plugin id that was queried.'),
+  installed: z.boolean().describe('Whether the plugin is installed in this vault.'),
+  enabled: z.boolean().describe('Whether the plugin is enabled (false when not installed).'),
+};
+
+const pluginDataviewQueryOutputSchema = {
+  query: z.string().describe('Dataview DQL query that was executed.'),
+  markdown: z.string().describe('Markdown rendering produced by Dataview.'),
+};
+
+const pluginDescribeOutputSchema = {
+  query: z.string().describe('Dataview-JS source that was passed in.'),
+  note: z.string().describe('Note explaining that this server does not execute the source.'),
+};
+
+const pluginTemplaterDescribeOutputSchema = {
+  templatePath: z.string().describe('Vault-relative Templater template path that was queried.'),
+  note: z.string().describe('Note explaining that this server does not execute the template.'),
+};
+
 interface PluginInteropHandlers {
   listPlugins: (params: InferredParams<typeof listSchema>) => Promise<CallToolResult>;
   checkPlugin: (params: InferredParams<typeof checkSchema>) => Promise<CallToolResult>;
@@ -221,6 +259,7 @@ export function createPluginInteropModule(
             returns: 'JSON: [{ id, name, enabled, ... }].',
           }, listSchema),
           schema: listSchema,
+          outputSchema: pluginListOutputSchema,
           handler: h.listPlugins,
           annotations: annotations.readExternal,
         }),
@@ -232,6 +271,7 @@ export function createPluginInteropModule(
             returns: 'JSON: { pluginId, installed, enabled }.',
           }, checkSchema),
           schema: checkSchema,
+          outputSchema: pluginCheckOutputSchema,
           handler: h.checkPlugin,
           annotations: annotations.readExternal,
         }),
@@ -248,6 +288,7 @@ export function createPluginInteropModule(
             ],
           }, dataviewSchema),
           schema: dataviewSchema,
+          outputSchema: pluginDataviewQueryOutputSchema,
           handler: h.dataviewQuery,
           annotations: annotations.readExternal,
         }),
@@ -259,6 +300,7 @@ export function createPluginInteropModule(
             returns: 'JSON: { query, note }. The server never evaluates Dataview-JS.',
           }, dataviewJsSchema),
           schema: dataviewJsSchema,
+          outputSchema: pluginDescribeOutputSchema,
           handler: h.dataviewDescribeJsQuery,
           annotations: annotations.readExternal,
         }),
@@ -270,6 +312,7 @@ export function createPluginInteropModule(
             returns: 'JSON: { templatePath, note }. The server never executes Templater itself.',
           }, templaterSchema),
           schema: templaterSchema,
+          outputSchema: pluginTemplaterDescribeOutputSchema,
           handler: h.templaterDescribeTemplate,
           annotations: annotations.readExternal,
         }),

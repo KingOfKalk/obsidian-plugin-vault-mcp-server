@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { z } from 'zod';
 import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
 import { createExtrasModule } from '../../../src/tools/extras/index';
 
@@ -59,5 +60,32 @@ describe('Extras module', () => {
     const [hh, mm] = offsetToken.slice(1).split(':');
     const encodedMinutes = sign * (parseInt(hh, 10) * 60 + parseInt(mm, 10));
     expect([-before, -after]).toContain(encodedMinutes);
+  });
+});
+
+/**
+ * Batch D of #248: every extras read tool that emits `structuredContent`
+ * must declare an `outputSchema`. Strict-mode parsing catches drift between
+ * the markdown renderer and the structured payload.
+ */
+describe('extras read tools — outputSchema declarations', () => {
+  function getStructured(
+    tool: { outputSchema?: z.ZodRawShape },
+  ): z.ZodObject<z.ZodRawShape> {
+    if (!tool.outputSchema) {
+      throw new Error('expected outputSchema to be declared');
+    }
+    return z.object(tool.outputSchema).strict();
+  }
+
+  it('extras_get_date declares outputSchema and parses against handler output', async () => {
+    const adapter = new MockObsidianAdapter();
+    const tool = createExtrasModule(adapter).tools().find((t) => t.name === 'extras_get_date')!;
+    const schema = getStructured(tool);
+
+    const result = await tool.handler({ response_format: 'json' });
+    const parsed = schema.parse(result.structuredContent);
+    expect(typeof parsed.iso).toBe('string');
+    expect(parsed.iso).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{2}:\d{2}$/);
   });
 });

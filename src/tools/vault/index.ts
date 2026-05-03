@@ -29,11 +29,6 @@ import {
  * shape mirrors what the corresponding handler in `./handlers.ts` puts on
  * `result.structuredContent` — declaring them here lets modern MCP clients
  * validate / introspect the typed payload.
- *
- * `vault_read_binary` intentionally has no entry: its handler returns
- * plain text (a base64 string), with no `structuredContent` slot. The MCP
- * SDK requires `structuredContent` to be present whenever `outputSchema`
- * is declared, so retrofitting this tool is deferred to a follow-up.
  */
 const readFileOutputSchema = {
   path: z.string().describe('Vault-relative path that was read.'),
@@ -150,6 +145,24 @@ const getBlockReferencesOutputSchema = {
       }),
     )
     .describe('Block references defined in this file.'),
+};
+
+/**
+ * Output schema for `vault_read_binary` (Batch D of #248). The handler now
+ * emits `structuredContent: { path, data, encoding: 'base64', size_bytes }`
+ * alongside the plain-text base64 string so modern clients can introspect
+ * the typed payload while existing `result.content[0].text` callers see no
+ * change.
+ */
+const readBinaryOutputSchema = {
+  path: z.string().describe('Vault-relative path that was read.'),
+  data: z.string().describe('Base64-encoded file contents (no data: prefix).'),
+  encoding: z
+    .literal('base64')
+    .describe('Encoding of the `data` field — always `"base64"` for this tool.'),
+  size_bytes: z
+    .number()
+    .describe('Decoded file size in bytes (length of the underlying binary).'),
 };
 
 export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
@@ -402,14 +415,16 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary: 'Read binary file contents as base64.',
             args: ['path (string): Vault-relative path to the file.'],
-            returns: 'Plain text: the base64 string. Refuses files over 1 MiB.',
+            returns:
+              'Plain text: the base64 string (default). With response_format=json: { path, data, encoding, size_bytes }. Refuses files over 1 MiB.',
             examples: ['Use when: embedding an image referenced from a note.'],
             errors: [
               '"File not found" if path does not exist.',
               '"Binary file too large" if the file exceeds 1 MiB.',
             ],
-          }),
+          }, readBinarySchema),
           schema: readBinarySchema,
+          outputSchema: readBinaryOutputSchema,
           handler: handlers.readBinary,
           annotations: annotations.read,
         }),

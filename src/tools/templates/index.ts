@@ -69,6 +69,22 @@ const expandVariablesSchema = {
   ...responseFormatField,
 };
 
+/**
+ * Output schemas for the templates read tools that emit `structuredContent`
+ * (Batch D of #248).
+ */
+const templateListOutputSchema = {
+  files: z
+    .array(z.string())
+    .describe('Vault-relative paths of files in the "templates" folder. Empty when the folder is missing.'),
+};
+
+const templateExpandOutputSchema = {
+  expanded: z
+    .string()
+    .describe('Template text with all {{variable}} placeholders substituted.'),
+};
+
 interface TemplatesHandlers {
   listTemplates: (params: InferredParams<typeof listTemplatesSchema>) => Promise<CallToolResult>;
   createFromTemplate: (params: InferredParams<typeof createFromTemplateSchema>) => Promise<CallToolResult>;
@@ -145,6 +161,7 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
             returns: 'JSON: string[] of template file paths. Empty array if the folder is missing.',
           }, listTemplatesSchema),
           schema: listTemplatesSchema,
+          outputSchema: templateListOutputSchema,
           handler: h.listTemplates,
           annotations: annotations.read,
         }),
@@ -178,6 +195,7 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
             returns: 'Plain text: the expanded string.',
           }, expandVariablesSchema),
           schema: expandVariablesSchema,
+          outputSchema: templateExpandOutputSchema,
           handler: h.expandVariables,
           annotations: annotations.read,
         }),

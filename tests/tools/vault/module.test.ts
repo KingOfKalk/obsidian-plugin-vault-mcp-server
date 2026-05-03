@@ -66,14 +66,14 @@ describe('vault module', () => {
 });
 
 /**
- * Batch A of #248: every vault read tool that emits `structuredContent`
- * must declare an `outputSchema`, and that schema must accurately describe
- * the payload the handler actually produces. Drift between renderer and
- * structured payload is the failure mode this guards against.
+ * #248: every vault read tool that emits `structuredContent` must declare
+ * an `outputSchema`, and that schema must accurately describe the payload
+ * the handler actually produces. Drift between renderer and structured
+ * payload is the failure mode this guards against.
  *
- * `vault_read_binary` is excluded — its handler returns plain text (no
- * `structuredContent`), so declaring an `outputSchema` would violate the
- * MCP contract. Deferred to the Batch D follow-up (see plan).
+ * `vault_read_binary` was retrofitted in Batch D so it now emits
+ * `structuredContent: { path, data, encoding, size_bytes }` while keeping
+ * the bare base64 string in `result.content[0].text` for existing callers.
  */
 describe('vault read tools — outputSchema declarations', () => {
   function getStructured(
@@ -192,13 +192,41 @@ describe('vault read tools — outputSchema declarations', () => {
     expect(parsed.next_offset).toBeUndefined();
   });
 
-  it('vault_read_binary intentionally omits outputSchema (no structuredContent emitted)', () => {
+  it('vault_read_binary declares outputSchema and structuredContent parses against it', async () => {
     const tool = findTool('vault_read_binary');
-    // Deferred to Batch D. Asserting the absence pins the deviation
-    // documented in docs/superpowers/plans/248-output-schema.md so a
-    // future change cannot silently add one without re-checking that the
-    // handler also emits a matching structuredContent slot.
-    expect(tool.outputSchema).toBeUndefined();
+    const schema = getStructured(tool);
+
+    const adapter = new MockObsidianAdapter();
+    adapter.addFile('img.png', '');
+    await adapter.writeBinary('img.png', new Uint8Array([0xff, 0xd8, 0xff]).buffer);
+    const handlers = createHandlers(adapter, new WriteMutex());
+
+    const result = await handlers.readBinary({
+      path: 'img.png',
+      response_format: 'json',
+    });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed).toEqual({
+      path: 'img.png',
+      data: '/9j/',
+      encoding: 'base64',
+      size_bytes: 3,
+    });
+  });
+
+  it('vault_read_binary plain-text rendering still returns the bare base64 string', async () => {
+    const adapter = new MockObsidianAdapter();
+    adapter.addFile('img.png', '');
+    await adapter.writeBinary('img.png', new Uint8Array([0xff, 0xd8, 0xff]).buffer);
+    const handlers = createHandlers(adapter, new WriteMutex());
+
+    // Default response_format ('markdown'); no callsite churn for existing
+    // callers — the rendered text remains the bare base64 string.
+    const result = await handlers.readBinary({ path: 'img.png' });
+    expect(result.content[0].type).toBe('text');
+    if (result.content[0].type === 'text') {
+      expect(result.content[0].text).toBe('/9j/');
+    }
   });
 
   it('vault_get_frontmatter declares outputSchema and parses against handler output', async () => {

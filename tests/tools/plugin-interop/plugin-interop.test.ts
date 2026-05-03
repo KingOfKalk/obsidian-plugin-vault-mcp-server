@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
 import { createPluginInteropModule } from '../../../src/tools/plugin-interop/index';
@@ -191,5 +192,85 @@ describe('plugin interop module', () => {
       const r2 = await tool.handler({ commandId: 'app:reload' });
       expect(r2.isError).toBeUndefined();
     });
+  });
+});
+
+/**
+ * Batch D of #248: every plugin-interop read tool that emits
+ * `structuredContent` must declare an `outputSchema`. Strict-mode parsing
+ * catches drift between the markdown renderer and the structured payload.
+ */
+describe('plugin-interop read tools — outputSchema declarations', () => {
+  function getStructured(
+    tool: { outputSchema?: z.ZodRawShape },
+  ): z.ZodObject<z.ZodRawShape> {
+    if (!tool.outputSchema) {
+      throw new Error('expected outputSchema to be declared');
+    }
+    return z.object(tool.outputSchema).strict();
+  }
+
+  it('plugin_list declares outputSchema and parses against handler output', async () => {
+    const adapter = new MockObsidianAdapter();
+    adapter.addInstalledPlugin('dataview', 'Dataview', true);
+    adapter.addInstalledPlugin('templater', 'Templater', false);
+    const tool = createPluginInteropModule(adapter).tools().find((t) => t.name === 'plugin_list')!;
+    const schema = getStructured(tool);
+
+    const result = await tool.handler({ response_format: 'json' });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.plugins).toEqual([
+      { id: 'dataview', name: 'Dataview', enabled: true },
+      { id: 'templater', name: 'Templater', enabled: false },
+    ]);
+  });
+
+  it('plugin_check declares outputSchema and parses against handler output', async () => {
+    const adapter = new MockObsidianAdapter();
+    adapter.addInstalledPlugin('dataview', 'Dataview', true);
+    const tool = createPluginInteropModule(adapter).tools().find((t) => t.name === 'plugin_check')!;
+    const schema = getStructured(tool);
+
+    const result = await tool.handler({ pluginId: 'dataview', response_format: 'json' });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed).toEqual({ pluginId: 'dataview', installed: true, enabled: true });
+  });
+
+  it('plugin_dataview_query declares outputSchema and parses against handler output', async () => {
+    const adapter = new MockObsidianAdapter();
+    adapter.addInstalledPlugin('dataview', 'Dataview', true);
+    adapter.setDataviewApi({
+      queryMarkdown: () =>
+        Promise.resolve({ successful: true, value: '| col |\n| --- |\n| x |' }),
+    });
+    const tool = createPluginInteropModule(adapter).tools().find((t) => t.name === 'plugin_dataview_query')!;
+    const schema = getStructured(tool);
+
+    const result = await tool.handler({ query: 'TABLE col FROM ""', response_format: 'json' });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.query).toBe('TABLE col FROM ""');
+    expect(parsed.markdown).toBe('| col |\n| --- |\n| x |');
+  });
+
+  it('plugin_dataview_describe_js_query declares outputSchema and parses against handler output', async () => {
+    const adapter = new MockObsidianAdapter();
+    const tool = createPluginInteropModule(adapter).tools().find((t) => t.name === 'plugin_dataview_describe_js_query')!;
+    const schema = getStructured(tool);
+
+    const result = await tool.handler({ query: 'dv.pages()', response_format: 'json' });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.query).toBe('dv.pages()');
+    expect(typeof parsed.note).toBe('string');
+  });
+
+  it('plugin_templater_describe_template declares outputSchema and parses against handler output', async () => {
+    const adapter = new MockObsidianAdapter();
+    const tool = createPluginInteropModule(adapter).tools().find((t) => t.name === 'plugin_templater_describe_template')!;
+    const schema = getStructured(tool);
+
+    const result = await tool.handler({ templatePath: 'templates/daily.md', response_format: 'json' });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.templatePath).toBe('templates/daily.md');
+    expect(typeof parsed.note).toBe('string');
   });
 });
