@@ -54,6 +54,7 @@ export function getMimeType(path: string): string {
 export function isTextMime(mime: string): boolean {
   if (mime.startsWith('text/')) return true;
   if (mime === 'application/json') return true;
+  if (mime === 'application/yaml') return true;
   if (mime === 'image/svg+xml') return true;
   return false;
 }

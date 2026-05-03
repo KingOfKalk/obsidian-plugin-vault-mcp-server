@@ -33,10 +33,11 @@ describe('getMimeType', () => {
 });
 
 describe('isTextMime', () => {
-  it('returns true for text/* and application/json and image/svg+xml', () => {
+  it('returns true for text/*, application/json, application/yaml, and image/svg+xml', () => {
     expect(isTextMime('text/markdown')).toBe(true);
     expect(isTextMime('text/plain')).toBe(true);
     expect(isTextMime('application/json')).toBe(true);
+    expect(isTextMime('application/yaml')).toBe(true);
     expect(isTextMime('image/svg+xml')).toBe(true);
   });
 
