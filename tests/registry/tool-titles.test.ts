@@ -39,3 +39,31 @@ describe('tool titles', () => {
     expect(duplicates).toEqual([]);
   });
 });
+
+const SIBLING_PAIRS: ReadonlyArray<readonly [string, string]> = [
+  ['editor_get_content', 'vault_read'],
+  ['vault_list', 'vault_list_recursive'],
+  ['search_resolved_links', 'search_unresolved_links'],
+  ['extras_get_date', 'vault_get_metadata'],
+  ['editor_insert', 'editor_replace'],
+  ['editor_insert', 'editor_delete'],
+  ['editor_replace', 'editor_delete'],
+  ['search_tags', 'search_by_tag'],
+];
+
+describe('sibling cross-references', () => {
+  function descriptionByName(name: string): string {
+    const tool = allTools().find((t) => t.name === name);
+    if (!tool) throw new Error(`Tool not found in registry: ${name}`);
+    return tool.description;
+  }
+
+  for (const [a, b] of SIBLING_PAIRS) {
+    it(`${a} description names ${b}`, () => {
+      expect(descriptionByName(a)).toContain(b);
+    });
+    it(`${b} description names ${a}`, () => {
+      expect(descriptionByName(b)).toContain(a);
+    });
+  }
+});
