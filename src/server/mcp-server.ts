@@ -88,10 +88,13 @@ function registerTools(
     server.registerTool(
       tool.name,
       {
+        title: tool.title,
         description: tool.description,
         inputSchema: tool.schema,
         outputSchema: tool.outputSchema,
-        annotations: tool.annotations,
+        annotations: tool.title
+          ? { ...tool.annotations, title: tool.title }
+          : tool.annotations,
       },
       createToolDispatcher(tool, logger),
     );

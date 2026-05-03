@@ -31,6 +31,15 @@ export interface ToolDefinition<
   Shape extends z.ZodRawShape = z.ZodRawShape,
 > {
   name: string;
+  /**
+   * Human-readable title used by hosts in confirmation / auto-approve UI.
+   * Sentence case, no module prefix, ≤40 characters. See spec
+   * `docs/superpowers/specs/2026-05-03-tool-titles-and-sibling-cross-refs-design.md`.
+   *
+   * Marked optional during the backfill rollout (#289). Will become required
+   * once every defineTool call site has been updated.
+   */
+  title?: string;
   description: string;
   schema: Shape;
   /**

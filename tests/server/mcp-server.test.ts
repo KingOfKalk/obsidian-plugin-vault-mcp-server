@@ -19,10 +19,11 @@ interface CapturedOptions {
 interface CapturedRegisterToolCall {
   name: string;
   config: {
+    title?: string;
     description?: string;
     inputSchema?: unknown;
     outputSchema?: unknown;
-    annotations?: unknown;
+    annotations?: { title?: string } & Record<string, unknown>;
   };
 }
 
@@ -147,6 +148,35 @@ describe('createMcpServer', () => {
     // The field IS present in the config object (we forward it
     // unconditionally) — but its value is undefined.
     expect('outputSchema' in (withoutOutput?.config ?? {})).toBe(true);
+  });
+
+  it('forwards tool.title to both Tool.title and annotations.title', async () => {
+    const { ModuleRegistry } = await import('../../src/registry/module-registry');
+    const { createMcpServer } = await import('../../src/server/mcp-server');
+
+    const titledTool = {
+      name: 'titled',
+      title: 'Pretty title',
+      description: 'has title',
+      schema: { foo: z.string() },
+      handler: () =>
+        Promise.resolve({ content: [{ type: 'text' as const, text: 'ok' }] }),
+      annotations: annotations.read,
+    } as unknown as ToolDefinition;
+
+    const stubModule: ToolModule = {
+      metadata: { id: 'stub', name: 'Stub', description: 'test' },
+      tools: () => [titledTool],
+    };
+
+    const registry = new ModuleRegistry(makeLogger());
+    registry.registerModule(stubModule);
+    createMcpServer(registry, makeLogger());
+
+    const call = capturedRegisterToolCalls.find((c) => c.name === 'titled');
+    expect(call).toBeDefined();
+    expect(call?.config.title).toBe('Pretty title');
+    expect(call?.config.annotations?.title).toBe('Pretty title');
   });
 });
 
