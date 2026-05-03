@@ -4,7 +4,7 @@ import { validateVaultPath, PathTraversalError } from '../utils/path-guard';
 import type { ObsidianAdapter } from '../obsidian/adapter';
 import type { Logger } from '../utils/logger';
 import { BinaryTooLargeError, FileNotFoundError } from '../tools/shared/errors';
-import { BINARY_BYTE_LIMIT } from '../constants';
+import { BINARY_BYTE_LIMIT, CHARACTER_LIMIT } from '../constants';
 
 /**
  * Static mime-type table covering the file types that show up in an
@@ -125,6 +125,78 @@ export function createFileHandler(
     const blob = Buffer.from(data).toString('base64');
     return {
       contents: [{ uri: uri.toString(), mimeType: mime, blob }],
+    };
+  };
+}
+
+type IndexHandler = (uri: URL) => Promise<ReadResourceResult>;
+
+interface IndexEntry {
+  uri: string;
+  name: string;
+  mimeType: string;
+  size: number;
+}
+
+interface IndexPayload {
+  files: IndexEntry[];
+  folders: string[];
+  truncated: boolean;
+}
+
+const VAULT_INDEX_URI = 'obsidian://vault/index';
+
+function basename(p: string): string {
+  const i = p.lastIndexOf('/');
+  return i === -1 ? p : p.slice(i + 1);
+}
+
+export function createIndexHandler(
+  adapter: ObsidianAdapter,
+  _logger: Logger,
+): IndexHandler {
+  return async (_uri) => {
+    const list = adapter.listRecursive('');
+    const files: IndexEntry[] = [];
+    for (const path of list.files) {
+      const stat = await adapter.stat(path);
+      files.push({
+        uri: 'obsidian://vault/' + encodeURI(path),
+        name: basename(path),
+        mimeType: getMimeType(path),
+        size: stat?.size ?? 0,
+      });
+    }
+    const folders = list.folders.filter((f) => f !== '/');
+
+    let payload: IndexPayload = { files, folders, truncated: false };
+    let serialised = JSON.stringify(payload);
+    if (serialised.length > CHARACTER_LIMIT) {
+      const trimmed = [...files];
+      while (trimmed.length > 0) {
+        trimmed.pop();
+        const candidate: IndexPayload = { files: trimmed, folders, truncated: true };
+        const candidateSerialised = JSON.stringify(candidate);
+        if (candidateSerialised.length <= CHARACTER_LIMIT) {
+          payload = candidate;
+          serialised = candidateSerialised;
+          break;
+        }
+      }
+      if (serialised.length > CHARACTER_LIMIT) {
+        payload = { files: [], folders: [], truncated: true };
+        serialised = JSON.stringify(payload);
+      }
+    }
+
+    return {
+      contents: [
+        {
+          uri: VAULT_INDEX_URI,
+          mimeType: 'application/json',
+          text: serialised,
+        },
+      ],
     };
   };
 }

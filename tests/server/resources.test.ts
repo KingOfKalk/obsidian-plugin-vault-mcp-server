@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { getMimeType, isTextMime, parseVaultUri, createFileHandler } from '../../src/server/resources';
+import { getMimeType, isTextMime, parseVaultUri, createFileHandler, createIndexHandler } from '../../src/server/resources';
+import { CHARACTER_LIMIT } from '../../src/constants';
 import { PathTraversalError } from '../../src/utils/path-guard';
 import { Logger } from '../../src/utils/logger';
 import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';
@@ -186,5 +187,84 @@ describe('fileHandler — binary', () => {
       new URL('obsidian://vault/missing.png'),
       { path: 'missing.png' },
     )).rejects.toBeInstanceOf(FileNotFoundError);
+  });
+});
+
+interface IndexEntry { uri: string; name: string; mimeType: string; size: number }
+interface IndexPayload { files: IndexEntry[]; folders: string[]; truncated: boolean }
+
+describe('indexHandler', () => {
+  it('returns a flat list with resource entries and folder names', async () => {
+    const adapter = new MockObsidianAdapter();
+    adapter.addFolder('notes');
+    adapter.addFile('a.md', 'a');
+    adapter.addFile('notes/b.md', 'bb');
+    adapter.addFile('img.png', 'pngdata');
+    const handler = createIndexHandler(adapter, makeLogger());
+
+    const result = await handler(new URL('obsidian://vault/index'));
+    const c = result.contents[0] as { uri: string; mimeType: string; text: string };
+    expect(c.uri).toBe('obsidian://vault/index');
+    expect(c.mimeType).toBe('application/json');
+
+    const payload = JSON.parse(c.text) as IndexPayload;
+    expect(payload.truncated).toBe(false);
+    expect(payload.folders).toContain('notes');
+    expect(payload.files.find((f) => f.name === 'a.md')).toMatchObject({
+      uri: 'obsidian://vault/a.md',
+      mimeType: 'text/markdown',
+      size: 1,
+    });
+    expect(payload.files.find((f) => f.name === 'b.md')).toMatchObject({
+      uri: 'obsidian://vault/notes/b.md',
+      mimeType: 'text/markdown',
+    });
+    expect(payload.files.find((f) => f.name === 'img.png')).toMatchObject({
+      mimeType: 'image/png',
+    });
+  });
+
+  it('returns an empty payload for an empty vault', async () => {
+    const adapter = new MockObsidianAdapter();
+    const handler = createIndexHandler(adapter, makeLogger());
+
+    const result = await handler(new URL('obsidian://vault/index'));
+    const payload = JSON.parse((result.contents[0] as { text: string }).text) as IndexPayload;
+    expect(payload).toEqual({ files: [], folders: [], truncated: false });
+  });
+
+  it('truncates files past the 25 000-character cap', async () => {
+    const adapter = new MockObsidianAdapter();
+    // Each entry is roughly 90+ chars in JSON. 400 entries blow past 25k.
+    for (let i = 0; i < 400; i++) {
+      adapter.addFile(`note-${String(i).padStart(4, '0')}.md`, 'x');
+    }
+    const handler = createIndexHandler(adapter, makeLogger());
+
+    const result = await handler(new URL('obsidian://vault/index'));
+    const text = (result.contents[0] as { text: string }).text;
+    expect(text.length).toBeLessThanOrEqual(CHARACTER_LIMIT);
+    const payload = JSON.parse(text) as IndexPayload;
+    expect(payload.truncated).toBe(true);
+    expect(payload.files.length).toBeLessThan(400);
+  });
+
+  it('produces URIs that round-trip through parseVaultUri', async () => {
+    const adapter = new MockObsidianAdapter();
+    adapter.addFile('Notizen/Übersicht.md', 'x');
+    const handler = createIndexHandler(adapter, makeLogger());
+
+    const result = await handler(new URL('obsidian://vault/index'));
+    const payload = JSON.parse((result.contents[0] as { text: string }).text) as IndexPayload;
+    const entry = payload.files[0];
+
+    const parsedPath = parseVaultUri(
+      new URL(entry.uri),
+      // The SDK populates `variables.path` by decoding the URI; emulate by
+      // decoding entry.uri's pathname after the host segment.
+      { path: decodeURIComponent(new URL(entry.uri).pathname.replace(/^\//, '')) },
+      adapter.getVaultPath(),
+    );
+    expect(parsedPath).toBe('Notizen/Übersicht.md');
   });
 });
