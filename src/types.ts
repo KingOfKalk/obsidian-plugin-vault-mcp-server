@@ -24,6 +24,12 @@ export interface McpPluginSettings {
   /** Auto-start the MCP server when Obsidian launches */
   autoStart: boolean;
   /**
+   * When true, the server exposes vault files as MCP resources
+   * (obsidian://vault/{+path} template + obsidian://vault/index static)
+   * in addition to tools. Default true.
+   */
+  resourcesEnabled: boolean;
+  /**
    * Allowlist of Obsidian command ids that `plugin_execute_command` is
    * permitted to run. Empty (the default) means command execution is
    * disabled and the tool refuses every call with a clear error.
@@ -93,7 +99,7 @@ export const DEFAULT_ALLOWED_HOSTS: readonly string[] = [
 ] as const;
 
 export const DEFAULT_SETTINGS: McpPluginSettings = {
-  schemaVersion: 10,
+  schemaVersion: 11,
   serverAddress: '127.0.0.1',
   port: 28741,
   authEnabled: true,
@@ -105,6 +111,7 @@ export const DEFAULT_SETTINGS: McpPluginSettings = {
   customTlsKeyPath: null,
   debugMode: false,
   autoStart: false,
+  resourcesEnabled: true,
   executeCommandAllowlist: [],
   allowedOrigins: [...DEFAULT_ALLOWED_ORIGINS],
   allowedHosts: [...DEFAULT_ALLOWED_HOSTS],

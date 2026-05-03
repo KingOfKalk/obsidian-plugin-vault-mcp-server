@@ -68,3 +68,13 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.autoStart).toBe(false);
   });
 });
+
+describe('DEFAULT_SETTINGS resourcesEnabled', () => {
+  it('defaults resourcesEnabled to true', () => {
+    expect(DEFAULT_SETTINGS.resourcesEnabled).toBe(true);
+  });
+
+  it('bumps schemaVersion to 11', () => {
+    expect(DEFAULT_SETTINGS.schemaVersion).toBe(11);
+  });
+});

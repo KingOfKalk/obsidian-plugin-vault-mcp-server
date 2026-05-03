@@ -78,6 +78,7 @@ const baseSettings: McpPluginSettings = {
   customTlsKeyPath: null,
   debugMode: true,
   autoStart: false,
+  resourcesEnabled: true,
   executeCommandAllowlist: [],
   allowedOrigins: [
     'http://127.0.0.1',
