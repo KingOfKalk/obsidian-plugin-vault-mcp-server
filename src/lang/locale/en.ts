@@ -79,6 +79,9 @@ const en = {
     'MCP server not started — bring-your-own certificate is invalid: {message}',
   setting_autostart_name: 'Auto-start on launch',
   setting_autostart_desc: 'Start MCP server automatically when Obsidian launches',
+  setting_resources_enabled_name: 'Expose vault files as MCP resources',
+  setting_resources_enabled_desc:
+    'When on, MCP hosts can browse and read vault files via the resources surface (obsidian://vault/{path}) in addition to tools. Restart the server to apply changes.',
 
   // Settings — DNS Rebind Protection subsection (Origin / Host validation)
   heading_dns_rebind: 'DNS Rebind Protection',

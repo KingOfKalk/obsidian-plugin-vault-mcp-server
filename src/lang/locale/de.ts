@@ -78,6 +78,9 @@ const de: Partial<Record<keyof typeof en, string>> = {
     'MCP-Server nicht gestartet — das eigene Zertifikat ist ungültig: {message}',
   setting_autostart_name: 'Beim Start automatisch starten',
   setting_autostart_desc: 'MCP-Server automatisch starten, wenn Obsidian gestartet wird',
+  setting_resources_enabled_name: 'Vault-Dateien als MCP-Ressourcen freigeben',
+  setting_resources_enabled_desc:
+    'Wenn aktiviert, können MCP-Hosts Vault-Dateien zusätzlich zu den Tools über die Resources-Schnittstelle (obsidian://vault/{Pfad}) lesen und durchsuchen. Server neu starten, damit die Änderung wirksam wird.',
 
   // DNS Rebind Protection
   heading_dns_rebind: 'DNS-Rebind-Schutz',
