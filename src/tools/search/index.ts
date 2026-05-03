@@ -102,6 +102,9 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary: 'List every tag used anywhere in the vault with the files that use it.',
             returns: 'JSON: Record<tag, string[]>. Each key is the tag including leading #.',
+            seeAlso: [
+              'search_by_tag — when you want notes carrying a tag, not the list of tags.',
+            ],
           }, readOnlySchema),
           schema: readOnlySchema,
           outputSchema: searchTagsOutputSchema,
@@ -146,6 +149,9 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
             summary: 'Find files tagged with a given tag (with or without leading #).',
             args: ['tag (string, 1..200): Tag to search for, e.g. "project" or "#project".'],
             returns: 'JSON: string[] of vault-relative file paths.',
+            seeAlso: [
+              'search_tags — when you want the list of tags in the vault, not notes.',
+            ],
           }, searchByTagSchema),
           schema: searchByTagSchema,
           outputSchema: paginatedPathPageOutputSchema,

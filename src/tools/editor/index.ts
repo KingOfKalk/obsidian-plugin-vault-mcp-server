@@ -353,6 +353,10 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
               '"No active editor" if no markdown view is focused.',
               '"Position is out of range" if (line, ch) is outside the document.',
             ],
+            seeAlso: [
+              'editor_replace — when you want to overwrite an existing range, not insert at a point.',
+              'editor_delete — when you want to remove a range without writing anything in its place.',
+            ],
           }),
           schema: insertSchema,
           handler: h.insert,
@@ -374,6 +378,10 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
               '"No active editor" if no markdown view is focused.',
               '"Position is out of range" if either endpoint is outside the document.',
             ],
+            seeAlso: [
+              'editor_insert — when you want to add text at a single point without overwriting anything.',
+              'editor_delete — when you want to remove a range without writing anything in its place.',
+            ],
           }),
           schema: replaceSchema,
           handler: h.replace,
@@ -392,6 +400,10 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             errors: [
               '"No active editor" if no markdown view is focused.',
               '"Position is out of range" if either endpoint is outside the document.',
+            ],
+            seeAlso: [
+              'editor_insert — when you want to add text at a single point without overwriting anything.',
+              'editor_replace — when you want to overwrite an existing range, not just remove it.',
             ],
           }),
           schema: deleteRangeSchema,
