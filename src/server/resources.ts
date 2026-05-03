@@ -1,4 +1,5 @@
 import { posix } from 'path';
+import { validateVaultPath, PathTraversalError } from '../utils/path-guard';
 
 /**
  * Static mime-type table covering the file types that show up in an
@@ -57,4 +58,29 @@ export function isTextMime(mime: string): boolean {
   if (mime === 'application/yaml') return true;
   if (mime === 'image/svg+xml') return true;
   return false;
+}
+
+type VaultUriVariables = { path: string | string[] };
+
+/**
+ * Validate an `obsidian://vault/{+path}` URI and return the vault-relative
+ * path it points to. The SDK has already parsed the variable; we still
+ * defend against scheme/host mismatches and call `validateVaultPath` so
+ * traversal protection is shared with the tool surface.
+ */
+export function parseVaultUri(
+  uri: URL,
+  variables: VaultUriVariables,
+  vaultPath: string,
+): string {
+  if (uri.protocol !== 'obsidian:') {
+    throw new PathTraversalError(`Unexpected scheme: ${uri.protocol}`);
+  }
+  if (uri.host !== 'vault') {
+    throw new PathTraversalError(`Unexpected host: ${uri.host}`);
+  }
+  const raw = Array.isArray(variables.path)
+    ? variables.path.join('/')
+    : variables.path;
+  return validateVaultPath(raw, vaultPath);
 }

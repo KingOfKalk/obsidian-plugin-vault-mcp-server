@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { getMimeType, isTextMime } from '../../src/server/resources';
+import { getMimeType, isTextMime, parseVaultUri } from '../../src/server/resources';
+import { PathTraversalError } from '../../src/utils/path-guard';
 
 describe('getMimeType', () => {
   it('maps known text extensions', () => {
@@ -45,5 +46,52 @@ describe('isTextMime', () => {
     expect(isTextMime('image/png')).toBe(false);
     expect(isTextMime('application/pdf')).toBe(false);
     expect(isTextMime('application/octet-stream')).toBe(false);
+  });
+});
+
+const VAULT = '/tmp/vault';
+
+function uri(s: string): URL { return new URL(s); }
+
+describe('parseVaultUri', () => {
+  it('returns the validated relative path for a plain URI', () => {
+    expect(parseVaultUri(uri('obsidian://vault/notes/foo.md'), { path: 'notes/foo.md' }, VAULT))
+      .toBe('notes/foo.md');
+  });
+
+  it('handles unicode paths', () => {
+    expect(parseVaultUri(uri('obsidian://vault/Notizen/%C3%9Cbersicht.md'), { path: 'Notizen/Übersicht.md' }, VAULT))
+      .toBe('Notizen/Übersicht.md');
+  });
+
+  it('rejects traversal', () => {
+    expect(() => parseVaultUri(uri('obsidian://vault/../etc/passwd'), { path: '../etc/passwd' }, VAULT))
+      .toThrow(PathTraversalError);
+  });
+
+  it('rejects encoded traversal', () => {
+    expect(() => parseVaultUri(uri('obsidian://vault/..%2F..'), { path: '..%2F..' }, VAULT))
+      .toThrow(PathTraversalError);
+  });
+
+  it('rejects wrong scheme', () => {
+    expect(() => parseVaultUri(uri('file:///foo.md'), { path: 'foo.md' }, VAULT))
+      .toThrow(PathTraversalError);
+  });
+
+  it('rejects wrong host', () => {
+    expect(() => parseVaultUri(uri('obsidian://other/foo.md'), { path: 'foo.md' }, VAULT))
+      .toThrow(PathTraversalError);
+  });
+
+  it('rejects empty path', () => {
+    expect(() => parseVaultUri(uri('obsidian://vault/'), { path: '' }, VAULT))
+      .toThrow(PathTraversalError);
+  });
+
+  it('accepts a single-string variable form (some SDK paths pass string[])', () => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+    expect(parseVaultUri(uri('obsidian://vault/notes/foo.md'), { path: ['notes', 'foo.md'] as unknown as string }, VAULT))
+      .toBe('notes/foo.md');
   });
 });
