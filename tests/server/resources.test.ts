@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { getMimeType, isTextMime, parseVaultUri } from '../../src/server/resources';
+import { getMimeType, isTextMime, parseVaultUri, createFileHandler } from '../../src/server/resources';
 import { PathTraversalError } from '../../src/utils/path-guard';
+import { Logger } from '../../src/utils/logger';
+import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';
+
+function makeLogger(): Logger {
+  return new Logger('test', { debugMode: false, accessKey: '' });
+}
 
 describe('getMimeType', () => {
   it('maps known text extensions', () => {
@@ -93,5 +99,35 @@ describe('parseVaultUri', () => {
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     expect(parseVaultUri(uri('obsidian://vault/notes/foo.md'), { path: ['notes', 'foo.md'] as unknown as string }, VAULT))
       .toBe('notes/foo.md');
+  });
+});
+
+describe('fileHandler — text', () => {
+  it('returns TextResourceContents for a markdown file', async () => {
+    const adapter = new MockObsidianAdapter();
+    adapter.addFile('notes/foo.md', '# Hello');
+    const handler = createFileHandler(adapter, makeLogger());
+
+    const result = await handler(
+      new URL('obsidian://vault/notes/foo.md'),
+      { path: 'notes/foo.md' },
+    );
+
+    expect(result.contents).toHaveLength(1);
+    expect(result.contents[0]).toEqual({
+      uri: 'obsidian://vault/notes/foo.md',
+      mimeType: 'text/markdown',
+      text: '# Hello',
+    });
+  });
+
+  it('propagates the adapter not-found error for a missing file', async () => {
+    const adapter = new MockObsidianAdapter();
+    const handler = createFileHandler(adapter, makeLogger());
+
+    await expect(handler(
+      new URL('obsidian://vault/missing.md'),
+      { path: 'missing.md' },
+    )).rejects.toThrow(/not found/i);
   });
 });

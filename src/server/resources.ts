@@ -1,5 +1,8 @@
 import { posix } from 'path';
+import type { ReadResourceResult } from '@modelcontextprotocol/sdk/types.js';
 import { validateVaultPath, PathTraversalError } from '../utils/path-guard';
+import type { ObsidianAdapter } from '../obsidian/adapter';
+import type { Logger } from '../utils/logger';
 
 /**
  * Static mime-type table covering the file types that show up in an
@@ -83,4 +86,32 @@ export function parseVaultUri(
     ? variables.path.join('/')
     : variables.path;
   return validateVaultPath(raw, vaultPath);
+}
+
+type FileHandler = (
+  uri: URL,
+  variables: VaultUriVariables,
+) => Promise<ReadResourceResult>;
+
+export function createFileHandler(
+  adapter: ObsidianAdapter,
+  _logger: Logger,
+): FileHandler {
+  return async (uri, variables) => {
+    const path = parseVaultUri(uri, variables, adapter.getVaultPath());
+    const mime = getMimeType(path);
+    if (isTextMime(mime)) {
+      const text = await adapter.readFile(path);
+      return {
+        contents: [
+          {
+            uri: uri.toString(),
+            mimeType: mime,
+            text,
+          },
+        ],
+      };
+    }
+    throw new Error('Binary branch not implemented yet'); // filled in in the next task
+  };
 }
