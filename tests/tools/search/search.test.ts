@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type { ToolContext } from '../../../src/registry/tool-context';
 import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
@@ -9,6 +10,18 @@ function getText(result: CallToolResult): string {
   const item = result.content[0];
   if (item.type === 'text') return item.text;
   return '';
+}
+
+function makeCtx(
+  overrides: Partial<ToolContext> = {},
+): ToolContext {
+  return {
+    signal: new AbortController().signal,
+    progressToken: undefined,
+    reportProgress: vi.fn().mockResolvedValue(undefined),
+    log: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
+  };
 }
 
 describe('search module', () => {
@@ -80,6 +93,96 @@ describe('search handlers', () => {
         limit: 100,
       });
       expect(getText(result)).toContain('[TRUNCATED:');
+    });
+
+    it('returns an error envelope when signal is already aborted at invocation', async () => {
+      adapter.addFile('a.md', 'x');
+      adapter.addFile('b.md', 'x');
+      const readSpy = vi.spyOn(adapter, 'readFile');
+
+      const ac = new AbortController();
+      ac.abort();
+      const ctx = makeCtx({ signal: ac.signal });
+
+      const result = await handlers.searchFulltext({ query: 'x' }, ctx);
+
+      expect(result.isError).toBe(true);
+      expect(getText(result)).toContain('Cancelled');
+      expect(readSpy).not.toHaveBeenCalled();
+    });
+
+    it('stops reading remaining files when signal is aborted mid-run', async () => {
+      adapter.addFile('a.md', 'x');
+      adapter.addFile('b.md', 'x');
+      adapter.addFile('c.md', 'x');
+      adapter.addFile('d.md', 'x');
+      adapter.addFile('e.md', 'x');
+
+      const ac = new AbortController();
+      // Capture the real method BEFORE installing the spy, so the
+      // mockImplementation can delegate back to it.
+      const realReadFile = adapter.readFile.bind(adapter);
+      const readSpy = vi.spyOn(adapter, 'readFile');
+      let count = 0;
+      readSpy.mockImplementation(async (path: string) => {
+        count++;
+        if (count === 2) ac.abort();
+        return realReadFile(path);
+      });
+
+      const ctx = makeCtx({ signal: ac.signal });
+      const result = await handlers.searchFulltext({ query: 'x' }, ctx);
+
+      expect(result.isError).toBe(true);
+      // Two files read before the abort fires the next iteration's check.
+      expect(readSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('emits progress at integer-percent boundaries when progressToken is set', async () => {
+      // 4 files → percent boundaries at 25, 50, 75, 100.
+      adapter.addFile('a.md', 'x');
+      adapter.addFile('b.md', 'x');
+      adapter.addFile('c.md', 'x');
+      adapter.addFile('d.md', 'x');
+
+      const reportProgress = vi.fn().mockResolvedValue(undefined);
+      const ctx = makeCtx({
+        progressToken: 'tok',
+        reportProgress,
+      });
+
+      await handlers.searchFulltext({ query: 'x' }, ctx);
+
+      expect(reportProgress).toHaveBeenCalledTimes(4);
+      // Final call should report progress === total.
+      const lastCall = reportProgress.mock.calls.at(-1);
+      expect(lastCall?.[0]).toBe(4);
+      expect(lastCall?.[1]).toBe(4);
+    });
+
+    it('still calls reportProgress when progressToken is undefined (the no-op path)', async () => {
+      // The handler should not branch on progressToken — that gating lives
+      // inside ctx.reportProgress. The handler always invokes it; the
+      // no-op behaviour is the wrapper's responsibility (covered in
+      // tests/registry/tool-context.test.ts).
+      adapter.addFile('a.md', 'x');
+      adapter.addFile('b.md', 'x');
+
+      const reportProgress = vi.fn().mockResolvedValue(undefined);
+      const ctx = makeCtx({ reportProgress });
+
+      await handlers.searchFulltext({ query: 'x' }, ctx);
+
+      // Two files, both percent-boundaries (50, 100), so two emits.
+      expect(reportProgress).toHaveBeenCalled();
+    });
+
+    it('still works when called with no ctx (backwards-compat path)', async () => {
+      adapter.addFile('a.md', 'x');
+      adapter.addFile('b.md', 'y');
+      const result = await handlers.searchFulltext({ query: 'x' });
+      expect(result.isError).toBeFalsy();
+      expect(getText(result)).toContain('a.md');
     });
   });
 
