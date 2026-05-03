@@ -100,4 +100,35 @@ describe('describeTool', () => {
     expect(out).not.toContain('limit (integer, optional)');
     expect(out).not.toContain('offset (integer, optional)');
   });
+
+  it('renders a See also section when seeAlso entries are supplied', () => {
+    const out = describeTool({
+      summary: 'Read a thing.',
+      seeAlso: [
+        'other_tool — when you want the other variant.',
+      ],
+    });
+    expect(out).toContain('See also:');
+    expect(out).toContain('  - other_tool — when you want the other variant.');
+  });
+
+  it('places See also between Examples and Errors', () => {
+    const out = describeTool({
+      summary: 'Read.',
+      examples: ['Use when: testing.'],
+      seeAlso: ['other_tool — alternative.'],
+      errors: ['"boom" on failure.'],
+    });
+    const examplesIdx = out.indexOf('Examples:');
+    const seeAlsoIdx = out.indexOf('See also:');
+    const errorsIdx = out.indexOf('Errors:');
+    expect(examplesIdx).toBeGreaterThan(0);
+    expect(seeAlsoIdx).toBeGreaterThan(examplesIdx);
+    expect(errorsIdx).toBeGreaterThan(seeAlsoIdx);
+  });
+
+  it('omits See also when no seeAlso entries are supplied', () => {
+    const out = describeTool({ summary: 'Read.' });
+    expect(out).not.toContain('See also:');
+  });
 });

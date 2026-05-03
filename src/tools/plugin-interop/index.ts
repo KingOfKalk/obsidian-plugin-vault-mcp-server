@@ -254,6 +254,7 @@ export function createPluginInteropModule(
       return [
         defineTool({
           name: 'plugin_list',
+          title: 'List plugins',
           description: describeTool({
             summary: 'List every installed community plugin with its enabled flag.',
             returns: 'JSON: [{ id, name, enabled, ... }].',
@@ -265,6 +266,7 @@ export function createPluginInteropModule(
         }),
         defineTool({
           name: 'plugin_check',
+          title: 'Check plugin enabled',
           description: describeTool({
             summary: 'Check whether a plugin is installed and enabled.',
             args: ['pluginId (string, 1..200): Plugin id, e.g. "dataview".'],
@@ -277,6 +279,7 @@ export function createPluginInteropModule(
         }),
         defineTool({
           name: 'plugin_dataview_query',
+          title: 'Run Dataview query',
           description: describeTool({
             summary: 'Execute a Dataview DQL query and return the rendered markdown.',
             args: ['query (string, 1..10000): Dataview DQL query text. Use plugin_dataview_describe_js_query for Dataview-JS sources.'],
@@ -294,6 +297,7 @@ export function createPluginInteropModule(
         }),
         defineTool({
           name: 'plugin_dataview_describe_js_query',
+          title: 'Describe Dataview JS query',
           description: describeTool({
             summary: 'Echo a Dataview-JS source for client-side execution. Returns the source and a note that the host must run it.',
             args: ['query (string, 1..10000): Dataview-JS source.'],
@@ -306,6 +310,7 @@ export function createPluginInteropModule(
         }),
         defineTool({
           name: 'plugin_templater_describe_template',
+          title: 'Describe Templater template',
           description: describeTool({
             summary: 'Echo a Templater template path for client-side execution. Returns the path and a note that the host must run it via Templater.',
             args: ['templatePath (string): Vault-relative path to the Templater template.'],
@@ -318,6 +323,7 @@ export function createPluginInteropModule(
         }),
         defineTool({
           name: 'plugin_execute_command',
+          title: 'Execute command',
           description: describeTool({
             summary: 'Execute any Obsidian command by its id.',
             args: ['commandId (string, 1..200): Command id, e.g. "app:reload".'],

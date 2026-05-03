@@ -35,6 +35,7 @@ export interface ToolDoc {
   args?: string[];
   returns?: string;
   examples?: string[];
+  seeAlso?: string[];
   errors?: string[];
 }
 
@@ -95,6 +96,11 @@ export function describeTool(doc: ToolDoc, schema?: z.ZodRawShape): string {
   if (doc.examples && doc.examples.length > 0) {
     lines.push('', 'Examples:');
     for (const ex of doc.examples) lines.push(`  - ${ex}`);
+  }
+
+  if (doc.seeAlso && doc.seeAlso.length > 0) {
+    lines.push('', 'See also:');
+    for (const s of doc.seeAlso) lines.push(`  - ${s}`);
   }
 
   if (doc.errors && doc.errors.length > 0) {

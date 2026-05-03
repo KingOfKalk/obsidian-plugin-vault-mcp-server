@@ -84,10 +84,14 @@ export function createExtrasModule(adapter: ObsidianAdapter): ToolModule {
       return [
         defineTool({
           name: 'extras_get_date',
+          title: 'Get current date',
           description: describeTool({
             summary: 'Get the current local datetime as an ISO-8601 string with timezone offset.',
             returns: 'Plain text: e.g. "2026-04-19T08:30:00.000+02:00".',
             examples: ['Use when: stamping a daily note with the current local time.'],
+            seeAlso: [
+              'vault_get_metadata — when you need a file\'s modified/created timestamp, not today\'s date.',
+            ],
           }, getDateSchema),
           schema: getDateSchema,
           outputSchema: getDateOutputSchema,

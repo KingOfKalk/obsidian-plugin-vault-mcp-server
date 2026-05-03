@@ -149,6 +149,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
       return [
         defineTool({
           name: 'workspace_get_active_leaf',
+          title: 'Get active leaf',
           description: describeTool({
             summary: 'Get info about the currently-focused leaf (pane).',
             returns: 'JSON: { id, type, ... } describing the active leaf.',
@@ -161,6 +162,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'workspace_open_file',
+          title: 'Open file in workspace',
           description: describeTool({
             summary: 'Open a file in a leaf, optionally requesting a view mode.',
             args: [
@@ -176,6 +178,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'workspace_list_leaves',
+          title: 'List open leaves',
           description: describeTool({
             summary: 'List every open leaf and the file it holds.',
             returns: 'JSON: [{ path, leafId }].',
@@ -187,6 +190,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'workspace_set_active_leaf',
+          title: 'Set active leaf',
           description: describeTool({
             summary: 'Focus a specific leaf by id.',
             args: ['leafId (string): Leaf id from workspace_list_leaves.'],
@@ -199,6 +203,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'workspace_get_layout',
+          title: 'Get workspace layout',
           description: describeTool({
             summary: 'Get a summary of the current workspace layout.',
             returns: 'JSON: Obsidian\'s layout descriptor (nested splits and leaves).',

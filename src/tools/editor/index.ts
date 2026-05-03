@@ -310,10 +310,14 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
       return [
         defineTool({
           name: 'editor_get_content',
+          title: 'Get active file content',
           description: describeTool({
             summary: 'Get the full text content of the currently active editor.',
             returns: 'Plain text: the editor\'s current content.',
             errors: ['"No active editor" if no markdown view is focused.'],
+            seeAlso: [
+              'vault_read — when reading any file by path, not just the active one.',
+            ],
           }, readOnlySchema),
           schema: readOnlySchema,
           outputSchema: getContentOutputSchema,
@@ -322,6 +326,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'editor_get_active_file',
+          title: 'Get active file path',
           description: describeTool({
             summary: 'Get the vault-relative path of the currently active file.',
             returns: 'Plain text: the path, e.g. "notes/today.md".',
@@ -334,6 +339,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'editor_insert',
+          title: 'Insert at cursor',
           description: describeTool({
             summary: 'Insert text at a (line, ch) position in the active editor.',
             args: [
@@ -347,6 +353,10 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
               '"No active editor" if no markdown view is focused.',
               '"Position is out of range" if (line, ch) is outside the document.',
             ],
+            seeAlso: [
+              'editor_replace — when you want to overwrite an existing range, not insert at a point.',
+              'editor_delete — when you want to remove a range without writing anything in its place.',
+            ],
           }),
           schema: insertSchema,
           handler: h.insert,
@@ -354,6 +364,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'editor_replace',
+          title: 'Replace range',
           description: describeTool({
             summary: 'Replace text in a (fromLine, fromCh)→(toLine, toCh) range.',
             args: [
@@ -367,6 +378,10 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
               '"No active editor" if no markdown view is focused.',
               '"Position is out of range" if either endpoint is outside the document.',
             ],
+            seeAlso: [
+              'editor_insert — when you want to add text at a single point without overwriting anything.',
+              'editor_delete — when you want to remove a range without writing anything in its place.',
+            ],
           }),
           schema: replaceSchema,
           handler: h.replace,
@@ -374,6 +389,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'editor_delete',
+          title: 'Delete range',
           description: describeTool({
             summary: 'Delete text in a (fromLine, fromCh)→(toLine, toCh) range.',
             args: [
@@ -385,6 +401,10 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
               '"No active editor" if no markdown view is focused.',
               '"Position is out of range" if either endpoint is outside the document.',
             ],
+            seeAlso: [
+              'editor_insert — when you want to add text at a single point without overwriting anything.',
+              'editor_replace — when you want to overwrite an existing range, not just remove it.',
+            ],
           }),
           schema: deleteRangeSchema,
           handler: h.deleteRange,
@@ -392,6 +412,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'editor_get_cursor',
+          title: 'Get cursor position',
           description: describeTool({
             summary: 'Get the current cursor position in the active editor.',
             returns: 'JSON: { line, ch } (zero-based).',
@@ -404,6 +425,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'editor_set_cursor',
+          title: 'Set cursor position',
           description: describeTool({
             summary: 'Move the cursor to a (line, ch) position in the active editor.',
             args: [
@@ -422,6 +444,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'editor_get_selection',
+          title: 'Get selection',
           description: describeTool({
             summary: 'Get the current text selection in the active editor.',
             returns: 'JSON: { from: {line, ch}, to: {line, ch}, text }.',
@@ -434,6 +457,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'editor_set_selection',
+          title: 'Set selection',
           description: describeTool({
             summary: 'Select a (fromLine, fromCh)→(toLine, toCh) range in the active editor.',
             args: [
@@ -452,6 +476,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'editor_get_line_count',
+          title: 'Get line count',
           description: describeTool({
             summary: 'Get the number of lines in the active editor.',
             returns: 'Plain text: the line count as a decimal integer.',

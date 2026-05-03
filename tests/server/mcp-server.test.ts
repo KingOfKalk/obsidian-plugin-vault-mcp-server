@@ -19,10 +19,11 @@ interface CapturedOptions {
 interface CapturedRegisterToolCall {
   name: string;
   config: {
+    title?: string;
     description?: string;
     inputSchema?: unknown;
     outputSchema?: unknown;
-    annotations?: unknown;
+    annotations?: { title?: string } & Record<string, unknown>;
   };
 }
 
@@ -99,6 +100,7 @@ describe('createMcpServer', () => {
 
     const toolWithOutputSchema = {
       name: 'tool_with_output',
+      title: 'tool with output',
       description: 'has output schema',
       schema: inputSchema,
       outputSchema,
@@ -109,6 +111,7 @@ describe('createMcpServer', () => {
 
     const toolWithoutOutputSchema = {
       name: 'tool_without_output',
+      title: 'tool without output',
       description: 'no output schema',
       schema: inputSchema,
       handler: () =>
@@ -148,6 +151,35 @@ describe('createMcpServer', () => {
     // unconditionally) — but its value is undefined.
     expect('outputSchema' in (withoutOutput?.config ?? {})).toBe(true);
   });
+
+  it('forwards tool.title to both Tool.title and annotations.title', async () => {
+    const { ModuleRegistry } = await import('../../src/registry/module-registry');
+    const { createMcpServer } = await import('../../src/server/mcp-server');
+
+    const titledTool = {
+      name: 'titled',
+      title: 'Pretty title',
+      description: 'has title',
+      schema: { foo: z.string() },
+      handler: () =>
+        Promise.resolve({ content: [{ type: 'text' as const, text: 'ok' }] }),
+      annotations: annotations.read,
+    } as unknown as ToolDefinition;
+
+    const stubModule: ToolModule = {
+      metadata: { id: 'stub', name: 'Stub', description: 'test' },
+      tools: () => [titledTool],
+    };
+
+    const registry = new ModuleRegistry(makeLogger());
+    registry.registerModule(stubModule);
+    createMcpServer(registry, makeLogger());
+
+    const call = capturedRegisterToolCalls.find((c) => c.name === 'titled');
+    expect(call).toBeDefined();
+    expect(call?.config.title).toBe('Pretty title');
+    expect(call?.config.annotations?.title).toBe('Pretty title');
+  });
 });
 
 describe('createToolDispatcher', () => {
@@ -170,6 +202,7 @@ describe('createToolDispatcher', () => {
   ): ToolDefinition {
     return {
       name: 'test_tool',
+      title: 'test tool',
       description: 'test',
       schema,
       handler,

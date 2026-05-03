@@ -14,6 +14,7 @@ function makeTool(
 ): ToolDefinition {
   return {
     name: 'demo_tool',
+    title: 'Demo tool',
     description: 'Demo tool for the dispatcher tests',
     schema: {
       path: z.string().min(1).describe('Required path'),

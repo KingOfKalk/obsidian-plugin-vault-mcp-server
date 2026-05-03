@@ -156,6 +156,7 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
       return [
         defineTool({
           name: 'template_list',
+          title: 'List templates',
           description: describeTool({
             summary: 'List files in the vault\'s "templates" folder.',
             returns: 'JSON: string[] of template file paths. Empty array if the folder is missing.',
@@ -167,6 +168,7 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'template_create_from',
+          title: 'Create file from template',
           description: describeTool({
             summary: 'Create a file by expanding {{variable}} placeholders in a template.',
             args: [
@@ -186,6 +188,7 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'template_expand',
+          title: 'Expand template inline',
           description: describeTool({
             summary: 'Expand {{variable}} placeholders in a supplied string without writing any file.',
             args: [

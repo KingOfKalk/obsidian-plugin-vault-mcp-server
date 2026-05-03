@@ -195,11 +195,11 @@ There is also an **Extras** group for utility tools that don't mirror an
 Obsidian API. Extras are toggled **per tool**, not per module, and are off by
 default. Today this contains:
 
-- `extras_get_date` — returns the current local time as ISO-8601 with offset.
+- `extras_get_date` (Get current date) — returns the current local time as ISO-8601 with offset.
 
 ### Execute Command Allowlist
 
-The `plugin_execute_command` tool in Plugin Interop can run any Obsidian
+The `plugin_execute_command` (Execute command) tool in Plugin Interop can run any Obsidian
 command — including destructive ones (e.g. `app:delete-file`). By default
 the allowlist is empty, which means the tool refuses every call with a
 clear error. To enable specific commands, add their ids (one per line) to
@@ -356,7 +356,7 @@ again retries the start.
 
 - The module that ships the tool is disabled. Enable it under **Feature
   Modules**.
-- For Extras tools (e.g. `extras_get_date`), the per-tool toggle is off by default.
+- For Extras tools (e.g. `extras_get_date` (Get current date)), the per-tool toggle is off by default.
 - The client cached the previous `tools/list` response. Reconnect.
 
 ### How do I expose the server to another machine on my LAN?
