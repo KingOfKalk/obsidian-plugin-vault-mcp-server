@@ -139,6 +139,7 @@ The settings tab is split into five sections.
 | **TLS Certificate** | auto | Generated on the first HTTPS start, then cached in `data.json`. Use **Regenerate certificate** if you change the address or want a fresh key pair — clients will need to re-trust the new cert. |
 | **Auto-start on launch** | off | Start the MCP server automatically when Obsidian loads. The server still applies the auth/insecure-mode guard on auto-start, so a misconfigured install stays stopped and the reason is logged. |
 | **Expose vault files as MCP resources** | **on** | When on, MCP hosts can browse and read vault files via the resources surface (`obsidian://vault/{path}`) in addition to tools. Restart the server to apply changes. See [Resources](#resources) below. |
+| **Expose MCP slash-command prompts** | **on** | When on, MCP hosts surface canned vault workflows (`/summarize-note`, `/find-related`, `/expand-template`) as slash commands via the prompts surface. Restart the server to apply changes. See [Prompts](#prompts) below. |
 
 #### DNS Rebind Protection
 
@@ -287,6 +288,28 @@ Binary files larger than **1 MiB** are refused. Use the `vault_read_binary` tool
 ### Disabling
 
 If you only want the tools surface, turn off **"Expose vault files as MCP resources"** in *Server Settings* and restart the server. The server then advertises a tools-only capability set.
+
+---
+
+## Prompts
+
+In addition to tools and resources, the server exposes three canned **MCP prompts** so hosts surface them as slash commands. The user picks one, fills in the argument(s), and a pre-canned message lands in the conversation — no need to spell out the full tool sequence.
+
+How the prompts appear depends on the host. Claude Code, for example, surfaces them as `/mcp__obsidian__summarize-note`, `/mcp__obsidian__find-related`, and `/mcp__obsidian__expand-template`.
+
+### Available prompts
+
+- **`summarize-note`** — argument: `path` (vault-relative). Asks Claude to read the note with `vault_read` and produce a concise summary.
+- **`find-related`** — argument: `path` (vault-relative). Asks Claude to read the seed note, then cross-reference it with `search_fulltext` and `vault_get_backlinks` and report the most relevant connections.
+- **`expand-template`** — argument: `template` (vault-relative path to a template file in the vault's `templates/` folder). Reads the template, surfaces the placeholders that need values, and asks Claude to collect them and call `template_expand` (or `template_create_from` if the user wants a new note written).
+
+### Autocomplete
+
+The `expand-template` prompt's `template` argument supports autocomplete: the server lists files in the vault's `templates/` folder and filters them by case-insensitive substring match (capped at 100 entries). Hosts that implement the MCP `completion/complete` protocol expose this as a dropdown next to the argument input.
+
+### Disabling
+
+If you don't want the slash-command surface, turn off **"Expose MCP slash-command prompts"** in *Server Settings* and restart the server. The server then advertises a server without a prompts capability, and hosts will no longer surface the slash commands.
 
 ---
 
