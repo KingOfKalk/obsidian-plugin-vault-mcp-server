@@ -176,26 +176,28 @@ export class MockObsidianAdapter implements ObsidianAdapter {
   }
 
   list(path: string): ListResult {
-    if (!this.folders.has(path) && path !== '/') {
+    const isRoot = path === '/' || path === '';
+    if (!this.folders.has(path) && !isRoot) {
       throw new FolderNotFoundError(path);
     }
-    return this.getDirectChildren(path);
+    return this.getDirectChildren(isRoot ? '' : path);
   }
 
   listRecursive(path: string): ListResult {
-    if (!this.folders.has(path) && path !== '/') {
+    const isRoot = path === '/' || path === '';
+    if (!this.folders.has(path) && !isRoot) {
       throw new FolderNotFoundError(path);
     }
-    const prefix = path === '/' ? '' : path + '/';
+    const prefix = isRoot ? '' : path + '/';
     const files: string[] = [];
     const folders: string[] = [];
     for (const filePath of this.files.keys()) {
-      if (path === '/' || filePath.startsWith(prefix)) {
+      if (isRoot || filePath.startsWith(prefix)) {
         files.push(filePath);
       }
     }
     for (const folderPath of this.folders) {
-      if (folderPath !== path && (path === '/' || folderPath.startsWith(prefix))) {
+      if (folderPath !== path && (isRoot || folderPath.startsWith(prefix))) {
         folders.push(folderPath);
       }
     }
@@ -496,7 +498,8 @@ export class MockObsidianAdapter implements ObsidianAdapter {
   }
 
   private getDirectChildren(path: string): ListResult {
-    const prefix = path === '/' ? '' : path + '/';
+    const isRoot = path === '/' || path === '';
+    const prefix = isRoot ? '' : path + '/';
     const files: string[] = [];
     const folders: string[] = [];
     for (const filePath of this.files.keys()) {
