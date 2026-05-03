@@ -223,3 +223,49 @@ describe('MockObsidianAdapter', () => {
     });
   });
 });
+
+describe('MockObsidianAdapter root traversal', () => {
+  it('listRecursive("") walks the entire vault (real Obsidian convention)', () => {
+    const adapter = new MockObsidianAdapter();
+    adapter.addFolder('notes');
+    adapter.addFile('a.md', 'a');
+    adapter.addFile('notes/b.md', 'b');
+
+    const result = adapter.listRecursive('');
+
+    expect(result.files.sort()).toEqual(['a.md', 'notes/b.md']);
+    expect(result.folders).toContain('notes');
+  });
+
+  it('list("") returns only the direct children of the vault root (depth filter)', () => {
+    const adapter = new MockObsidianAdapter();
+    adapter.addFolder('notes');
+    adapter.addFile('a.md', 'a');
+    adapter.addFile('notes/b.md', 'b');
+
+    const result = adapter.list('');
+
+    expect(result.files).toContain('a.md');
+    expect(result.files).not.toContain('notes/b.md');
+    expect(result.folders).toContain('notes');
+  });
+
+  it('list("/") still walks the root for backward compatibility', () => {
+    const adapter = new MockObsidianAdapter();
+    adapter.addFolder('notes');
+    adapter.addFile('a.md', 'a');
+    const result = adapter.list('/');
+    expect(result.files).toContain('a.md');
+    expect(result.folders).toContain('notes');
+  });
+
+  it('listRecursive("/") still walks the entire vault for backward compatibility', () => {
+    const adapter = new MockObsidianAdapter();
+    adapter.addFolder('notes');
+    adapter.addFile('a.md', 'a');
+    adapter.addFile('notes/b.md', 'b');
+    const result = adapter.listRecursive('/');
+    expect(result.files.sort()).toEqual(['a.md', 'notes/b.md']);
+    expect(result.folders).toContain('notes');
+  });
+});

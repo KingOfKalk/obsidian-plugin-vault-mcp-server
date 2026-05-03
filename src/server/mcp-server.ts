@@ -6,6 +6,9 @@ import { ModuleRegistry } from '../registry/module-registry';
 import { ToolDefinition } from '../registry/types';
 import { handleToolError } from '../tools/shared/errors';
 import { createToolContext, type SdkExtra } from '../registry/tool-context';
+import { registerResources } from './resources';
+import type { ObsidianAdapter } from '../obsidian/adapter';
+import type { McpPluginSettings } from '../types';
 import manifest from '../../manifest.json';
 
 /**
@@ -24,8 +27,22 @@ export const SERVER_INSTRUCTIONS = `This server exposes an Obsidian vault as MCP
 
 export function createMcpServer(
   registry: ModuleRegistry,
+  adapter: ObsidianAdapter,
+  settings: McpPluginSettings,
   logger: Logger,
 ): McpServer {
+  const capabilities: {
+    tools: Record<string, never>;
+    logging: Record<string, never>;
+    resources?: Record<string, never>;
+  } = {
+    tools: {},
+    logging: {},
+  };
+  if (settings.resourcesEnabled) {
+    capabilities.resources = {};
+  }
+
   const server = new McpServer(
     {
       // {service}-mcp-server naming convention for the MCP protocol
@@ -35,15 +52,15 @@ export function createMcpServer(
       version: manifest.version,
     },
     {
-      capabilities: {
-        tools: {},
-        logging: {},
-      },
+      capabilities,
       instructions: SERVER_INSTRUCTIONS,
     },
   );
 
   registerTools(server, registry, logger);
+  if (settings.resourcesEnabled) {
+    registerResources(server, adapter, logger);
+  }
 
   return server;
 }

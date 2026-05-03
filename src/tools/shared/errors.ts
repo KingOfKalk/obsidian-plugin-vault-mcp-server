@@ -54,6 +54,23 @@ export class TimeoutError extends Error {
 }
 
 /**
+ * The requested binary file exceeds the configured per-call byte limit.
+ * Used by `vault_read_binary` and the resources surface to fail fast on
+ * over-cap files instead of base64-encoding hundreds of megabytes.
+ */
+export class BinaryTooLargeError extends Error {
+  constructor(
+    public readonly sizeBytes: number,
+    public readonly limitBytes: number,
+  ) {
+    super(
+      `Binary file too large (${String(sizeBytes)} bytes, limit ${String(limitBytes)}). Fetch the file out-of-band or use a chunked read when available.`,
+    );
+    this.name = 'BinaryTooLargeError';
+  }
+}
+
+/**
  * The user-requested third-party plugin (e.g. Dataview, Templater) is
  * not installed or is currently disabled in Obsidian.
  */
@@ -114,6 +131,9 @@ export function handleToolError(error: unknown): CallToolResult {
     return errorFrom(error.message);
   }
   if (error instanceof PluginApiUnavailableError) {
+    return errorFrom(error.message);
+  }
+  if (error instanceof BinaryTooLargeError) {
     return errorFrom(error.message);
   }
   const message = error instanceof Error ? error.message : String(error);

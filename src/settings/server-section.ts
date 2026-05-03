@@ -287,6 +287,16 @@ export function renderServerSettingsSection(
       }),
     );
 
+  new Setting(containerEl)
+    .setName(t('setting_resources_enabled_name'))
+    .setDesc(t('setting_resources_enabled_desc'))
+    .addToggle((toggle) =>
+      toggle.setValue(plugin.settings.resourcesEnabled).onChange(async (value) => {
+        plugin.settings.resourcesEnabled = value;
+        await plugin.saveSettings();
+      }),
+    );
+
   renderDnsRebindSection(containerEl, plugin, refresh);
 }
 

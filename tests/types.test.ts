@@ -22,8 +22,8 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.moduleStates).toEqual({});
   });
 
-  it('should have schema version 10', () => {
-    expect(DEFAULT_SETTINGS.schemaVersion).toBe(10);
+  it('should have schema version 11', () => {
+    expect(DEFAULT_SETTINGS.schemaVersion).toBe(11);
   });
 
   it('should have loopback-only Origin and Host allowlists by default', () => {
@@ -66,5 +66,11 @@ describe('DEFAULT_SETTINGS', () => {
 
   it('should have auto-start disabled by default', () => {
     expect(DEFAULT_SETTINGS.autoStart).toBe(false);
+  });
+});
+
+describe('DEFAULT_SETTINGS resourcesEnabled', () => {
+  it('defaults resourcesEnabled to true', () => {
+    expect(DEFAULT_SETTINGS.resourcesEnabled).toBe(true);
   });
 });

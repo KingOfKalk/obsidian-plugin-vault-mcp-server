@@ -2,7 +2,7 @@ import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateVaultPath } from '../../utils/path-guard';
 import { truncateText } from '../shared/truncate';
-import { handleToolError } from '../shared/errors';
+import { handleToolError, BinaryTooLargeError } from '../shared/errors';
 import { paginate, readPagination } from '../shared/pagination';
 import { makeResponse, readResponseFormat } from '../shared/response';
 import { BINARY_BYTE_LIMIT } from '../../constants';
@@ -369,9 +369,7 @@ export function createHandlers(
         const path = validateVaultPath(params.path, vaultPath);
         const data = await adapter.readBinary(path);
         if (data.byteLength > BINARY_BYTE_LIMIT) {
-          return errorResult(
-            `Binary file too large (${String(data.byteLength)} bytes, limit ${String(BINARY_BYTE_LIMIT)}). Fetch the file out-of-band or use a chunked read when available.`,
-          );
+          throw new BinaryTooLargeError(data.byteLength, BINARY_BYTE_LIMIT);
         }
         const base64 = Buffer.from(data).toString('base64');
         return makeResponse(

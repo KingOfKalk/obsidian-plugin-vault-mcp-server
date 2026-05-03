@@ -52,6 +52,7 @@ describe('Integration: HTTPS server', () => {
     const mockMod = await import('../../src/obsidian/mock-adapter');
     const vaultMod = await import('../../src/tools/vault/index');
     const tlsMod = await import('../../src/server/tls');
+    const { DEFAULT_SETTINGS } = await import('../../src/types');
 
     const logger = new logMod.Logger('test', { debugMode: false, accessKey: ACCESS_KEY });
     const registry = new regMod.ModuleRegistry(logger);
@@ -62,7 +63,7 @@ describe('Integration: HTTPS server', () => {
     caCert = tls.cert;
 
     server = new httpMod.HttpMcpServer(
-      () => mcpMod.createMcpServer(registry, logger),
+      () => mcpMod.createMcpServer(registry, adapter, DEFAULT_SETTINGS, logger),
       logger,
       {
         host: '127.0.0.1',

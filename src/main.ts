@@ -203,7 +203,7 @@ export default class McpPlugin extends Plugin {
     }
 
     const server = new HttpMcpServer(
-      () => createMcpServer(this.registry, this.logger),
+      () => createMcpServer(this.registry, this.adapter, this.settings, this.logger),
       this.logger,
       {
         host: this.settings.serverAddress,

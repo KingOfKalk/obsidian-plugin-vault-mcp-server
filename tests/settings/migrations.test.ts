@@ -10,6 +10,7 @@ import {
   migrateV7ToV8,
   migrateV8ToV9,
   migrateV9ToV10,
+  migrateV10ToV11,
   migrateSettings,
   CURRENT_SCHEMA_VERSION,
 } from '../../src/settings/migrations';
@@ -236,6 +237,26 @@ describe('settings migrations — per-version hops', () => {
   });
 });
 
+describe('migrateV10ToV11', () => {
+  it('sets resourcesEnabled: true for installs without the field', () => {
+    const data = {} as Record<string, unknown>;
+    migrateV10ToV11(data);
+    expect(data.resourcesEnabled).toBe(true);
+  });
+
+  it('preserves an explicit false', () => {
+    const data = { resourcesEnabled: false } as Record<string, unknown>;
+    migrateV10ToV11(data);
+    expect(data.resourcesEnabled).toBe(false);
+  });
+
+  it('preserves an explicit true', () => {
+    const data = { resourcesEnabled: true } as Record<string, unknown>;
+    migrateV10ToV11(data);
+    expect(data.resourcesEnabled).toBe(true);
+  });
+});
+
 describe('migrateSettings — composition', () => {
   it('migrates V0 (no schemaVersion) all the way to current', () => {
     const result = migrateSettings({}) as { schemaVersion: number };
@@ -261,5 +282,14 @@ describe('migrateSettings — composition', () => {
     const before = JSON.stringify(data);
     migrateSettings(data);
     expect(JSON.stringify(data)).toBe(before);
+  });
+
+  it('migrates a v10 install to v11 with resourcesEnabled defaulted on', () => {
+    const result = migrateSettings({ schemaVersion: 10 }) as {
+      schemaVersion: number;
+      resourcesEnabled: boolean;
+    };
+    expect(result.schemaVersion).toBe(11);
+    expect(result.resourcesEnabled).toBe(true);
   });
 });
