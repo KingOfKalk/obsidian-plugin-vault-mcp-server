@@ -174,7 +174,9 @@ describe('search handlers', () => {
       await handlers.searchFulltext({ query: 'x' }, ctx);
 
       // Two files, both percent-boundaries (50, 100), so two emits.
-      expect(reportProgress).toHaveBeenCalled();
+      // Pinning the count guards against a future regression that
+      // branches on progressToken and skips the call entirely.
+      expect(reportProgress).toHaveBeenCalledTimes(2);
     });
 
     it('still works when called with no ctx (backwards-compat path)', async () => {

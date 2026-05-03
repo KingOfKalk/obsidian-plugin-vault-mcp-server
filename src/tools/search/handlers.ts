@@ -88,8 +88,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
             matched.push({ path, matches });
           }
           if (ctx) {
-            const pct =
-              total === 0 ? 100 : Math.floor(((i + 1) / total) * 100);
+            const pct = Math.floor(((i + 1) / total) * 100);
             if (pct > lastPct) {
               lastPct = pct;
               await ctx.reportProgress(
