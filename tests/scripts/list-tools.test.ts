@@ -26,7 +26,26 @@ describe('scripts/list-tools', () => {
     const md = renderMarkdown(rows);
     for (const row of rows) {
       for (const tool of row.tools) {
-        expect(md).toContain(tool);
+        expect(md).toContain(tool.name);
+      }
+    }
+  });
+
+  it('renders a per-module Tools section with name, title, and annotation columns', () => {
+    const rows = collectToolRows();
+    const md = renderMarkdown(rows);
+    expect(md).toContain('## Tools by module');
+    expect(md).toContain('| Name | Title | readOnly | destructive |');
+    expect(md).toContain('| `vault_create` | Create file |');
+    expect(md).toContain('| `vault_read` | Read file | ✓ |');
+  });
+
+  it('every tool name appears in the per-module section with its title', () => {
+    const rows = collectToolRows();
+    const md = renderMarkdown(rows);
+    for (const row of rows) {
+      for (const tool of row.tools) {
+        expect(md).toContain(`| \`${tool.name}\` | ${tool.title} |`);
       }
     }
   });

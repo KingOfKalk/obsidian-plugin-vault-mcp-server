@@ -11,10 +11,17 @@ import { argv } from 'node:process';
 import { MockObsidianAdapter } from '../src/obsidian/mock-adapter';
 import { discoverModules } from '../src/tools';
 
+interface ToolEntry {
+  name: string;
+  title: string;
+  readOnly: boolean;
+  destructive: boolean;
+}
+
 interface ToolRow {
   moduleId: string;
   moduleName: string;
-  tools: string[];
+  tools: ToolEntry[];
 }
 
 export function collectToolRows(): ToolRow[] {
@@ -23,8 +30,17 @@ export function collectToolRows(): ToolRow[] {
   return modules.map((module) => ({
     moduleId: module.metadata.id,
     moduleName: module.metadata.name,
-    tools: module.tools().map((t) => t.name),
+    tools: module.tools().map((t) => ({
+      name: t.name,
+      title: t.title,
+      readOnly: t.annotations.readOnlyHint === true,
+      destructive: t.annotations.destructiveHint === true,
+    })),
   }));
+}
+
+function check(value: boolean): string {
+  return value ? '✓' : '';
 }
 
 export function renderMarkdown(rows: ToolRow[]): string {
@@ -37,13 +53,15 @@ export function renderMarkdown(rows: ToolRow[]): string {
     'This file is regenerated from the tool registry and committed so CI can detect doc drift.',
   );
   lines.push('');
+
+  // Summary table — preserved for backward compatibility with existing tests.
   lines.push('| Module ID | Module Name | Count | Tools |');
   lines.push('|---|---|---|---|');
 
   let total = 0;
   for (const row of rows) {
     total += row.tools.length;
-    const tools = row.tools.join(', ');
+    const tools = row.tools.map((t) => t.name).join(', ');
     lines.push(
       `| \`${row.moduleId}\` | ${row.moduleName} | ${String(row.tools.length)} | ${tools} |`,
     );
@@ -52,6 +70,24 @@ export function renderMarkdown(rows: ToolRow[]): string {
   lines.push('');
   lines.push(`**Total tools:** ${String(total)} across ${String(rows.length)} modules.`);
   lines.push('');
+
+  // Per-module detail tables — new in #289. Surfaces the three Directory
+  // hard-pass criteria (title + readOnlyHint + destructiveHint) per tool.
+  lines.push('## Tools by module');
+  lines.push('');
+  for (const row of rows) {
+    lines.push(`### ${row.moduleName} (\`${row.moduleId}\`)`);
+    lines.push('');
+    lines.push('| Name | Title | readOnly | destructive |');
+    lines.push('|---|---|---|---|');
+    for (const t of row.tools) {
+      lines.push(
+        `| \`${t.name}\` | ${t.title} | ${check(t.readOnly)} | ${check(t.destructive)} |`,
+      );
+    }
+    lines.push('');
+  }
+
   return lines.join('\n');
 }
 
@@ -64,7 +100,6 @@ function main(): void {
   console.log(`Wrote ${outPath} (${String(rows.length)} modules, ${String(rows.reduce((n, r) => n + r.tools.length, 0))} tools)`);
 }
 
-// Execute when run directly (not when imported for testing).
 if (import.meta.url === `file://${argv[1]}`) {
   main();
 }
