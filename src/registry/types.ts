@@ -41,15 +41,24 @@ export interface ToolDefinition<
   description: string;
   schema: Shape;
   /**
-   * Optional Zod raw shape describing the `structuredContent` payload the
-   * handler emits. Forwarded to `McpServer.registerTool` so modern clients
-   * can validate / introspect the typed output. Tools that don't emit a
-   * `structuredContent` slot (e.g. plain-text confirmations or binary
-   * payloads) MUST leave this undefined — the MCP SDK requires that any
-   * call returning a tool with `outputSchema` declared also carry
-   * `structuredContent` matching that schema.
+   * Optional schema describing the `structuredContent` payload the handler
+   * emits. Two shapes are accepted, both forwarded to
+   * `McpServer.registerTool` unchanged:
+   *
+   *   - **Raw shape** (`z.ZodRawShape`) — the common case, used by every
+   *     tool whose output is a flat object. The SDK turns it into an
+   *     object schema.
+   *   - **Full Zod schema** (`z.ZodTypeAny`) — used when the output shape
+   *     varies by input, e.g. `z.discriminatedUnion('aspect', [...])`.
+   *     The SDK's `OutputArgs extends ZodRawShapeCompat | AnySchema`
+   *     generic accepts these directly.
+   *
+   * Tools that don't emit a `structuredContent` slot (e.g. plain-text
+   * confirmations or binary payloads) MUST leave this undefined — the MCP
+   * SDK requires that any call returning a tool with `outputSchema`
+   * declared also carry `structuredContent` matching that schema.
    */
-  outputSchema?: z.ZodRawShape;
+  outputSchema?: z.ZodRawShape | z.ZodTypeAny;
   handler: TypedHandler<Shape>;
   annotations: ToolAnnotations;
 }

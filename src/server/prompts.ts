@@ -68,7 +68,7 @@ export function createFindRelatedHandler(
   return async (args) => {
     const path = validateVaultPath(args.path, adapter.getVaultPath());
     return userTextMessage(
-      `Find notes related to \`${path}\`. First read it with \`vault_read\`, then run \`search_fulltext\` on its key terms and \`vault_get_backlinks\` on its path. Cross-reference the results and report the most relevant connections.`,
+      `Find notes related to \`${path}\`. First read it with \`vault_read\`, then run \`search_fulltext\` on its key terms and \`vault_get_aspect\` with \`aspect: "backlinks"\` on its path. Cross-reference the results and report the most relevant connections.`,
     );
   };
 }

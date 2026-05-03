@@ -539,7 +539,7 @@ describe('SERVER_INSTRUCTIONS', () => {
     ['vault_read'],
     ['editor_'],
     ['workspace_open_file'],
-    ['vault_get_'],
+    ['vault_get_aspect'],
   ])('mentions the load-bearing tool name "%s"', async (token: string) => {
     const { SERVER_INSTRUCTIONS } = await import(
       '../../src/server/mcp-server'

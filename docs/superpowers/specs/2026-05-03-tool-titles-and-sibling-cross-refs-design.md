@@ -98,12 +98,12 @@ See also:
 Each entry names the sibling tool by its registry name and gives one short
 clause on when to pick the other one.
 
-## Title catalogue (54 tools)
+## Title catalogue (49 tools)
 
 Sentence case, no module prefix, ≤40 characters, disambiguator suffix where
 two titles would otherwise collide.
 
-### vault (22)
+### vault (17)
 
 | Name | Title |
 |---|---|
@@ -123,12 +123,7 @@ two titles would otherwise collide.
 | `vault_list_recursive` | List folder (recursive) |
 | `vault_read_binary` | Read binary file |
 | `vault_write_binary` | Write binary file |
-| `vault_get_frontmatter` | Get frontmatter |
-| `vault_get_headings` | Get headings |
-| `vault_get_outgoing_links` | Get outgoing links |
-| `vault_get_embeds` | Get embeds |
-| `vault_get_backlinks` | Get backlinks |
-| `vault_get_block_references` | Get block references |
+| `vault_get_aspect` | Get file aspect |
 
 ### editor (10)
 
@@ -219,7 +214,6 @@ Each pair is symmetric — both sides name the other tool.
 
 ### Deferred (follow-up issues filed after this PR lands)
 
-- `vault_get_outgoing_links` / `vault_get_embeds` / `vault_get_backlinks`
 - `editor_set_cursor` / `editor_set_selection`
 - `editor_get_active_file` / `workspace_get_active_leaf`
 - `template_create_from` / `template_expand`

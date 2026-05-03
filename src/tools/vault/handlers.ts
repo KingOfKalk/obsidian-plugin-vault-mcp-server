@@ -7,6 +7,7 @@ import { paginate, readPagination } from '../shared/pagination';
 import { makeResponse, readResponseFormat } from '../shared/response';
 import { BINARY_BYTE_LIMIT } from '../../constants';
 import type { InferredParams } from '../../registry/types';
+import type { SearchHandlers } from '../search/handlers';
 import type {
   createFileSchema,
   readFileSchema,
@@ -24,6 +25,7 @@ import type {
   listRecursiveSchema,
   readBinarySchema,
   writeBinarySchema,
+  getAspectSchema,
 } from './schemas';
 
 export class WriteMutex {
@@ -55,6 +57,65 @@ function textResult(text: string): CallToolResult {
 
 function errorResult(message: string): CallToolResult {
   return handleToolError(new Error(message));
+}
+
+async function dispatchAspect(
+  searchHandlers: SearchHandlers,
+  aspect:
+    | 'frontmatter'
+    | 'headings'
+    | 'outgoing_links'
+    | 'embeds'
+    | 'backlinks'
+    | 'block_references',
+  params: { path: string; response_format?: 'markdown' | 'json' },
+): Promise<CallToolResult> {
+  switch (aspect) {
+    case 'frontmatter':
+      return searchHandlers.searchFrontmatter(params);
+    case 'headings':
+      return searchHandlers.searchHeadings(params);
+    case 'outgoing_links':
+      return searchHandlers.searchOutgoingLinks(params);
+    case 'embeds':
+      return searchHandlers.searchEmbeds(params);
+    case 'backlinks':
+      return searchHandlers.searchBacklinks(params);
+    case 'block_references':
+      return searchHandlers.searchBlockReferences(params);
+  }
+}
+
+function decorateAspect(
+  inner: CallToolResult,
+  aspect: string,
+  path: string,
+  format: 'markdown' | 'json',
+): CallToolResult {
+  // Pass error results through unchanged so the underlying handler's
+  // message format (`isError: true`, content[0].text="…not found") is
+  // preserved exactly. The dispatcher only decorates success payloads.
+  if (inner.isError === true) return inner;
+
+  const decoratedStructured = {
+    aspect,
+    path,
+    ...(inner.structuredContent ?? {}),
+  };
+
+  // For JSON output the rendered text mirrors the structured payload;
+  // re-stringify so `aspect` shows up there too.
+  // For markdown output, leave the rendered text as the underlying
+  // handler produced it — the discriminator is implicit in the heading
+  // each renderer already emits (e.g. "**path** frontmatter:").
+  if (format === 'json') {
+    return {
+      ...inner,
+      content: [{ type: 'text' as const, text: JSON.stringify(decoratedStructured, null, 2) }],
+      structuredContent: decoratedStructured,
+    };
+  }
+  return { ...inner, structuredContent: decoratedStructured };
 }
 
 function renderFolderListing(
@@ -128,11 +189,13 @@ export interface VaultHandlers {
   listRecursive: (params: InferredParams<typeof listRecursiveSchema>) => Promise<CallToolResult>;
   readBinary: (params: InferredParams<typeof readBinarySchema>) => Promise<CallToolResult>;
   writeBinary: (params: InferredParams<typeof writeBinarySchema>) => Promise<CallToolResult>;
+  getAspect: (params: InferredParams<typeof getAspectSchema>) => Promise<CallToolResult>;
 }
 
 export function createHandlers(
   adapter: ObsidianAdapter,
   mutex: WriteMutex,
+  searchHandlers: SearchHandlers,
 ): VaultHandlers {
   const vaultPath = adapter.getVaultPath();
 
@@ -398,6 +461,16 @@ export function createHandlers(
           );
           return textResult(`Wrote binary file: ${path}`);
         });
+      } catch (error) {
+        return handleToolError(error);
+      }
+    },
+
+    async getAspect(params): Promise<CallToolResult> {
+      try {
+        const { aspect, path } = params;
+        const inner = await dispatchAspect(searchHandlers, aspect, params);
+        return decorateAspect(inner, aspect, path, readResponseFormat(params));
       } catch (error) {
         return handleToolError(error);
       }

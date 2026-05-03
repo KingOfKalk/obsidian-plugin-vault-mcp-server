@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
 import { createHandlers, WriteMutex } from '../../../src/tools/vault/handlers';
+import { createSearchHandlers } from '../../../src/tools/search/handlers';
 
 function getText(result: CallToolResult): string {
   const item = result.content[0];
@@ -17,7 +18,7 @@ describe('vault handlers', () => {
   beforeEach(() => {
     adapter = new MockObsidianAdapter();
     mutex = new WriteMutex();
-    handlers = createHandlers(adapter, mutex);
+    handlers = createHandlers(adapter, mutex, createSearchHandlers(adapter));
   });
 
   describe('createFile', () => {
@@ -449,7 +450,7 @@ describe('vault handlers truncation and size limits', () => {
 
   beforeEach(() => {
     adapter = new MockObsidianAdapter();
-    handlers = createHandlers(adapter, new WriteMutex());
+    handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
   });
 
   it('truncates oversized readFile content with a clear footer', async () => {
