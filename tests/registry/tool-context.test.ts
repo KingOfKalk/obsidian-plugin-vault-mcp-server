@@ -23,14 +23,17 @@ function makeLogger(): {
 
 function makeExtra(overrides: Partial<SdkExtra> = {}): SdkExtra {
   const sendNotification = vi.fn().mockResolvedValue(undefined);
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-  return {
+  const fake = {
     signal: new AbortController().signal,
     requestId: 1,
     sendNotification,
     sendRequest: vi.fn(),
     ...overrides,
-  } as unknown as SdkExtra;
+  };
+  // vi.fn()'s default loose signature does not structurally satisfy
+  // RequestHandlerExtra's typed sendRequest/sendNotification generics.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+  return fake as unknown as SdkExtra;
 }
 
 describe('createToolContext', () => {
