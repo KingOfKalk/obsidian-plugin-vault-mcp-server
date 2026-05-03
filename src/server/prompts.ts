@@ -58,11 +58,54 @@ export function createSummarizeNoteHandler(
 export function createFindRelatedHandler(
   adapter: ObsidianAdapter,
 ): (args: PathArgs) => Promise<GetPromptResult> {
+  // async so a synchronous throw from validateVaultPath surfaces as a
+  // rejected promise rather than a synchronous throw at the call site.
   // eslint-disable-next-line @typescript-eslint/require-await
   return async (args) => {
     const path = validateVaultPath(args.path, adapter.getVaultPath());
     return userTextMessage(
       `Find notes related to \`${path}\`. First read it with \`vault_read\`, then run \`search_fulltext\` on its key terms and \`vault_get_backlinks\` on its path. Cross-reference the results and report the most relevant connections.`,
     );
+  };
+}
+
+interface TemplateArgs {
+  template: string;
+}
+
+const TEMPLATES_FOLDER = 'templates';
+const COMPLETER_RESULT_LIMIT = 100;
+
+export function createExpandTemplateHandler(
+  adapter: ObsidianAdapter,
+): (args: TemplateArgs) => Promise<GetPromptResult> {
+  return async (args) => {
+    const template = validateVaultPath(args.template, adapter.getVaultPath());
+    const body = await adapter.readFile(template);
+    const placeholders = extractPlaceholders(body);
+    const text = placeholders.length === 0
+      ? `Expand the template at \`${template}\`. It has no user-fillable placeholders — call \`template_expand\` directly with the template body.`
+      : `Expand the template at \`${template}\`. It contains these placeholders: \`${placeholders.join(', ')}\`. Ask the user for values for each placeholder, then call \`template_expand\` with the template body and the variables. If the user wants the result written to a new note, use \`template_create_from\` instead.`;
+    return userTextMessage(text);
+  };
+}
+
+export function createTemplateCompleter(
+  adapter: ObsidianAdapter,
+): (partial: string) => Promise<string[]> {
+  // async so the return type matches the SDK's CompleteCallback signature
+  // (string[] | Promise<string[]>), keeping this consistent with other
+  // async-by-convention callbacks in this module.
+  // eslint-disable-next-line @typescript-eslint/require-await
+  return async (partial) => {
+    try {
+      const list = adapter.list(TEMPLATES_FOLDER);
+      const needle = partial.toLowerCase();
+      return list.files
+        .filter((p) => p.toLowerCase().includes(needle))
+        .slice(0, COMPLETER_RESULT_LIMIT);
+    } catch {
+      return [];
+    }
   };
 }
