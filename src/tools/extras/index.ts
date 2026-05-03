@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import {
   ToolModule,
@@ -15,6 +16,18 @@ import {
 } from '../shared/response';
 
 const getDateSchema = { ...responseFormatField };
+
+/**
+ * Output schema for the `extras_get_date` tool that emits `structuredContent`
+ * (Batch D of #248).
+ */
+const getDateOutputSchema = {
+  iso: z
+    .string()
+    .describe(
+      'Local datetime as an ISO-8601 string with timezone offset, e.g. "2026-04-19T08:30:00.000+02:00".',
+    ),
+};
 
 interface ExtrasHandlers {
   getDate: (params: InferredParams<typeof getDateSchema>) => Promise<CallToolResult>;
@@ -77,6 +90,7 @@ export function createExtrasModule(adapter: ObsidianAdapter): ToolModule {
             examples: ['Use when: stamping a daily note with the current local time.'],
           }, getDateSchema),
           schema: getDateSchema,
+          outputSchema: getDateOutputSchema,
           handler: h.getDate,
           annotations: annotations.read,
         }),
