@@ -7,6 +7,20 @@ import { ToolDefinition } from '../registry/types';
 import { handleToolError } from '../tools/shared/errors';
 import manifest from '../../manifest.json';
 
+/**
+ * Tool-use hints injected into Claude's session-long system prompt via the
+ * MCP protocol-level `instructions` field. These tokens are paid every turn,
+ * so the string is intentionally short and limited to hints that the per-tool
+ * descriptions cannot convey on their own. See
+ * docs/superpowers/specs/2026-05-03-mcp-server-instructions-field-design.md.
+ */
+export const SERVER_INSTRUCTIONS = `This server exposes an Obsidian vault as MCP tools.
+
+- Prefer \`search_fulltext\` (or other \`search_*\` tools) before \`vault_read\` when you don't already know the file path.
+- \`editor_*\` tools operate on the **active** file only — open one with \`workspace_open_file\` first if needed.
+- Paths are vault-relative with forward slashes (e.g. \`notes/foo.md\`); never absolute filesystem paths.
+- Frontmatter, headings, links, embeds, backlinks, and block refs are exposed as separate \`vault_get_*\` tools — don't parse them out of \`vault_read\` output.`;
+
 export function createMcpServer(
   registry: ModuleRegistry,
   logger: Logger,
@@ -23,6 +37,7 @@ export function createMcpServer(
       capabilities: {
         tools: {},
       },
+      instructions: SERVER_INSTRUCTIONS,
     },
   );
 
