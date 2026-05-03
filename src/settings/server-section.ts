@@ -297,6 +297,16 @@ export function renderServerSettingsSection(
       }),
     );
 
+  new Setting(containerEl)
+    .setName(t('setting_prompts_enabled_name'))
+    .setDesc(t('setting_prompts_enabled_desc'))
+    .addToggle((toggle) =>
+      toggle.setValue(plugin.settings.promptsEnabled).onChange(async (value) => {
+        plugin.settings.promptsEnabled = value;
+        await plugin.saveSettings();
+      }),
+    );
+
   renderDnsRebindSection(containerEl, plugin, refresh);
 }
 
