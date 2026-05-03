@@ -83,6 +83,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
       return [
         defineTool({
           name: 'search_fulltext',
+          title: 'Full-text search',
           description: describeTool({
             summary: 'Case-insensitive substring search across all vault file contents.',
             args: ['query (string, 1..500): Substring to look for.'],
@@ -97,6 +98,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'search_tags',
+          title: 'List tags',
           description: describeTool({
             summary: 'List every tag used anywhere in the vault with the files that use it.',
             returns: 'JSON: Record<tag, string[]>. Each key is the tag including leading #.',
@@ -108,6 +110,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'search_resolved_links',
+          title: 'Find resolved links',
           description: describeTool({
             summary: 'Get the vault-wide map of resolved links (targets that exist).',
             returns: 'JSON: Record<source, Record<target, count>>.',
@@ -119,6 +122,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'search_unresolved_links',
+          title: 'Find unresolved links',
           description: describeTool({
             summary: 'Get the vault-wide map of unresolved links (targets that do not exist).',
             returns: 'JSON: Record<source, Record<target, count>>.',
@@ -131,6 +135,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'search_by_tag',
+          title: 'Find notes by tag',
           description: describeTool({
             summary: 'Find files tagged with a given tag (with or without leading #).',
             args: ['tag (string, 1..200): Tag to search for, e.g. "project" or "#project".'],
@@ -143,6 +148,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'search_by_frontmatter',
+          title: 'Find notes by frontmatter',
           description: describeTool({
             summary: 'Find files whose YAML frontmatter has a key with a given value.',
             args: [
