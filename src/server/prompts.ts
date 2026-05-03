@@ -1,5 +1,9 @@
 import type { GetPromptResult } from '@modelcontextprotocol/sdk/types.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { completable } from '@modelcontextprotocol/sdk/server/completable.js';
+import { z } from 'zod';
 import type { ObsidianAdapter } from '../obsidian/adapter';
+import type { Logger } from '../utils/logger';
 import { validateVaultPath } from '../utils/path-guard';
 
 const TEMPLATE_BUILTIN_PLACEHOLDERS = new Set(['date', 'time', 'title']);
@@ -108,4 +112,57 @@ export function createTemplateCompleter(
       return [];
     }
   };
+}
+
+export function registerPrompts(
+  server: McpServer,
+  adapter: ObsidianAdapter,
+  logger: Logger,
+): void {
+  const summarize = createSummarizeNoteHandler(adapter);
+  const findRelated = createFindRelatedHandler(adapter);
+  const expand = createExpandTemplateHandler(adapter);
+  const templateCompleter = createTemplateCompleter(adapter);
+
+  logger.debug('Registering prompt: summarize-note');
+  server.registerPrompt(
+    'summarize-note',
+    {
+      title: 'Summarize a vault note',
+      description: 'Read a note and produce a concise summary covering its main points and any actionable items.',
+      argsSchema: {
+        path: z.string().min(1).describe('Vault-relative path to the note to summarize'),
+      },
+    },
+    (args: { path: string }, _extra) => summarize(args),
+  );
+
+  logger.debug('Registering prompt: find-related');
+  server.registerPrompt(
+    'find-related',
+    {
+      title: 'Find notes related to a given note',
+      description: "Cross-reference a note's content against the vault to surface related material.",
+      argsSchema: {
+        path: z.string().min(1).describe('Vault-relative path to the seed note'),
+      },
+    },
+    (args: { path: string }, _extra) => findRelated(args),
+  );
+
+  logger.debug('Registering prompt: expand-template');
+  server.registerPrompt(
+    'expand-template',
+    {
+      title: 'Expand a vault template',
+      description: 'Discover the placeholders in a template and walk through filling them in.',
+      argsSchema: {
+        template: completable(
+          z.string().min(1).describe('Vault-relative path to the template file'),
+          (value) => templateCompleter(value),
+        ),
+      },
+    },
+    (args: { template: string }, _extra) => expand(args),
+  );
 }
