@@ -59,6 +59,7 @@ describe('Integration: HTTPS server with user-provided cert', () => {
     const logMod = await import('../../src/utils/logger');
     const mockMod = await import('../../src/obsidian/mock-adapter');
     const vaultMod = await import('../../src/tools/vault/index');
+    const { DEFAULT_SETTINGS } = await import('../../src/types');
 
     const logger = new logMod.Logger('test', {
       debugMode: false,
@@ -69,7 +70,7 @@ describe('Integration: HTTPS server with user-provided cert', () => {
     registry.registerModule(vaultMod.createVaultModule(adapter));
 
     server = new httpMod.HttpMcpServer(
-      () => mcpMod.createMcpServer(registry, logger),
+      () => mcpMod.createMcpServer(registry, adapter, DEFAULT_SETTINGS, logger),
       logger,
       {
         host: '127.0.0.1',

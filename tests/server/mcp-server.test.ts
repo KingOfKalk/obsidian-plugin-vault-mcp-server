@@ -7,6 +7,8 @@ import { ModuleRegistry } from '../../src/registry/module-registry';
 import { ToolDefinition, ToolModule, annotations } from '../../src/registry/types';
 import { PermissionError } from '../../src/tools/shared/errors';
 import type { ToolContext } from '../../src/registry/tool-context';
+import { DEFAULT_SETTINGS } from '../../src/types';
+import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';
 
 interface CapturedServerInfo {
   name: string;
@@ -14,8 +16,14 @@ interface CapturedServerInfo {
 }
 
 interface CapturedOptions {
-  capabilities?: { tools?: unknown; logging?: unknown };
+  capabilities?: { tools?: unknown; logging?: unknown; resources?: unknown };
   instructions?: string;
+}
+
+interface CapturedRegisterResourceCall {
+  name: string;
+  uriOrTemplate: unknown;
+  metadata: Record<string, unknown>;
 }
 
 interface CapturedRegisterToolCall {
@@ -35,6 +43,7 @@ const capturedConstructorArgs: Array<{
 }> = [];
 
 const capturedRegisterToolCalls: CapturedRegisterToolCall[] = [];
+const capturedRegisterResourceCalls: CapturedRegisterResourceCall[] = [];
 
 vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => {
   class FakeMcpServer {
@@ -48,8 +57,14 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => {
     ): void {
       capturedRegisterToolCalls.push({ name, config });
     }
+    registerResource(name: string, uriOrTemplate: unknown, metadata: Record<string, unknown>): void {
+      capturedRegisterResourceCalls.push({ name, uriOrTemplate, metadata });
+    }
   }
-  return { McpServer: FakeMcpServer };
+  class FakeResourceTemplate {
+    constructor(public uriTemplate: string, public callbacks: unknown) {}
+  }
+  return { McpServer: FakeMcpServer, ResourceTemplate: FakeResourceTemplate };
 });
 
 function makeLogger(): Logger {
@@ -60,13 +75,14 @@ describe('createMcpServer', () => {
   beforeEach(() => {
     capturedConstructorArgs.length = 0;
     capturedRegisterToolCalls.length = 0;
+    capturedRegisterResourceCalls.length = 0;
   });
 
   it('advertises the server as "obsidian-mcp-server" per the {service}-mcp-server convention', async () => {
     const { createMcpServer } = await import('../../src/server/mcp-server');
     const registry = new ModuleRegistry(makeLogger());
 
-    createMcpServer(registry, makeLogger());
+    createMcpServer(registry, new MockObsidianAdapter(), DEFAULT_SETTINGS, makeLogger());
 
     expect(capturedConstructorArgs).toHaveLength(1);
     expect(capturedConstructorArgs[0].serverInfo.name).toBe('obsidian-mcp-server');
@@ -76,7 +92,7 @@ describe('createMcpServer', () => {
     const { createMcpServer } = await import('../../src/server/mcp-server');
     const registry = new ModuleRegistry(makeLogger());
 
-    createMcpServer(registry, makeLogger());
+    createMcpServer(registry, new MockObsidianAdapter(), DEFAULT_SETTINGS, makeLogger());
 
     expect(capturedConstructorArgs).toHaveLength(1);
     expect(capturedConstructorArgs[0].serverInfo.version).toBe(manifest.version);
@@ -89,7 +105,7 @@ describe('createMcpServer', () => {
     const { createMcpServer } = await import('../../src/server/mcp-server');
     const registry = new ModuleRegistry(makeLogger());
 
-    createMcpServer(registry, makeLogger());
+    createMcpServer(registry, new MockObsidianAdapter(), DEFAULT_SETTINGS, makeLogger());
 
     expect(capturedConstructorArgs[0].options.capabilities?.tools).toBeDefined();
   });
@@ -98,7 +114,7 @@ describe('createMcpServer', () => {
     const { createMcpServer } = await import('../../src/server/mcp-server');
     const registry = new ModuleRegistry(makeLogger());
 
-    createMcpServer(registry, makeLogger());
+    createMcpServer(registry, new MockObsidianAdapter(), DEFAULT_SETTINGS, makeLogger());
 
     expect(capturedConstructorArgs[0].options.capabilities?.logging).toBeDefined();
   });
@@ -108,7 +124,7 @@ describe('createMcpServer', () => {
     const { createMcpServer, SERVER_INSTRUCTIONS } = mod;
     const registry = new ModuleRegistry(makeLogger());
 
-    createMcpServer(registry, makeLogger());
+    createMcpServer(registry, new MockObsidianAdapter(), DEFAULT_SETTINGS, makeLogger());
 
     expect(capturedConstructorArgs).toHaveLength(1);
     // Guard against a destructured-undefined trivial pass where both
@@ -159,7 +175,7 @@ describe('createMcpServer', () => {
     const registry = new ModuleRegistry(makeLogger());
     registry.registerModule(stubModule);
 
-    createMcpServer(registry, makeLogger());
+    createMcpServer(registry, new MockObsidianAdapter(), DEFAULT_SETTINGS, makeLogger());
 
     expect(capturedRegisterToolCalls).toHaveLength(2);
 
@@ -201,12 +217,41 @@ describe('createMcpServer', () => {
 
     const registry = new ModuleRegistry(makeLogger());
     registry.registerModule(stubModule);
-    createMcpServer(registry, makeLogger());
+    createMcpServer(registry, new MockObsidianAdapter(), DEFAULT_SETTINGS, makeLogger());
 
     const call = capturedRegisterToolCalls.find((c) => c.name === 'titled');
     expect(call).toBeDefined();
     expect(call?.config.title).toBe('Pretty title');
     expect(call?.config.annotations?.title).toBe('Pretty title');
+  });
+
+  it('declares the resources capability and registers vault-index + vault-file when resourcesEnabled', async () => {
+    const { createMcpServer } = await import('../../src/server/mcp-server');
+    const registry = new ModuleRegistry(makeLogger());
+    const adapter = new MockObsidianAdapter();
+    const settings = { ...DEFAULT_SETTINGS, resourcesEnabled: true };
+
+    createMcpServer(registry, adapter, settings, makeLogger());
+
+    const caps = capturedConstructorArgs[0].options.capabilities;
+    expect(caps).toMatchObject({ resources: {} });
+    expect(capturedRegisterResourceCalls.map((c) => c.name)).toEqual([
+      'vault-index',
+      'vault-file',
+    ]);
+  });
+
+  it('omits the resources capability and skips registration when resourcesEnabled is false', async () => {
+    const { createMcpServer } = await import('../../src/server/mcp-server');
+    const registry = new ModuleRegistry(makeLogger());
+    const adapter = new MockObsidianAdapter();
+    const settings = { ...DEFAULT_SETTINGS, resourcesEnabled: false };
+
+    createMcpServer(registry, adapter, settings, makeLogger());
+
+    const caps = capturedConstructorArgs[0].options.capabilities;
+    expect(caps).not.toHaveProperty('resources');
+    expect(capturedRegisterResourceCalls).toHaveLength(0);
   });
 });
 

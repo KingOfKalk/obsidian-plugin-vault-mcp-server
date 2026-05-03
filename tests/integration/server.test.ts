@@ -55,6 +55,7 @@ let ModuleRegistry: typeof import('../../src/registry/module-registry').ModuleRe
 let Logger: typeof import('../../src/utils/logger').Logger;
 let MockObsidianAdapter: typeof import('../../src/obsidian/mock-adapter').MockObsidianAdapter;
 let createVaultModule: typeof import('../../src/tools/vault/index').createVaultModule;
+let DEFAULT_SETTINGS: typeof import('../../src/types').DEFAULT_SETTINGS;
 
 beforeAll(async () => {
   const httpMod = await import('../../src/server/http-server');
@@ -63,6 +64,7 @@ beforeAll(async () => {
   const logMod = await import('../../src/utils/logger');
   const mockMod = await import('../../src/obsidian/mock-adapter');
   const vaultMod = await import('../../src/tools/vault/index');
+  const typesMod = await import('../../src/types');
 
   HttpMcpServer = httpMod.HttpMcpServer;
   createMcpServer = mcpMod.createMcpServer;
@@ -70,6 +72,7 @@ beforeAll(async () => {
   Logger = logMod.Logger;
   MockObsidianAdapter = mockMod.MockObsidianAdapter;
   createVaultModule = vaultMod.createVaultModule;
+  DEFAULT_SETTINGS = typesMod.DEFAULT_SETTINGS;
 });
 
 describe('Integration: HTTP Server Authentication', () => {
@@ -82,7 +85,7 @@ describe('Integration: HTTP Server Authentication', () => {
     const vaultModule = createVaultModule(adapter);
     registry.registerModule(vaultModule);
     server = new HttpMcpServer(
-      () => createMcpServer(registry, logger),
+      () => createMcpServer(registry, adapter, DEFAULT_SETTINGS, logger),
       logger,
       {
         host: '127.0.0.1',
