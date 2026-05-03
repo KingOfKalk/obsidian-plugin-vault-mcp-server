@@ -22,8 +22,9 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.moduleStates).toEqual({});
   });
 
-  it('should have schema version 11', () => {
-    expect(DEFAULT_SETTINGS.schemaVersion).toBe(11);
+  it('should have schema version 12', () => {
+    expect(DEFAULT_SETTINGS.schemaVersion).toBe(12);
+    expect(DEFAULT_SETTINGS.promptsEnabled).toBe(true);
   });
 
   it('should have loopback-only Origin and Host allowlists by default', () => {

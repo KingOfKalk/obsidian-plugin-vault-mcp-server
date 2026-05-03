@@ -287,8 +287,8 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.authEnabled).toBe(true);
   });
 
-  it('declares schemaVersion 11', () => {
-    expect(DEFAULT_SETTINGS.schemaVersion).toBe(11);
+  it('declares schemaVersion 12', () => {
+    expect(DEFAULT_SETTINGS.schemaVersion).toBe(12);
   });
 
   it('defaults custom TLS fields to off/null', () => {
