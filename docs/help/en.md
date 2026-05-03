@@ -138,6 +138,7 @@ The settings tab is split into five sections.
 | **HTTPS** | off | Switch to HTTPS using a locally generated self-signed certificate. Restart required. See the FAQ for client-side trust. |
 | **TLS Certificate** | auto | Generated on the first HTTPS start, then cached in `data.json`. Use **Regenerate certificate** if you change the address or want a fresh key pair — clients will need to re-trust the new cert. |
 | **Auto-start on launch** | off | Start the MCP server automatically when Obsidian loads. The server still applies the auth/insecure-mode guard on auto-start, so a misconfigured install stays stopped and the reason is logged. |
+| **Expose vault files as MCP resources** | **on** | When on, MCP hosts can browse and read vault files via the resources surface (`obsidian://vault/{path}`) in addition to tools. Restart the server to apply changes. See [Resources](#resources) below. |
 
 #### DNS Rebind Protection
 
@@ -269,6 +270,23 @@ This server exposes an Obsidian vault as MCP tools.
 Source of truth: [`src/server/mcp-server.ts`](https://github.com/KingOfKalk/obsidian-plugin-mcp/blob/main/src/server/mcp-server.ts)
 (`SERVER_INSTRUCTIONS`). If you suspect drift between the quoted text above
 and the live string, the source file wins.
+
+---
+
+## Resources
+
+In addition to tools, the server exposes the vault as **MCP resources** so hosts (Claude Desktop, MCP-compatible IDEs, etc.) can browse and read notes natively without spending tool-use turns.
+
+### URIs
+
+- **`obsidian://vault/index`** — a static JSON listing of every file and folder in the vault. Each file entry carries a ready-to-read URI and mime type. Listings over 25 000 characters are truncated; use the `vault_list_recursive` tool for full enumeration on very large vaults.
+- **`obsidian://vault/{path}`** — read any file by its vault-relative path. Markdown, text, JSON, CSV, YAML, HTML, and SVG files are returned as text; other files (images, PDFs, audio, video) are returned as base64 blobs.
+
+Binary files larger than **1 MiB** are refused. Use the `vault_read_binary` tool if you genuinely need a larger file.
+
+### Disabling
+
+If you only want the tools surface, turn off **"Expose vault files as MCP resources"** in *Server Settings* and restart the server. The server then advertises a tools-only capability set.
 
 ---
 
