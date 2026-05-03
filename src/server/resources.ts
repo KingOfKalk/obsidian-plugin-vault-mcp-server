@@ -3,6 +3,8 @@ import type { ReadResourceResult } from '@modelcontextprotocol/sdk/types.js';
 import { validateVaultPath, PathTraversalError } from '../utils/path-guard';
 import type { ObsidianAdapter } from '../obsidian/adapter';
 import type { Logger } from '../utils/logger';
+import { BinaryTooLargeError, FileNotFoundError } from '../tools/shared/errors';
+import { BINARY_BYTE_LIMIT } from '../constants';
 
 /**
  * Static mime-type table covering the file types that show up in an
@@ -112,6 +114,17 @@ export function createFileHandler(
         ],
       };
     }
-    throw new Error('Binary branch not implemented yet'); // filled in in the next task
+    const stat = await adapter.stat(path);
+    if (stat === null) {
+      throw new FileNotFoundError(path);
+    }
+    if (stat.size > BINARY_BYTE_LIMIT) {
+      throw new BinaryTooLargeError(stat.size, BINARY_BYTE_LIMIT);
+    }
+    const data = await adapter.readBinary(path);
+    const blob = Buffer.from(data).toString('base64');
+    return {
+      contents: [{ uri: uri.toString(), mimeType: mime, blob }],
+    };
   };
 }

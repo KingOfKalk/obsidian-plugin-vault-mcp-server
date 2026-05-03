@@ -3,6 +3,7 @@ import { getMimeType, isTextMime, parseVaultUri, createFileHandler } from '../..
 import { PathTraversalError } from '../../src/utils/path-guard';
 import { Logger } from '../../src/utils/logger';
 import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';
+import { BinaryTooLargeError } from '../../src/tools/shared/errors';
 
 function makeLogger(): Logger {
   return new Logger('test', { debugMode: false, accessKey: '' });
@@ -129,5 +130,52 @@ describe('fileHandler — text', () => {
       new URL('obsidian://vault/missing.md'),
       { path: 'missing.md' },
     )).rejects.toThrow(/not found/i);
+  });
+});
+
+describe('fileHandler — binary', () => {
+  it('returns BlobResourceContents (base64) for a small image', async () => {
+    const adapter = new MockObsidianAdapter();
+    const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]); // PNG magic
+    await adapter.writeBinary('img.png', bytes.buffer);
+    const handler = createFileHandler(adapter, makeLogger());
+
+    const result = await handler(
+      new URL('obsidian://vault/img.png'),
+      { path: 'img.png' },
+    );
+
+    expect(result.contents).toHaveLength(1);
+    const c = result.contents[0] as { uri: string; mimeType: string; blob: string };
+    expect(c.uri).toBe('obsidian://vault/img.png');
+    expect(c.mimeType).toBe('image/png');
+    expect(Buffer.from(c.blob, 'base64')).toEqual(Buffer.from(bytes));
+  });
+
+  it('serves a file at exactly 1 MiB', async () => {
+    const adapter = new MockObsidianAdapter();
+    const bytes = new Uint8Array(1_048_576);
+    await adapter.writeBinary('big.png', bytes.buffer);
+    const handler = createFileHandler(adapter, makeLogger());
+
+    const result = await handler(
+      new URL('obsidian://vault/big.png'),
+      { path: 'big.png' },
+    );
+
+    const c = result.contents[0] as { blob: string };
+    expect(Buffer.from(c.blob, 'base64').byteLength).toBe(1_048_576);
+  });
+
+  it('throws BinaryTooLargeError above 1 MiB', async () => {
+    const adapter = new MockObsidianAdapter();
+    const bytes = new Uint8Array(1_048_577);
+    await adapter.writeBinary('big.png', bytes.buffer);
+    const handler = createFileHandler(adapter, makeLogger());
+
+    await expect(handler(
+      new URL('obsidian://vault/big.png'),
+      { path: 'big.png' },
+    )).rejects.toBeInstanceOf(BinaryTooLargeError);
   });
 });
