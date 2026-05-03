@@ -138,6 +138,14 @@ export function migrateV10ToV11(data: Settings): void {
   if (data.resourcesEnabled === undefined) data.resourcesEnabled = true;
 }
 
+export function migrateV11ToV12(data: Settings): void {
+  // Default the new prompts surface on for existing installs. They can
+  // disable it in Server Settings if they prefer to skip the
+  // slash-command prompts. See
+  // docs/superpowers/specs/2026-05-03-mcp-prompts-slash-commands-design.md.
+  if (data.promptsEnabled === undefined) data.promptsEnabled = true;
+}
+
 const HOPS: Array<{ target: number; run: MigrationHop }> = [
   { target: 1, run: migrateV0ToV1 },
   { target: 2, run: migrateV1ToV2 },
@@ -150,9 +158,10 @@ const HOPS: Array<{ target: number; run: MigrationHop }> = [
   { target: 9, run: migrateV8ToV9 },
   { target: 10, run: migrateV9ToV10 },
   { target: 11, run: migrateV10ToV11 },
+  { target: 12, run: migrateV11ToV12 },
 ];
 
-export const CURRENT_SCHEMA_VERSION = 11;
+export const CURRENT_SCHEMA_VERSION = 12;
 
 export function migrateSettings(data: Settings): Settings {
   const currentVersion =
