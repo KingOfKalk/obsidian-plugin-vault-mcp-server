@@ -6,6 +6,7 @@ import { handleToolError } from '../shared/errors';
 import { paginate, readPagination } from '../shared/pagination';
 import { makeResponse, readResponseFormat } from '../shared/response';
 import type { InferredParams } from '../../registry/types';
+import type { ToolContext } from '../../registry/tool-context';
 import type {
   searchFulltextSchema,
   filePathSchema,
@@ -15,7 +16,10 @@ import type {
 } from './schemas';
 
 export interface SearchHandlers {
-  searchFulltext: (params: InferredParams<typeof searchFulltextSchema>) => Promise<CallToolResult>;
+  searchFulltext: (
+    params: InferredParams<typeof searchFulltextSchema>,
+    ctx?: ToolContext,
+  ) => Promise<CallToolResult>;
   searchFrontmatter: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
   searchTags: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
   searchHeadings: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
@@ -62,17 +66,48 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
   const vaultPath = adapter.getVaultPath();
 
   return {
-    async searchFulltext(params): Promise<CallToolResult> {
+    async searchFulltext(params, ctx): Promise<CallToolResult> {
       try {
-        const query = params.query;
-        const all = await adapter.searchContent(query);
-        const page = paginate(all, readPagination(params));
+        const lowerQuery = params.query.toLowerCase();
+        const allFiles = adapter.getAllFiles();
+        const total = allFiles.length;
+        const matched: Array<{ path: string; matches: string[] }> = [];
+
+        let lastPct = -1;
+        for (let i = 0; i < total; i++) {
+          if (ctx?.signal.aborted) {
+            throw new Error('Cancelled');
+          }
+          const path = allFiles[i];
+          const content = await adapter.readFile(path);
+          if (content.toLowerCase().includes(lowerQuery)) {
+            const lines = content.split('\n');
+            const matches = lines.filter((line) =>
+              line.toLowerCase().includes(lowerQuery),
+            );
+            matched.push({ path, matches });
+          }
+          if (ctx) {
+            const pct = Math.floor(((i + 1) / total) * 100);
+            if (pct > lastPct) {
+              lastPct = pct;
+              await ctx.reportProgress(
+                i + 1,
+                total,
+                `Scanned ${String(i + 1)}/${String(total)} files`,
+              );
+            }
+          }
+        }
+
+        const page = paginate(matched, readPagination(params));
         const result = makeResponse(
           page,
           (v) => {
             if (v.items.length === 0) return 'No matches.';
             const lines = v.items.map(
-              (m) => `- ${m.path} (${String(m.matches.length)} match${m.matches.length === 1 ? '' : 'es'})`,
+              (m) =>
+                `- ${m.path} (${String(m.matches.length)} match${m.matches.length === 1 ? '' : 'es'})`,
             );
             const pager = v.has_more
               ? `\n\n_Showing ${String(v.count)} of ${String(v.total)} — next offset: ${String(v.next_offset ?? '')}_`

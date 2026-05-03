@@ -5,6 +5,20 @@ import { Logger } from '../../src/utils/logger';
 import type { ToolDefinition } from '../../src/registry/types';
 import { annotations } from '../../src/registry/types';
 
+function makeExtra(): {
+  signal: AbortSignal;
+  sendNotification: ReturnType<typeof vi.fn>;
+  sendRequest: ReturnType<typeof vi.fn>;
+  requestId: number;
+} {
+  return {
+    signal: new AbortController().signal,
+    requestId: 1,
+    sendNotification: vi.fn().mockResolvedValue(undefined),
+    sendRequest: vi.fn(),
+  };
+}
+
 function makeLogger(): Logger {
   return new Logger('test', { debugMode: false, accessKey: '' });
 }
@@ -37,27 +51,35 @@ describe('createToolDispatcher', () => {
     const tool = makeTool();
     const dispatch = createToolDispatcher(tool, makeLogger());
 
-    const result = await dispatch({ path: 'notes/a.md', count: 3 });
+    const result = await dispatch({ path: 'notes/a.md', count: 3 }, makeExtra() as never);
 
     expect(result.isError).toBeUndefined();
     expect(tool.handler).toHaveBeenCalledTimes(1);
-    expect(tool.handler).toHaveBeenCalledWith({ path: 'notes/a.md', count: 3 });
+    expect(tool.handler).toHaveBeenCalledWith(
+      { path: 'notes/a.md', count: 3 },
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
   });
 
   it('fills in schema defaults before calling the handler', async () => {
     const tool = makeTool();
     const dispatch = createToolDispatcher(tool, makeLogger());
 
-    await dispatch({ path: 'a.md' });
+    await dispatch({ path: 'a.md' }, makeExtra() as never);
 
-    expect(tool.handler).toHaveBeenCalledWith({ path: 'a.md', count: 0 });
+    expect(tool.handler).toHaveBeenCalledWith(
+      { path: 'a.md', count: 0 },
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
   });
 
   it('returns a well-formed MCP error when a required field is missing', async () => {
     const tool = makeTool();
     const dispatch = createToolDispatcher(tool, makeLogger());
 
-    const result = await dispatch({});
+    const result = await dispatch({}, makeExtra() as never);
 
     expect(result.isError).toBe(true);
     expect(tool.handler).not.toHaveBeenCalled();
@@ -70,7 +92,7 @@ describe('createToolDispatcher', () => {
     const tool = makeTool();
     const dispatch = createToolDispatcher(tool, makeLogger());
 
-    const result = await dispatch({ path: 42 });
+    const result = await dispatch({ path: 42 }, makeExtra() as never);
 
     expect(result.isError).toBe(true);
     expect(tool.handler).not.toHaveBeenCalled();
@@ -82,7 +104,7 @@ describe('createToolDispatcher', () => {
     const tool = makeTool();
     const dispatch = createToolDispatcher(tool, makeLogger());
 
-    const result = await dispatch({ path: 'a.md', bogus: true });
+    const result = await dispatch({ path: 'a.md', bogus: true }, makeExtra() as never);
 
     expect(result.isError).toBe(true);
     expect(tool.handler).not.toHaveBeenCalled();
@@ -96,7 +118,7 @@ describe('createToolDispatcher', () => {
     });
     const dispatch = createToolDispatcher(tool, makeLogger());
 
-    const result = await dispatch({ path: 'a.md' });
+    const result = await dispatch({ path: 'a.md' }, makeExtra() as never);
 
     expect(result.isError).toBe(true);
     const text = result.content[0].type === 'text' ? result.content[0].text : '';
@@ -112,9 +134,13 @@ describe('createToolDispatcher', () => {
     });
     const dispatch = createToolDispatcher(tool, makeLogger());
 
-    const result = await dispatch(undefined);
+    const result = await dispatch(undefined, makeExtra() as never);
 
     expect(result.isError).toBeUndefined();
-    expect(tool.handler).toHaveBeenCalledWith({});
+    expect(tool.handler).toHaveBeenCalledWith(
+      {},
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
   });
 });

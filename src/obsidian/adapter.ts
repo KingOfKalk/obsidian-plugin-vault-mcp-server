@@ -49,7 +49,6 @@ export interface ObsidianAdapter {
   getResolvedLinks(): Record<string, Record<string, number>>;
   getUnresolvedLinks(): Record<string, Record<string, number>>;
   getAllFiles(): string[];
-  searchContent(query: string): Promise<Array<{ path: string; matches: string[] }>>;
 
   // Editor operations
   getActiveFileContent(): string | null;
@@ -287,21 +286,6 @@ export class RealObsidianAdapter implements ObsidianAdapter {
 
   getAllFiles(): string[] {
     return (this.app.vault.getMarkdownFiles()).map((f) => f.path);
-  }
-
-  async searchContent(query: string): Promise<Array<{ path: string; matches: string[] }>> {
-    const results: Array<{ path: string; matches: string[] }> = [];
-    const files = this.app.vault.getMarkdownFiles();
-    const lowerQuery = query.toLowerCase();
-    for (const file of files) {
-      const content = await this.app.vault.read(file);
-      if (content.toLowerCase().includes(lowerQuery)) {
-        const lines = content.split('\n');
-        const matches = lines.filter((line) => line.toLowerCase().includes(lowerQuery));
-        results.push({ path: file.path, matches });
-      }
-    }
-    return results;
   }
 
   getActiveFileContent(): string | null {

@@ -6,6 +6,7 @@ import { Logger } from '../../src/utils/logger';
 import { ModuleRegistry } from '../../src/registry/module-registry';
 import { ToolDefinition, ToolModule, annotations } from '../../src/registry/types';
 import { PermissionError } from '../../src/tools/shared/errors';
+import type { ToolContext } from '../../src/registry/tool-context';
 
 interface CapturedServerInfo {
   name: string;
@@ -13,7 +14,7 @@ interface CapturedServerInfo {
 }
 
 interface CapturedOptions {
-  capabilities?: { tools?: unknown };
+  capabilities?: { tools?: unknown; logging?: unknown };
   instructions?: string;
 }
 
@@ -91,6 +92,15 @@ describe('createMcpServer', () => {
     createMcpServer(registry, makeLogger());
 
     expect(capturedConstructorArgs[0].options.capabilities?.tools).toBeDefined();
+  });
+
+  it('declares logging capability on the server so clients can call logging/setLevel', async () => {
+    const { createMcpServer } = await import('../../src/server/mcp-server');
+    const registry = new ModuleRegistry(makeLogger());
+
+    createMcpServer(registry, makeLogger());
+
+    expect(capturedConstructorArgs[0].options.capabilities?.logging).toBeDefined();
   });
 
   it('forwards SERVER_INSTRUCTIONS to the McpServer constructor as the instructions option', async () => {
@@ -201,6 +211,22 @@ describe('createMcpServer', () => {
 });
 
 describe('createToolDispatcher', () => {
+  function makeExtra(overrides: Record<string, unknown> = {}): {
+    signal: AbortSignal;
+    _meta?: { progressToken?: string | number };
+    sendNotification: ReturnType<typeof vi.fn>;
+    sendRequest: ReturnType<typeof vi.fn>;
+    requestId: number;
+  } {
+    return {
+      signal: new AbortController().signal,
+      requestId: 1,
+      sendNotification: vi.fn().mockResolvedValue(undefined),
+      sendRequest: vi.fn(),
+      ...overrides,
+    };
+  }
+
   function makeSpiedLogger(): {
     logger: Logger;
     warn: ReturnType<typeof vi.fn>;
@@ -216,7 +242,7 @@ describe('createToolDispatcher', () => {
 
   function makeTool<Shape extends z.ZodRawShape>(
     schema: Shape,
-    handler: (params: z.input<z.ZodObject<Shape>>) => Promise<CallToolResult>,
+    handler: (params: z.input<z.ZodObject<Shape>>, ctx?: ToolContext) => Promise<CallToolResult>,
   ): ToolDefinition {
     return {
       name: 'test_tool',
@@ -238,7 +264,7 @@ describe('createToolDispatcher', () => {
     );
 
     const dispatch = createToolDispatcher(tool, logger);
-    const result = await dispatch({ foo: 123 });
+    const result = await dispatch({ foo: 123 }, makeExtra() as never);
 
     expect(result.isError).toBe(true);
     expect(result.content).toHaveLength(1);
@@ -267,7 +293,7 @@ describe('createToolDispatcher', () => {
     );
 
     const dispatch = createToolDispatcher(tool, logger);
-    const result = await dispatch({ foo: 'crash' });
+    const result = await dispatch({ foo: 'crash' }, makeExtra() as never);
 
     expect(result.isError).toBe(true);
     const text = (result.content[0] as { type: 'text'; text: string }).text;
@@ -297,7 +323,7 @@ describe('createToolDispatcher', () => {
     );
 
     const dispatch = createToolDispatcher(tool, logger);
-    const result = await dispatch({ foo: 'ok' });
+    const result = await dispatch({ foo: 'ok' }, makeExtra() as never);
 
     expect(result.isError).toBe(true);
     const text = (result.content[0] as { type: 'text'; text: string }).text;
@@ -316,7 +342,7 @@ describe('createToolDispatcher', () => {
     );
 
     const dispatch = createToolDispatcher(tool, logger);
-    const result = await dispatch({ foo: 'ok' });
+    const result = await dispatch({ foo: 'ok' }, makeExtra() as never);
 
     expect(result.isError).toBe(true);
     const text = (result.content[0] as { type: 'text'; text: string }).text;
@@ -324,6 +350,79 @@ describe('createToolDispatcher', () => {
     // handleToolError — pins the integration with shared/errors.ts.
     expect(text).toBe('Error: Permission denied: no access');
     expect(error).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes a ToolContext as the second arg to the handler with extra.signal and extra._meta.progressToken', async () => {
+    const { createToolDispatcher } = await import('../../src/server/mcp-server');
+    const { logger } = makeSpiedLogger();
+    let capturedCtx: unknown = undefined;
+    const tool = makeTool({ foo: z.string() }, (_params, ctx) => {
+      capturedCtx = ctx;
+      return Promise.resolve({
+        content: [{ type: 'text' as const, text: 'ok' }],
+      });
+    });
+
+    const ac = new AbortController();
+    const extra = makeExtra({
+      signal: ac.signal,
+      _meta: { progressToken: 'tok-1' },
+    });
+
+    const dispatch = createToolDispatcher(tool, logger);
+    await dispatch({ foo: 'ok' }, extra as never);
+
+    expect(capturedCtx).toBeDefined();
+    const ctx = capturedCtx as {
+      signal: AbortSignal;
+      progressToken: string | number | undefined;
+    };
+    expect(ctx.signal).toBe(ac.signal);
+    expect(ctx.progressToken).toBe('tok-1');
+  });
+
+  it('ctx.reportProgress emits notifications/progress via extra.sendNotification', async () => {
+    const { createToolDispatcher } = await import('../../src/server/mcp-server');
+    const { logger } = makeSpiedLogger();
+    const tool = makeTool({ foo: z.string() }, async (_params, ctx) => {
+      await ctx?.reportProgress(2, 5, 'half');
+      return { content: [{ type: 'text' as const, text: 'ok' }] };
+    });
+
+    const extra = makeExtra({ _meta: { progressToken: 99 } });
+    const dispatch = createToolDispatcher(tool, logger);
+    await dispatch({ foo: 'ok' }, extra as never);
+
+    expect(extra.sendNotification).toHaveBeenCalledWith({
+      method: 'notifications/progress',
+      params: { progressToken: 99, progress: 2, total: 5, message: 'half' },
+    });
+  });
+
+  it('ctx.log fans out to Logger AND emits notifications/message tagged with the tool name', async () => {
+    const { createToolDispatcher } = await import('../../src/server/mcp-server');
+    const { logger, warn } = makeSpiedLogger();
+    const info = vi.fn();
+    logger.info = info;
+    const tool = makeTool({ foo: z.string() }, async (_params, ctx) => {
+      await ctx?.log('info', 'progress', { step: 1 });
+      return { content: [{ type: 'text' as const, text: 'ok' }] };
+    });
+
+    const extra = makeExtra();
+    const dispatch = createToolDispatcher(tool, logger);
+    await dispatch({ foo: 'ok' }, extra as never);
+
+    expect(info).toHaveBeenCalledWith('progress', { step: 1 });
+    expect(extra.sendNotification).toHaveBeenCalledWith({
+      method: 'notifications/message',
+      params: {
+        level: 'info',
+        logger: 'test_tool',
+        data: { msg: 'progress', data: { step: 1 } },
+      },
+    });
+    expect(warn).not.toHaveBeenCalled();
   });
 });
 

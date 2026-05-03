@@ -299,19 +299,6 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     return Array.from(this.files.keys()).filter((p) => p.endsWith('.md'));
   }
 
-  async searchContent(query: string): Promise<Array<{ path: string; matches: string[] }>> {
-    const results: Array<{ path: string; matches: string[] }> = [];
-    const lowerQuery = query.toLowerCase();
-    for (const [filePath, file] of this.files.entries()) {
-      if (file.content.toLowerCase().includes(lowerQuery)) {
-        const lines = file.content.split('\n');
-        const matches = lines.filter((line) => line.toLowerCase().includes(lowerQuery));
-        results.push({ path: filePath, matches });
-      }
-    }
-    return results;
-  }
-
   // Editor operations (mock state)
   private activeFile: string | null = null;
   private editorContent: string | null = null;

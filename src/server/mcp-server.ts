@@ -5,6 +5,7 @@ import { Logger } from '../utils/logger';
 import { ModuleRegistry } from '../registry/module-registry';
 import { ToolDefinition } from '../registry/types';
 import { handleToolError } from '../tools/shared/errors';
+import { createToolContext, type SdkExtra } from '../registry/tool-context';
 import manifest from '../../manifest.json';
 
 /**
@@ -36,6 +37,7 @@ export function createMcpServer(
     {
       capabilities: {
         tools: {},
+        logging: {},
       },
       instructions: SERVER_INSTRUCTIONS,
     },
@@ -54,12 +56,13 @@ export function createMcpServer(
 export function createToolDispatcher(
   tool: ToolDefinition,
   logger: Logger,
-): (params: unknown) => Promise<CallToolResult> {
+): (params: unknown, extra: SdkExtra) => Promise<CallToolResult> {
   const inputSchema = z.object(tool.schema).strict();
-  return async (params: unknown): Promise<CallToolResult> => {
+  return async (params: unknown, extra: SdkExtra): Promise<CallToolResult> => {
     try {
       const parsed = inputSchema.parse(params ?? {});
-      return await tool.handler(parsed);
+      const ctx = createToolContext(extra, tool.name, logger);
+      return await tool.handler(parsed, ctx);
     } catch (error) {
       // ZodError keeps the dispatcher's friendlier path-joined format —
       // richer than handleToolError's ZodError branch, and a `warn` not

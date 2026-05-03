@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { CallToolResult, ToolAnnotations } from '@modelcontextprotocol/sdk/types.js';
+import type { ToolContext } from './tool-context';
 
 export type { ToolAnnotations };
 
@@ -55,6 +56,7 @@ export interface ToolDefinition<
 
 export type TypedHandler<Shape extends z.ZodRawShape> = (
   params: InferredParams<Shape>,
+  ctx?: ToolContext,
 ) => Promise<CallToolResult>;
 
 /**
