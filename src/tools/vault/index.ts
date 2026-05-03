@@ -181,6 +181,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
       return [
         defineTool({
           name: 'vault_create',
+          title: 'Create file',
           description: describeTool({
             summary: 'Create a new file at a vault-relative path with text content.',
             args: [
@@ -203,6 +204,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'vault_read',
+          title: 'Read file',
           description: describeTool({
             summary: 'Read the full UTF-8 content of a file by vault-relative path.',
             args: ['path (string): Vault-relative path to the file.'],
@@ -223,6 +225,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'vault_update',
+          title: 'Replace file content',
           description: describeTool({
             summary: 'Overwrite an existing file with new content.',
             args: [
@@ -242,6 +245,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'vault_delete',
+          title: 'Delete file',
           description: describeTool({
             summary: 'Delete a file by vault-relative path.',
             args: ['path (string): Vault-relative path to the file.'],
@@ -255,6 +259,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'vault_append',
+          title: 'Append to file',
           description: describeTool({
             summary: 'Append content to the end of an existing file.',
             args: [
@@ -271,6 +276,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'vault_get_metadata',
+          title: 'Get file metadata',
           description: describeTool({
             summary: 'Get file stat metadata (size, creation date, modification date).',
             args: ['path (string): Vault-relative path to the file.'],
@@ -285,6 +291,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'vault_rename',
+          title: 'Rename file',
           description: describeTool({
             summary: 'Rename a file within its current folder.',
             args: [
@@ -304,6 +311,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'vault_move',
+          title: 'Move file',
           description: describeTool({
             summary: 'Move a file to a different path (can change folder and name).',
             args: [
@@ -320,6 +328,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'vault_copy',
+          title: 'Copy file',
           description: describeTool({
             summary: 'Copy a file to a new path, leaving the original in place.',
             args: [
@@ -336,6 +345,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'vault_create_folder',
+          title: 'Create folder',
           description: describeTool({
             summary: 'Create a new folder at a vault-relative path.',
             args: ['path (string): Folder path to create.'],
@@ -349,6 +359,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'vault_delete_folder',
+          title: 'Delete folder',
           description: describeTool({
             summary: 'Delete a folder, optionally recursively.',
             args: [
@@ -365,6 +376,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'vault_rename_folder',
+          title: 'Rename folder',
           description: describeTool({
             summary: 'Rename or move a folder.',
             args: [
@@ -381,6 +393,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'vault_list',
+          title: 'List folder',
           description: describeTool({
             summary: 'List files and folders directly under a path (non-recursive).',
             args: ['path (string): Folder to list.'],
@@ -395,6 +408,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'vault_list_recursive',
+          title: 'List folder (recursive)',
           description: describeTool({
             summary: 'List all files and folders under a path, recursively.',
             args: ['path (string): Folder to walk.'],
@@ -412,6 +426,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'vault_read_binary',
+          title: 'Read binary file',
           description: describeTool({
             summary: 'Read binary file contents as base64.',
             args: ['path (string): Vault-relative path to the file.'],
@@ -430,6 +445,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'vault_write_binary',
+          title: 'Write binary file',
           description: describeTool({
             summary: 'Write binary file contents from a base64 string.',
             args: [
@@ -446,6 +462,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'vault_get_frontmatter',
+          title: 'Get frontmatter',
           description: describeTool({
             summary: 'Get the parsed YAML frontmatter block for a file.',
             args: ['path (string): Vault-relative path.'],
@@ -459,6 +476,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'vault_get_headings',
+          title: 'Get headings',
           description: describeTool({
             summary: 'List headings (with levels) for a file.',
             args: ['path (string): Vault-relative path.'],
@@ -472,6 +490,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'vault_get_outgoing_links',
+          title: 'Get outgoing links',
           description: describeTool({
             summary: 'List outgoing links from a file.',
             args: ['path (string): Vault-relative path.'],
@@ -485,6 +504,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'vault_get_embeds',
+          title: 'Get embeds',
           description: describeTool({
             summary: 'List embedded resources (![[...]]) referenced by a file.',
             args: ['path (string): Vault-relative path.'],
@@ -498,6 +518,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'vault_get_backlinks',
+          title: 'Get backlinks',
           description: describeTool({
             summary: 'List files that link TO a given file (reverse links).',
             args: ['path (string): Target file path.'],
@@ -511,6 +532,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'vault_get_block_references',
+          title: 'Get block references',
           description: describeTool({
             summary: 'List block references (^block-id) defined in a file.',
             args: ['path (string): Vault-relative path.'],
