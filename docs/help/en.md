@@ -247,6 +247,31 @@ restarting Obsidian (useful when developing modules).
 
 ---
 
+## For developers / MCP client builders
+
+The MCP server advertises a short set of tool-use hints in the protocol-level
+`instructions` field of the `initialize` response. MCP clients (Claude
+Desktop, Claude Code, etc.) typically lift this string into the model's
+system prompt for the session, so the hints persist across every turn
+without being repeated in each tool description.
+
+The current text:
+
+```
+This server exposes an Obsidian vault as MCP tools.
+
+- Prefer `search_fulltext` (or other `search_*` tools) before `vault_read` when you don't already know the file path.
+- `editor_*` tools operate on the **active** file only — open one with `workspace_open_file` first if needed.
+- Paths are vault-relative with forward slashes (e.g. `notes/foo.md`); never absolute filesystem paths.
+- Frontmatter, headings, links, embeds, backlinks, and block refs are exposed as separate `vault_get_*` tools — don't parse them out of `vault_read` output.
+```
+
+Source of truth: [`src/server/mcp-server.ts`](https://github.com/KingOfKalk/obsidian-plugin-mcp/blob/main/src/server/mcp-server.ts)
+(`SERVER_INSTRUCTIONS`). If you suspect drift between the quoted text above
+and the live string, the source file wins.
+
+---
+
 ## FAQ
 
 ### "self-signed certificate" / "unable to verify the first certificate" in my LLM client

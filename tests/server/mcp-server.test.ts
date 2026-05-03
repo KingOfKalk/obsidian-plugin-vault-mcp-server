@@ -14,6 +14,7 @@ interface CapturedServerInfo {
 
 interface CapturedOptions {
   capabilities?: { tools?: unknown };
+  instructions?: string;
 }
 
 interface CapturedRegisterToolCall {
@@ -90,6 +91,23 @@ describe('createMcpServer', () => {
     createMcpServer(registry, makeLogger());
 
     expect(capturedConstructorArgs[0].options.capabilities?.tools).toBeDefined();
+  });
+
+  it('forwards SERVER_INSTRUCTIONS to the McpServer constructor as the instructions option', async () => {
+    const mod = await import('../../src/server/mcp-server');
+    const { createMcpServer, SERVER_INSTRUCTIONS } = mod;
+    const registry = new ModuleRegistry(makeLogger());
+
+    createMcpServer(registry, makeLogger());
+
+    expect(capturedConstructorArgs).toHaveLength(1);
+    // Guard against a destructured-undefined trivial pass where both
+    // SERVER_INSTRUCTIONS and options.instructions are undefined.
+    expect(typeof SERVER_INSTRUCTIONS).toBe('string');
+    expect(SERVER_INSTRUCTIONS.length).toBeGreaterThan(0);
+    expect(capturedConstructorArgs[0].options.instructions).toBe(
+      SERVER_INSTRUCTIONS,
+    );
   });
 
   it('forwards outputSchema to registerTool when defined, and undefined when absent', async () => {
@@ -306,5 +324,37 @@ describe('createToolDispatcher', () => {
     // handleToolError — pins the integration with shared/errors.ts.
     expect(text).toBe('Error: Permission denied: no access');
     expect(error).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('SERVER_INSTRUCTIONS', () => {
+  it('is a non-empty string', async () => {
+    const { SERVER_INSTRUCTIONS } = await import(
+      '../../src/server/mcp-server'
+    );
+    expect(typeof SERVER_INSTRUCTIONS).toBe('string');
+    expect(SERVER_INSTRUCTIONS.length).toBeGreaterThan(0);
+  });
+
+  it('stays within the 800-character budget (paid every turn)', async () => {
+    const { SERVER_INSTRUCTIONS } = await import(
+      '../../src/server/mcp-server'
+    );
+    // Hard cap so we notice if the string drifts toward bloat. Current
+    // length is ~560 chars, well below the cap.
+    expect(SERVER_INSTRUCTIONS.length).toBeLessThanOrEqual(800);
+  });
+
+  it.each([
+    ['search_fulltext'],
+    ['vault_read'],
+    ['editor_'],
+    ['workspace_open_file'],
+    ['vault_get_'],
+  ])('mentions the load-bearing tool name "%s"', async (token: string) => {
+    const { SERVER_INSTRUCTIONS } = await import(
+      '../../src/server/mcp-server'
+    );
+    expect(SERVER_INSTRUCTIONS).toContain(token);
   });
 });
