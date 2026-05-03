@@ -140,12 +140,6 @@ interface IndexEntry {
   size: number;
 }
 
-interface IndexPayload {
-  files: IndexEntry[];
-  folders: string[];
-  truncated: boolean;
-}
-
 const VAULT_INDEX_URI = 'obsidian://vault/index';
 
 function basename(p: string): string {
@@ -178,23 +172,19 @@ export function createIndexHandler(
     );
     const folders = sortedFolders;
 
-    let payload: IndexPayload = { files, folders, truncated: false };
-    let serialised = JSON.stringify(payload);
+    let serialised = JSON.stringify({ files, folders, truncated: false });
     if (serialised.length > CHARACTER_LIMIT) {
       const trimmed = [...files];
       while (trimmed.length > 0) {
         trimmed.pop();
-        const candidate: IndexPayload = { files: trimmed, folders, truncated: true };
-        const candidateSerialised = JSON.stringify(candidate);
-        if (candidateSerialised.length <= CHARACTER_LIMIT) {
-          payload = candidate;
-          serialised = candidateSerialised;
+        const candidate = JSON.stringify({ files: trimmed, folders, truncated: true });
+        if (candidate.length <= CHARACTER_LIMIT) {
+          serialised = candidate;
           break;
         }
       }
       if (serialised.length > CHARACTER_LIMIT) {
-        payload = { files: [], folders: [], truncated: true };
-        serialised = JSON.stringify(payload);
+        serialised = JSON.stringify({ files: [], folders: [], truncated: true });
       }
     }
 
