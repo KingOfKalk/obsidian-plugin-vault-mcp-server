@@ -157,16 +157,17 @@ export function createIndexHandler(
 ): IndexHandler {
   return async (_uri) => {
     const list = adapter.listRecursive('');
-    const files: IndexEntry[] = [];
-    for (const path of list.files) {
-      const stat = await adapter.stat(path);
-      files.push({
-        uri: 'obsidian://vault/' + encodeURI(path),
-        name: basename(path),
-        mimeType: getMimeType(path),
-        size: stat?.size ?? 0,
-      });
-    }
+    const files: IndexEntry[] = await Promise.all(
+      list.files.map(async (path) => {
+        const stat = await adapter.stat(path);
+        return {
+          uri: 'obsidian://vault/' + encodeURI(path),
+          name: basename(path),
+          mimeType: getMimeType(path),
+          size: stat?.size ?? 0,
+        };
+      }),
+    );
     const folders = [...list.folders];
 
     let payload: IndexPayload = { files, folders, truncated: false };
