@@ -16,3 +16,99 @@ This file is regenerated from the tool registry and committed so CI can detect d
 | `extras` | Extras | 1 | extras_get_date |
 
 **Total tools:** 54 across 8 modules.
+
+## Tools by module
+
+### Vault and File Operations (`vault`)
+
+| Name | Title | readOnly | destructive |
+|---|---|---|---|
+| `vault_create` | Create file |  |  |
+| `vault_read` | Read file | ✓ |  |
+| `vault_update` | Replace file content |  | ✓ |
+| `vault_delete` | Delete file |  | ✓ |
+| `vault_append` | Append to file |  |  |
+| `vault_get_metadata` | Get file metadata | ✓ |  |
+| `vault_rename` | Rename file |  | ✓ |
+| `vault_move` | Move file |  | ✓ |
+| `vault_copy` | Copy file |  |  |
+| `vault_create_folder` | Create folder |  |  |
+| `vault_delete_folder` | Delete folder |  | ✓ |
+| `vault_rename_folder` | Rename folder |  | ✓ |
+| `vault_list` | List folder | ✓ |  |
+| `vault_list_recursive` | List folder (recursive) | ✓ |  |
+| `vault_read_binary` | Read binary file | ✓ |  |
+| `vault_write_binary` | Write binary file |  | ✓ |
+| `vault_get_frontmatter` | Get frontmatter | ✓ |  |
+| `vault_get_headings` | Get headings | ✓ |  |
+| `vault_get_outgoing_links` | Get outgoing links | ✓ |  |
+| `vault_get_embeds` | Get embeds | ✓ |  |
+| `vault_get_backlinks` | Get backlinks | ✓ |  |
+| `vault_get_block_references` | Get block references | ✓ |  |
+
+### Editor Operations (`editor`)
+
+| Name | Title | readOnly | destructive |
+|---|---|---|---|
+| `editor_get_content` | Get active file content | ✓ |  |
+| `editor_get_active_file` | Get active file path | ✓ |  |
+| `editor_insert` | Insert at cursor |  |  |
+| `editor_replace` | Replace range |  | ✓ |
+| `editor_delete` | Delete range |  | ✓ |
+| `editor_get_cursor` | Get cursor position | ✓ |  |
+| `editor_set_cursor` | Set cursor position |  |  |
+| `editor_get_selection` | Get selection | ✓ |  |
+| `editor_set_selection` | Set selection |  |  |
+| `editor_get_line_count` | Get line count | ✓ |  |
+
+### Search and Metadata (`search`)
+
+| Name | Title | readOnly | destructive |
+|---|---|---|---|
+| `search_fulltext` | Full-text search | ✓ |  |
+| `search_tags` | List tags | ✓ |  |
+| `search_resolved_links` | Find resolved links | ✓ |  |
+| `search_unresolved_links` | Find unresolved links | ✓ |  |
+| `search_by_tag` | Find notes by tag | ✓ |  |
+| `search_by_frontmatter` | Find notes by frontmatter | ✓ |  |
+
+### Workspace and Navigation (`workspace`)
+
+| Name | Title | readOnly | destructive |
+|---|---|---|---|
+| `workspace_get_active_leaf` | Get active leaf | ✓ |  |
+| `workspace_open_file` | Open file in workspace |  |  |
+| `workspace_list_leaves` | List open leaves | ✓ |  |
+| `workspace_set_active_leaf` | Set active leaf |  |  |
+| `workspace_get_layout` | Get workspace layout | ✓ |  |
+
+### UI Interactions (`ui`)
+
+| Name | Title | readOnly | destructive |
+|---|---|---|---|
+| `ui_notice` | Show notice |  |  |
+
+### Templates and Content Generation (`templates`)
+
+| Name | Title | readOnly | destructive |
+|---|---|---|---|
+| `template_list` | List templates | ✓ |  |
+| `template_create_from` | Create file from template |  |  |
+| `template_expand` | Expand template inline | ✓ |  |
+
+### Plugin Interop (`plugin-interop`)
+
+| Name | Title | readOnly | destructive |
+|---|---|---|---|
+| `plugin_list` | List plugins | ✓ |  |
+| `plugin_check` | Check plugin enabled | ✓ |  |
+| `plugin_dataview_query` | Run Dataview query | ✓ |  |
+| `plugin_dataview_describe_js_query` | Describe Dataview JS query | ✓ |  |
+| `plugin_templater_describe_template` | Describe Templater template | ✓ |  |
+| `plugin_execute_command` | Execute command |  | ✓ |
+
+### Extras (`extras`)
+
+| Name | Title | readOnly | destructive |
+|---|---|---|---|
+| `extras_get_date` | Get current date | ✓ |  |
