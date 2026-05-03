@@ -15,6 +15,7 @@ function createMockLogger(): Logger {
 function createMockTool(name: string, readOnly: boolean): ToolDefinition {
   return {
     name,
+    title: `Mock ${name}`,
     description: `Mock tool: ${name}`,
     schema: {},
     handler: (): Promise<CallToolResult> =>

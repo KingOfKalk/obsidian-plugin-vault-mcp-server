@@ -100,6 +100,7 @@ describe('createMcpServer', () => {
 
     const toolWithOutputSchema = {
       name: 'tool_with_output',
+      title: 'tool with output',
       description: 'has output schema',
       schema: inputSchema,
       outputSchema,
@@ -110,6 +111,7 @@ describe('createMcpServer', () => {
 
     const toolWithoutOutputSchema = {
       name: 'tool_without_output',
+      title: 'tool without output',
       description: 'no output schema',
       schema: inputSchema,
       handler: () =>
@@ -200,6 +202,7 @@ describe('createToolDispatcher', () => {
   ): ToolDefinition {
     return {
       name: 'test_tool',
+      title: 'test tool',
       description: 'test',
       schema,
       handler,

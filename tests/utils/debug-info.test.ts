@@ -55,6 +55,7 @@ function makeModule(
     tools(): ReturnType<ToolModule['tools']> {
       return toolNames.map((name) => ({
         name,
+        title: name,
         description: '',
         schema: {},
         handler: () => Promise.resolve({ content: [] }),
