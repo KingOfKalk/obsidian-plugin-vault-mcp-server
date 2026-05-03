@@ -219,7 +219,7 @@ export function registerResources(
     VAULT_INDEX_URI,
     {
       description:
-        'JSON listing of every file and folder in the vault, with ready-to-use obsidian://vault/{path} URIs and mime types. Truncated past 25 000 characters.',
+        'JSON listing of every file and folder in the vault, with ready-to-use obsidian://vault/{+path} URIs and mime types. Truncated past 25 000 characters.',
       mimeType: 'application/json',
     },
     (uri: URL) => indexHandler(uri),
@@ -230,7 +230,7 @@ export function registerResources(
     new ResourceTemplate(FILE_TEMPLATE_URI, { list: undefined }),
     {
       description:
-        'Read any file in the vault by obsidian://vault/{path}. Text files (markdown, txt, json, csv, yaml, html, svg) return TextResourceContents; other files up to 1 MiB return base64 BlobResourceContents.',
+        'Read any file in the vault by obsidian://vault/{+path}. Text files (markdown, txt, json, csv, yaml, html, svg) return TextResourceContents; other files up to 1 MiB return base64 BlobResourceContents.',
     },
     (uri: URL, variables) => fileHandler(uri, variables as VaultUriVariables),
   );
