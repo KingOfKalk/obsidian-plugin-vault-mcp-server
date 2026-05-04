@@ -284,7 +284,7 @@ This server exposes an Obsidian vault as MCP tools.
 - Frontmatter, headings, links, embeds, backlinks, and block refs are exposed via the `vault_get_aspect` tool (call it with the matching `aspect` enum value) — don't parse them out of `vault_read` output.
 ```
 
-Source of truth: [`src/server/mcp-server.ts`](https://github.com/KingOfKalk/obsidian-plugin-mcp/blob/main/src/server/mcp-server.ts)
+Source of truth: [`src/server/mcp-server.ts`](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/blob/main/src/server/mcp-server.ts)
 (`SERVER_INSTRUCTIONS`). If you suspect drift between the quoted text above
 and the live string, the source file wins.
 
