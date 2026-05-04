@@ -36,7 +36,7 @@ jobs:
 
       - name: Create styles.css placeholder
         if: ${{ steps.release.outputs.release_created }}
-        run: echo "/* obsidian-mcp-plugin styles */" > styles.css
+        run: echo "/* vault-mcp-server styles */" > styles.css
 
       - name: Update versions.json
         if: ${{ steps.release.outputs.release_created }}
@@ -53,7 +53,7 @@ jobs:
       - name: Build plugin zip
         if: ${{ steps.release.outputs.release_created }}
         env:
-          PLUGIN_ID: obsidian-mcp
+          PLUGIN_ID: vault-mcp-server
           VERSION: ${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.${{ steps.release.outputs.patch }}
         run: |
           mkdir -p "dist/${PLUGIN_ID}"
@@ -71,4 +71,4 @@ jobs:
             manifest.json \
             styles.css \
             versions.json \
-            "obsidian-mcp-${VERSION}.zip"
+            "vault-mcp-server-${VERSION}.zip"
