@@ -26,8 +26,8 @@ An Obsidian desktop plugin that runs an MCP (Model Context Protocol) server, exp
 
 ### Manual Installation
 
-1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/KingOfKalk/obisdian-plugin-mcp/releases)
-2. Create folder `<vault>/.obsidian/plugins/obsidian-mcp/`
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/releases)
+2. Create folder `<vault>/.obsidian/plugins/vault-mcp-server/`
 3. Copy the downloaded files into the folder
 4. Reload Obsidian and enable the plugin
 

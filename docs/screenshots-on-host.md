@@ -149,7 +149,7 @@ curl -s http://127.0.0.1:9222/json/version
 ### 4. Bootstrap
 
 Drives `app.*` to dismiss the "Trust author" modal, turn off Restricted
-Mode, and enable `obsidian-mcp`. Same script used in the Docker flow.
+Mode, and enable `vault-mcp-server`. Same script used in the Docker flow.
 
 ```bash
 DISPLAY=:99 python3 docker/scripts/bootstrap.py \
@@ -169,7 +169,7 @@ import time
 
 with ObsidianCDP(port=9222) as cdp:
     # Navigate / open settings / whatever you want
-    cdp.open_settings(tab_id="obsidian-mcp")
+    cdp.open_settings(tab_id="vault-mcp-server")
     time.sleep(1)                         # let the panel render
     cdp.screenshot("/tmp/shots/settings.png")
 PY
@@ -217,7 +217,7 @@ DISPLAY=:99 python3 -c "
 from docker.scripts.obsidian_cdp import ObsidianCDP
 import time
 with ObsidianCDP(port=9222) as cdp:
-    cdp.open_settings(tab_id='obsidian-mcp')
+    cdp.open_settings(tab_id='vault-mcp-server')
     time.sleep(1)
     cdp.screenshot('/tmp/shots/settings.png')
 "
@@ -234,10 +234,10 @@ from docker.scripts.obsidian_cdp import ObsidianCDP
 
 with ObsidianCDP(port=9222) as cdp:
     cdp.open_file("Welcome.md")
-    cdp.execute_command("obsidian-mcp:start-server")
-    cdp.open_settings(tab_id="obsidian-mcp")
+    cdp.execute_command("vault-mcp-server:start-server")
+    cdp.open_settings(tab_id="vault-mcp-server")
     cdp.wait_for(
-        "app.plugins.plugins['obsidian-mcp']?.httpServer?.isRunning === true"
+        "app.plugins.plugins['vault-mcp-server']?.httpServer?.isRunning === true"
     )
     cdp.screenshot("/tmp/shots/server-running.png")
 ```
