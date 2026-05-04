@@ -98,7 +98,7 @@ export interface MockCommand {
 
 export class Plugin {
   app: unknown;
-  manifest: MockManifest = { id: 'obsidian-mcp', version: '0.0.0' };
+  manifest: MockManifest = { id: 'vault-mcp-server', version: '0.0.0' };
 
   loadData(): Promise<unknown> {
     return Promise.resolve(null);

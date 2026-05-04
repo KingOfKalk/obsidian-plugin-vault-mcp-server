@@ -108,7 +108,7 @@ function makePlugin(opts: {
       appVersion: '1.8.9',
       // unused fields cast away
     } as unknown as DebugInfoPluginRef['app'],
-    manifest: { id: 'obsidian-mcp', version: '2.2.0' },
+    manifest: { id: 'vault-mcp-server', version: '2.2.0' },
     settings: { ...baseSettings, ...(opts.settings ?? {}) },
     httpServer: opts.httpServer ?? null,
     registry: { getModules: () => opts.modules ?? [] },
@@ -146,7 +146,7 @@ describe('collectDebugInfo', () => {
           },
           modules: [vaultMod, editorMod, extrasMod],
           files: {
-            '.obsidian/plugins/obsidian-mcp/debug.log':
+            '.obsidian/plugins/vault-mcp-server/debug.log':
               'line-1\nline-2\nline-3\n',
           },
         }),
@@ -162,7 +162,7 @@ describe('collectDebugInfo', () => {
     });
 
     it('renders environment fields', () => {
-      expect(bundle).toContain('Plugin: obsidian-mcp 2.2.0');
+      expect(bundle).toContain('Plugin: vault-mcp-server 2.2.0');
       expect(bundle).toContain('Obsidian: 1.8.9');
       expect(bundle).toContain('Platform:');
       expect(bundle).toContain('Node:');
@@ -245,7 +245,7 @@ describe('collectDebugInfo', () => {
       bundle = await collectDebugInfo(
         makePlugin({
           files: {
-            '.obsidian/plugins/obsidian-mcp/debug.log': lines.join('\n') + '\n',
+            '.obsidian/plugins/vault-mcp-server/debug.log': lines.join('\n') + '\n',
           },
         }),
       );

@@ -15,7 +15,7 @@ interface MutablePluginFields {
 
 function createPlugin(persisted: Record<string, unknown> | null): TestPlugin {
   const app = mockApp();
-  const manifest: MockManifest = { id: 'obsidian-mcp', version: '0.0.0' };
+  const manifest: MockManifest = { id: 'vault-mcp-server', version: '0.0.0' };
   const plugin = new McpPlugin(
     app as unknown as App,
     manifest as unknown as PluginManifest,

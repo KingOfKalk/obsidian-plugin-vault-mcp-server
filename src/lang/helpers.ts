@@ -45,7 +45,7 @@ export function t(
     // keep this module dependency-free.
     // eslint-disable-next-line no-console
     console.error(
-      `[obsidian-mcp] locale "${lang}" is not registered, falling back to en`,
+      `[vault-mcp-server] locale "${lang}" is not registered, falling back to en`,
     );
   }
   const raw = map?.[key] ?? en[key];
