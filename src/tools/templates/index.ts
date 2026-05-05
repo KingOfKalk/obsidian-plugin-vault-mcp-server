@@ -11,6 +11,7 @@ import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateVaultPath } from '../../utils/path-guard';
 import { FolderNotFoundError, handleToolError } from '../shared/errors';
 import { describeTool } from '../shared/describe';
+import { expandPlaceholders } from '../shared/placeholders';
 import {
   makeResponse,
   readResponseFormat,
@@ -19,22 +20,6 @@ import {
 
 function text(t: string): CallToolResult { return { content: [{ type: 'text', text: t }] }; }
 function err(m: string): CallToolResult { return handleToolError(new Error(m)); }
-
-function expandVariables(template: string, variables: Record<string, string>): string {
-  let result = template;
-  // Built-in variables
-  const now = new Date();
-  const builtins: Record<string, string> = {
-    date: now.toISOString().split('T')[0],
-    time: now.toLocaleTimeString(),
-    title: variables.title ?? 'Untitled',
-    ...variables,
-  };
-  for (const [key, value] of Object.entries(builtins)) {
-    result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
-  }
-  return result;
-}
 
 const listTemplatesSchema = {
   ...responseFormatField,
@@ -126,7 +111,7 @@ function createHandlers(adapter: ObsidianAdapter): TemplatesHandlers {
         const destPath = validateVaultPath(params.destPath, vaultPath);
         const variables = params.variables ?? {};
         const templateContent = await adapter.readFile(templatePath);
-        const expanded = expandVariables(templateContent, variables);
+        const expanded = expandPlaceholders(templateContent, variables);
         await adapter.createFile(destPath, expanded);
         return text(`Created ${destPath} from template ${templatePath}`);
       } catch (error) {
@@ -137,7 +122,7 @@ function createHandlers(adapter: ObsidianAdapter): TemplatesHandlers {
       const format = readResponseFormat(params);
       try {
         const variables = params.variables ?? {};
-        const expanded = expandVariables(params.template, variables);
+        const expanded = expandPlaceholders(params.template, variables);
         return Promise.resolve(
           makeResponse({ expanded }, (v) => v.expanded, format),
         );
