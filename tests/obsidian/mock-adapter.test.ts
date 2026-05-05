@@ -269,3 +269,27 @@ describe('MockObsidianAdapter root traversal', () => {
     expect(result.folders).toContain('notes');
   });
 });
+
+describe('getDailyNotesSettings', () => {
+  it('returns null by default', () => {
+    const adapter = new MockObsidianAdapter();
+    expect(adapter.getDailyNotesSettings()).toBeNull();
+  });
+
+  it('returns the value passed to setDailyNotesSettings', () => {
+    const adapter = new MockObsidianAdapter();
+    adapter.setDailyNotesSettings({ format: 'YYYY-MM-DD', folder: 'Daily', template: 'templates/daily.md' });
+    expect(adapter.getDailyNotesSettings()).toEqual({
+      format: 'YYYY-MM-DD',
+      folder: 'Daily',
+      template: 'templates/daily.md',
+    });
+  });
+
+  it('can be reset to null', () => {
+    const adapter = new MockObsidianAdapter();
+    adapter.setDailyNotesSettings({ format: 'YYYY-MM-DD', folder: '', template: '' });
+    adapter.setDailyNotesSettings(null);
+    expect(adapter.getDailyNotesSettings()).toBeNull();
+  });
+});

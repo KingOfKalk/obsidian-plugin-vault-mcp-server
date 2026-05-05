@@ -170,3 +170,19 @@ export const getAspectSchema = {
     ),
   ...responseFormatField,
 };
+
+/**
+ * Input schema for `vault_daily_note`. Optional ISO date; omitted means
+ * "today" in local time, mirroring the Obsidian daily-notes plugin's own
+ * "today" behaviour. The regex rejects obvious garbage; the handler does
+ * a strict moment parse to also reject out-of-calendar dates like
+ * "2026-13-40".
+ */
+export const dailyNoteSchema = {
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD')
+    .optional()
+    .describe('Optional ISO date (YYYY-MM-DD). Omit for today (local time).'),
+  ...responseFormatField,
+};

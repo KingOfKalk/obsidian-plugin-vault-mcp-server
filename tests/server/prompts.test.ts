@@ -7,6 +7,7 @@ import {
   createFindRelatedHandler,
   createExpandTemplateHandler,
   createTemplateCompleter,
+  createDailyNoteHandler,
 } from '../../src/server/prompts';
 
 describe('extractPlaceholders', () => {
@@ -202,5 +203,32 @@ describe('templateCompleter', () => {
     const result = await completer('anything');
 
     expect(result).toEqual([]);
+  });
+});
+
+describe('daily-note handler', () => {
+  it('returns one user-role text message naming vault_daily_note and workspace_open_file', async () => {
+    const handler = createDailyNoteHandler();
+    const result = await handler({});
+    expect(result.messages).toHaveLength(1);
+    const message = result.messages[0];
+    expect(message.role).toBe('user');
+    expect(message.content.type).toBe('text');
+    const text = (message.content as { type: 'text'; text: string }).text;
+    expect(text).toContain('vault_daily_note');
+    expect(text).toContain('workspace_open_file');
+    expect(text.toLowerCase()).toContain('daily note');
+  });
+
+  it('threads the date argument into the message text', async () => {
+    const handler = createDailyNoteHandler();
+    const result = await handler({ date: '2026-05-05' });
+    const text = (result.messages[0].content as { type: 'text'; text: string }).text;
+    expect(text).toContain('2026-05-05');
+  });
+
+  it('rejects malformed date arguments', async () => {
+    const handler = createDailyNoteHandler();
+    await expect(handler({ date: 'not-a-date' })).rejects.toThrow(/YYYY-MM-DD/);
   });
 });

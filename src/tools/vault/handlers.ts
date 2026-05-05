@@ -1,10 +1,15 @@
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+// Obsidian re-exports moment at runtime; importing from 'moment' directly
+// gives us a properly callable type while still resolving to the same
+// bundled instance Obsidian uses (moment is a direct dependency).
+import moment from 'moment';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateVaultPath } from '../../utils/path-guard';
 import { truncateText } from '../shared/truncate';
-import { handleToolError, BinaryTooLargeError } from '../shared/errors';
+import { handleToolError, BinaryTooLargeError, PluginApiUnavailableError } from '../shared/errors';
 import { paginate, readPagination } from '../shared/pagination';
 import { makeResponse, readResponseFormat } from '../shared/response';
+import { expandPlaceholders } from '../shared/placeholders';
 import { BINARY_BYTE_LIMIT } from '../../constants';
 import type { InferredParams } from '../../registry/types';
 import type { SearchHandlers } from '../search/handlers';
@@ -26,6 +31,7 @@ import type {
   readBinarySchema,
   writeBinarySchema,
   getAspectSchema,
+  dailyNoteSchema,
 } from './schemas';
 
 export class WriteMutex {
@@ -160,6 +166,39 @@ function renderRecursiveListing(
   return lines.join('\n');
 }
 
+async function resolveInitialBody(
+  adapter: ObsidianAdapter,
+  templatePath: string,
+  targetMoment: ReturnType<typeof moment>,
+  filename: string,
+): Promise<string> {
+  if (!templatePath) return '';
+  let templateBody: string;
+  try {
+    templateBody = await adapter.readFile(templatePath);
+  } catch {
+    // Configured template missing/moved — create empty rather than fail.
+    // (The original spec called for a warn-log here, but vault handlers do
+    // not currently take a logger and threading one through is out of
+    // scope for #304. Falling back silently matches existing patterns
+    // like template_list error swallowing in #272.)
+    return '';
+  }
+  // Templater syntax: never expanded here — Templater can run arbitrary
+  // user JS, so execution stays client-side (mirrors plugin_templater_*).
+  if (templateBody.includes('<%')) return templateBody;
+  const title = filename.replace(/\.md$/, '');
+  return expandPlaceholders(
+    templateBody,
+    {
+      date: targetMoment.format('YYYY-MM-DD'),
+      time: targetMoment.format('HH:mm'),
+      title,
+    },
+    targetMoment.toDate(),
+  );
+}
+
 const RENAME_TARGET_PATTERN = /^[^/\\\x00]+$/;
 
 function isValidRenameTarget(value: unknown): value is string {
@@ -190,6 +229,7 @@ export interface VaultHandlers {
   readBinary: (params: InferredParams<typeof readBinarySchema>) => Promise<CallToolResult>;
   writeBinary: (params: InferredParams<typeof writeBinarySchema>) => Promise<CallToolResult>;
   getAspect: (params: InferredParams<typeof getAspectSchema>) => Promise<CallToolResult>;
+  dailyNote: (params: InferredParams<typeof dailyNoteSchema>) => Promise<CallToolResult>;
 }
 
 export function createHandlers(
@@ -471,6 +511,49 @@ export function createHandlers(
         const { aspect, path } = params;
         const inner = await dispatchAspect(searchHandlers, aspect, params);
         return decorateAspect(inner, aspect, path, readResponseFormat(params));
+      } catch (error) {
+        return handleToolError(error);
+      }
+    },
+
+    async dailyNote(params): Promise<CallToolResult> {
+      try {
+        const settings = adapter.getDailyNotesSettings();
+        if (settings === null) {
+          throw new PluginApiUnavailableError(
+            'daily-notes',
+            'core plugin is disabled — enable it in Obsidian Settings → Core plugins',
+          );
+        }
+        const targetMoment = params.date !== undefined
+          ? moment(params.date, 'YYYY-MM-DD', true)
+          : moment();
+        if (!targetMoment.isValid()) {
+          throw new Error('date must be a valid calendar date (YYYY-MM-DD)');
+        }
+        const filenameBase = targetMoment.format(settings.format);
+        const filename = `${filenameBase}.md`;
+        const rawPath = settings.folder
+          ? `${settings.folder.replace(/\/+$/, '')}/${filename}`
+          : filename;
+        const path = validateVaultPath(rawPath, vaultPath);
+
+        const exists = await adapter.exists(path);
+        if (exists) {
+          const content = await adapter.readFile(path);
+          return makeResponse(
+            { path, created: false, content },
+            (v) => `${v.path} (existing)\n\n${v.content}`,
+            readResponseFormat(params),
+          );
+        }
+        const body = await resolveInitialBody(adapter, settings.template, targetMoment, filename);
+        await adapter.createFile(path, body);
+        return makeResponse(
+          { path, created: true, content: body },
+          (v) => `${v.path} (created)\n\n${v.content}`,
+          readResponseFormat(params),
+        );
       } catch (error) {
         return handleToolError(error);
       }

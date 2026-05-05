@@ -8,7 +8,7 @@ import { DEFAULT_SETTINGS } from '../../src/types';
 import { Logger } from '../../src/utils/logger';
 
 describe('prompts surface — end-to-end', () => {
-  it('lists all three prompts and serves prompts/get + completion/complete via the SDK transport', async () => {
+  it('lists all four prompts and serves prompts/get + completion/complete via the SDK transport', async () => {
     const adapter = new MockObsidianAdapter();
     adapter.addFolder('templates');
     adapter.addFile('templates/weekly.md', '# {{week}}\n\n{{notes}}');
@@ -28,6 +28,7 @@ describe('prompts surface — end-to-end', () => {
     // prompts/list
     const list = await client.listPrompts();
     expect(list.prompts.map((p) => p.name).sort()).toEqual([
+      'daily-note',
       'expand-template',
       'find-related',
       'summarize-note',
@@ -58,6 +59,18 @@ describe('prompts surface — end-to-end', () => {
       argument: { name: 'template', value: 'week' },
     });
     expect(completion.completion.values).toContain('templates/weekly.md');
+
+    // prompts/get for /daily-note — needs the daily-notes plugin enabled
+    // in the mock so the underlying tool wouldn't throw if Claude called it.
+    adapter.setDailyNotesSettings({ format: 'YYYY-MM-DD', folder: '', template: '' });
+    const daily = await client.getPrompt({
+      name: 'daily-note',
+      arguments: { date: '2026-05-05' },
+    });
+    const dailyText = (daily.messages[0].content as { type: 'text'; text: string }).text;
+    expect(dailyText).toContain('vault_daily_note');
+    expect(dailyText).toContain('workspace_open_file');
+    expect(dailyText).toContain('2026-05-05');
 
     await client.close();
     await server.close();

@@ -84,6 +84,14 @@ export interface ObsidianAdapter {
    * not exposed at all (e.g. the plugin is mid-load).
    */
   getDataviewApi(): DataviewApi | null;
+  /**
+   * Read the Obsidian core "Daily notes" plugin's settings (`format`,
+   * `folder`, `template`). Returns `null` when the plugin is disabled, not
+   * present, or has no `instance.options` available. Missing individual
+   * fields are normalized to Obsidian's documented defaults so callers
+   * never have to handle `undefined`.
+   */
+  getDailyNotesSettings(): DailyNotesSettings | null;
 }
 
 /**
@@ -100,6 +108,19 @@ export interface DataviewApi {
 export type DataviewQueryResult =
   | { successful: true; value: string }
   | { successful: false; error: string };
+
+/**
+ * Subset of the Obsidian core "Daily notes" plugin's settings that
+ * `vault_daily_note` consumes. Returned by
+ * `ObsidianAdapter.getDailyNotesSettings()` already normalized — empty or
+ * missing fields are replaced with Obsidian's documented defaults
+ * (`'YYYY-MM-DD'`, `''`, `''`) by the real adapter.
+ */
+export interface DailyNotesSettings {
+  format: string;
+  folder: string;
+  template: string;
+}
 
 export class RealObsidianAdapter implements ObsidianAdapter {
   constructor(private app: App) {}
@@ -451,6 +472,21 @@ export class RealObsidianAdapter implements ObsidianAdapter {
           error: String(out?.error ?? 'Dataview query failed'),
         };
       },
+    };
+  }
+
+  getDailyNotesSettings(): DailyNotesSettings | null {
+    const appAny = this.app as any;
+    const plugin = appAny.internalPlugins?.plugins?.['daily-notes'];
+    if (!plugin || plugin.enabled !== true) return null;
+    const options = plugin.instance?.options;
+    if (!options || typeof options !== 'object') return null;
+    return {
+      format: typeof options.format === 'string' && options.format.length > 0
+        ? options.format
+        : 'YYYY-MM-DD',
+      folder: typeof options.folder === 'string' ? options.folder : '',
+      template: typeof options.template === 'string' ? options.template : '',
     };
   }
 
