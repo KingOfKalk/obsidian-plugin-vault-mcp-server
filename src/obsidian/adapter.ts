@@ -84,6 +84,18 @@ export interface ObsidianAdapter {
    * not exposed at all (e.g. the plugin is mid-load).
    */
   getDataviewApi(): DataviewApi | null;
+  /**
+   * Read the Obsidian core "Daily notes" plugin's settings (`format`,
+   * `folder`, `template`). Returns `null` when the plugin is disabled, not
+   * present, or has no `instance.options` available. Missing individual
+   * fields are normalized to Obsidian's documented defaults so callers
+   * never have to handle `undefined`.
+   */
+  getDailyNotesSettings(): {
+    format: string;
+    folder: string;
+    template: string;
+  } | null;
 }
 
 /**
@@ -451,6 +463,25 @@ export class RealObsidianAdapter implements ObsidianAdapter {
           error: String(out?.error ?? 'Dataview query failed'),
         };
       },
+    };
+  }
+
+  getDailyNotesSettings(): {
+    format: string;
+    folder: string;
+    template: string;
+  } | null {
+    const appAny = this.app as any;
+    const plugin = appAny.internalPlugins?.plugins?.['daily-notes'];
+    if (!plugin || plugin.enabled !== true) return null;
+    const options = plugin.instance?.options;
+    if (!options || typeof options !== 'object') return null;
+    return {
+      format: typeof options.format === 'string' && options.format.length > 0
+        ? options.format
+        : 'YYYY-MM-DD',
+      folder: typeof options.folder === 'string' ? options.folder : '',
+      template: typeof options.template === 'string' ? options.template : '',
     };
   }
 

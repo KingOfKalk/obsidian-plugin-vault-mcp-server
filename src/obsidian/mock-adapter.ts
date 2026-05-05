@@ -448,6 +448,26 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     this.dataviewApi = api;
   }
 
+  private dailyNotesSettings: {
+    format: string;
+    folder: string;
+    template: string;
+  } | null = null;
+
+  getDailyNotesSettings(): {
+    format: string;
+    folder: string;
+    template: string;
+  } | null {
+    return this.dailyNotesSettings;
+  }
+
+  setDailyNotesSettings(
+    value: { format: string; folder: string; template: string } | null,
+  ): void {
+    this.dailyNotesSettings = value;
+  }
+
   // Test helpers
   setActiveEditor(path: string, content: string): void {
     this.activeFile = path;
