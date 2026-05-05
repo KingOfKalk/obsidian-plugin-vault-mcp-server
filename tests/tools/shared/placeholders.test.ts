@@ -38,4 +38,19 @@ describe('expandPlaceholders', () => {
     const out = expandPlaceholders('plain text', {}, new Date());
     expect(out).toBe('plain text');
   });
+
+  it('matches placeholder keys literally (regex metacharacters do not break matching)', () => {
+    // The Zod schema upstream allows arbitrary string keys. A naive
+    // RegExp-based substitution would throw on '{{foo(}}' or silently
+    // mismatch on '{{a.b}}'. The split/join implementation matches
+    // literally, so both work.
+    expect(expandPlaceholders('{{a.b}} {{a.b}}', { 'a.b': 'x' }, new Date())).toBe('x x');
+    expect(
+      expandPlaceholders('start {{foo(}} end', { 'foo(': 'X' }, new Date()),
+    ).toBe('start X end');
+  });
+
+  it('returns an empty string when given an empty body', () => {
+    expect(expandPlaceholders('', { a: 'x' }, new Date())).toBe('');
+  });
 });
