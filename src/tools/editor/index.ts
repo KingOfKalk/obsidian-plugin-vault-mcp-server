@@ -437,6 +437,9 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
               '"No active editor" if no markdown view is focused.',
               '"Position is out of range" if (line, ch) is outside the document.',
             ],
+            seeAlso: [
+              'editor_set_selection — when you want to select a range, not collapse the caret to a point.',
+            ],
           }),
           schema: setCursorSchema,
           handler: h.setCursor,
@@ -468,6 +471,9 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             errors: [
               '"No active editor" if no markdown view is focused.',
               '"Position is out of range" if either endpoint is outside the document.',
+            ],
+            seeAlso: [
+              'editor_set_cursor — when you want to place the caret at a point, not select a range.',
             ],
           }),
           schema: setSelectionSchema,
