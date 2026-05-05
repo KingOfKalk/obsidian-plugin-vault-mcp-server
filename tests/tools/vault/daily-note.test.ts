@@ -81,4 +81,54 @@ describe('vault_daily_note handler', () => {
       expect(structured.created).toBe(false);
     });
   });
+
+  describe('create with template', () => {
+    it('expands {{date}}/{{title}} from a plain template', async () => {
+      adapter.setDailyNotesSettings({
+        format: 'YYYY-MM-DD',
+        folder: 'Daily',
+        template: 'templates/daily.md',
+      });
+      adapter.addFolder('templates');
+      adapter.addFile(
+        'templates/daily.md',
+        '# {{title}}\n\nDate: {{date}}\n\n## Notes\n',
+      );
+
+      const result = await handlers.dailyNote({ date: '2026-05-05' });
+      expect(result.isError).toBeUndefined();
+      const structured = result.structuredContent as { content: string };
+      expect(structured.content).toContain('Date: 2026-05-05');
+      expect(structured.content).toContain('# 2026-05-05');
+      expect(structured.content).toContain('## Notes');
+    });
+
+    it('copies a Templater (<%) template raw without expanding', async () => {
+      adapter.setDailyNotesSettings({
+        format: 'YYYY-MM-DD',
+        folder: '',
+        template: 'templates/templater-daily.md',
+      });
+      adapter.addFolder('templates');
+      const tpBody =
+        '<%* const t = new Date(); %>\n# <% t.toISOString().slice(0,10) %>\n';
+      adapter.addFile('templates/templater-daily.md', tpBody);
+
+      const result = await handlers.dailyNote({ date: '2026-05-05' });
+      const structured = result.structuredContent as { content: string };
+      expect(structured.content).toBe(tpBody);
+    });
+
+    it('falls back to empty body when the configured template path is missing', async () => {
+      adapter.setDailyNotesSettings({
+        format: 'YYYY-MM-DD',
+        folder: '',
+        template: 'templates/missing.md',
+      });
+      const result = await handlers.dailyNote({ date: '2026-05-05' });
+      const structured = result.structuredContent as { created: boolean; content: string };
+      expect(structured.created).toBe(true);
+      expect(structured.content).toBe('');
+    });
+  });
 });
