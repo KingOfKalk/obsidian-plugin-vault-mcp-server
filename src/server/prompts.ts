@@ -114,6 +114,27 @@ export function createTemplateCompleter(
   };
 }
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+interface DailyNoteArgs {
+  date?: string;
+}
+
+export function createDailyNoteHandler(): (args: DailyNoteArgs) => Promise<GetPromptResult> {
+  // async so a synchronous throw surfaces as a rejected promise.
+  // eslint-disable-next-line @typescript-eslint/require-await
+  return async (args) => {
+    if (args.date !== undefined && !ISO_DATE.test(args.date)) {
+      throw new Error('date must be YYYY-MM-DD');
+    }
+    const dateClause = args.date ? ` for \`${args.date}\`` : '';
+    const dateArg = args.date ? ` with \`date: "${args.date}"\`` : '';
+    return userTextMessage(
+      `Open the daily note${dateClause}. First call \`vault_daily_note\`${dateArg} — it returns the note's \`path\`, \`content\`, and a \`created\` flag (true when a new note was just created from the configured template). Then call \`workspace_open_file\` with the returned \`path\` so the note becomes the active leaf. If \`created\` is \`true\`, mention to the user that a fresh daily note was just created.`,
+    );
+  };
+}
+
 export function registerPrompts(
   server: McpServer,
   adapter: ObsidianAdapter,
@@ -164,5 +185,23 @@ export function registerPrompts(
       },
     },
     (args: { template: string }, _extra) => expand(args),
+  );
+
+  const dailyNote = createDailyNoteHandler();
+
+  logger.debug('Registering prompt: daily-note');
+  server.registerPrompt(
+    'daily-note',
+    {
+      title: "Open or create today's daily note",
+      description: "Resolve, create-if-missing, and open today's daily note (or a given date).",
+      argsSchema: {
+        date: z
+          .string()
+          .optional()
+          .describe('Optional ISO date (YYYY-MM-DD). Omit for today (local time).'),
+      },
+    },
+    (args: { date?: string }, _extra) => dailyNote(args),
   );
 }

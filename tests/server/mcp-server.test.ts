@@ -269,7 +269,7 @@ describe('createMcpServer', () => {
     expect(capturedRegisterResourceCalls).toHaveLength(0);
   });
 
-  it('declares the prompts capability and registers all three prompts when promptsEnabled', async () => {
+  it('declares the prompts capability and registers all four prompts when promptsEnabled', async () => {
     const { createMcpServer } = await import('../../src/server/mcp-server');
     const registry = new ModuleRegistry(makeLogger());
     const adapter = new MockObsidianAdapter();
@@ -283,6 +283,7 @@ describe('createMcpServer', () => {
       'summarize-note',
       'find-related',
       'expand-template',
+      'daily-note',
     ]);
   });
 

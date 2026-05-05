@@ -8,7 +8,7 @@ import { DEFAULT_SETTINGS } from '../../src/types';
 import { Logger } from '../../src/utils/logger';
 
 describe('prompts surface — end-to-end', () => {
-  it('lists all three prompts and serves prompts/get + completion/complete via the SDK transport', async () => {
+  it('lists all four prompts and serves prompts/get + completion/complete via the SDK transport', async () => {
     const adapter = new MockObsidianAdapter();
     adapter.addFolder('templates');
     adapter.addFile('templates/weekly.md', '# {{week}}\n\n{{notes}}');
@@ -28,6 +28,7 @@ describe('prompts surface — end-to-end', () => {
     // prompts/list
     const list = await client.listPrompts();
     expect(list.prompts.map((p) => p.name).sort()).toEqual([
+      'daily-note',
       'expand-template',
       'find-related',
       'summarize-note',
