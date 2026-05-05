@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import moment from 'moment';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
 import { createHandlers, WriteMutex } from '../../../src/tools/vault/handlers';
@@ -31,7 +32,7 @@ describe('vault_daily_note handler', () => {
   describe('existing-file path', () => {
     it('reads and returns the existing daily note without creating', async () => {
       adapter.setDailyNotesSettings({ format: 'YYYY-MM-DD', folder: '', template: '' });
-      const today = new Date().toISOString().split('T')[0];
+      const today = moment().format('YYYY-MM-DD');
       const path = `${today}.md`;
       adapter.addFile(path, 'today body');
 
@@ -60,7 +61,7 @@ describe('vault_daily_note handler', () => {
   describe('create with empty template', () => {
     it('creates the note with empty body when no template is configured', async () => {
       adapter.setDailyNotesSettings({ format: 'YYYY-MM-DD', folder: '', template: '' });
-      const today = new Date().toISOString().split('T')[0];
+      const today = moment().format('YYYY-MM-DD');
       const path = `${today}.md`;
 
       const result = await handlers.dailyNote({});
@@ -160,6 +161,36 @@ describe('vault_daily_note handler', () => {
       const result = await handlers.dailyNote({ date: '2026-05-05' });
       expect(result.isError).toBe(true);
       expect(getText(result)).toMatch(/traverse/i);
+    });
+  });
+
+  describe('non-default format', () => {
+    it('honors a folder-style format like YYYY/MM/DD', async () => {
+      adapter.setDailyNotesSettings({
+        format: 'YYYY/MM/DD',
+        folder: 'Daily',
+        template: '',
+      });
+
+      const result = await handlers.dailyNote({ date: '2026-05-05' });
+      expect(result.isError).toBeUndefined();
+      const structured = result.structuredContent as { path: string; created: boolean };
+      // moment formats forward-slashes literally → 'Daily/2026/05/05.md'
+      expect(structured.path).toBe('Daily/2026/05/05.md');
+      expect(structured.created).toBe(true);
+    });
+
+    it('honors a literal-bracketed format like [Daily-]YYYY-MM-DD', async () => {
+      adapter.setDailyNotesSettings({
+        format: '[Daily-]YYYY-MM-DD',
+        folder: '',
+        template: '',
+      });
+
+      const result = await handlers.dailyNote({ date: '2026-05-05' });
+      expect(result.isError).toBeUndefined();
+      const structured = result.structuredContent as { path: string };
+      expect(structured.path).toBe('Daily-2026-05-05.md');
     });
   });
 });

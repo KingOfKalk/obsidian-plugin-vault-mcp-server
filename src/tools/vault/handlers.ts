@@ -178,6 +178,10 @@ async function resolveInitialBody(
     templateBody = await adapter.readFile(templatePath);
   } catch {
     // Configured template missing/moved — create empty rather than fail.
+    // (The original spec called for a warn-log here, but vault handlers do
+    // not currently take a logger and threading one through is out of
+    // scope for #304. Falling back silently matches existing patterns
+    // like template_list error swallowing in #272.)
     return '';
   }
   // Templater syntax: never expanded here — Templater can run arbitrary
@@ -528,7 +532,7 @@ export function createHandlers(
           throw new Error('date must be a valid calendar date (YYYY-MM-DD)');
         }
         const filenameBase = targetMoment.format(settings.format);
-        const filename = filenameBase.endsWith('.md') ? filenameBase : `${filenameBase}.md`;
+        const filename = `${filenameBase}.md`;
         const rawPath = settings.folder
           ? `${settings.folder.replace(/\/+$/, '')}/${filename}`
           : filename;
