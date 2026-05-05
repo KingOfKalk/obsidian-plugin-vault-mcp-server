@@ -2,7 +2,7 @@ import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateVaultPath } from '../../utils/path-guard';
 import { truncateText } from '../shared/truncate';
-import { handleToolError, BinaryTooLargeError } from '../shared/errors';
+import { handleToolError, BinaryTooLargeError, PluginApiUnavailableError } from '../shared/errors';
 import { paginate, readPagination } from '../shared/pagination';
 import { makeResponse, readResponseFormat } from '../shared/response';
 import { BINARY_BYTE_LIMIT } from '../../constants';
@@ -26,6 +26,7 @@ import type {
   readBinarySchema,
   writeBinarySchema,
   getAspectSchema,
+  dailyNoteSchema,
 } from './schemas';
 
 export class WriteMutex {
@@ -190,6 +191,7 @@ export interface VaultHandlers {
   readBinary: (params: InferredParams<typeof readBinarySchema>) => Promise<CallToolResult>;
   writeBinary: (params: InferredParams<typeof writeBinarySchema>) => Promise<CallToolResult>;
   getAspect: (params: InferredParams<typeof getAspectSchema>) => Promise<CallToolResult>;
+  dailyNote: (params: InferredParams<typeof dailyNoteSchema>) => Promise<CallToolResult>;
 }
 
 export function createHandlers(
@@ -471,6 +473,23 @@ export function createHandlers(
         const { aspect, path } = params;
         const inner = await dispatchAspect(searchHandlers, aspect, params);
         return decorateAspect(inner, aspect, path, readResponseFormat(params));
+      } catch (error) {
+        return handleToolError(error);
+      }
+    },
+
+    async dailyNote(_params): Promise<CallToolResult> {
+      try {
+        await Promise.resolve();
+        const settings = adapter.getDailyNotesSettings();
+        if (settings === null) {
+          throw new PluginApiUnavailableError(
+            'daily-notes',
+            'core plugin is disabled — enable it in Obsidian Settings → Core plugins',
+          );
+        }
+        // Subsequent branches added in Tasks 5b–5e.
+        throw new Error('not yet implemented');
       } catch (error) {
         return handleToolError(error);
       }
