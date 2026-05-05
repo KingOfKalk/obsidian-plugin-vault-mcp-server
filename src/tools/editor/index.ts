@@ -331,6 +331,9 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             summary: 'Get the vault-relative path of the currently active file.',
             returns: 'Plain text: the path, e.g. "notes/today.md".',
             errors: ['"No active file" if no file is open.'],
+            seeAlso: [
+              'workspace_get_active_leaf — when you need the active pane/leaf (id and view type), not just the file path.',
+            ],
           }, readOnlySchema),
           schema: readOnlySchema,
           outputSchema: getActiveFileOutputSchema,
