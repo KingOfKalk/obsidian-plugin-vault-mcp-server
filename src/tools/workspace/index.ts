@@ -154,6 +154,9 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
             summary: 'Get info about the currently-focused leaf (pane).',
             returns: 'JSON: { id, type, ... } describing the active leaf.',
             errors: ['"No active leaf" if no leaf is focused.'],
+            seeAlso: [
+              'editor_get_active_file — when you only need the active file\'s path, not the surrounding leaf metadata.',
+            ],
           }, readOnlySchema),
           schema: readOnlySchema,
           outputSchema: getActiveLeafOutputSchema,
