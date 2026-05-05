@@ -1,4 +1,5 @@
 import {
+  DailyNotesSettings,
   DataviewApi,
   FileStat,
   ListResult,
@@ -448,23 +449,13 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     this.dataviewApi = api;
   }
 
-  private dailyNotesSettings: {
-    format: string;
-    folder: string;
-    template: string;
-  } | null = null;
+  private dailyNotesSettings: DailyNotesSettings | null = null;
 
-  getDailyNotesSettings(): {
-    format: string;
-    folder: string;
-    template: string;
-  } | null {
+  getDailyNotesSettings(): DailyNotesSettings | null {
     return this.dailyNotesSettings;
   }
 
-  setDailyNotesSettings(
-    value: { format: string; folder: string; template: string } | null,
-  ): void {
+  setDailyNotesSettings(value: DailyNotesSettings | null): void {
     this.dailyNotesSettings = value;
   }
 

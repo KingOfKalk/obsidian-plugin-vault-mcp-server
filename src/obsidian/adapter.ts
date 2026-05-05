@@ -91,11 +91,7 @@ export interface ObsidianAdapter {
    * fields are normalized to Obsidian's documented defaults so callers
    * never have to handle `undefined`.
    */
-  getDailyNotesSettings(): {
-    format: string;
-    folder: string;
-    template: string;
-  } | null;
+  getDailyNotesSettings(): DailyNotesSettings | null;
 }
 
 /**
@@ -112,6 +108,19 @@ export interface DataviewApi {
 export type DataviewQueryResult =
   | { successful: true; value: string }
   | { successful: false; error: string };
+
+/**
+ * Subset of the Obsidian core "Daily notes" plugin's settings that
+ * `vault_daily_note` consumes. Returned by
+ * `ObsidianAdapter.getDailyNotesSettings()` already normalized — empty or
+ * missing fields are replaced with Obsidian's documented defaults
+ * (`'YYYY-MM-DD'`, `''`, `''`) by the real adapter.
+ */
+export interface DailyNotesSettings {
+  format: string;
+  folder: string;
+  template: string;
+}
 
 export class RealObsidianAdapter implements ObsidianAdapter {
   constructor(private app: App) {}
@@ -466,11 +475,7 @@ export class RealObsidianAdapter implements ObsidianAdapter {
     };
   }
 
-  getDailyNotesSettings(): {
-    format: string;
-    folder: string;
-    template: string;
-  } | null {
+  getDailyNotesSettings(): DailyNotesSettings | null {
     const appAny = this.app as any;
     const plugin = appAny.internalPlugins?.plugins?.['daily-notes'];
     if (!plugin || plugin.enabled !== true) return null;
