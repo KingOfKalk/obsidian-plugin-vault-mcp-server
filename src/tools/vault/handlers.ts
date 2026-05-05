@@ -1,4 +1,8 @@
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+// Obsidian re-exports moment at runtime; importing from 'moment' directly
+// gives us a properly callable type while still resolving to the same
+// bundled instance Obsidian uses (moment is a direct dependency).
+import moment from 'moment';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateVaultPath } from '../../utils/path-guard';
 import { truncateText } from '../shared/truncate';
@@ -478,9 +482,8 @@ export function createHandlers(
       }
     },
 
-    async dailyNote(_params): Promise<CallToolResult> {
+    async dailyNote(params): Promise<CallToolResult> {
       try {
-        await Promise.resolve();
         const settings = adapter.getDailyNotesSettings();
         if (settings === null) {
           throw new PluginApiUnavailableError(
@@ -488,8 +491,30 @@ export function createHandlers(
             'core plugin is disabled — enable it in Obsidian Settings → Core plugins',
           );
         }
-        // Subsequent branches added in Tasks 5b–5e.
-        throw new Error('not yet implemented');
+        const targetMoment = params.date !== undefined
+          ? moment(params.date, 'YYYY-MM-DD', true)
+          : moment();
+        if (!targetMoment.isValid()) {
+          throw new Error('date must be a valid calendar date (YYYY-MM-DD)');
+        }
+        const filenameBase = targetMoment.format(settings.format);
+        const filename = filenameBase.endsWith('.md') ? filenameBase : `${filenameBase}.md`;
+        const rawPath = settings.folder
+          ? `${settings.folder.replace(/\/+$/, '')}/${filename}`
+          : filename;
+        const path = validateVaultPath(rawPath, vaultPath);
+
+        const exists = await adapter.exists(path);
+        if (exists) {
+          const content = await adapter.readFile(path);
+          return makeResponse(
+            { path, created: false, content },
+            (v) => `${v.path} (existing)\n\n${v.content}`,
+            readResponseFormat(params),
+          );
+        }
+        // Subsequent branches (template handling, create) added in Tasks 5c–5d.
+        throw new Error('not yet implemented (create branch)');
       } catch (error) {
         return handleToolError(error);
       }
