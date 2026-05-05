@@ -9,6 +9,7 @@ import { truncateText } from '../shared/truncate';
 import { handleToolError, BinaryTooLargeError, PluginApiUnavailableError } from '../shared/errors';
 import { paginate, readPagination } from '../shared/pagination';
 import { makeResponse, readResponseFormat } from '../shared/response';
+import { expandPlaceholders } from '../shared/placeholders';
 import { BINARY_BYTE_LIMIT } from '../../constants';
 import type { InferredParams } from '../../registry/types';
 import type { SearchHandlers } from '../search/handlers';
@@ -163,6 +164,35 @@ function renderRecursiveListing(
     lines.push('', `_More files available — next offset: ${String(nextOffset ?? '')}_`);
   }
   return lines.join('\n');
+}
+
+async function resolveInitialBody(
+  adapter: ObsidianAdapter,
+  templatePath: string,
+  targetMoment: ReturnType<typeof moment>,
+  filename: string,
+): Promise<string> {
+  if (!templatePath) return '';
+  let templateBody: string;
+  try {
+    templateBody = await adapter.readFile(templatePath);
+  } catch {
+    // Configured template missing/moved — create empty rather than fail.
+    return '';
+  }
+  // Templater syntax: never expanded here — Templater can run arbitrary
+  // user JS, so execution stays client-side (mirrors plugin_templater_*).
+  if (templateBody.includes('<%')) return templateBody;
+  const title = filename.replace(/\.md$/, '');
+  return expandPlaceholders(
+    templateBody,
+    {
+      date: targetMoment.format('YYYY-MM-DD'),
+      time: targetMoment.format('HH:mm'),
+      title,
+    },
+    targetMoment.toDate(),
+  );
 }
 
 const RENAME_TARGET_PATTERN = /^[^/\\\x00]+$/;
@@ -513,8 +543,13 @@ export function createHandlers(
             readResponseFormat(params),
           );
         }
-        // Subsequent branches (template handling, create) added in Tasks 5c–5d.
-        throw new Error('not yet implemented (create branch)');
+        const body = await resolveInitialBody(adapter, settings.template, targetMoment, filename);
+        await adapter.createFile(path, body);
+        return makeResponse(
+          { path, created: true, content: body },
+          (v) => `${v.path} (created)\n\n${v.content}`,
+          readResponseFormat(params),
+        );
       } catch (error) {
         return handleToolError(error);
       }

@@ -56,4 +56,29 @@ describe('vault_daily_note handler', () => {
       expect(structured.content).toBe('specific body');
     });
   });
+
+  describe('create with empty template', () => {
+    it('creates the note with empty body when no template is configured', async () => {
+      adapter.setDailyNotesSettings({ format: 'YYYY-MM-DD', folder: '', template: '' });
+      const today = new Date().toISOString().split('T')[0];
+      const path = `${today}.md`;
+
+      const result = await handlers.dailyNote({});
+      expect(result.isError).toBeUndefined();
+      const structured = result.structuredContent as { path: string; created: boolean; content: string };
+      expect(structured.path).toBe(path);
+      expect(structured.created).toBe(true);
+      expect(structured.content).toBe('');
+      // and the file actually exists in the mock vault
+      expect(await adapter.readFile(path)).toBe('');
+    });
+
+    it('idempotent: a second call returns created=false', async () => {
+      adapter.setDailyNotesSettings({ format: 'YYYY-MM-DD', folder: '', template: '' });
+      await handlers.dailyNote({});
+      const result = await handlers.dailyNote({});
+      const structured = result.structuredContent as { created: boolean };
+      expect(structured.created).toBe(false);
+    });
+  });
 });
