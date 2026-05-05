@@ -37,7 +37,7 @@ jobs:
         run: npm run build
 
       - name: Create styles.css placeholder
-        run: echo "/* obsidian-mcp-plugin styles */" > styles.css
+        run: echo "/* vault-mcp-server styles */" > styles.css
 
       - name: Install screenshot system deps
         run: |

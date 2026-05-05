@@ -450,7 +450,7 @@ describe('McpSettingsTab MCP config display', () => {
       logger: { updateOptions: (): void => {} },
       saveSettings: vi.fn().mockResolvedValue(undefined),
       app: { vault: { configDir: '.obsidian' } },
-      manifest: { id: 'obsidian-mcp', version: '0.0.0' },
+      manifest: { id: 'vault-mcp-server', version: '0.0.0' },
     };
   }
 
@@ -563,7 +563,7 @@ describe('McpSettingsTab server controls', () => {
       saveSettings: vi.fn().mockResolvedValue(undefined),
       logger: { updateOptions: (): void => {} },
       app: { vault: { configDir: '.obsidian' } },
-      manifest: { id: 'obsidian-mcp', version: '0.0.0' },
+      manifest: { id: 'vault-mcp-server', version: '0.0.0' },
     };
   }
 
@@ -826,7 +826,7 @@ describe('McpSettingsTab server controls', () => {
         saveSettings: vi.fn().mockResolvedValue(undefined),
         logger: { updateOptions: (): void => {} },
         app: { vault: { configDir: '.obsidian' } },
-        manifest: { id: 'obsidian-mcp', version: '0.0.0' },
+        manifest: { id: 'vault-mcp-server', version: '0.0.0' },
       };
     }
 
@@ -944,7 +944,7 @@ describe('McpSettingsTab module rows rendering', () => {
       saveSettings: vi.fn().mockResolvedValue(undefined),
       logger: { updateOptions: (): void => {} },
       app: { vault: { configDir: '.obsidian' } },
-      manifest: { id: 'obsidian-mcp', version: '0.0.0' },
+      manifest: { id: 'vault-mcp-server', version: '0.0.0' },
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
     const tab = new McpSettingsTab({} as any, plugin as any);
@@ -1141,7 +1141,7 @@ describe('McpSettingsTab server settings validation', () => {
       logger: { updateOptions: (): void => {} },
       saveSettings: vi.fn().mockResolvedValue(undefined),
       app: { vault: { configDir: '.obsidian' } },
-      manifest: { id: 'obsidian-mcp', version: '0.0.0' },
+      manifest: { id: 'vault-mcp-server', version: '0.0.0' },
     };
   }
 

@@ -50,11 +50,11 @@ function makePlugin(adapter: FakeAdapter): {
 } {
   return {
     app: { vault: { adapter, configDir: '.obsidian' } },
-    manifest: { id: 'obsidian-mcp' },
+    manifest: { id: 'vault-mcp-server' },
   };
 }
 
-const expectedPath = '.obsidian/plugins/obsidian-mcp/debug.log';
+const expectedPath = '.obsidian/plugins/vault-mcp-server/debug.log';
 
 async function flush(): Promise<void> {
   // The sink serializes writes through a Promise chain whose individual

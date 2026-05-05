@@ -1,9 +1,9 @@
 {
-  "id": "obsidian-mcp",
-  "name": "MCP Server",
+  "id": "vault-mcp-server",
+  "name": "Vault MCP Server",
   "version": "2.7.1",
   "minAppVersion": "1.5.0",
-  "description": "Runs an MCP server inside Obsidian, exposing vault operations as tools over Streamable HTTP.",
+  "description": "Exposes your vault as a Model Context Protocol server for AI assistants.",
   "author": "KingOfKalk",
   "isDesktopOnly": true
 }

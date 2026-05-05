@@ -73,20 +73,20 @@ automatically.
 ### Option B — Manual install
 
 The simplest manual install uses the prebuilt zip attached to each release.
-The zip contains an `obsidian-mcp/` folder with `main.js`, `manifest.json`,
+The zip contains a `vault-mcp-server/` folder with `main.js`, `manifest.json`,
 and `styles.css` inside, ready to drop into your vault.
 
-1. Open the [latest release](https://github.com/KingOfKalk/obisdian-plugin-mcp/releases)
-   and download `obsidian-mcp-<version>.zip` from the **Assets** section.
+1. Open the [latest release](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/releases)
+   and download `vault-mcp-server-<version>.zip` from the **Assets** section.
 2. Extract the zip into `<your-vault>/.obsidian/plugins/`. You should end up
-   with the folder `<your-vault>/.obsidian/plugins/obsidian-mcp/` containing
+   with the folder `<your-vault>/.obsidian/plugins/vault-mcp-server/` containing
    the three plugin files.
 3. Reload Obsidian (`Ctrl/Cmd+R` or restart) and enable **MCP Server** under
    **Settings → Community plugins**.
 
 If you'd rather grab the files individually, download `main.js`,
 `manifest.json`, and `styles.css` from the same release, create the folder
-`<your-vault>/.obsidian/plugins/obsidian-mcp/` yourself, and drop the three
+`<your-vault>/.obsidian/plugins/vault-mcp-server/` yourself, and drop the three
 files into it.
 
 ---
@@ -234,7 +234,7 @@ restarting Obsidian (useful when developing modules).
 | Control | What it does |
 |---|---|
 | **Debug Mode** | Verbose logging of every MCP request and response. Access keys are **always** redacted. |
-| **Log file** | Read-only path to the persistent log at `<vault>/.obsidian/plugins/obsidian-mcp/debug.log`. The file rotates in place at 1 MiB (trims to the most recent 512 KiB). |
+| **Log file** | Read-only path to the persistent log at `<vault>/.obsidian/plugins/vault-mcp-server/debug.log`. The file rotates in place at 1 MiB (trims to the most recent 512 KiB). |
 | **Copy debug info** | Opens a modal with a copy-pasteable bundle: settings (with the access key replaced by `<set>`/`<empty>` and the cert by `<present>`/`<absent>`), module list, server status, and the most recent log lines. Safe to share when filing a bug. |
 | **Clear log** | Empties `debug.log`. |
 
@@ -284,7 +284,7 @@ This server exposes an Obsidian vault as MCP tools.
 - Frontmatter, headings, links, embeds, backlinks, and block refs are exposed via the `vault_get_aspect` tool (call it with the matching `aspect` enum value) — don't parse them out of `vault_read` output.
 ```
 
-Source of truth: [`src/server/mcp-server.ts`](https://github.com/KingOfKalk/obsidian-plugin-mcp/blob/main/src/server/mcp-server.ts)
+Source of truth: [`src/server/mcp-server.ts`](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/blob/main/src/server/mcp-server.ts)
 (`SERVER_INSTRUCTIONS`). If you suspect drift between the quoted text above
 and the live string, the source file wins.
 
@@ -455,7 +455,7 @@ than `127.0.0.1` — read it.
 
 ### Where are the settings stored? Are they safe to commit?
 
-Settings live in `<vault>/.obsidian/plugins/obsidian-mcp/data.json`. **Do
+Settings live in `<vault>/.obsidian/plugins/vault-mcp-server/data.json`. **Do
 not** commit this file: it contains your access key and the cached TLS
 private key. Treat it like a secret.
 
@@ -470,7 +470,7 @@ immediately.
 - Turn on **Debug Mode** for live request/response logging in the developer
   console (`Ctrl+Shift+I`).
 - The persistent log is at
-  `<vault>/.obsidian/plugins/obsidian-mcp/debug.log`.
+  `<vault>/.obsidian/plugins/vault-mcp-server/debug.log`.
 - Use **Copy debug info** to grab a sanitized bundle for bug reports.
 
 ### How do I report a bug?
