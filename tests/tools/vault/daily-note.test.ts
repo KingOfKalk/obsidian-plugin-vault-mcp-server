@@ -131,4 +131,35 @@ describe('vault_daily_note handler', () => {
       expect(structured.content).toBe('');
     });
   });
+
+  describe('date validation', () => {
+    it('rejects malformed date strings', async () => {
+      adapter.setDailyNotesSettings({ format: 'YYYY-MM-DD', folder: '', template: '' });
+      // The schema regex is enforced by the dispatcher, but the handler
+      // also tolerates direct calls; moment(strict) rejects the value.
+      const result = await handlers.dailyNote({ date: 'not-a-date' });
+      expect(result.isError).toBe(true);
+      expect(getText(result)).toMatch(/calendar/i);
+    });
+
+    it('rejects out-of-calendar dates that pass the regex', async () => {
+      adapter.setDailyNotesSettings({ format: 'YYYY-MM-DD', folder: '', template: '' });
+      const result = await handlers.dailyNote({ date: '2026-13-40' });
+      expect(result.isError).toBe(true);
+      expect(getText(result)).toMatch(/calendar/i);
+    });
+  });
+
+  describe('traversal-safety', () => {
+    it('rejects when the configured format would traverse outside the vault', async () => {
+      adapter.setDailyNotesSettings({
+        format: '[../etc/]YYYY-MM-DD',
+        folder: '',
+        template: '',
+      });
+      const result = await handlers.dailyNote({ date: '2026-05-05' });
+      expect(result.isError).toBe(true);
+      expect(getText(result)).toMatch(/traverse/i);
+    });
+  });
 });
