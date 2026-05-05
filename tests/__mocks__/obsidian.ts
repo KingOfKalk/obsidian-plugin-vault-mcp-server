@@ -478,3 +478,8 @@ export function mockApp(overrides: Partial<MockApp> = {}): MockApp {
     ...overrides,
   };
 }
+
+// Re-export moment so production code that does `import { moment } from 'obsidian'`
+// works in Vitest. Obsidian's runtime bundles moment and exports it; we just
+// forward to the real npm package in tests.
+export { default as moment } from 'moment';
