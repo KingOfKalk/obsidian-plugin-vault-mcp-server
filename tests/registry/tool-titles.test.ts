@@ -51,6 +51,7 @@ const SIBLING_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ['search_tags', 'search_by_tag'],
   ['editor_set_cursor', 'editor_set_selection'],
   ['editor_get_active_file', 'workspace_get_active_leaf'],
+  ['template_create_from', 'template_expand'],
 ];
 
 describe('sibling cross-references', () => {

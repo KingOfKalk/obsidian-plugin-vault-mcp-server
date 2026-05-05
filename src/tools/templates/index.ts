@@ -181,6 +181,9 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
               '"File not found" if templatePath is missing.',
               '"File already exists" if destPath is taken.',
             ],
+            seeAlso: [
+              'template_expand — when you want the expanded template content returned inline, not written to a new vault file.',
+            ],
           }, createFromTemplateSchema),
           schema: createFromTemplateSchema,
           handler: h.createFromTemplate,
@@ -196,6 +199,9 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
               'variables (Record<string,string>, optional): Variable map.',
             ],
             returns: 'Plain text: the expanded string.',
+            seeAlso: [
+              'template_create_from — when you want the expanded template written to a new vault file, not just returned as text.',
+            ],
           }, expandVariablesSchema),
           schema: expandVariablesSchema,
           outputSchema: templateExpandOutputSchema,
