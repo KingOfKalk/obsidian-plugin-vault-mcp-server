@@ -13,11 +13,11 @@ describe('vault module', () => {
     expect(module.metadata.name).toBe('Vault and File Operations');
   });
 
-  it('should register 17 tools', () => {
+  it('should register 18 tools', () => {
     const adapter = new MockObsidianAdapter();
     const module = createVaultModule(adapter);
     const tools = module.tools();
-    expect(tools).toHaveLength(17);
+    expect(tools).toHaveLength(18);
   });
 
   it('should have 6 read-only tools', () => {
@@ -27,11 +27,11 @@ describe('vault module', () => {
     expect(readOnlyTools).toHaveLength(6);
   });
 
-  it('should have 11 write tools', () => {
+  it('should have 12 write tools', () => {
     const adapter = new MockObsidianAdapter();
     const module = createVaultModule(adapter);
     const writeTools = module.tools().filter((t) => !t.annotations.readOnlyHint);
-    expect(writeTools).toHaveLength(11);
+    expect(writeTools).toHaveLength(12);
   });
 
   it('should have correct tool names', () => {
@@ -43,6 +43,7 @@ describe('vault module', () => {
       'vault_copy',
       'vault_create',
       'vault_create_folder',
+      'vault_daily_note',
       'vault_delete',
       'vault_delete_folder',
       'vault_get_aspect',
@@ -57,6 +58,13 @@ describe('vault module', () => {
       'vault_update',
       'vault_write_binary',
     ]);
+  });
+
+  it('registers vault_daily_note', () => {
+    const adapter = new MockObsidianAdapter();
+    const module = createVaultModule(adapter);
+    const names = module.tools().map((t) => t.name);
+    expect(names).toContain('vault_daily_note');
   });
 });
 

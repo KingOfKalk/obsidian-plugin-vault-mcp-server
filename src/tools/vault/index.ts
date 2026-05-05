@@ -22,6 +22,7 @@ import {
   readBinarySchema,
   writeBinarySchema,
   getAspectSchema,
+  dailyNoteSchema,
 } from './schemas';
 
 /**
@@ -171,6 +172,14 @@ const readBinaryOutputSchema = {
   size_bytes: z
     .number()
     .describe('Decoded file size in bytes (length of the underlying binary).'),
+};
+
+const dailyNoteOutputSchema = {
+  path: z.string().describe('Vault-relative path of the daily note.'),
+  created: z
+    .boolean()
+    .describe('True when the note was just created; false when it already existed.'),
+  content: z.string().describe('Full note content (template-expanded body when newly created).'),
 };
 
 export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
@@ -510,6 +519,32 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           outputSchema: getAspectOutputSchema,
           handler: handlers.getAspect,
           annotations: annotations.read,
+        }),
+        defineTool({
+          name: 'vault_daily_note',
+          title: 'Open or create the daily note',
+          description: describeTool({
+            summary:
+              "Resolve today's daily-note path from the daily-notes core plugin's settings, creating the note from the configured template if it does not yet exist.",
+            args: [
+              'date (string, optional, YYYY-MM-DD): Specific date to resolve. Omit for today (local time).',
+            ],
+            returns:
+              'Structured { path, created, content } — `created` is true on first call for the date, false on subsequent calls.',
+            examples: [
+              "Use when: starting a daily review and you need today's note as context.",
+              "Don't use when: you want a weekly/monthly note (not supported by this tool).",
+            ],
+            errors: [
+              '"Plugin API unavailable for daily-notes" when the daily-notes core plugin is disabled.',
+              '"date must be a valid calendar date" for malformed or out-of-calendar input.',
+              '"Path must not traverse outside the vault" if the configured format produces a traversing path.',
+            ],
+          }, dailyNoteSchema),
+          schema: dailyNoteSchema,
+          outputSchema: dailyNoteOutputSchema,
+          handler: handlers.dailyNote,
+          annotations: annotations.additive,
         }),
       ];
     },
