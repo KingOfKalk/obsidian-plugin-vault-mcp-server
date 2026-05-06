@@ -283,4 +283,11 @@ describe('fix-broken-links handler', () => {
     // Vault-wide opener must NOT appear in the single-note body
     expect(text).not.toContain('Fix broken links across the vault');
   });
+
+  it('throws PathTraversalError on a traversal path', async () => {
+    const adapter = new MockObsidianAdapter();
+    const handler = createFixBrokenLinksHandler(adapter);
+
+    await expect(handler({ path: '../etc/passwd' })).rejects.toThrow(PathTraversalError);
+  });
 });

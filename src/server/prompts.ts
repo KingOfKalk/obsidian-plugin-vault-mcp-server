@@ -160,15 +160,19 @@ interface FixBrokenLinksArgs {
 }
 
 export function createFixBrokenLinksHandler(
-  _adapter: ObsidianAdapter,
+  adapter: ObsidianAdapter,
 ): (args: FixBrokenLinksArgs) => Promise<GetPromptResult> {
   // async so a synchronous throw from validateVaultPath surfaces as a
   // rejected promise rather than a synchronous throw at the call site.
   // eslint-disable-next-line @typescript-eslint/require-await
   return async (args) => {
-    const text = args.path
-      ? fixBrokenLinksSingleNoteBody(args.path)
-      : FIX_BROKEN_LINKS_VAULT_WIDE_BODY;
+    let text: string;
+    if (args.path !== undefined) {
+      const path = validateVaultPath(args.path, adapter.getVaultPath());
+      text = fixBrokenLinksSingleNoteBody(path);
+    } else {
+      text = FIX_BROKEN_LINKS_VAULT_WIDE_BODY;
+    }
     return userTextMessage(text);
   };
 }
