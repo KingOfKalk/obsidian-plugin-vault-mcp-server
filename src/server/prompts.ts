@@ -166,13 +166,9 @@ export function createFixBrokenLinksHandler(
   // rejected promise rather than a synchronous throw at the call site.
   // eslint-disable-next-line @typescript-eslint/require-await
   return async (args) => {
-    let text: string;
-    if (args.path !== undefined) {
-      const path = validateVaultPath(args.path, adapter.getVaultPath());
-      text = fixBrokenLinksSingleNoteBody(path);
-    } else {
-      text = FIX_BROKEN_LINKS_VAULT_WIDE_BODY;
-    }
+    const text = args.path !== undefined
+      ? fixBrokenLinksSingleNoteBody(validateVaultPath(args.path, adapter.getVaultPath()))
+      : FIX_BROKEN_LINKS_VAULT_WIDE_BODY;
     return userTextMessage(text);
   };
 }
