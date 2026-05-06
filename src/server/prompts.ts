@@ -262,4 +262,27 @@ export function registerPrompts(
     },
     (args: { date?: string }, _extra) => dailyNote(args),
   );
+
+  const fixBrokenLinks = createFixBrokenLinksHandler(adapter);
+  const unresolvedSourcesCompleter = createUnresolvedSourcesCompleter(adapter);
+
+  logger.debug('Registering prompt: fix-broken-links');
+  server.registerPrompt(
+    'fix-broken-links',
+    {
+      title: 'Triage broken (unresolved) wikilinks',
+      description:
+        'Enumerate broken wikilinks (vault-wide or for one note) and walk through retargeting, stubbing out, or deleting them.',
+      argsSchema: {
+        path: completable(
+          z
+            .string()
+            .optional()
+            .describe('Optional vault-relative path. Omit to triage the whole vault.'),
+          (value) => unresolvedSourcesCompleter(value ?? ''),
+        ),
+      },
+    },
+    (args: { path?: string }, _extra) => fixBrokenLinks(args),
+  );
 }
