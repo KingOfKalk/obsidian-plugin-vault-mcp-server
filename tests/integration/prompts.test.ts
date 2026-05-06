@@ -8,7 +8,7 @@ import { DEFAULT_SETTINGS } from '../../src/types';
 import { Logger } from '../../src/utils/logger';
 
 describe('prompts surface — end-to-end', () => {
-  it('lists all four prompts and serves prompts/get + completion/complete via the SDK transport', async () => {
+  it('lists all five prompts and serves prompts/get + completion/complete via the SDK transport', async () => {
     const adapter = new MockObsidianAdapter();
     adapter.addFolder('templates');
     adapter.addFile('templates/weekly.md', '# {{week}}\n\n{{notes}}');
@@ -31,6 +31,7 @@ describe('prompts surface — end-to-end', () => {
       'daily-note',
       'expand-template',
       'find-related',
+      'fix-broken-links',
       'summarize-note',
     ]);
 
@@ -71,6 +72,36 @@ describe('prompts surface — end-to-end', () => {
     expect(dailyText).toContain('vault_daily_note');
     expect(dailyText).toContain('workspace_open_file');
     expect(dailyText).toContain('2026-05-05');
+
+    // prompts/get for /fix-broken-links — no path → vault-wide body
+    const fixVaultWide = await client.getPrompt({
+      name: 'fix-broken-links',
+      arguments: {},
+    });
+    expect(fixVaultWide.messages).toHaveLength(1);
+    const fixVaultWideText = (fixVaultWide.messages[0].content as { type: 'text'; text: string }).text;
+    expect(fixVaultWideText).toContain('Fix broken links across the vault');
+    expect(fixVaultWideText).toContain('search_unresolved_links');
+
+    // prompts/get for /fix-broken-links — with path → single-note body
+    const fixOne = await client.getPrompt({
+      name: 'fix-broken-links',
+      arguments: { path: 'notes/foo.md' },
+    });
+    const fixOneText = (fixOne.messages[0].content as { type: 'text'; text: string }).text;
+    expect(fixOneText).toContain('notes/foo.md');
+    expect(fixOneText).toContain('search_unresolved_links');
+
+    // completion/complete for /fix-broken-links's `path` argument.
+    // Pre-populate the mock with a note whose link metadata points at a
+    // non-existent target, so getUnresolvedLinks() reports it.
+    adapter.addFile('notes/with-broken-link.md', '');
+    adapter.setMetadata('notes/with-broken-link.md', { links: [{ link: 'does-not-exist' }] });
+    const fixCompletion = await client.complete({
+      ref: { type: 'ref/prompt', name: 'fix-broken-links' },
+      argument: { name: 'path', value: 'broken' },
+    });
+    expect(fixCompletion.completion.values).toContain('notes/with-broken-link.md');
 
     await client.close();
     await server.close();

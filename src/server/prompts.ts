@@ -135,6 +135,64 @@ export function createDailyNoteHandler(): (args: DailyNoteArgs) => Promise<GetPr
   };
 }
 
+function fixBrokenLinksSingleNoteBody(path: string): string {
+  return `Fix broken links in \`${path}\`. First call \`search_unresolved_links\` and pull out the entry whose source matches \`${path}\` — the value is a \`Record<target, count>\` of unresolved targets in this note. If \`${path}\` is not in the result, tell the user the note has no unresolved links and stop. For each broken link, propose **one** fix as a single tool call so the user can confirm before it's applied:
+
+- **Retarget** to an existing note: locate the intended target with \`search_fulltext\` or \`vault_list_recursive\`, then read \`${path}\` with \`vault_read\`, rewrite the link, and write it back with \`vault_update\` (or \`editor_replace\` if \`${path}\` is the active editor and you know the exact range).
+- **Create a stub** for the missing note: call \`vault_create\` at the link's target path with a minimal placeholder body.
+- **Delete the link**: read \`${path}\` with \`vault_read\`, remove just the wikilink (keep surrounding prose), and write back with \`vault_update\`.
+- **Leave as-is**: skip and explain why.
+
+Apply fixes one at a time. Wait for the user to confirm each tool call before moving on.`;
+}
+
+const FIX_BROKEN_LINKS_VAULT_WIDE_BODY = `Fix broken links across the vault. First call \`search_unresolved_links\` to enumerate them — the result is a \`Record<source, Record<target, count>>\` mapping each note containing broken links to its unresolved targets. If more than ~20 source notes are returned, work on the first 20 and report the remaining count so the user can re-run this prompt to continue. For each broken link, propose **one** fix as a single tool call so the user can confirm before it's applied:
+
+- **Retarget** to an existing note: locate the intended target with \`search_fulltext\` or \`vault_list_recursive\`, then read the source note with \`vault_read\`, rewrite the link, and write it back with \`vault_update\` (or \`editor_replace\` if the source is the active editor and you know the exact range).
+- **Create a stub** for the missing note: call \`vault_create\` at the link's target path with a minimal placeholder body.
+- **Delete the link**: read the source with \`vault_read\`, remove just the wikilink (keep surrounding prose), and write back with \`vault_update\`.
+- **Leave as-is**: skip and explain why (e.g. it's an intentional placeholder).
+
+Apply fixes one at a time. Wait for the user to confirm each tool call before moving on.`;
+
+interface FixBrokenLinksArgs {
+  path?: string;
+}
+
+export function createFixBrokenLinksHandler(
+  adapter: ObsidianAdapter,
+): (args: FixBrokenLinksArgs) => Promise<GetPromptResult> {
+  // async so a synchronous throw from validateVaultPath surfaces as a
+  // rejected promise rather than a synchronous throw at the call site.
+  // eslint-disable-next-line @typescript-eslint/require-await
+  return async (args) => {
+    const text = args.path !== undefined
+      ? fixBrokenLinksSingleNoteBody(validateVaultPath(args.path, adapter.getVaultPath()))
+      : FIX_BROKEN_LINKS_VAULT_WIDE_BODY;
+    return userTextMessage(text);
+  };
+}
+
+export function createUnresolvedSourcesCompleter(
+  adapter: ObsidianAdapter,
+): (partial: string) => Promise<string[]> {
+  // async so the return type matches the SDK's CompleteCallback signature
+  // (string[] | Promise<string[]>), keeping this consistent with other
+  // async-by-convention callbacks in this module.
+  // eslint-disable-next-line @typescript-eslint/require-await
+  return async (partial) => {
+    try {
+      const map = adapter.getUnresolvedLinks();
+      const needle = partial.toLowerCase();
+      return Object.keys(map)
+        .filter((p) => p.toLowerCase().includes(needle))
+        .slice(0, COMPLETER_RESULT_LIMIT);
+    } catch {
+      return [];
+    }
+  };
+}
+
 export function registerPrompts(
   server: McpServer,
   adapter: ObsidianAdapter,
@@ -203,5 +261,28 @@ export function registerPrompts(
       },
     },
     (args: { date?: string }, _extra) => dailyNote(args),
+  );
+
+  const fixBrokenLinks = createFixBrokenLinksHandler(adapter);
+  const unresolvedSourcesCompleter = createUnresolvedSourcesCompleter(adapter);
+
+  logger.debug('Registering prompt: fix-broken-links');
+  server.registerPrompt(
+    'fix-broken-links',
+    {
+      title: 'Triage broken (unresolved) wikilinks',
+      description:
+        'Enumerate broken wikilinks (vault-wide or for one note) and walk through retargeting, stubbing out, or deleting them.',
+      argsSchema: {
+        path: completable(
+          z
+            .string()
+            .optional()
+            .describe('Optional vault-relative path. Omit to triage the whole vault.'),
+          (value) => unresolvedSourcesCompleter(value ?? ''),
+        ),
+      },
+    },
+    (args: { path?: string }, _extra) => fixBrokenLinks(args),
   );
 }

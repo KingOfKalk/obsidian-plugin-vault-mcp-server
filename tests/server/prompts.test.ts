@@ -8,6 +8,8 @@ import {
   createExpandTemplateHandler,
   createTemplateCompleter,
   createDailyNoteHandler,
+  createFixBrokenLinksHandler,
+  createUnresolvedSourcesCompleter,
 } from '../../src/server/prompts';
 
 describe('extractPlaceholders', () => {
@@ -230,5 +232,117 @@ describe('daily-note handler', () => {
   it('rejects malformed date arguments', async () => {
     const handler = createDailyNoteHandler();
     await expect(handler({ date: 'not-a-date' })).rejects.toThrow(/YYYY-MM-DD/);
+  });
+});
+
+describe('fix-broken-links handler', () => {
+  it('returns the vault-wide body when called with no path', async () => {
+    const adapter = new MockObsidianAdapter();
+    const handler = createFixBrokenLinksHandler(adapter);
+
+    const result = await handler({});
+
+    expect(result.messages).toHaveLength(1);
+    const message = result.messages[0];
+    expect(message.role).toBe('user');
+    expect(message.content.type).toBe('text');
+    const text = (message.content as { type: 'text'; text: string }).text;
+    expect(text).toContain('Fix broken links across the vault');
+    expect(text).toContain('search_unresolved_links');
+    expect(text).toContain('vault_create');
+    expect(text).toContain('vault_update');
+    expect(text).toContain('Retarget');
+    expect(text).toContain('Create a stub');
+    expect(text).toContain('Delete the link');
+    expect(text).toContain('Leave as-is');
+    expect(text).toContain('~20');
+    expect(text).toContain('one at a time');
+    expect(text).toContain('propose **one** fix');
+    // Single-note opener must NOT appear in the vault-wide body
+    expect(text).not.toContain('Fix broken links in `');
+  });
+
+  it('returns the single-note body when called with a path', async () => {
+    const adapter = new MockObsidianAdapter();
+    const handler = createFixBrokenLinksHandler(adapter);
+
+    const result = await handler({ path: 'notes/foo.md' });
+
+    expect(result.messages).toHaveLength(1);
+    const text = (result.messages[0].content as { type: 'text'; text: string }).text;
+    expect(text).toContain('Fix broken links in `notes/foo.md`');
+    expect(text).toContain('search_unresolved_links');
+    expect(text).toContain('pull out the entry whose source matches');
+    expect(text).toContain('tell the user the note has no unresolved links and stop');
+    expect(text).toContain('Retarget');
+    expect(text).toContain('Create a stub');
+    expect(text).toContain('Delete the link');
+    expect(text).toContain('Leave as-is');
+    expect(text).toContain('one at a time');
+    expect(text).toContain('propose **one** fix');
+    // Vault-wide opener must NOT appear in the single-note body
+    expect(text).not.toContain('Fix broken links across the vault');
+  });
+
+  it('throws PathTraversalError on a traversal path', async () => {
+    const adapter = new MockObsidianAdapter();
+    const handler = createFixBrokenLinksHandler(adapter);
+
+    await expect(handler({ path: '../etc/passwd' })).rejects.toThrow(PathTraversalError);
+  });
+});
+
+describe('unresolvedSourcesCompleter', () => {
+  it('returns [] when the adapter reports no unresolved links', async () => {
+    const adapter = new MockObsidianAdapter();
+    // No files, so getUnresolvedLinks() returns {}.
+    const completer = createUnresolvedSourcesCompleter(adapter);
+
+    const result = await completer('');
+
+    expect(result).toEqual([]);
+  });
+
+  it('filters by case-insensitive substring match on the source path', async () => {
+    const adapter = new MockObsidianAdapter();
+    adapter.addFile('notes/Weekly.md', '');
+    adapter.setMetadata('notes/Weekly.md', { links: [{ link: 'missing-target' }] });
+    adapter.addFile('notes/Daily.md', '');
+    adapter.setMetadata('notes/Daily.md', { links: [{ link: 'also-missing' }] });
+    adapter.addFile('notes/Monthly.md', '');
+    adapter.setMetadata('notes/Monthly.md', { links: [{ link: 'still-missing' }] });
+    const completer = createUnresolvedSourcesCompleter(adapter);
+
+    const result = await completer('weEK');
+
+    expect(result).toEqual(['notes/Weekly.md']);
+  });
+
+  it('caps results at 100', async () => {
+    const adapter = new MockObsidianAdapter();
+    for (let i = 0; i < 150; i++) {
+      const path = `notes/n${String(i)}.md`;
+      adapter.addFile(path, '');
+      adapter.setMetadata(path, { links: [{ link: `missing-${String(i)}` }] });
+    }
+    const completer = createUnresolvedSourcesCompleter(adapter);
+
+    const result = await completer('');
+
+    expect(result.length).toBe(100);
+  });
+
+  it('returns [] when getUnresolvedLinks throws (no propagation)', async () => {
+    const adapter = new MockObsidianAdapter();
+    // Replace getUnresolvedLinks with a throwing stub. Cast through unknown
+    // to satisfy strict typing without modifying the real adapter surface.
+    (adapter as unknown as { getUnresolvedLinks: () => never }).getUnresolvedLinks = (): never => {
+      throw new Error('boom');
+    };
+    const completer = createUnresolvedSourcesCompleter(adapter);
+
+    const result = await completer('anything');
+
+    expect(result).toEqual([]);
   });
 });
