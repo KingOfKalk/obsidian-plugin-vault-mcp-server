@@ -8,7 +8,11 @@ import {
   createExpandTemplateHandler,
   createTemplateCompleter,
   createDailyNoteHandler,
+  createFixBrokenLinksHandler,        // NEW
+  createUnresolvedSourcesCompleter,   // NEW (used by Task 4 — adding here keeps the import block edited once)
 } from '../../src/server/prompts';
+// Reference to prevent TS/ESLint unused-import errors; Task 4 will add tests that call this.
+void createUnresolvedSourcesCompleter;
 
 describe('extractPlaceholders', () => {
   it('returns [] for an empty body', () => {
@@ -230,5 +234,32 @@ describe('daily-note handler', () => {
   it('rejects malformed date arguments', async () => {
     const handler = createDailyNoteHandler();
     await expect(handler({ date: 'not-a-date' })).rejects.toThrow(/YYYY-MM-DD/);
+  });
+});
+
+describe('fix-broken-links handler', () => {
+  it('returns the vault-wide body when called with no path', async () => {
+    const adapter = new MockObsidianAdapter();
+    const handler = createFixBrokenLinksHandler(adapter);
+
+    const result = await handler({});
+
+    expect(result.messages).toHaveLength(1);
+    const message = result.messages[0];
+    expect(message.role).toBe('user');
+    expect(message.content.type).toBe('text');
+    const text = (message.content as { type: 'text'; text: string }).text;
+    expect(text).toContain('Fix broken links across the vault');
+    expect(text).toContain('search_unresolved_links');
+    expect(text).toContain('vault_create');
+    expect(text).toContain('vault_update');
+    expect(text).toContain('Retarget');
+    expect(text).toContain('Create a stub');
+    expect(text).toContain('Delete the link');
+    expect(text).toContain('Leave as-is');
+    expect(text).toContain('~20');
+    expect(text).toContain('one at a time');
+    // Single-note opener must NOT appear in the vault-wide body
+    expect(text).not.toContain('Fix broken links in `');
   });
 });
