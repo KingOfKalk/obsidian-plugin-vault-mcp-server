@@ -155,7 +155,7 @@ The settings tab is split into five sections.
 | **TLS Certificate** | auto | Generated on the first HTTPS start, then cached in `data.json`. Use **Regenerate certificate** if you change the address or want a fresh key pair — clients will need to re-trust the new cert. |
 | **Auto-start on launch** | off | Start the MCP server automatically when Obsidian loads. The server still applies the auth/insecure-mode guard on auto-start, so a misconfigured install stays stopped and the reason is logged. |
 | **Expose vault files as MCP resources** | **on** | When on, MCP hosts can browse and read vault files via the resources surface (`obsidian://vault/{path}`) in addition to tools. Restart the server to apply changes. See [Resources](#resources) below. |
-| **Expose MCP slash-command prompts** | **on** | When on, MCP hosts surface canned vault workflows (`/summarize-note`, `/find-related`, `/expand-template`, `/daily-note`) as slash commands via the prompts surface. Restart the server to apply changes. See [Prompts](#prompts) below. |
+| **Expose MCP slash-command prompts** | **on** | When on, MCP hosts surface canned vault workflows (`/summarize-note`, `/find-related`, `/expand-template`, `/daily-note`, `/fix-broken-links`) as slash commands via the prompts surface. Restart the server to apply changes. See [Prompts](#prompts) below. |
 
 #### DNS Rebind Protection
 
@@ -309,9 +309,9 @@ If you only want the tools surface, turn off **"Expose vault files as MCP resour
 
 ## Prompts
 
-In addition to tools and resources, the server exposes four canned **MCP prompts** so hosts surface them as slash commands. The user picks one, fills in the argument(s), and a pre-canned message lands in the conversation — no need to spell out the full tool sequence.
+In addition to tools and resources, the server exposes five canned **MCP prompts** so hosts surface them as slash commands. The user picks one, fills in the argument(s), and a pre-canned message lands in the conversation — no need to spell out the full tool sequence.
 
-How the prompts appear depends on the host. Claude Code, for example, surfaces them as `/mcp__obsidian__summarize-note`, `/mcp__obsidian__find-related`, `/mcp__obsidian__expand-template`, and `/mcp__obsidian__daily-note`.
+How the prompts appear depends on the host. Claude Code, for example, surfaces them as `/mcp__obsidian__summarize-note`, `/mcp__obsidian__find-related`, `/mcp__obsidian__expand-template`, `/mcp__obsidian__daily-note`, and `/mcp__obsidian__fix-broken-links`.
 
 ### Available prompts
 
@@ -319,10 +319,16 @@ How the prompts appear depends on the host. Claude Code, for example, surfaces t
 - **`find-related`** — argument: `path` (vault-relative). Asks Claude to read the seed note, then cross-reference it with `search_fulltext` and `vault_get_aspect` (with `aspect: "backlinks"`) and report the most relevant connections.
 - **`expand-template`** — argument: `template` (vault-relative path to a template file in the vault's `templates/` folder). Reads the template, surfaces the placeholders that need values, and asks Claude to collect them and call `template_expand` (or `template_create_from` if the user wants a new note written).
 - **`daily-note`** — argument: `date` (optional, ISO `YYYY-MM-DD`; omit for today / local time). Asks Claude to call `vault_daily_note` and then `workspace_open_file` on the resulting path, creating the note from the configured daily-notes template if it does not yet exist. Requires the **Daily notes** core plugin to be enabled in Obsidian (`Settings → Core plugins`); the underlying tool reads the plugin's configured `format`, `folder`, and `template` settings — so a German user with `format = "DD.MM.YYYY"` will get filenames like `27.04.2026.md`, exactly as they configured. The `date` argument itself is **ISO-only** (`YYYY-MM-DD`); date strings in other formats are rejected. When the configured template uses Templater syntax (`<%`), the tool copies the template body **verbatim** — Templater is never executed server-side; running the template stays the host client's responsibility.
+- **`fix-broken-links`** — argument: `path` (optional, vault-relative). Enumerates broken `[[wikilinks]]` via `search_unresolved_links` and walks Claude through fixing them — retarget to an existing note, create a stub, or delete the link. With `path`, scopes to that one source note; without, walks the whole vault (capped at ~20 source notes per run, re-run to continue). Each proposed edit lands as a separate tool call so you confirm or reject one at a time. Autocomplete on `path` lists vault notes that currently contain unresolved links.
 
 ### Autocomplete
 
-The `expand-template` prompt's `template` argument supports autocomplete: the server lists files in the vault's `templates/` folder and filters them by case-insensitive substring match (capped at 100 entries). Hosts that implement the MCP `completion/complete` protocol expose this as a dropdown next to the argument input.
+Two prompts support argument autocomplete:
+
+- **`expand-template`** (`template`): the server lists files in the vault's `templates/` folder and filters them by case-insensitive substring match.
+- **`fix-broken-links`** (`path`): the server lists vault notes that currently contain unresolved links (sourced from `search_unresolved_links`'s map keys) and filters them by case-insensitive substring match.
+
+Both completers cap at 100 entries. Hosts that implement the MCP `completion/complete` protocol expose this as a dropdown next to the argument input.
 
 ### Disabling
 
