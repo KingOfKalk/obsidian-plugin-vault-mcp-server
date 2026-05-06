@@ -262,4 +262,25 @@ describe('fix-broken-links handler', () => {
     // Single-note opener must NOT appear in the vault-wide body
     expect(text).not.toContain('Fix broken links in `');
   });
+
+  it('returns the single-note body when called with a path', async () => {
+    const adapter = new MockObsidianAdapter();
+    const handler = createFixBrokenLinksHandler(adapter);
+
+    const result = await handler({ path: 'notes/foo.md' });
+
+    expect(result.messages).toHaveLength(1);
+    const text = (result.messages[0].content as { type: 'text'; text: string }).text;
+    expect(text).toContain('Fix broken links in `notes/foo.md`');
+    expect(text).toContain('search_unresolved_links');
+    expect(text).toContain('pull out the entry whose source matches');
+    expect(text).toContain('tell the user the note has no unresolved links and stop');
+    expect(text).toContain('Retarget');
+    expect(text).toContain('Create a stub');
+    expect(text).toContain('Delete the link');
+    expect(text).toContain('Leave as-is');
+    expect(text).toContain('one at a time');
+    // Vault-wide opener must NOT appear in the single-note body
+    expect(text).not.toContain('Fix broken links across the vault');
+  });
 });
