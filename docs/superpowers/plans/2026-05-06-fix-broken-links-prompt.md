@@ -581,7 +581,7 @@ Refs #305"
 ## Task 6: User-facing documentation
 
 **Files:**
-- Modify: `docs/help/en.md` (four spots: settings table row, Prompts intro, host-rendering example, Available prompts list, Autocomplete section)
+- Modify: `docs/help/en.md` (five spots: settings table row, Prompts intro, host-rendering example, Available prompts list, Autocomplete section)
 
 - [ ] **Step 1: Bump the prompt count in the settings table**
 

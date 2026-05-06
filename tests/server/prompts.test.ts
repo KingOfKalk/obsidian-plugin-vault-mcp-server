@@ -257,6 +257,7 @@ describe('fix-broken-links handler', () => {
     expect(text).toContain('Leave as-is');
     expect(text).toContain('~20');
     expect(text).toContain('one at a time');
+    expect(text).toContain('propose **one** fix');
     // Single-note opener must NOT appear in the vault-wide body
     expect(text).not.toContain('Fix broken links in `');
   });
@@ -278,6 +279,7 @@ describe('fix-broken-links handler', () => {
     expect(text).toContain('Delete the link');
     expect(text).toContain('Leave as-is');
     expect(text).toContain('one at a time');
+    expect(text).toContain('propose **one** fix');
     // Vault-wide opener must NOT appear in the single-note body
     expect(text).not.toContain('Fix broken links across the vault');
   });
