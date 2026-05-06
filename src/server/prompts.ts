@@ -174,12 +174,22 @@ export function createFixBrokenLinksHandler(
 }
 
 export function createUnresolvedSourcesCompleter(
-  _adapter: ObsidianAdapter,
+  adapter: ObsidianAdapter,
 ): (partial: string) => Promise<string[]> {
-  // Stub — replaced in Task 4.
+  // async so the return type matches the SDK's CompleteCallback signature
+  // (string[] | Promise<string[]>), keeping this consistent with other
+  // async-by-convention callbacks in this module.
   // eslint-disable-next-line @typescript-eslint/require-await
-  return async (_partial) => {
-    throw new Error('not implemented');
+  return async (partial) => {
+    try {
+      const map = adapter.getUnresolvedLinks();
+      const needle = partial.toLowerCase();
+      return Object.keys(map)
+        .filter((p) => p.toLowerCase().includes(needle))
+        .slice(0, COMPLETER_RESULT_LIMIT);
+    } catch {
+      return [];
+    }
   };
 }
 

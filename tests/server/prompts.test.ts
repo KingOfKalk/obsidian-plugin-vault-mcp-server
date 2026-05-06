@@ -11,9 +11,6 @@ import {
   createFixBrokenLinksHandler,        // NEW
   createUnresolvedSourcesCompleter,   // NEW (used by Task 4 — adding here keeps the import block edited once)
 } from '../../src/server/prompts';
-// Reference to prevent TS/ESLint unused-import errors; Task 4 will add tests that call this.
-void createUnresolvedSourcesCompleter;
-
 describe('extractPlaceholders', () => {
   it('returns [] for an empty body', () => {
     expect(extractPlaceholders('')).toEqual([]);
@@ -289,5 +286,60 @@ describe('fix-broken-links handler', () => {
     const handler = createFixBrokenLinksHandler(adapter);
 
     await expect(handler({ path: '../etc/passwd' })).rejects.toThrow(PathTraversalError);
+  });
+});
+
+describe('unresolvedSourcesCompleter', () => {
+  it('returns [] when the adapter reports no unresolved links', async () => {
+    const adapter = new MockObsidianAdapter();
+    // No files, so getUnresolvedLinks() returns {}.
+    const completer = createUnresolvedSourcesCompleter(adapter);
+
+    const result = await completer('');
+
+    expect(result).toEqual([]);
+  });
+
+  it('filters by case-insensitive substring match on the source path', async () => {
+    const adapter = new MockObsidianAdapter();
+    adapter.addFile('notes/Weekly.md', '');
+    adapter.setMetadata('notes/Weekly.md', { links: [{ link: 'missing-target' }] });
+    adapter.addFile('notes/Daily.md', '');
+    adapter.setMetadata('notes/Daily.md', { links: [{ link: 'also-missing' }] });
+    adapter.addFile('notes/Monthly.md', '');
+    adapter.setMetadata('notes/Monthly.md', { links: [{ link: 'still-missing' }] });
+    const completer = createUnresolvedSourcesCompleter(adapter);
+
+    const result = await completer('weEK');
+
+    expect(result).toEqual(['notes/Weekly.md']);
+  });
+
+  it('caps results at 100', async () => {
+    const adapter = new MockObsidianAdapter();
+    for (let i = 0; i < 150; i++) {
+      const path = `notes/n${String(i)}.md`;
+      adapter.addFile(path, '');
+      adapter.setMetadata(path, { links: [{ link: `missing-${String(i)}` }] });
+    }
+    const completer = createUnresolvedSourcesCompleter(adapter);
+
+    const result = await completer('');
+
+    expect(result.length).toBe(100);
+  });
+
+  it('returns [] when getUnresolvedLinks throws (no propagation)', async () => {
+    const adapter = new MockObsidianAdapter();
+    // Replace getUnresolvedLinks with a throwing stub. Cast through unknown
+    // to satisfy strict typing without modifying the real adapter surface.
+    (adapter as unknown as { getUnresolvedLinks: () => never }).getUnresolvedLinks = (): never => {
+      throw new Error('boom');
+    };
+    const completer = createUnresolvedSourcesCompleter(adapter);
+
+    const result = await completer('anything');
+
+    expect(result).toEqual([]);
   });
 });
