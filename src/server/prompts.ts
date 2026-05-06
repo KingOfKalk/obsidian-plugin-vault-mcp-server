@@ -151,17 +151,22 @@ interface FixBrokenLinksArgs {
 export function createFixBrokenLinksHandler(
   _adapter: ObsidianAdapter,
 ): (args: FixBrokenLinksArgs) => Promise<GetPromptResult> {
-  // async so a synchronous throw from validateVaultPath (added in Task 3)
-  // surfaces as a rejected promise rather than a synchronous throw at the
-  // call site.
+  // async so a synchronous throw from validateVaultPath surfaces as a
+  // rejected promise rather than a synchronous throw at the call site.
   // eslint-disable-next-line @typescript-eslint/require-await
   return async (_args) => {
     return userTextMessage(FIX_BROKEN_LINKS_VAULT_WIDE_BODY);
   };
 }
 
-export function createUnresolvedSourcesCompleter(): never {
-  throw new Error('not implemented');
+export function createUnresolvedSourcesCompleter(
+  _adapter: ObsidianAdapter,
+): (partial: string) => Promise<string[]> {
+  // Stub — replaced in Task 4.
+  // eslint-disable-next-line @typescript-eslint/require-await
+  return async (_partial) => {
+    throw new Error('not implemented');
+  };
 }
 
 export function registerPrompts(
