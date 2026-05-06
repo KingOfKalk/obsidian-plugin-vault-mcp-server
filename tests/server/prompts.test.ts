@@ -8,9 +8,10 @@ import {
   createExpandTemplateHandler,
   createTemplateCompleter,
   createDailyNoteHandler,
-  createFixBrokenLinksHandler,        // NEW
-  createUnresolvedSourcesCompleter,   // NEW (used by Task 4 — adding here keeps the import block edited once)
+  createFixBrokenLinksHandler,
+  createUnresolvedSourcesCompleter,
 } from '../../src/server/prompts';
+
 describe('extractPlaceholders', () => {
   it('returns [] for an empty body', () => {
     expect(extractPlaceholders('')).toEqual([]);
