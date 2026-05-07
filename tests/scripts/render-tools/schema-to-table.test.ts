@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   renderTypeCell,
   inputShapeToTable,
+  outputSchemaToTables,
 } from '../../../scripts/render-tools/schema-to-table';
 
 describe('renderTypeCell', () => {
@@ -110,5 +111,41 @@ describe('inputShapeToTable', () => {
   it('returns an empty-table marker for empty shapes', () => {
     const md = inputShapeToTable({});
     expect(md).toContain('_No input parameters._');
+  });
+});
+
+describe('outputSchemaToTables (flat shapes)', () => {
+  it('renders the no-output marker when schema is undefined', () => {
+    expect(outputSchemaToTables(undefined)).toContain(
+      '_No `structuredContent` declared — returns plain text or binary._',
+    );
+  });
+
+  it('renders a flat raw shape with three columns', () => {
+    const shape = {
+      path: z.string().describe('Vault path'),
+      content: z.string().describe('File content'),
+    };
+    const md = outputSchemaToTables(shape);
+    expect(md).toContain('| Field | Type | Description |');
+    expect(md).toContain('|---|---|---|');
+    expect(md).toMatch(/\| `path` \| string \| Vault path \|/);
+    expect(md).toMatch(/\| `content` \| string \| File content \|/);
+  });
+
+  it('handles arrays of objects and arrays of primitives', () => {
+    const shape = {
+      items: z.array(z.object({ a: z.string() })).describe('list of items'),
+      tags: z.array(z.string()).describe('list of tags'),
+    };
+    const md = outputSchemaToTables(shape);
+    expect(md).toMatch(/\| `items` \| object\[\] \| list of items \|/);
+    expect(md).toMatch(/\| `tags` \| string\[\] \| list of tags \|/);
+  });
+
+  it('falls back to a one-line note when the schema converts to something unrecognised', () => {
+    // A bare boolean — z.toJSONSchema(z.boolean()) does not produce object/oneOf.
+    const md = outputSchemaToTables(z.boolean());
+    expect(md).toContain('_Output schema present but not renderable as a table._');
   });
 });

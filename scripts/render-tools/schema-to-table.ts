@@ -101,6 +101,39 @@ function renderDescription(raw: unknown): string {
   return raw.replace(/\s+/g, ' ').trim().replace(/\|/g, '\\|');
 }
 
+const NO_OUTPUT_MARKER =
+  '_No `structuredContent` declared — returns plain text or binary._';
+const UNRENDERABLE_MARKER =
+  '_Output schema present but not renderable as a table._';
+
+export function outputSchemaToTables(
+  schema: z.ZodRawShape | z.ZodTypeAny | undefined,
+): string {
+  if (schema === undefined) return NO_OUTPUT_MARKER;
+
+  // Discriminated-union special case: implemented in Task 6.
+  // For now, flat case only.
+  const json = outputSchemaToJsonSchema(schema);
+  if (json.type === 'object' && json.properties) {
+    return renderFlatOutputTable(json);
+  }
+  return UNRENDERABLE_MARKER;
+}
+
+function renderFlatOutputTable(json: JsonSchema): string {
+  const properties = (json.properties ?? {}) as Record<string, JsonSchema>;
+  const lines: string[] = [];
+  lines.push('| Field | Type | Description |');
+  lines.push('|---|---|---|');
+  for (const name of Object.keys(properties)) {
+    const field = properties[name];
+    const type = renderTypeCell(field);
+    const description = renderDescription(field.description);
+    lines.push(`| \`${name}\` | ${type} | ${description} |`);
+  }
+  return lines.join('\n');
+}
+
 // Re-export helpers needed by Task 4 / Task 5 so the call-site only imports
 // from this module. Real implementations are added in later tasks.
 export { outputSchemaToJsonSchema, isDiscriminatedUnion };
