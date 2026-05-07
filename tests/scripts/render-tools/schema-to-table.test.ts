@@ -102,6 +102,14 @@ describe('inputShapeToTable', () => {
     expect(md).toMatch(/\| `x` \| string \| yes \| a \\\| b \|/);
   });
 
+  it('escapes backslashes before pipes so a literal backslash cannot break the cell', () => {
+    const shape = { x: z.string().describe('a \\ | b') };
+    const md = inputShapeToTable(shape);
+    // Source description: a \ | b
+    // After escape:       a \\ \| b  (every \ doubled, every | prefixed with \)
+    expect(md).toMatch(/\| `x` \| string \| yes \| a \\\\ \\\| b \|/);
+  });
+
   it('collapses internal whitespace in descriptions', () => {
     const shape = { x: z.string().describe('line one\n  line two') };
     const md = inputShapeToTable(shape);

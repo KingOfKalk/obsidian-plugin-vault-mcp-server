@@ -98,7 +98,10 @@ function formatDefault(value: unknown): string {
 
 function renderDescription(raw: unknown): string {
   if (typeof raw !== 'string') return '';
-  return raw.replace(/\s+/g, ' ').trim().replace(/\|/g, '\\|');
+  // Escape backslashes before pipes so a literal `\` in the source description
+  // can't combine with the next character to break the table cell. Single
+  // pass via back-reference: any `\` or `|` becomes `\\` or `\|`.
+  return raw.replace(/\s+/g, ' ').trim().replace(/[\\|]/g, '\\$&');
 }
 
 const NO_OUTPUT_MARKER =
