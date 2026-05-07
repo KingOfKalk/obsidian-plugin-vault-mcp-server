@@ -17,13 +17,13 @@ If you are a developer and want a deeper reference, see:
 
 The plugin runs an **MCP (Model Context Protocol) server** inside Obsidian
 Desktop. It exposes vault operations, search, the editor, the workspace, UI
-prompts, templates, and plugin interop as MCP tools over **Streamable HTTP**.
+notices, templates, and plugin interop as MCP tools over **Streamable HTTP**.
 Any MCP-capable client (Claude Desktop, Claude Code, Codex, custom agents) can
 connect to the server and read or modify your vault programmatically.
 
 - **Desktop only** (Node-only APIs are required)
 - **Default endpoint**: `http://127.0.0.1:28741/mcp`
-- **Auth**: opt-in HTTP Bearer token
+- **Auth**: HTTP Bearer token, on by default
 - **Transport**: Streamable HTTP (MCP SDK 1.x)
 
 ---
@@ -59,7 +59,7 @@ date directly from a GitHub release.
 4. Paste the repository URL:
 
    ```
-   https://github.com/KingOfKalk/obisdian-plugin-mcp
+   https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server
    ```
 
 5. Pick **Latest version** and click **Add Plugin**. BRAT downloads
@@ -201,13 +201,13 @@ modules are hidden from `tools/list`, so the client never sees them.
 
 | Module | Tools | Notes |
 |---|---|---|
-| Vault and File Operations | 16 | Create / read / update / delete files and folders, rename, move, copy, list, binary I/O, metadata. |
-| Search and Metadata | 12 | Full-text search, frontmatter, tags, headings, links, embeds, backlinks, block refs. |
+| Vault and File Operations | 18 | Create / read / update / delete files and folders, rename, move, copy, list, binary I/O, metadata, daily note. |
+| Search and Metadata | 6 | Full-text search, list tags, find notes by tag / frontmatter, find resolved / unresolved links. |
 | Editor Operations | 10 | Read/insert/replace/delete text in the active editor, cursor and selection management. |
 | Workspace and Navigation | 5 | Inspect / open / focus leaves, read the layout. |
-| UI Interactions | 3 | Show notices and confirm/prompt modals. |
+| UI Interactions | 1 | Show notices. |
 | Templates | 3 | List templates, create from template, expand variables. |
-| Plugin Interop | 5 | List plugins, run Dataview / Templater queries, execute commands. |
+| Plugin Interop | 6 | List / check plugins, run / describe Dataview queries, describe Templater templates, execute commands. |
 
 There is also an **Extras** group for utility tools that don't mirror an
 Obsidian API. Extras are toggled **per tool**, not per module, and are off by
@@ -485,6 +485,6 @@ immediately.
 1. Reproduce the issue with **Debug Mode** on.
 2. Click **Copy debug info** in **Diagnostics** and paste the bundle into a
    GitHub issue at
-   <https://github.com/KingOfKalk/obisdian-plugin-mcp/issues>. The bundle
+   <https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues>. The bundle
    never includes your access key or TLS private key, but always re-read it
    before sharing.
