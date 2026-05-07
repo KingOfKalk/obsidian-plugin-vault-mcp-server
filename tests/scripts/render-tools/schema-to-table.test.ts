@@ -149,3 +149,29 @@ describe('outputSchemaToTables (flat shapes)', () => {
     expect(md).toContain('_Output schema present but not renderable as a table._');
   });
 });
+
+describe('outputSchemaToTables (discriminated union)', () => {
+  it('renders one variant table per branch', () => {
+    const u = z.discriminatedUnion('aspect', [
+      z.object({
+        aspect: z.literal('frontmatter'),
+        path: z.string().describe('p'),
+        frontmatter: z.record(z.string(), z.unknown()).describe('fm'),
+      }),
+      z.object({
+        aspect: z.literal('headings'),
+        path: z.string().describe('p'),
+        headings: z.array(z.object({ heading: z.string(), level: z.number() })).describe('h'),
+      }),
+    ]);
+    const md = outputSchemaToTables(u);
+    expect(md).toContain('**When `aspect` is `frontmatter`**');
+    expect(md).toContain('**When `aspect` is `headings`**');
+    // Frontmatter variant table
+    expect(md).toMatch(/\| `aspect` \| literal: `frontmatter` \| /);
+    expect(md).toMatch(/\| `frontmatter` \| object \| fm \|/);
+    // Headings variant table
+    expect(md).toMatch(/\| `aspect` \| literal: `headings` \| /);
+    expect(md).toMatch(/\| `headings` \| object\[\] \| h \|/);
+  });
+});

@@ -111,13 +111,34 @@ export function outputSchemaToTables(
 ): string {
   if (schema === undefined) return NO_OUTPUT_MARKER;
 
-  // Discriminated-union special case: implemented in Task 6.
-  // For now, flat case only.
+  if (schema instanceof z.ZodType && isDiscriminatedUnion(schema)) {
+    return renderDiscriminatedUnionTables(schema);
+  }
+
   const json = outputSchemaToJsonSchema(schema);
   if (json.type === 'object' && json.properties) {
     return renderFlatOutputTable(json);
   }
   return UNRENDERABLE_MARKER;
+}
+
+function renderDiscriminatedUnionTables(
+  union: z.ZodDiscriminatedUnion,
+): string {
+  const discriminator: string = union.def.discriminator;
+  const sections: string[] = [];
+  for (const option of union.def.options) {
+    const json = outputSchemaToJsonSchema(option as z.ZodTypeAny);
+    const properties = (json.properties ?? {}) as Record<string, JsonSchema>;
+    const discField: JsonSchema | undefined = properties[discriminator];
+    const constVal: unknown = discField ? discField['const'] : undefined;
+    const literal = typeof constVal === 'string' ? constVal : '?';
+    sections.push(`**When \`${discriminator}\` is \`${literal}\`**`);
+    sections.push('');
+    sections.push(renderFlatOutputTable(json));
+    sections.push('');
+  }
+  return sections.join('\n').trimEnd();
 }
 
 function renderFlatOutputTable(json: JsonSchema): string {
