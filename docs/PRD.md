@@ -32,7 +32,7 @@ Each category is a toggleable module. Modules self-register. The settings UI aut
 - **R13** — List files and folders recursively from a given path
 - **R14** — Read binary file content (base64 encoded)
 - **R15** — Write binary file content (from base64)
-- **R16** — Get file metadata (size, creation date, modification date)
+- **R16** — Get file metadata (size, creation date, modification date) — *audit (2026-05-07): `vault_get_metadata` response also includes `path` alongside size/created/modified.*
 
 ### Search and Metadata
 
