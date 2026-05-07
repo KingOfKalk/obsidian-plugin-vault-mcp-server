@@ -229,7 +229,7 @@ The plugin UI is translated via a tiny in-house i18n helper modelled on the [obs
 
 - **TR1** — TypeScript strict mode, no `any` types unless explicitly justified
 - **TR2** — esbuild as the bundler producing a single main.js output
-- **TR3** — manifest.json following Obsidian plugin specification (id, name, version, minAppVersion, description, author, isDesktopOnly)
+- **TR3** — manifest.json following Obsidian plugin specification (id, name, version, minAppVersion, description, author, isDesktopOnly) — *audit (2026-05-07): current `id` is `vault-mcp-server` (renamed from `obsidian-mcp-server` in #308); `name` is `Vault MCP Server`*
 - **TR4** — versions.json mapping plugin versions to minimum Obsidian versions
 - **TR5** — ESLint with a strict TypeScript config
 - **TR6** — Prettier for code formatting with config committed to repo
@@ -257,13 +257,13 @@ The plugin UI is translated via a tiny in-house i18n helper modelled on the [obs
 - **TR18** — Mock layer for Obsidian API (obsidian module mock with typed stubs)
 - **TR19** — Integration tests that boot the MCP server and call tools via MCP client
 - **TR20** — Unit tests for each tool handler in isolation
-- **TR21** — Test fixtures for vault content (markdown files, folders, frontmatter samples)
+- **TR21** — Test fixtures for vault content (markdown files, folders, frontmatter samples) — *audit (2026-05-07): no on-disk `tests/fixtures/` directory; vault content is constructed programmatically via `MockObsidianAdapter` (`src/obsidian/mock-adapter.ts`) inside each test*
 - **TR22** — E2E tests using WebdriverIO + wdio-obsidian-service in Docker with Xvfb. (Aspirational: CI today runs lint, typecheck, unit tests with coverage, and build only — no WebdriverIO/E2E job is wired up yet. Visual verification is done ad-hoc on the host via the Xvfb + CDP screenshot pipeline described in `docs/screenshots-on-host.md`.)
 
 ### CI/CD
 
 - **TR23** — GitHub Actions workflow: build-and-test (lint, type-check, test, build) on every PR and push to main
-- **TR24** — GitHub Actions workflow: please-release for release management (tag-based, produces main.js, manifest.json, styles.css as release assets)
+- **TR24** — GitHub Actions workflow: please-release for release management (tag-based, produces main.js, manifest.json, styles.css as release assets) — *audit (2026-05-07): the workflow is `.github/workflows/release.yml` and uses `googleapis/release-please-action@v5` (not "please-release"); release assets uploaded are `main.js`, `manifest.json`, `styles.css`, `versions.json`, plus a `vault-mcp-server-<version>.zip` bundle*
 - **TR25** — Dependabot for dependency updates
 - **TR27** — GitHub Actions workflow `notify-failure.yml` listens for `workflow_run` completions of `CI`, `Release`, and `Release Screenshots` and, when `conclusion == 'failure'`, auto-files a tracking issue. A single open issue per workflow is kept (matched by the `workflow-failure` label and a title of the form `Workflow failure: <workflow-name>`); repeat failures append a comment to that issue instead of opening duplicates, and once the issue is closed the next failure opens a fresh one. The workflow requires only `issues: write` permission and runs from the `main` definition, so fork PRs cannot inject into the notifier.
 
