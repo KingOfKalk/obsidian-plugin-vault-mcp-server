@@ -1,5 +1,78 @@
 # Changelog
 
+## [3.0.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v2.7.1...v3.0.0) (2026-05-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* plugin id changed from `obsidian-mcp` to `vault-mcp-server`. Direct-install users must rename `.obsidian/plugins/obsidian-mcp/` to `.obsidian/plugins/vault-mcp-server/` once. Display name changes from `MCP Server` to `Vault MCP Server`. The MCP `serverInfo.name` is unchanged (`obsidian-mcp-server`) — AI clients see the same server identity.
+* **tools/vault:** removed vault_get_frontmatter, vault_get_headings,   vault_get_outgoing_links, vault_get_embeds, vault_get_backlinks,   vault_get_block_references. Replaced by vault_get_aspect with an   `aspect` enum arg accepting "frontmatter", "headings", "outgoing_links",   "embeds", "backlinks", or "block_references". Migrate by passing the   matching aspect value to the new tool.
+* **tools:** ToolDefinition.title is now required. Any external code constructing ToolDefinition values must supply a non-empty title string.
+* the `get_date` tool no longer exists. Clients must call `extras_get_date` instead. There is no deprecation alias — the release that ships this PR cuts a major version.
+
+### Features
+
+* enforce naming convention and secure-by-default auth ([#282](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/282)) ([705282d](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/705282d5a55875c63628758c8916126f8df41806))
+* **registry:** declare outputSchema on tools and forward to registerTool ([#279](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/279)) ([88b94ff](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/88b94ff761b9d83d7dbd325170578b8ddde08dff)), closes [#248](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/248)
+* **server/http:** validate Origin and Host for DNS-rebind protection ([#269](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/269)) ([423d6e7](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/423d6e7f8fbb71f31ae0c63474c2fb2ffa35d984)), closes [#246](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/246)
+* **server/mcp:** /daily-note prompt to open or create today's daily note ([#313](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/313)) ([070b14b](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/070b14b44c4c7c9008068bebb1e145a1ba7d152b)), closes [#304](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/304)
+* **server/mcp:** /fix-broken-links prompt to triage unresolved links ([#314](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/314)) ([625fc7f](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/625fc7fcf93fa91ff8f0327272b7bf64730322c2)), closes [#305](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/305)
+* **server/mcp:** expose canned MCP prompts (slash commands) for common vault workflows ([#306](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/306)) ([a936b28](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/a936b284e7fffc7e2e1e54bb963d4b17c71b67ee)), closes [#293](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/293)
+* **server/mcp:** expose vault files as MCP resources ([#303](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/303)) ([529e02d](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/529e02daa36d6d3e34c1d23da076d327dfdff38b)), closes [#292](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/292)
+* **server/mcp:** set instructions field with vault-aware tool-use hints ([#301](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/301)) ([c736a21](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/c736a21d5cdce65ef65f093d21ddca335233c01e)), closes [#290](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/290)
+* **tools/editor:** cross-reference set_cursor and set_selection ([#310](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/310)) ([74c6780](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/74c6780deed12adfac20329bfd1f3f3a95bb8409)), closes [#298](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/298)
+* **tools/search,vault:** declare outputSchema for read tools ([#286](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/286)) ([5a24958](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/5a2495861af5c8208b3d1f171eb21c706a9bd52a)), closes [#276](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/276) [#258](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/258)
+* **tools/workspace,editor:** declare outputSchema for read tools ([#287](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/287)) ([4ab9b23](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/4ab9b23011b97cda19b6ec5aff17a0387f850b9a)), closes [#277](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/277) [#258](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/258)
+* **tools:** add title annotation to all tools and add sibling cross-refs ([#296](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/296)) ([e1bce62](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/e1bce62642b2e8190487b9cfc31a3615aee32b1d)), closes [#289](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/289)
+* **tools:** cross-reference editor_get_active_file and workspace_get_active_leaf ([#311](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/311)) ([b20197d](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/b20197dfe2a0f9e052017e796585b1e3803c78b6)), closes [#299](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/299)
+* **tools:** cross-reference template_create_from and template_expand ([#312](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/312)) ([3470b33](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/3470b33c0647a68d9a162a4d359a593c8fdff64d)), closes [#300](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/300)
+* **tools:** outputSchema for remaining read tools and vault_read_binary retrofit ([#288](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/288)) ([a854e7e](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/a854e7eb8bda14c3bedfc03a3578b6c28393c22d)), closes [#278](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/278) [#258](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/258)
+
+
+### Bug Fixes
+
+* **server/auth:** use crypto.timingSafeEqual for bearer compare and rate-limit failures ([#266](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/266)) ([3d83334](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/3d83334f1e6b34893c387cc81738b4b4248648ac)), closes [#245](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/245)
+* **server/mcp:** advertise as obsidian-mcp-server and read version from manifest ([#271](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/271)) ([4a1d5ac](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/4a1d5ac4e28a6aa306270222cc70165bb258a939)), closes [#247](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/247)
+* **tools/templates:** stop swallowing all errors in template_list ([#272](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/272)) ([e7ea98d](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/e7ea98d9b4be01086d848af58fefe1300cb0a582)), closes [#252](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/252)
+* **tools/ui:** remove ui_confirm and ui_prompt stubs ([#281](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/281)) ([731c9c9](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/731c9c91e62cecc88467bdd74580e7afb176c179)), closes [#254](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/254)
+* **tools:** document limit / offset / response_format args in tool descriptions ([#280](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/280)) ([c87a972](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/c87a972d395a7626975f8b719df2af2355572b3b)), closes [#249](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/249)
+* **utils/logger:** route all log levels to stderr for stdio transport compatibility ([#273](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/273)) ([3b6378c](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/3b6378c08b909d2eaa8f6a1cc585706000db82f3)), closes [#256](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/256)
+
+
+### Documentation
+
+* **configuration:** cover missing settings and reconcile module counts ([#323](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/323)) ([fea61f0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/fea61f06d56aacebf04ce34e7d80575107fcdab9)), closes [#319](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/319)
+* **help:** reconcile en.md with audited PRD ([#322](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/322)) ([d63d20e](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/d63d20e96546b8fab9f10aa32c6b17bba4af9f82)), closes [#318](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/318)
+* **specs:** add mcp-builder review follow-up campaign plan ([#265](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/265)) ([62a3caf](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/62a3caf8916b5efa2ff0882cdb389bac28ea73bc)), closes [#258](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/258)
+* **tools.generated:** per-tool input/output schemas ([#320](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/320)) ([#325](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/325)) ([cc9fa3b](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/cc9fa3b507cff5375b648c9f97175b6d7191334a))
+
+
+### Code Refactoring
+
+* **registry,server:** thread SDK extra arg through TypedHandler ([#302](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/302)) ([e273ed3](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/e273ed35a925ed515bf6d8acadb0661dfb2b3c0d)), closes [#291](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/291)
+* **tools/vault:** collapse 6 vault_get_* tools into vault_get_aspect ([#307](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/307)) ([b090a80](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/b090a80a4d04a88a5ef5a272e4de7a126115053c)), closes [#294](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/294)
+
+
+### Continuous Integration
+
+* add CodeQL security scanning workflow ([#243](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/243)) ([d7e5f1a](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/d7e5f1a45bcf8ddba430537132a18cea5999b53a)), closes [#242](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/242)
+* drop node-version matrix so required status check name matches ([#268](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/268)) ([b893c6f](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/b893c6f00d4475c2a3f075e1355cc45f19b4a067)), closes [#267](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/267)
+* harden Dependabot setup for public release ([#260](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/260)) ([8318aff](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/8318aff3165cf621bdb141cdbb3ded438e62e17d)), closes [#259](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/259)
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** Bump eslint from 10.2.1 to 10.3.0 in the dev-deps group ([#263](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/263)) ([1bf5e4e](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/1bf5e4e00248a01967bb0b617bf6d68847930194))
+* **deps-dev:** Bump typescript-eslint from 8.59.1 to 8.59.2 in the dev-deps group ([#316](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/316)) ([68e49ca](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/68e49ca441e82817a0bb263b1089f39600fdf39e))
+* **deps-dev:** Bump typescript-eslint in the dev-deps group ([68e49ca](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/68e49ca441e82817a0bb263b1089f39600fdf39e))
+* **deps:** Bump dependabot/fetch-metadata from 2 to 3 ([#261](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/261)) ([1ac77ce](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/1ac77ced12f3777b84fcf605bce3d7521d27376a))
+* **deps:** Bump the production-deps group across 1 directory with 2 updates ([#315](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/315)) ([40069a9](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/40069a91a4f09271fce1398f3f1cd7baa09e101a))
+* **deps:** Bump zod from 4.4.1 to 4.4.2 in the production-deps group ([#262](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/262)) ([13b2310](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/13b2310b471abaf488784dee53b90c7a08431756))
+* **devcontainer:** add devcontainer configuration ([#284](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/284)) ([be11f10](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/be11f10c2d87eb21833f4e8758a586d54453aab5)), closes [#283](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/283)
+* **docs/prd:** audit requirement IDs against current code ([#264](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/264)) ([#321](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/321)) ([f6574b3](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/f6574b38955a8108cbcc22dfa955457e824035d2))
+* rename plugin id to vault-mcp-server ([#308](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/308)) ([cbfe8dd](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/cbfe8dd362641549f79b13d31e27fbf706f5ea40)), closes [#274](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/274)
+* **server/mcp:** unify error handling between input parsing and handler execution ([#275](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/275)) ([7dff1d7](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/7dff1d7a0f1e5631ceabd9d70e49efc9b79d7130)), closes [#257](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/257)
+
 ## [2.7.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.7.0...v2.7.1) (2026-05-01)
 
 
