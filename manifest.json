@@ -1,7 +1,7 @@
 {
   "id": "vault-mcp-server",
   "name": "Vault MCP Server",
-  "version": "2.7.1",
+  "version": "3.0.0",
   "minAppVersion": "1.5.0",
   "description": "Exposes your vault as a Model Context Protocol server for AI assistants.",
   "author": "KingOfKalk",
