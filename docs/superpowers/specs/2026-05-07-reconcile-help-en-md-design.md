@@ -53,12 +53,12 @@ Update tool counts and descriptions to match
 Workspace (5), and Templates (3) rows are already correct and stay
 unchanged.
 
-| Row | Count: before → after | Description change |
-|---|---|---|
-| Vault and File Operations | 16 → **18** | append `, daily note` to the trailing fragment (`…binary I/O, metadata, daily note.`) |
-| Search and Metadata | 12 → **6** | rewrite to drop the aspect-getter capabilities (now in `vault_get_aspect`): `Full-text search, list tags, find notes by tag / frontmatter, find resolved / unresolved links.` |
-| UI Interactions | 3 → **1** | `Show notices and confirm/prompt modals.` → `Show notices.` |
-| Plugin Interop | 5 → **6** | `List plugins, run Dataview / Templater queries, execute commands.` → `List plugins, run / describe Dataview queries, describe Templater templates, execute commands.` |
+| Row                       | Count: before → after | Description change                                                                                                                                                            |
+| ------------------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Vault and File Operations | 16 → **18**           | append `, daily note` to the trailing fragment (`…binary I/O, metadata, daily note.`)                                                                                         |
+| Search and Metadata       | 12 → **6**            | rewrite to drop the aspect-getter capabilities (now in `vault_get_aspect`): `Full-text search, list tags, find notes by tag / frontmatter, find resolved / unresolved links.` |
+| UI Interactions           | 3 → **1**             | `Show notices and confirm/prompt modals.` → `Show notices.`                                                                                                                   |
+| Plugin Interop            | 5 → **6**             | `List plugins, run Dataview / Templater queries, execute commands.` → `List plugins, run / describe Dataview queries, describe Templater templates, execute commands.`        |
 
 The new tools (`vault_daily_note`, `plugin_templater_describe_template`,
 `plugin_dataview_describe_js_query`) are surfaced *only* through the module
