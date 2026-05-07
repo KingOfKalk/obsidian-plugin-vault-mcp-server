@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { renderTypeCell } from '../../../scripts/render-tools/schema-to-table';
+import { z } from 'zod';
+import {
+  renderTypeCell,
+  inputShapeToTable,
+} from '../../../scripts/render-tools/schema-to-table';
 
 describe('renderTypeCell', () => {
   it('renders a plain string', () => {
@@ -65,5 +69,46 @@ describe('renderTypeCell', () => {
   it('falls back to unknown for anything else', () => {
     expect(renderTypeCell({})).toBe('unknown');
     expect(renderTypeCell({ type: 'something-weird' })).toBe('unknown');
+  });
+});
+
+describe('inputShapeToTable', () => {
+  it('renders a header and one row per top-level field', () => {
+    const shape = {
+      path: z.string().min(1).max(4096).describe('Vault path'),
+      format: z.enum(['text', 'json']).default('text').describe('Output format'),
+    };
+    const md = inputShapeToTable(shape);
+    expect(md).toContain('| Field | Type | Required | Description |');
+    expect(md).toContain('|---|---|---|---|');
+    expect(md).toMatch(/\| `path` \| string \(1–4096\) \| yes \| Vault path \|/);
+    expect(md).toMatch(
+      /\| `format` \| enum: `text` \\\| `json` \| no \(default `text`\) \| Output format \|/,
+    );
+  });
+
+  it('marks optional fields without defaults as not required', () => {
+    const shape = {
+      date: z.string().optional().describe('Optional date'),
+    };
+    const md = inputShapeToTable(shape);
+    expect(md).toMatch(/\| `date` \| string \| no \| Optional date \|/);
+  });
+
+  it('escapes pipes inside descriptions', () => {
+    const shape = { x: z.string().describe('a | b') };
+    const md = inputShapeToTable(shape);
+    expect(md).toMatch(/\| `x` \| string \| yes \| a \\\| b \|/);
+  });
+
+  it('collapses internal whitespace in descriptions', () => {
+    const shape = { x: z.string().describe('line one\n  line two') };
+    const md = inputShapeToTable(shape);
+    expect(md).toMatch(/\| `x` \| string \| yes \| line one line two \|/);
+  });
+
+  it('returns an empty-table marker for empty shapes', () => {
+    const md = inputShapeToTable({});
+    expect(md).toContain('_No input parameters._');
   });
 });
