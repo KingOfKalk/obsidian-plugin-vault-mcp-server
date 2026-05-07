@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
-import { renderModulePage, type ToolDoc, type ModuleDoc } from '../../../scripts/render-tools/render';
+import { renderModulePage, renderIndexPage, type ToolDoc, type ModuleDoc } from '../../../scripts/render-tools/render';
 
 const sampleModule: ModuleDoc = {
   moduleId: 'sample',
@@ -12,6 +12,8 @@ const sampleModule: ModuleDoc = {
       description: 'Reads a sample.\n\nArgs:\n- path (string)',
       schema: { path: z.string().min(1).describe('Path') },
       outputSchema: { path: z.string().describe('Path read') },
+      readOnly: true,
+      destructive: false,
     } satisfies ToolDoc,
     {
       name: 'sample_write',
@@ -19,6 +21,8 @@ const sampleModule: ModuleDoc = {
       description: 'Writes a sample.',
       schema: { path: z.string().describe('Path'), content: z.string().describe('Body') },
       outputSchema: undefined,
+      readOnly: false,
+      destructive: false,
     } satisfies ToolDoc,
   ],
 };
@@ -58,5 +62,27 @@ describe('renderModulePage', () => {
   it('preserves the order tools were registered in', () => {
     const md = renderModulePage(sampleModule);
     expect(md.indexOf('### sample_read')).toBeLessThan(md.indexOf('### sample_write'));
+  });
+});
+
+describe('renderIndexPage', () => {
+  it('keeps the existing summary banner, summary table, and totals line', () => {
+    const md = renderIndexPage([sampleModule]);
+    expect(md).toContain('AUTO-GENERATED');
+    expect(md).toContain('# Tool Registry Snapshot');
+    expect(md).toContain('| Module ID | Module Name | Count | Tools |');
+    expect(md).toMatch(/\*\*Total tools:\*\* 2 across 1 modules\./);
+  });
+
+  it('keeps the per-module annotation tables', () => {
+    const md = renderIndexPage([sampleModule]);
+    expect(md).toContain('### Sample Module (`sample`)');
+    expect(md).toContain('| Name | Title | readOnly | destructive |');
+    expect(md).toContain('| `sample_read` | Read sample |');
+  });
+
+  it('adds a schema link line per module', () => {
+    const md = renderIndexPage([sampleModule]);
+    expect(md).toContain('Schemas → [docs/tools/sample.generated.md](tools/sample.generated.md)');
   });
 });
