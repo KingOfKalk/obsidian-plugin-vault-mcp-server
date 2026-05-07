@@ -60,18 +60,18 @@ restart button. Not a persisted setting.
 - **Description**: When on, the server loads a user-provided cert/key pair from disk (`customTlsCertPath` + `customTlsKeyPath`) instead of the auto-generated self-signed cert.
 - **When visible**: `httpsEnabled === true`
 
-#### Custom TLS
+### Custom TLS
 
 When `useCustomTls` is on, an h3 subsection appears below with two file
 pickers for the cert and key. Both paths are validated on load via
 `loadAndValidateCustomTls`; errors render inline under the matching row.
 
-##### Custom certificate path (`customTlsCertPath`)
+#### Custom certificate path (`customTlsCertPath`)
 - **Default**: `null`
 - **Description**: Absolute filesystem path to the user-provided public certificate (PEM).
 - **When visible**: `httpsEnabled === true && useCustomTls === true`
 
-##### Custom key path (`customTlsKeyPath`)
+#### Custom key path (`customTlsKeyPath`)
 - **Default**: `null`
 - **Description**: Absolute filesystem path to the user-provided private key (PEM). Must match `customTlsCertPath`; mismatches surface as inline errors.
 - **When visible**: `httpsEnabled === true && useCustomTls === true`
