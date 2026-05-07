@@ -89,9 +89,9 @@ Mirrors the settings tab render order from [`src/settings/tab.ts`](../../../src/
   ### Acknowledge insecure mode (`iAcceptInsecureMode`)
   ### Access Key (`accessKey`)
   ### HTTPS (`httpsEnabled`)
-  ### TLS Certificate (`tlsCertificate`)
-  ### Custom TLS                         (h3 — UI subsection)
-    #### Use custom TLS (`useCustomTls`)
+  ### TLS Certificate (`tlsCertificate`)        (when httpsEnabled && !useCustomTls)
+  ### Use custom TLS (`useCustomTls`)           (when httpsEnabled — sibling, not nested)
+  ### Custom TLS                                (h3 — UI subsection, when useCustomTls)
     #### Custom certificate path (`customTlsCertPath`)
     #### Custom key path (`customTlsKeyPath`)
   ### Auto-start (`autoStart`)
@@ -132,9 +132,15 @@ Each persisted setting follows the existing convention already used for
 | --------------------- | --------------------------------------------------------- |
 | `accessKey`           | `authEnabled === true`                                    |
 | `iAcceptInsecureMode` | `authEnabled === false`                                   |
+| `tlsCertificate`      | `httpsEnabled === true && useCustomTls === false`         |
 | `useCustomTls`        | `httpsEnabled === true`                                   |
 | `customTlsCertPath`   | `httpsEnabled === true && useCustomTls === true`          |
 | `customTlsKeyPath`    | `httpsEnabled === true && useCustomTls === true`          |
+
+The `tlsCertificate` entry already exists in the doc and we keep its
+wording per non-goals, but the rewrite adds a `**When visible**` row
+to it so its conditional rendering is documented (small clarification,
+not a re-write).
 
 Read-only / action rows (Server URL, Server Status, Log file path,
 Copy debug info, Clear log) get a short paragraph or `Setting` row
