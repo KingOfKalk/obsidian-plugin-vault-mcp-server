@@ -21,6 +21,8 @@ This file is regenerated from the tool registry and committed so CI can detect d
 
 ### Vault and File Operations (`vault`)
 
+Schemas → [docs/tools/vault.generated.md](tools/vault.generated.md)
+
 | Name | Title | readOnly | destructive |
 |---|---|---|---|
 | `vault_create` | Create file |  |  |
@@ -44,6 +46,8 @@ This file is regenerated from the tool registry and committed so CI can detect d
 
 ### Editor Operations (`editor`)
 
+Schemas → [docs/tools/editor.generated.md](tools/editor.generated.md)
+
 | Name | Title | readOnly | destructive |
 |---|---|---|---|
 | `editor_get_content` | Get active file content | ✓ |  |
@@ -59,6 +63,8 @@ This file is regenerated from the tool registry and committed so CI can detect d
 
 ### Search and Metadata (`search`)
 
+Schemas → [docs/tools/search.generated.md](tools/search.generated.md)
+
 | Name | Title | readOnly | destructive |
 |---|---|---|---|
 | `search_fulltext` | Full-text search | ✓ |  |
@@ -70,6 +76,8 @@ This file is regenerated from the tool registry and committed so CI can detect d
 
 ### Workspace and Navigation (`workspace`)
 
+Schemas → [docs/tools/workspace.generated.md](tools/workspace.generated.md)
+
 | Name | Title | readOnly | destructive |
 |---|---|---|---|
 | `workspace_get_active_leaf` | Get active leaf | ✓ |  |
@@ -80,11 +88,15 @@ This file is regenerated from the tool registry and committed so CI can detect d
 
 ### UI Interactions (`ui`)
 
+Schemas → [docs/tools/ui.generated.md](tools/ui.generated.md)
+
 | Name | Title | readOnly | destructive |
 |---|---|---|---|
 | `ui_notice` | Show notice |  |  |
 
 ### Templates and Content Generation (`templates`)
+
+Schemas → [docs/tools/templates.generated.md](tools/templates.generated.md)
 
 | Name | Title | readOnly | destructive |
 |---|---|---|---|
@@ -93,6 +105,8 @@ This file is regenerated from the tool registry and committed so CI can detect d
 | `template_expand` | Expand template inline | ✓ |  |
 
 ### Plugin Interop (`plugin-interop`)
+
+Schemas → [docs/tools/plugin-interop.generated.md](tools/plugin-interop.generated.md)
 
 | Name | Title | readOnly | destructive |
 |---|---|---|---|
@@ -104,6 +118,8 @@ This file is regenerated from the tool registry and committed so CI can detect d
 | `plugin_execute_command` | Execute command |  | ✓ |
 
 ### Extras (`extras`)
+
+Schemas → [docs/tools/extras.generated.md](tools/extras.generated.md)
 
 | Name | Title | readOnly | destructive |
 |---|---|---|---|
