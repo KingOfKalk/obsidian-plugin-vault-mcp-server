@@ -37,17 +37,18 @@ Each category is a toggleable module. Modules self-register. The settings UI aut
 ### Search and Metadata
 
 - **R17** — Full-text search across vault contents with query string
-- **R18** — Query frontmatter properties for a given file
+- ~~**R18** — Query frontmatter properties for a given file~~
 - **R19** — Query all tags in the vault with file associations
-- **R20** — Query headings for a given file
-- **R21** — Query all outgoing links for a given file
-- **R22** — Query all embeds for a given file
-- **R23** — Get all backlinks for a given file
+- ~~**R20** — Query headings for a given file~~
+- ~~**R21** — Query all outgoing links for a given file~~
+- ~~**R22** — Query all embeds for a given file~~
+- ~~**R23** — Get all backlinks for a given file~~
 - **R24** — Get resolved links across the vault
 - **R25** — Get unresolved links across the vault
-- **R26** — Query block references for a given file
+- ~~**R26** — Query block references for a given file~~
 - **R27** — Search files by tag
 - **R28** — Search files by frontmatter property value
+- **R56** — Query a single per-file metadata aspect (frontmatter, headings, outgoing links, embeds, backlinks, or block references) via the unified `vault_get_aspect` tool, which takes a `path` plus an `aspect` enum and returns a discriminated-union payload keyed on that aspect. Supersedes ~~R18~~ (frontmatter), ~~R20~~ (headings), ~~R21~~ (outgoing links), ~~R22~~ (embeds), ~~R23~~ (backlinks), and ~~R26~~ (block references), which were collapsed from six separate `vault_get_*` tools into one in PR #307.
 
 ### Editor Operations
 
