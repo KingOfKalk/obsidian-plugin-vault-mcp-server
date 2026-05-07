@@ -74,8 +74,8 @@ Each category is a toggleable module. Modules self-register. The settings UI aut
 ### UI Interactions
 
 - **R44** — Show a notice/notification with a message and optional duration
-- **R45** — Show a confirmation modal (yes/no) and return the user response
-- **R46** — Show an input prompt modal and return the user-entered text
+- ~~**R45** — Show a confirmation modal (yes/no) and return the user response~~
+- ~~**R46** — Show an input prompt modal and return the user-entered text~~
 
 ### Templates and Content Generation
 
@@ -88,7 +88,8 @@ Each category is a toggleable module. Modules self-register. The settings UI aut
 - **R50** — List installed community plugins with enabled/disabled status
 - **R51** — Check if a specific plugin is installed and enabled
 - **R52** — Execute a Dataview query and return results (if Dataview is installed)
-- **R53** — Execute a Templater template (if Templater is installed)
+- ~~**R53** — Execute a Templater template (if Templater is installed)~~
+- **R57** — Describe (do not execute) a Templater template via `plugin_templater_describe_template`. The tool echoes the supplied template path with a note explaining that the server intentionally does not execute Templater itself (Templater can run arbitrary user JS, so execution must stay client-side). Replaces ~~R53~~ because the shipped tool is describe-only, not an execution surface.
 - **R54** — Provide a generic plugin command execution interface
 
 ### Extras
