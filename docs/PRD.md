@@ -272,16 +272,16 @@ The plugin UI is translated via a tiny in-house i18n helper modelled on the [obs
 ### User Documentation
 
 - **DR1** — README.md with project overview, installation instructions, and quick-start guide
-- **DR2** — Configuration reference documenting all settings and their defaults
+- **DR2** — Configuration reference documenting all settings and their defaults — *audit (2026-05-07): `docs/configuration.md` covers `serverAddress`, `port`, `accessKey`, `httpsEnabled`, `tlsCertificate`, `debugMode`, but is missing entries for `Require Bearer authentication`, `Require Origin header`, `autoStart`, and per-tool toggles; the module table tool counts (16/12/10/5/3/3/5) also disagree with the live counts in `docs/tools.generated.md` (18/6/10/5/1/3/6/1)*
 - **DR3** — MCP client setup guide (how to connect Claude Desktop, Claude Code, and other MCP clients)
 - **DR4** — Security best practices (access key management, network exposure warnings)
 
 ### Developer Documentation
 
 - **DR5** — CONTRIBUTING.md with development setup, architecture overview, and PR process
-- **DR6** — Architecture decision records for key choices (transport, auth, testing framework)
+- **DR6** — Architecture decision records for key choices (transport, auth, testing framework) — *audit (2026-05-07): no formal `docs/adr/` or `docs/decisions/` directory exists; `docs/superpowers/specs/` holds per-feature design docs that cover some decisions (e.g. `2026-05-03-mcp-server-instructions-field-design.md`, `245-timing-safe-bearer-compare.md`) but they are change-scoped specs rather than canonical ADRs covering transport, auth, and testing-framework choices*
 - **DR7** — How to add a new feature category (step-by-step guide for contributors)
-- **DR8** — API reference: list of all MCP tools with parameter schemas and example responses
+- **DR8** — API reference: list of all MCP tools with parameter schemas and example responses — *audit (2026-05-07): `docs/tools.generated.md` lists every tool by name/title with `readOnly`/`destructive` flags but does not include parameter (input) schemas, output schemas, or example responses; full schemas are only available at runtime via the MCP `tools/list` call*
 
 ## Appendix A: Settings Schema Migrations
 
