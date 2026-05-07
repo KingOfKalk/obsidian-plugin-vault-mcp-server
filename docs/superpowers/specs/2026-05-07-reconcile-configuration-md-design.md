@@ -43,30 +43,30 @@ The table lists every key in [`DEFAULT_SETTINGS`](../../../src/types.ts)
 and where it surfaces in the UI. **Action** = what this spec does for
 that key.
 
-| Key                       | Default                              | UI section                          | Currently documented? | Action       |
-| ------------------------- | ------------------------------------ | ----------------------------------- | --------------------- | ------------ |
-| `schemaVersion`           | `12`                                 | none (internal)                     | no                    | skip         |
-| `serverAddress`           | `'127.0.0.1'`                        | Server Settings                     | yes                   | keep as-is   |
-| `port`                    | `28741`                              | Server Settings                     | yes                   | keep as-is   |
-| `authEnabled`             | `true`                               | Server Settings                     | no                    | **add**      |
-| `iAcceptInsecureMode`     | `false`                              | Server Settings (when auth off)     | no                    | **add**      |
-| `accessKey`               | `''`                                 | Server Settings (when auth on)      | yes                   | keep as-is   |
-| `httpsEnabled`            | `false`                              | Server Settings                     | yes                   | keep as-is   |
-| `tlsCertificate`          | `null`                               | Server Settings (refresh button)    | yes                   | keep as-is   |
-| `useCustomTls`            | `false`                              | Server Settings → Custom TLS (h3)   | no                    | **add**      |
-| `customTlsCertPath`       | `null`                               | Server Settings → Custom TLS (h3)   | no                    | **add**      |
-| `customTlsKeyPath`        | `null`                               | Server Settings → Custom TLS (h3)   | no                    | **add**      |
-| `autoStart`               | `false`                              | Server Settings                     | no                    | **add**      |
-| `resourcesEnabled`        | `true`                               | Server Settings                     | no                    | **add**      |
-| `promptsEnabled`          | `true`                               | Server Settings                     | no                    | **add**      |
-| `allowedOrigins`          | `DEFAULT_ALLOWED_ORIGINS` (4 items)  | Server Settings → DNS Rebind (h3)   | no                    | **add**      |
-| `allowedHosts`            | `DEFAULT_ALLOWED_HOSTS` (2 items)    | Server Settings → DNS Rebind (h3)   | no                    | **add**      |
-| `allowNullOrigin`         | `false`                              | Server Settings → DNS Rebind (h3)   | no                    | **add**      |
-| `requireOrigin`           | `false`                              | Server Settings → DNS Rebind (h3)   | no                    | **add**      |
-| `executeCommandAllowlist` | `[]`                                 | Execute Command Allowlist (h2)      | no                    | **add**      |
-| `debugMode`               | `false`                              | Diagnostics                         | yes                   | **relocate** |
-| `seenInsecureWarning`     | `false`                              | none (internal one-shot flag)       | no                    | skip         |
-| `moduleStates`            | `{}`                                 | Feature Modules + Extras            | partial (table only)  | **expand**   |
+| Key                       | Default                             | UI section                        | Currently documented? | Action       |
+| ------------------------- | ----------------------------------- | --------------------------------- | --------------------- | ------------ |
+| `schemaVersion`           | `12`                                | none (internal)                   | no                    | skip         |
+| `serverAddress`           | `'127.0.0.1'`                       | Server Settings                   | yes                   | keep as-is   |
+| `port`                    | `28741`                             | Server Settings                   | yes                   | keep as-is   |
+| `authEnabled`             | `true`                              | Server Settings                   | no                    | **add**      |
+| `iAcceptInsecureMode`     | `false`                             | Server Settings (when auth off)   | no                    | **add**      |
+| `accessKey`               | `''`                                | Server Settings (when auth on)    | yes                   | keep as-is   |
+| `httpsEnabled`            | `false`                             | Server Settings                   | yes                   | keep as-is   |
+| `tlsCertificate`          | `null`                              | Server Settings (refresh button)  | yes                   | keep as-is   |
+| `useCustomTls`            | `false`                             | Server Settings → Custom TLS (h3) | no                    | **add**      |
+| `customTlsCertPath`       | `null`                              | Server Settings → Custom TLS (h3) | no                    | **add**      |
+| `customTlsKeyPath`        | `null`                              | Server Settings → Custom TLS (h3) | no                    | **add**      |
+| `autoStart`               | `false`                             | Server Settings                   | no                    | **add**      |
+| `resourcesEnabled`        | `true`                              | Server Settings                   | no                    | **add**      |
+| `promptsEnabled`          | `true`                              | Server Settings                   | no                    | **add**      |
+| `allowedOrigins`          | `DEFAULT_ALLOWED_ORIGINS` (4 items) | Server Settings → DNS Rebind (h3) | no                    | **add**      |
+| `allowedHosts`            | `DEFAULT_ALLOWED_HOSTS` (2 items)   | Server Settings → DNS Rebind (h3) | no                    | **add**      |
+| `allowNullOrigin`         | `false`                             | Server Settings → DNS Rebind (h3) | no                    | **add**      |
+| `requireOrigin`           | `false`                             | Server Settings → DNS Rebind (h3) | no                    | **add**      |
+| `executeCommandAllowlist` | `[]`                                | Execute Command Allowlist (h2)    | no                    | **add**      |
+| `debugMode`               | `false`                             | Diagnostics                       | yes                   | **relocate** |
+| `seenInsecureWarning`     | `false`                             | none (internal one-shot flag)     | no                    | skip         |
+| `moduleStates`            | `{}`                                | Feature Modules + Extras          | partial (table only)  | **expand**   |
 
 `schemaVersion` and `seenInsecureWarning` are correctly excluded by
 acceptance #1 (no UI row). `debugMode` is documented but currently
@@ -128,14 +128,14 @@ Each persisted setting follows the existing convention already used for
 
 `When visible` is added when the row is conditionally rendered:
 
-| Setting               | Conditional render rule                                   |
-| --------------------- | --------------------------------------------------------- |
-| `accessKey`           | `authEnabled === true`                                    |
-| `iAcceptInsecureMode` | `authEnabled === false`                                   |
-| `tlsCertificate`      | `httpsEnabled === true && useCustomTls === false`         |
-| `useCustomTls`        | `httpsEnabled === true`                                   |
-| `customTlsCertPath`   | `httpsEnabled === true && useCustomTls === true`          |
-| `customTlsKeyPath`    | `httpsEnabled === true && useCustomTls === true`          |
+| Setting               | Conditional render rule                           |
+| --------------------- | ------------------------------------------------- |
+| `accessKey`           | `authEnabled === true`                            |
+| `iAcceptInsecureMode` | `authEnabled === false`                           |
+| `tlsCertificate`      | `httpsEnabled === true && useCustomTls === false` |
+| `useCustomTls`        | `httpsEnabled === true`                           |
+| `customTlsCertPath`   | `httpsEnabled === true && useCustomTls === true`  |
+| `customTlsKeyPath`    | `httpsEnabled === true && useCustomTls === true`  |
 
 The `tlsCertificate` entry already exists in the doc and we keep its
 wording per non-goals, but the rewrite adds a `**When visible**` row
@@ -260,17 +260,17 @@ adds:
 ## Module table — updated counts
 
 ```markdown
-| Module                    | Tools |
-| ------------------------- | ----- |
-| Vault and File Operations | 18    |
-| Editor Operations         | 10    |
-| Search and Metadata       | 6     |
-| Workspace and Navigation  | 5     |
-| UI Interactions           | 1     |
-| Templates                 | 3     |
-| Plugin Interop            | 6     |
-| Extras                    | 1     |
-| **Total**                 | **50**|
+| Module                    | Tools  |
+| ------------------------- | ------ |
+| Vault and File Operations | 18     |
+| Editor Operations         | 10     |
+| Search and Metadata       | 6      |
+| Workspace and Navigation  | 5      |
+| UI Interactions           | 1      |
+| Templates                 | 3      |
+| Plugin Interop            | 6      |
+| Extras                    | 1      |
+| **Total**                 | **50** |
 ```
 
 Order matches `docs/tools.generated.md` (registry order). A short
