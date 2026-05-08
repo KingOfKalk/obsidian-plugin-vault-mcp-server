@@ -40,7 +40,7 @@ export function buildMcpConfigJson(plugin: McpPlugin): string {
   const scheme = plugin.settings.httpsEnabled ? 'https' : 'http';
   const url = `${scheme}://${address}:${String(port)}/mcp`;
 
-  const config: Record<string, unknown> = { url };
+  const config: Record<string, unknown> = { type: 'http', url };
 
   if (authEnabled && accessKey) {
     config.headers = {
