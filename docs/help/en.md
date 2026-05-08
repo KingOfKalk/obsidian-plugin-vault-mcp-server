@@ -184,6 +184,8 @@ never logged.
 A single row with a **Copy** button. The JSON snippet is built live from your
 current settings:
 
+- Always includes `"type": "http"` so MCP clients (notably Claude Code)
+  recognize the Streamable HTTP transport.
 - Always includes the `url` field with the right scheme and port.
 - Includes a `headers` block with `Authorization: Bearer <key>` **only** when
   auth is on **and** the key is non-empty.
