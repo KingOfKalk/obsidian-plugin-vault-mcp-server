@@ -1,6 +1,6 @@
 {
   "name": "vault-mcp-server",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Exposes your Obsidian vault as a Model Context Protocol server for AI assistants",
   "main": "main.js",
   "scripts": {
