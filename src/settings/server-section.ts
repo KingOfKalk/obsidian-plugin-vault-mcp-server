@@ -8,6 +8,7 @@ import {
   isValidIPv4,
 } from './validation';
 import { renderHttpsSection } from './https-section';
+import { displayHost } from './display-host';
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
 const LOOPBACK_ORIGIN_PREFIXES = [
@@ -58,7 +59,7 @@ export function renderServerStatusSection(
   const clients = plugin.httpServer?.connectedClients ?? 0;
 
   const address = plugin.settings.serverAddress;
-  const url = `${scheme(plugin)}://${address}:${String(port)}`;
+  const url = `${scheme(plugin)}://${displayHost(address)}:${String(port)}`;
   const statusText = isRunning
     ? clients === 1
       ? t('status_running_one', { url })
@@ -171,7 +172,7 @@ export function renderServerSettingsSection(
       }),
   );
 
-  const serverUrl = `${scheme(plugin)}://${plugin.settings.serverAddress}:${String(plugin.settings.port)}/mcp`;
+  const serverUrl = `${scheme(plugin)}://${displayHost(plugin.settings.serverAddress)}:${String(plugin.settings.port)}/mcp`;
   new Setting(containerEl)
     .setName(t('setting_server_url_name'))
     .setDesc(serverUrl)

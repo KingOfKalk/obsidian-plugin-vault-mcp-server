@@ -26,7 +26,7 @@ describe('buildMcpConfigJson', () => {
     const parsed = parseSnippet(snippet);
 
     expect(parsed.obsidian.type).toBe('http');
-    expect(parsed.obsidian.url).toBe('http://127.0.0.1:28741/mcp');
+    expect(parsed.obsidian.url).toBe('http://localhost:28741/mcp');
     expect(parsed.obsidian.headers).toEqual({
       Authorization: 'Bearer secret-key',
     });
@@ -38,7 +38,7 @@ describe('buildMcpConfigJson', () => {
     const parsed = parseSnippet(snippet);
 
     expect(parsed.obsidian.type).toBe('http');
-    expect(parsed.obsidian.url).toBe('https://127.0.0.1:28741/mcp');
+    expect(parsed.obsidian.url).toBe('https://localhost:28741/mcp');
   });
 
   it('emits type and url but no headers when auth is disabled', () => {
@@ -47,7 +47,7 @@ describe('buildMcpConfigJson', () => {
     const parsed = parseSnippet(snippet);
 
     expect(parsed.obsidian.type).toBe('http');
-    expect(parsed.obsidian.url).toBe('http://127.0.0.1:28741/mcp');
+    expect(parsed.obsidian.url).toBe('http://localhost:28741/mcp');
     expect(parsed.obsidian.headers).toBeUndefined();
   });
 
@@ -70,5 +70,13 @@ describe('buildMcpConfigJson', () => {
     const parsed = parseSnippet(snippet);
 
     expect(parsed.obsidian.url).toBe('http://0.0.0.0:9000/mcp');
+  });
+
+  it('passes a LAN-style address through literally', () => {
+    const plugin = makePlugin({ serverAddress: '192.168.1.10', accessKey: 'k' });
+    const snippet = buildMcpConfigJson(plugin as McpPlugin);
+    const parsed = parseSnippet(snippet);
+
+    expect(parsed.obsidian.url).toBe('http://192.168.1.10:28741/mcp');
   });
 });

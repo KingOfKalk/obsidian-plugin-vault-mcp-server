@@ -2,6 +2,7 @@ import { Notice, Setting } from 'obsidian';
 import type McpPlugin from '../main';
 import { t } from '../lang/helpers';
 import { reportError } from '../utils/report-error';
+import { displayHost } from './display-host';
 
 /**
  * "MCP Client Configuration" section — one copy button that puts the
@@ -38,7 +39,7 @@ export function buildMcpConfigJson(plugin: McpPlugin): string {
   const accessKey = plugin.settings.accessKey;
   const authEnabled = plugin.settings.authEnabled;
   const scheme = plugin.settings.httpsEnabled ? 'https' : 'http';
-  const url = `${scheme}://${address}:${String(port)}/mcp`;
+  const url = `${scheme}://${displayHost(address)}:${String(port)}/mcp`;
 
   const config: Record<string, unknown> = { type: 'http', url };
 
