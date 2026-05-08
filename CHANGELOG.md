@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.1.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v3.0.0...v3.1.0) (2026-05-08)
+
+
+### Features
+
+* **settings:** prefer localhost over 127.0.0.1 in displayed URLs ([#330](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/330)) ([1e3318b](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/1e3318bbdff4d7733352865b65c2236ac1aed8fe)), closes [#327](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/327)
+
+
+### Bug Fixes
+
+* **settings/mcp-config:** include type:"http" in client config snippet ([#328](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/328)) ([95ef012](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/95ef0126bea910d7767d80f4d642033352e806e1)), closes [#326](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/326)
+
 ## [3.0.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v2.7.1...v3.0.0) (2026-05-07)
 
 
