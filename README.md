@@ -47,7 +47,8 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 {
   "mcpServers": {
     "obsidian": {
-      "url": "http://127.0.0.1:28741",
+      "type": "http",
+      "url": "http://127.0.0.1:28741/mcp",
       "headers": {
         "Authorization": "Bearer YOUR_ACCESS_KEY"
       }
