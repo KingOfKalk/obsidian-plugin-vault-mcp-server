@@ -22,7 +22,7 @@ Any MCP-capable client (Claude Desktop, Claude Code, Codex, custom agents) can
 connect to the server and read or modify your vault programmatically.
 
 - **Desktop only** (Node-only APIs are required)
-- **Default endpoint**: `http://127.0.0.1:28741/mcp`
+- **Default endpoint**: `http://localhost:28741/mcp` (or `http://127.0.0.1:28741/mcp` if `localhost` doesn't resolve in your setup)
 - **Auth**: HTTP Bearer token, on by default
 - **Transport**: Streamable HTTP (MCP SDK 1.x)
 
@@ -350,7 +350,7 @@ options:
 
 1. **Use plain HTTP on `127.0.0.1`** (simplest). Localhost traffic never
    leaves your machine; HTTPS adds little for a local-only server. Turn HTTPS
-   off and use `http://127.0.0.1:28741/mcp`.
+   off and use `http://localhost:28741/mcp`.
 2. **Trust the certificate explicitly** in the client. The exact mechanism
    depends on the runtime:
    - Node-based clients: pass `--cafile <path-to-pem>` or set the `ca` option

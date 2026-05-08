@@ -664,7 +664,7 @@ describe('McpSettingsTab server controls', () => {
     ) as unknown as { extraButtons: Array<{ icon: string; tooltip: string; callback: (() => void) | null }> };
     setting.extraButtons[0].callback!();
     await vi.waitFor(() => {
-      expect(writeText).toHaveBeenCalledWith('http://127.0.0.1:28741/mcp');
+      expect(writeText).toHaveBeenCalledWith('http://localhost:28741/mcp');
     });
   });
 
