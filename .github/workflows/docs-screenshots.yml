@@ -24,7 +24,7 @@ jobs:
       TAG: ${{ github.event.release.tag_name || inputs.tag }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           # Commit back to main, not the release tag.
           ref: main
