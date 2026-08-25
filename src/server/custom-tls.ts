@@ -33,9 +33,8 @@ export async function loadAndValidateCustomTls(
   const certPem = await readPem(certPath, 'cert_not_readable');
   const keyPem = await readPem(keyPath, 'key_not_readable');
 
-  let keyObj: ReturnType<typeof createPrivateKey>;
   try {
-    keyObj = createPrivateKey(keyPem);
+    createPrivateKey(keyPem);
   } catch {
     throw new CustomTlsError('invalid_key', keyPath);
   }
@@ -47,7 +46,7 @@ export async function loadAndValidateCustomTls(
     throw new CustomTlsError('invalid_cert', certPath);
   }
 
-  const keySpki = createPublicKey(keyObj)
+  const keySpki = createPublicKey(keyPem)
     .export({ type: 'spki', format: 'pem' })
     .toString();
   const certSpki = certObj.publicKey
