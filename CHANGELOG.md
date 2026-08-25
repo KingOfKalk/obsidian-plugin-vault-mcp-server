@@ -1,5 +1,38 @@
 # Changelog
 
+## [3.1.1](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v3.1.0...v3.1.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* resolve TypeScript error in custom-tls.ts with @types/node@26 ([#358](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/358)) ([4c1ce38](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/4c1ce38e519847093209252c1405bb18fba62925))
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** Bump @types/node from 25.9.3 to 26.2.0 ([#355](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/355)) ([875c9c9](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/875c9c93768db175e63337be3474716065ef1ada))
+* **deps-dev:** Bump eslint from 10.7.0 to 10.8.0 in the dev-deps group ([#351](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/351)) ([531c739](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/531c739f5a74396dfb4ca58cf0fff179e425d49f))
+* **deps-dev:** Bump the dev-deps group with 2 updates ([#349](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/349)) ([14e877c](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/14e877cf987ee4cf48bf43f30d973e3f3419e671))
+* **deps-dev:** Bump the dev-deps group with 3 updates ([#336](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/336)) ([753bd86](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/753bd8696394df446ffa88989888bb6045c27464))
+* **deps-dev:** Bump the dev-deps group with 4 updates ([#342](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/342)) ([adf6e81](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/adf6e8132244229d53764d0302aebce7008c7d0b))
+* **deps-dev:** Bump the dev-deps group with 4 updates ([#344](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/344)) ([9db2f83](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/9db2f838816d038d7f207dc5279386ba98c2a8b5))
+* **deps-dev:** Bump the dev-deps group with 4 updates ([#348](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/348)) ([fee4695](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/fee46955398aaf08fbd23bb74184d82744183dd3))
+* **deps-dev:** Bump the dev-deps group with 4 updates ([#354](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/354)) ([0bc0ef1](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/0bc0ef1adf56cfbb1a5e46f89fddf785fdc80731))
+* **deps-dev:** Bump the dev-deps group with 5 updates ([#331](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/331)) ([cfd1a1f](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/cfd1a1fe1712a19d29c3eadbb339b332fc0ffb4f))
+* **deps-dev:** Bump the dev-deps group with 5 updates ([#335](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/335)) ([a421e3b](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/a421e3b01a51c1bc1bfeb1eb6daaaec8b8b07985))
+* **deps-dev:** Bump the dev-deps group with 5 updates ([#337](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/337)) ([ce4ba5a](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/ce4ba5a4e6a8e80e32f069a5289d9c63bf3d0e55))
+* **deps-dev:** Bump the dev-deps group with 6 updates ([#332](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/332)) ([8763fd8](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/8763fd84cd2553410e12be933301e3bed29e24a8))
+* **deps-dev:** Bump tsx from 4.23.1 to 4.23.5 in the dev-deps group ([#353](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/353)) ([409691d](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/409691da06c6d127eb10f84fb3dad14398833aa2))
+* **deps-dev:** Bump typescript-eslint from 8.59.4 to 8.60.0 in the dev-deps group ([#333](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/333)) ([699c931](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/699c931d58cc8ffcd0c0f7f7a25b3b1e0eaf1593))
+* **deps-dev:** Bump typescript-eslint from 8.61.1 to 8.62.0 in the dev-deps group ([#339](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/339)) ([869147a](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/869147a205b78d44dc9aebf300206f115961f570))
+* **deps-dev:** Bump typescript-eslint from 8.66.0 to 8.67.0 in the dev-deps group ([#356](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/356)) ([088f483](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/088f483a9843f03b53ad807da0650fc0941ccc53))
+* **deps-dev:** Bump typescript-eslint in the dev-deps group ([088f483](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/088f483a9843f03b53ad807da0650fc0941ccc53))
+* **deps-dev:** Bump typescript-eslint in the dev-deps group ([869147a](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/869147a205b78d44dc9aebf300206f115961f570))
+* **deps-dev:** Bump typescript-eslint in the dev-deps group ([699c931](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/699c931d58cc8ffcd0c0f7f7a25b3b1e0eaf1593))
+* **deps:** Bump actions/checkout from 6 to 7 ([#338](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/338)) ([6ee3ca4](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/6ee3ca4c56ab1714a4030d599ff01e25ae98175e))
+* **deps:** Bump actions/setup-node from 6 to 7 ([#347](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/347)) ([d17252f](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/d17252f9edbd42fb95af79be64cd651b70bb0cd3))
+* **deps:** Bump the production-deps group across 1 directory with 2 updates ([#350](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/350)) ([67a6783](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/67a6783e38b727609b09e6649d3aa62ae8e1dabf))
+
 ## [3.1.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v3.0.0...v3.1.0) (2026-05-08)
 
 
