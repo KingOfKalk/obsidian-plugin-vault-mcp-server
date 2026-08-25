@@ -21,7 +21,7 @@ jobs:
 
       - name: Use Node.js 20
         if: ${{ steps.release.outputs.release_created }}
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm
