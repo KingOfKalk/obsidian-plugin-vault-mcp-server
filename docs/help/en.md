@@ -46,6 +46,10 @@ LLM client or scripts hard-code the old names, update calls as follows:
 
 ## Installation
 
+If you are building the plugin from source or running the repository's `npm`
+tasks yourself, use **Node.js 22.12.0 or newer**. The packaged release assets
+do not require a separate Node install inside Obsidian.
+
 ### Option A — Install via BRAT (recommended while in beta)
 
 [BRAT](https://github.com/TfTHacker/obsidian42-brat) is the "Beta Reviewers
