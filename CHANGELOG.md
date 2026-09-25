@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.1.2](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v3.1.1...v3.1.2) (2026-09-25)
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** Bump the dev-deps group with 2 updates ([#367](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/367)) ([f610075](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/f6100750bf501cec078d234ea97b363c54e28afe))
+* **deps-dev:** Bump the dev-deps group with 3 updates ([#360](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/360)) ([9ed085d](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/9ed085d3bacfe27b925463d2aee000f7d0b01fa1))
+* **deps-dev:** Bump the dev-deps group with 3 updates ([#363](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/363)) ([0d3bc56](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/0d3bc56c88040dbfe4e4bc9102052bc395894524))
+* **deps-dev:** Bump the dev-deps group with 4 updates ([#362](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/362)) ([267b9b9](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/267b9b9181379d980cc5093c0c1d60d3c67a9c1f))
+* **deps-dev:** Bump the dev-deps group with 5 updates ([#369](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/369)) ([8ada370](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/8ada370e52d1e867c543e7edc263e23946848ac2))
+* **deps-dev:** Bump vitest from 4.1.11 to 5.0.1 ([#371](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/371)) ([a5cb961](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/a5cb961a474e2576af8ed6132f3be1ddf88c14c0))
+* **deps:** Bump the production-deps group across 1 directory with 2 updates ([#368](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/368)) ([bf9cbdb](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/bf9cbdbaf987232297885c65adfd2fc1d721bb41))
+
 ## [3.1.1](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v3.1.0...v3.1.1) (2026-08-25)
 
 
