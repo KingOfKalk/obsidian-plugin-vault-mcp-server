@@ -275,7 +275,7 @@ The plugin UI is translated via a tiny in-house i18n helper modelled on the [obs
 
 ### CI/CD
 
-- **TR23** — GitHub Actions workflow: build-and-test (lint, type-check, test, build) on every PR and push to main
+- **TR23** — GitHub Actions workflow `CI` runs three parallel jobs on every PR and push to main: `lint` (ESLint, type-check, tool registry snapshot check), `test` (unit tests with coverage) and `build` (production build). Each job is a separate status check so it can be required by a branch ruleset; superseded PR runs are cancelled.
 - **TR24** — GitHub Actions workflow: please-release for release management (tag-based, produces main.js, manifest.json, styles.css as release assets) — *audit (2026-05-07): the workflow is `.github/workflows/release.yml` and uses `googleapis/release-please-action@v5` (not "please-release"); release assets uploaded are `main.js`, `manifest.json`, `styles.css`, `versions.json`, plus a `vault-mcp-server-<version>.zip` bundle*
 - **TR25** — Dependabot for dependency updates
 - **TR27** — GitHub Actions workflow `notify-failure.yml` listens for `workflow_run` completions of `CI`, `Release`, and `Release Screenshots` and, when `conclusion == 'failure'`, auto-files a tracking issue. A single open issue per workflow is kept (matched by the `workflow-failure` label and a title of the form `Workflow failure: <workflow-name>`); repeat failures append a comment to that issue instead of opening duplicates, and once the issue is closed the next failure opens a fresh one. The workflow requires only `issues: write` permission and runs from the `main` definition, so fork PRs cannot inject into the notifier.
