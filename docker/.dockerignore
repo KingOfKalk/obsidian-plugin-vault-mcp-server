@@ -1,4 +1,0 @@
-screenshots/
-*.md
-!test-vault/*.md
-__pycache__/
