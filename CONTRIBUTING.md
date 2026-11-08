@@ -20,6 +20,7 @@
 | `npm run lint:fix` | Auto-fix lint issues |
 | `npm run format` | Format with Prettier |
 | `npm run typecheck` | TypeScript type checking |
+| `npm run eval` | LLM evaluation of the MCP tools (needs `ANTHROPIC_API_KEY`, costs money; see [`evals/README.md`](evals/README.md)) |
 
 ## Architecture
 
@@ -51,6 +52,8 @@ src/
 6. Register the module in `src/main.ts` during `onload()`
 
 See existing modules (e.g., `src/tools/vault/`) for examples.
+
+When you change tool names, descriptions, parameters or error messages, consider running the LLM evaluation in [`evals/`](evals/README.md). It checks that a model can still use the tools to answer questions about a fixture vault.
 
 ## UI Requirements
 

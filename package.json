@@ -14,6 +14,7 @@
     "format": "prettier --write src/ tests/",
     "format:check": "prettier --check src/ tests/",
     "typecheck": "tsc --noEmit",
+    "eval": "tsx evals/run.ts",
     "docs:tools": "tsx scripts/list-tools.ts docs",
     "docs:check": "rm -rf /tmp/tools.check && mkdir -p /tmp/tools.check && tsx scripts/list-tools.ts /tmp/tools.check && diff -u docs/tools.generated.md /tmp/tools.check/tools.generated.md && diff -ru docs/tools/ /tmp/tools.check/tools/"
   },
@@ -28,6 +29,7 @@
     "node": ">=22.12.0"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "1.6.0",
     "@modelcontextprotocol/client": "^2.4.0",
     "@types/node": "^26.6.6",
     "@vitest/coverage-v8": "5.0.5",
