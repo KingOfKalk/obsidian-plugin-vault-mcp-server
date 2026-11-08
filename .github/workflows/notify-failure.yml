@@ -2,7 +2,7 @@ name: Notify workflow failure
 
 on:
   workflow_run:
-    workflows: [CI, Release, Release Screenshots]
+    workflows: [CI, Release]
     types: [completed]
 
 permissions:
