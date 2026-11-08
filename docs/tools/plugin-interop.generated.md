@@ -10,12 +10,6 @@ Auto-generated schema reference for the `plugin-interop` module. See [../tools.g
 
 List every installed community plugin with its enabled flag.
 
-Args:
-  - response_format (enum, optional): "markdown" (default) or "json".
-
-Returns:
-  JSON: [{ id, name, enabled, ... }].
-
 #### Input
 
 | Field | Type | Required | Description |
@@ -33,13 +27,6 @@ Returns:
 **Check plugin enabled**
 
 Check whether a plugin is installed and enabled.
-
-Args:
-  - pluginId (string, 1..200): Plugin id, e.g. "dataview".
-  - response_format (enum, optional): "markdown" (default) or "json".
-
-Returns:
-  JSON: { pluginId, installed, enabled }.
 
 #### Input
 
@@ -61,13 +48,6 @@ Returns:
 **Run Dataview query**
 
 Execute a Dataview DQL query and return the rendered markdown.
-
-Args:
-  - query (string, 1..10000): Dataview DQL query text. Use plugin_dataview_describe_js_query for Dataview-JS sources.
-  - response_format (enum, optional): "markdown" (default) or "json".
-
-Returns:
-  Plain text: the markdown that Dataview rendered. JSON form returns { query, markdown }.
 
 Errors:
   - "Plugin not installed or disabled: dataview" if Dataview is missing.
@@ -94,12 +74,8 @@ Errors:
 
 Echo a Dataview-JS source for client-side execution. Returns the source and a note that the host must run it.
 
-Args:
-  - query (string, 1..10000): Dataview-JS source.
-  - response_format (enum, optional): "markdown" (default) or "json".
-
 Returns:
-  JSON: { query, note }. The server never evaluates Dataview-JS.
+  The server never evaluates Dataview-JS.
 
 #### Input
 
@@ -121,12 +97,8 @@ Returns:
 
 Echo a Templater template path for client-side execution. Returns the path and a note that the host must run it via Templater.
 
-Args:
-  - templatePath (string): Vault-relative path to the Templater template.
-  - response_format (enum, optional): "markdown" (default) or "json".
-
 Returns:
-  JSON: { templatePath, note }. The server never executes Templater itself.
+  The server never executes Templater itself.
 
 #### Input
 
@@ -148,12 +120,6 @@ Returns:
 
 Execute any Obsidian command by its id.
 
-Args:
-  - commandId (string, 1..200): Command id, e.g. "app:reload".
-
-Returns:
-  Plain text "Executed command: <id>" or an error if the command is unknown.
-
 Examples:
   - Use when: triggering "editor:save-file" programmatically.
 
@@ -168,4 +134,7 @@ Errors:
 
 #### Output
 
-_No `structuredContent` declared — returns plain text or binary._
+| Field | Type | Description |
+|---|---|---|
+| `commandId` | string | Command id that was executed. |
+| `executed` | boolean | Always true on success. |

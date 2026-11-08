@@ -199,7 +199,12 @@ describe('createMcpServer', () => {
     );
     expect(withOutput).toBeDefined();
     expect(withOutput?.config.outputSchema).toBe(outputSchema);
-    expect(withOutput?.config.inputSchema).toBe(inputSchema);
+    // inputSchema is wrapped in a strict object so the SDK rejects unknown
+    // keys instead of stripping them (#388).
+    const registeredInput = withOutput?.config.inputSchema as z.ZodObject;
+    expect(registeredInput).toBeInstanceOf(z.ZodObject);
+    expect(registeredInput.shape).toEqual(inputSchema);
+    expect(registeredInput.safeParse({ foo: 'x', extra: 1 }).success).toBe(false);
 
     const withoutOutput = capturedRegisterToolCalls.find(
       (c) => c.name === 'tool_without_output',

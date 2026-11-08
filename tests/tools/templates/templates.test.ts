@@ -132,7 +132,7 @@ describe('templates module', () => {
       const tools = module.tools();
       for (const name of ['template_list', 'template_expand']) {
         const tool = tools.find((t) => t.name === name)!;
-        expect(tool.description).toContain('response_format (enum');
+        expect((tool.schema.response_format as z.ZodType).description).toContain('markdown');
       }
     });
 

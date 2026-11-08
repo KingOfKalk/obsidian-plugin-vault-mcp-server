@@ -46,28 +46,29 @@ describe('scripts/list-tools', () => {
     }
   });
 
-  it('the vault module page renders the vault_get_aspect discriminated union', () => {
+  it('the vault module page renders the flat vault_get_aspect output with every per-aspect field', () => {
     const rows = collectToolRows();
     const vault = rows.find((r) => r.moduleId === 'vault');
     expect(vault).toBeDefined();
     if (!vault) return;
     const md = renderModulePage(vault);
-    expect(md).toContain('### vault_get_aspect');
-    expect(md).toContain('**When `aspect` is `frontmatter`**');
-    expect(md).toContain('**When `aspect` is `headings`**');
-    expect(md).toContain('**When `aspect` is `outgoing_links`**');
-    expect(md).toContain('**When `aspect` is `embeds`**');
-    expect(md).toContain('**When `aspect` is `backlinks`**');
-    expect(md).toContain('**When `aspect` is `block_references`**');
+    const section = md.slice(md.indexOf('### vault_get_aspect'));
+    expect(section).toContain('### vault_get_aspect');
+    for (const field of ['frontmatter', 'headings', 'links', 'embeds', 'backlinks', 'blockRefs']) {
+      expect(section).toContain(`\`${field}\``);
+    }
+    // No discriminated union any more: SDK v1 cannot handle one (#388).
+    expect(section).not.toContain('**When `aspect` is');
   });
 
-  it('the ui module page shows the no-structuredContent marker for ui_notice', () => {
+  it('the ui module page documents the ui_notice structured output', () => {
     const rows = collectToolRows();
     const ui = rows.find((r) => r.moduleId === 'ui');
     expect(ui).toBeDefined();
     if (!ui) return;
     const md = renderModulePage(ui);
-    expect(md).toContain(
+    expect(md).toContain('`shown`');
+    expect(md).not.toContain(
       '_No `structuredContent` declared — returns plain text or binary._',
     );
   });

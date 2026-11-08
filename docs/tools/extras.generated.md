@@ -10,12 +10,6 @@ Auto-generated schema reference for the `extras` module. See [../tools.generated
 
 Get the current local datetime as an ISO-8601 string with timezone offset.
 
-Args:
-  - response_format (enum, optional): "markdown" (default) or "json".
-
-Returns:
-  Plain text: e.g. "2026-04-19T08:30:00.000+02:00".
-
 Examples:
   - Use when: stamping a daily note with the current local time.
 

@@ -15,13 +15,13 @@ import {
 } from '../shared/errors';
 import { describeTool } from '../shared/describe';
 import {
+  confirmWithStructured,
   makeResponse,
   readResponseFormat,
   responseFormatField,
 } from '../shared/response';
 import type { ModuleOptions } from '../index';
 
-function text(t: string): CallToolResult { return { content: [{ type: 'text', text: t }] }; }
 function err(m: string): CallToolResult { return handleToolError(new Error(m)); }
 
 const listSchema = { ...responseFormatField };
@@ -106,6 +106,11 @@ const pluginDescribeOutputSchema = {
 const pluginTemplaterDescribeOutputSchema = {
   templatePath: z.string().describe('Vault-relative Templater template path that was queried.'),
   note: z.string().describe('Note explaining that this server does not execute the template.'),
+};
+
+const executeCommandOutputSchema = {
+  commandId: z.string().describe('Command id that was executed.'),
+  executed: z.boolean().describe('Always true on success.'),
 };
 
 interface PluginInteropHandlers {
@@ -233,7 +238,10 @@ function createHandlers(
       const ok = adapter.executeCommand(params.commandId);
       return Promise.resolve(
         ok
-          ? text(`Executed command: ${params.commandId}`)
+          ? confirmWithStructured(`Executed command: ${params.commandId}`, {
+              commandId: params.commandId,
+              executed: true,
+            })
           : err(`Command not found: ${params.commandId}`),
       );
     },
@@ -257,8 +265,7 @@ export function createPluginInteropModule(
           title: 'List plugins',
           description: describeTool({
             summary: 'List every installed community plugin with its enabled flag.',
-            returns: 'JSON: [{ id, name, enabled, ... }].',
-          }, listSchema),
+          }),
           schema: listSchema,
           outputSchema: pluginListOutputSchema,
           handler: h.listPlugins,
@@ -269,9 +276,7 @@ export function createPluginInteropModule(
           title: 'Check plugin enabled',
           description: describeTool({
             summary: 'Check whether a plugin is installed and enabled.',
-            args: ['pluginId (string, 1..200): Plugin id, e.g. "dataview".'],
-            returns: 'JSON: { pluginId, installed, enabled }.',
-          }, checkSchema),
+          }),
           schema: checkSchema,
           outputSchema: pluginCheckOutputSchema,
           handler: h.checkPlugin,
@@ -282,14 +287,12 @@ export function createPluginInteropModule(
           title: 'Run Dataview query',
           description: describeTool({
             summary: 'Execute a Dataview DQL query and return the rendered markdown.',
-            args: ['query (string, 1..10000): Dataview DQL query text. Use plugin_dataview_describe_js_query for Dataview-JS sources.'],
-            returns: 'Plain text: the markdown that Dataview rendered. JSON form returns { query, markdown }.',
             errors: [
               '"Plugin not installed or disabled: dataview" if Dataview is missing.',
               '"Plugin API unavailable for dataview" if Dataview is loaded but its API is not yet exposed.',
               '"Dataview query failed: <reason>" if the query parses but does not execute cleanly.',
             ],
-          }, dataviewSchema),
+          }),
           schema: dataviewSchema,
           outputSchema: pluginDataviewQueryOutputSchema,
           handler: h.dataviewQuery,
@@ -300,9 +303,8 @@ export function createPluginInteropModule(
           title: 'Describe Dataview JS query',
           description: describeTool({
             summary: 'Echo a Dataview-JS source for client-side execution. Returns the source and a note that the host must run it.',
-            args: ['query (string, 1..10000): Dataview-JS source.'],
-            returns: 'JSON: { query, note }. The server never evaluates Dataview-JS.',
-          }, dataviewJsSchema),
+            returns: 'The server never evaluates Dataview-JS.',
+          }),
           schema: dataviewJsSchema,
           outputSchema: pluginDescribeOutputSchema,
           handler: h.dataviewDescribeJsQuery,
@@ -313,9 +315,8 @@ export function createPluginInteropModule(
           title: 'Describe Templater template',
           description: describeTool({
             summary: 'Echo a Templater template path for client-side execution. Returns the path and a note that the host must run it via Templater.',
-            args: ['templatePath (string): Vault-relative path to the Templater template.'],
-            returns: 'JSON: { templatePath, note }. The server never executes Templater itself.',
-          }, templaterSchema),
+            returns: 'The server never executes Templater itself.',
+          }),
           schema: templaterSchema,
           outputSchema: pluginTemplaterDescribeOutputSchema,
           handler: h.templaterDescribeTemplate,
@@ -326,12 +327,11 @@ export function createPluginInteropModule(
           title: 'Execute command',
           description: describeTool({
             summary: 'Execute any Obsidian command by its id.',
-            args: ['commandId (string, 1..200): Command id, e.g. "app:reload".'],
-            returns: 'Plain text "Executed command: <id>" or an error if the command is unknown.',
             examples: ['Use when: triggering "editor:save-file" programmatically.'],
             errors: ['"Command not found" if the id is not registered.'],
           }),
           schema: executeCommandSchema,
+          outputSchema: executeCommandOutputSchema,
           handler: h.executeCommand,
           annotations: annotations.destructiveExternal,
         }),

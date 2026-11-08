@@ -112,6 +112,30 @@ describe('createToolDispatcher', () => {
     expect(text).toContain('Invalid arguments');
   });
 
+  it('names unknown keys and lists the valid parameters (#388)', async () => {
+    const tool = makeTool();
+    const dispatch = createToolDispatcher(tool, makeLogger());
+
+    const result = await dispatch({ path: 'a.md', bogus: true, other: 1 }, makeExtra() as never);
+
+    expect(result.isError).toBe(true);
+    const text = result.content[0].type === 'text' ? result.content[0].text : '';
+    expect(text).toContain('Unknown parameters: bogus, other');
+    expect(text).toContain('Valid parameters: path, count');
+    expect(text).not.toContain('<root>');
+  });
+
+  it('reports both a misspelled key and the missing required one', async () => {
+    const tool = makeTool();
+    const dispatch = createToolDispatcher(tool, makeLogger());
+
+    const result = await dispatch({ Path: 'a.md' }, makeExtra() as never);
+
+    const text = result.content[0].type === 'text' ? result.content[0].text : '';
+    expect(text).toContain('Unknown parameter: Path');
+    expect(text).toContain('path:');
+  });
+
   it('wraps handler exceptions as MCP errors', async () => {
     const tool = makeTool({
       handler: vi.fn(() => Promise.reject(new Error('boom'))),

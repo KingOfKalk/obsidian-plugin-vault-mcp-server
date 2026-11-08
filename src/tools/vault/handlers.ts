@@ -4,15 +4,16 @@ import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 // bundled instance Obsidian uses (moment is a direct dependency).
 import moment from 'moment';
 import { ObsidianAdapter } from '../../obsidian/adapter';
-import { validateVaultPath } from '../../utils/path-guard';
+import { validateFolderListPath, validateVaultPath } from '../../utils/path-guard';
 import { truncateText } from '../shared/truncate';
 import { handleToolError, BinaryTooLargeError, PluginApiUnavailableError } from '../shared/errors';
 import { paginate, readPagination } from '../shared/pagination';
-import { makeResponse, readResponseFormat } from '../shared/response';
+import { confirmWithStructured, makeResponse, readResponseFormat } from '../shared/response';
 import { expandPlaceholders } from '../shared/placeholders';
 import { BINARY_BYTE_LIMIT } from '../../constants';
 import type { InferredParams } from '../../registry/types';
 import type { SearchHandlers } from '../search/handlers';
+import { READ_MAX_LENGTH } from './schemas';
 import type {
   createFileSchema,
   readFileSchema,
@@ -55,10 +56,6 @@ export class WriteMutex {
       }
     }
   }
-}
-
-function textResult(text: string): CallToolResult {
-  return { content: [{ type: 'text', text }] };
 }
 
 function errorResult(message: string): CallToolResult {
@@ -122,6 +119,11 @@ function decorateAspect(
     };
   }
   return { ...inner, structuredContent: decoratedStructured };
+}
+
+/** Label used in rendered listings; the vault root ("") shows as "/". */
+function displayFolder(path: string): string {
+  return path === '' ? '/' : path;
 }
 
 function renderFolderListing(
@@ -199,7 +201,31 @@ async function resolveInitialBody(
   );
 }
 
-const RENAME_TARGET_PATTERN = /^[^/\\\x00]+$/;
+/**
+ * Cut the [offset, offset + length) window out of a file for vault_read
+ * paging. Never ends a window between the two halves of a surrogate pair,
+ * so a multi-chunk read reassembles to the exact original text.
+ */
+function sliceReadWindow(
+  content: string,
+  offset: number,
+  length: number,
+): { content: string; offset: number; end: number; hasMore: boolean } {
+  const start = Math.min(Math.max(0, offset), content.length);
+  let end = Math.min(start + Math.max(1, length), content.length);
+  if (end < content.length && end > start + 1) {
+    const code = content.charCodeAt(end - 1);
+    if (code >= 0xd800 && code <= 0xdbff) end -= 1;
+  }
+  return {
+    content: content.slice(start, end),
+    offset: start,
+    end,
+    hasMore: end < content.length,
+  };
+}
+
+const RENAME_TARGET_PATTERN =/^[^/\\\x00]+$/;
 
 function isValidRenameTarget(value: unknown): value is string {
   return (
@@ -245,7 +271,7 @@ export function createHandlers(
         const path = validateVaultPath(params.path, vaultPath);
         return await mutex.acquire(path, async () => {
           await adapter.createFile(path, params.content);
-          return textResult(`Created file: ${path}`);
+          return confirmWithStructured(`Created file: ${path}`, { path, created: true });
         });
       } catch (error) {
         return handleToolError(error);
@@ -255,16 +281,34 @@ export function createHandlers(
     async readFile(params): Promise<CallToolResult> {
       try {
         const path = validateVaultPath(params.path, vaultPath);
-        const content = await adapter.readFile(path);
+        const fullContent = await adapter.readFile(path);
+        const window = sliceReadWindow(
+          fullContent,
+          params.offset ?? 0,
+          params.length ?? READ_MAX_LENGTH,
+        );
+        const payload = {
+          path,
+          content: window.content,
+          total_length: fullContent.length,
+          offset: window.offset,
+          has_more: window.hasMore,
+          ...(window.hasMore ? { next_offset: window.end } : {}),
+        };
         const result = makeResponse(
-          { path, content },
-          (v) => v.content,
+          payload,
+          (v) =>
+            v.has_more
+              ? `${v.content}\n\n[TRUNCATED: Showing characters ${String(v.offset)}-${String(window.end)} of ${String(v.total_length)}. Call vault_read again with offset=${String(window.end)} to continue.]`
+              : v.content,
           readResponseFormat(params),
         );
         const firstBlock = result.content[0];
         const text = firstBlock.type === 'text' ? firstBlock.text : '';
+        // Safety net for the JSON rendering, whose escaping can push a
+        // full-size window past the limit.
         const truncated = truncateText(text, {
-          hint: 'Read a specific range via editor_* tools or ask for a summary.',
+          hint: 'Call vault_read with a smaller length, or continue with offset.',
         });
         return {
           ...result,
@@ -280,7 +324,7 @@ export function createHandlers(
         const path = validateVaultPath(params.path, vaultPath);
         return await mutex.acquire(path, async () => {
           await adapter.modifyFile(path, params.content);
-          return textResult(`Updated file: ${path}`);
+          return confirmWithStructured(`Updated file: ${path}`, { path, updated: true });
         });
       } catch (error) {
         return handleToolError(error);
@@ -292,7 +336,7 @@ export function createHandlers(
         const path = validateVaultPath(params.path, vaultPath);
         return await mutex.acquire(path, async () => {
           await adapter.deleteFile(path);
-          return textResult(`Deleted file: ${path}`);
+          return confirmWithStructured(`Deleted file: ${path}`, { path, deleted: true });
         });
       } catch (error) {
         return handleToolError(error);
@@ -305,7 +349,7 @@ export function createHandlers(
         return await mutex.acquire(path, async () => {
           const existing = await adapter.readFile(path);
           await adapter.modifyFile(path, existing + params.content);
-          return textResult(`Appended to file: ${path}`);
+          return confirmWithStructured(`Appended to file: ${path}`, { path, appended: true });
         });
       } catch (error) {
         return handleToolError(error);
@@ -352,7 +396,7 @@ export function createHandlers(
         }
         return await mutex.acquire(path, async () => {
           await adapter.renameFile(path, newPath);
-          return textResult(`Renamed file: ${path} → ${newPath}`);
+          return confirmWithStructured(`Renamed file: ${path} → ${newPath}`, { from: path, to: newPath });
         });
       } catch (error) {
         return handleToolError(error);
@@ -365,7 +409,7 @@ export function createHandlers(
         const newPath = validateVaultPath(params.newPath, vaultPath);
         return await mutex.acquire(path, async () => {
           await adapter.renameFile(path, newPath);
-          return textResult(`Moved file: ${path} → ${newPath}`);
+          return confirmWithStructured(`Moved file: ${path} → ${newPath}`, { from: path, to: newPath });
         });
       } catch (error) {
         return handleToolError(error);
@@ -377,7 +421,10 @@ export function createHandlers(
         const sourcePath = validateVaultPath(params.sourcePath, vaultPath);
         const destPath = validateVaultPath(params.destPath, vaultPath);
         await adapter.copyFile(sourcePath, destPath);
-        return textResult(`Copied file: ${sourcePath} → ${destPath}`);
+        return confirmWithStructured(`Copied file: ${sourcePath} → ${destPath}`, {
+          from: sourcePath,
+          to: destPath,
+        });
       } catch (error) {
         return handleToolError(error);
       }
@@ -387,7 +434,7 @@ export function createHandlers(
       try {
         const path = validateVaultPath(params.path, vaultPath);
         await adapter.createFolder(path);
-        return textResult(`Created folder: ${path}`);
+        return confirmWithStructured(`Created folder: ${path}`, { path, created: true });
       } catch (error) {
         return handleToolError(error);
       }
@@ -397,7 +444,11 @@ export function createHandlers(
       try {
         const path = validateVaultPath(params.path, vaultPath);
         await adapter.deleteFolder(path, params.recursive ?? false);
-        return textResult(`Deleted folder: ${path}`);
+        return confirmWithStructured(`Deleted folder: ${path}`, {
+          path,
+          deleted: true,
+          recursive: params.recursive ?? false,
+        });
       } catch (error) {
         return handleToolError(error);
       }
@@ -408,7 +459,10 @@ export function createHandlers(
         const path = validateVaultPath(params.path, vaultPath);
         const newPath = validateVaultPath(params.newPath, vaultPath);
         await adapter.renameFile(path, newPath);
-        return textResult(`Renamed folder: ${path} → ${newPath}`);
+        return confirmWithStructured(`Renamed folder: ${path} → ${newPath}`, {
+          from: path,
+          to: newPath,
+        });
       } catch (error) {
         return handleToolError(error);
       }
@@ -416,12 +470,12 @@ export function createHandlers(
 
     listFolder(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
+        const path = validateFolderListPath(params.path, vaultPath);
         const result = adapter.list(path);
         return Promise.resolve(
           makeResponse(
             result,
-            (v) => renderFolderListing(path, v.folders, v.files),
+            (v) => renderFolderListing(displayFolder(path), v.folders, v.files),
             readResponseFormat(params),
           ),
         );
@@ -432,7 +486,7 @@ export function createHandlers(
 
     listRecursive(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
+        const path = validateFolderListPath(params.path, vaultPath);
         const result = adapter.listRecursive(path);
         const pagination = readPagination(params);
         const filesPage = paginate(result.files, pagination);
@@ -444,7 +498,7 @@ export function createHandlers(
           payload,
           (v) =>
             renderRecursiveListing(
-              path,
+              displayFolder(path),
               v.folders,
               v.items,
               v.total,
@@ -499,7 +553,10 @@ export function createHandlers(
             path,
             buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
           );
-          return textResult(`Wrote binary file: ${path}`);
+          return confirmWithStructured(`Wrote binary file: ${path}`, {
+            path,
+            size_bytes: buffer.byteLength,
+          });
         });
       } catch (error) {
         return handleToolError(error);

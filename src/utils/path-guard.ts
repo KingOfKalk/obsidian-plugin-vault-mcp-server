@@ -53,3 +53,22 @@ export function validateVaultPath(inputPath: string, vaultRoot: string): string 
 
   return relativePath;
 }
+
+/**
+ * Inputs that mean "the vault root" for folder-listing tools.
+ */
+const VAULT_ROOT_ALIASES = new Set(['', '/', '.', './']);
+
+/**
+ * Validate a folder path for the folder-listing tools (`vault_list`,
+ * `vault_list_recursive`). Same rules as {@link validateVaultPath}, except
+ * that `""`, `"/"` and `"."` are accepted and mean the vault root, which is
+ * returned as `""`. File tools must keep using `validateVaultPath`, which
+ * rejects an empty path.
+ */
+export function validateFolderListPath(inputPath: string, vaultRoot: string): string {
+  if (VAULT_ROOT_ALIASES.has(inputPath.trim())) {
+    return '';
+  }
+  return validateVaultPath(inputPath, vaultRoot);
+}
