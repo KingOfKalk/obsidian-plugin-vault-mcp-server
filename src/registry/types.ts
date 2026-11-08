@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CallToolResult, ToolAnnotations } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolResult, ToolAnnotations } from '@modelcontextprotocol/server';
 import type { ToolContext } from './tool-context';
 
 export type { ToolAnnotations };
@@ -42,16 +42,15 @@ export interface ToolDefinition<
   schema: Shape;
   /**
    * Optional schema describing the `structuredContent` payload the handler
-   * emits. Two shapes are accepted, both forwarded to
-   * `McpServer.registerTool` unchanged:
+   * emits. Two shapes are accepted; `toOutputSchema` in
+   * `src/server/mcp-server.ts` normalises them for `McpServer.registerTool`:
    *
    *   - **Raw shape** (`z.ZodRawShape`) — the common case, used by every
-   *     tool whose output is a flat object. The SDK turns it into an
-   *     object schema.
+   *     tool whose output is a flat object. Wrapped in `z.object` before
+   *     registration (SDK v2 no longer accepts raw shapes).
    *   - **Full Zod schema** (`z.ZodTypeAny`) — used when the output shape
    *     varies by input, e.g. `z.discriminatedUnion('aspect', [...])`.
-   *     The SDK's `OutputArgs extends ZodRawShapeCompat | AnySchema`
-   *     generic accepts these directly.
+   *     Forwarded unchanged.
    *
    * Tools that don't emit a `structuredContent` slot (e.g. plain-text
    * confirmations or binary payloads) MUST leave this undefined — the MCP

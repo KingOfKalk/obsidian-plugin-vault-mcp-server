@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { paginate, readPagination } from '../../../src/tools/shared/pagination';
-import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolResult } from '@modelcontextprotocol/server';
 import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
 import { createSearchHandlers } from '../../../src/tools/search/handlers';
 

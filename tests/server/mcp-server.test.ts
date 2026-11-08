@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { z } from 'zod';
-import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolResult } from '@modelcontextprotocol/server';
 import manifest from '../../manifest.json';
 import { Logger } from '../../src/utils/logger';
 import { ModuleRegistry } from '../../src/registry/module-registry';
@@ -56,7 +56,7 @@ const capturedRegisterToolCalls: CapturedRegisterToolCall[] = [];
 const capturedRegisterResourceCalls: CapturedRegisterResourceCall[] = [];
 const capturedRegisterPromptCalls: CapturedRegisterPromptCall[] = [];
 
-vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => {
+vi.mock('@modelcontextprotocol/server', () => {
   class FakeMcpServer {
     public server = {};
     constructor(serverInfo: CapturedServerInfo, options: CapturedOptions) {
@@ -78,7 +78,13 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => {
   class FakeResourceTemplate {
     constructor(public uriTemplate: string, public callbacks: unknown) {}
   }
-  return { McpServer: FakeMcpServer, ResourceTemplate: FakeResourceTemplate };
+  // prompts.ts imports `completable` from the same entry point in SDK v2.
+  const completable = <T>(schema: T): T => schema;
+  return {
+    McpServer: FakeMcpServer,
+    ResourceTemplate: FakeResourceTemplate,
+    completable,
+  };
 });
 
 function makeLogger(): Logger {
@@ -151,7 +157,7 @@ describe('createMcpServer', () => {
     );
   });
 
-  it('forwards outputSchema to registerTool when defined, and undefined when absent', async () => {
+  it('wraps raw-shape inputSchema/outputSchema in z.object for SDK v2, and leaves outputSchema undefined when absent', async () => {
     const { createMcpServer } = await import('../../src/server/mcp-server');
 
     const inputSchema = { foo: z.string() };
@@ -198,8 +204,15 @@ describe('createMcpServer', () => {
       (c) => c.name === 'tool_with_output',
     );
     expect(withOutput).toBeDefined();
-    expect(withOutput?.config.outputSchema).toBe(outputSchema);
-    expect(withOutput?.config.inputSchema).toBe(inputSchema);
+    // SDK v2 rejects raw shapes; the registry wraps them in z.object.
+    expect(withOutput?.config.outputSchema).toBeInstanceOf(z.ZodObject);
+    expect((withOutput?.config.outputSchema as z.ZodObject).shape).toEqual(
+      outputSchema,
+    );
+    expect(withOutput?.config.inputSchema).toBeInstanceOf(z.ZodObject);
+    expect((withOutput?.config.inputSchema as z.ZodObject).shape).toEqual(
+      inputSchema,
+    );
 
     const withoutOutput = capturedRegisterToolCalls.find(
       (c) => c.name === 'tool_without_output',
@@ -209,6 +222,16 @@ describe('createMcpServer', () => {
     // The field IS present in the config object (we forward it
     // unconditionally) — but its value is undefined.
     expect('outputSchema' in (withoutOutput?.config ?? {})).toBe(true);
+  });
+
+  it('passes a full Zod outputSchema through unchanged', async () => {
+    const { toOutputSchema } = await import('../../src/server/mcp-server');
+    const union = z.discriminatedUnion('kind', [
+      z.object({ kind: z.literal('a'), a: z.string() }),
+      z.object({ kind: z.literal('b'), b: z.number() }),
+    ]);
+    expect(toOutputSchema(union)).toBe(union);
+    expect(toOutputSchema(undefined)).toBeUndefined();
   });
 
   it('forwards tool.title to both Tool.title and annotations.title', async () => {
@@ -303,19 +326,29 @@ describe('createMcpServer', () => {
 });
 
 describe('createToolDispatcher', () => {
-  function makeExtra(overrides: Record<string, unknown> = {}): {
-    signal: AbortSignal;
-    _meta?: { progressToken?: string | number };
-    sendNotification: ReturnType<typeof vi.fn>;
-    sendRequest: ReturnType<typeof vi.fn>;
-    requestId: number;
-  } {
+  interface FakeExtra {
+    mcpReq: {
+      id: number;
+      method: string;
+      signal: AbortSignal;
+      _meta?: { progressToken?: string | number };
+      notify: ReturnType<typeof vi.fn>;
+      send: ReturnType<typeof vi.fn>;
+    };
+  }
+
+  function makeExtra(
+    overrides: Partial<Pick<FakeExtra['mcpReq'], 'signal' | '_meta'>> = {},
+  ): FakeExtra {
     return {
-      signal: new AbortController().signal,
-      requestId: 1,
-      sendNotification: vi.fn().mockResolvedValue(undefined),
-      sendRequest: vi.fn(),
-      ...overrides,
+      mcpReq: {
+        id: 1,
+        method: 'tools/call',
+        signal: new AbortController().signal,
+        notify: vi.fn().mockResolvedValue(undefined),
+        send: vi.fn(),
+        ...overrides,
+      },
     };
   }
 
@@ -444,7 +477,7 @@ describe('createToolDispatcher', () => {
     expect(error).toHaveBeenCalledTimes(1);
   });
 
-  it('passes a ToolContext as the second arg to the handler with extra.signal and extra._meta.progressToken', async () => {
+  it('passes a ToolContext as the second arg to the handler with mcpReq.signal and mcpReq._meta.progressToken', async () => {
     const { createToolDispatcher } = await import('../../src/server/mcp-server');
     const { logger } = makeSpiedLogger();
     let capturedCtx: unknown = undefined;
@@ -473,7 +506,7 @@ describe('createToolDispatcher', () => {
     expect(ctx.progressToken).toBe('tok-1');
   });
 
-  it('ctx.reportProgress emits notifications/progress via extra.sendNotification', async () => {
+  it('ctx.reportProgress emits notifications/progress via extra.mcpReq.notify', async () => {
     const { createToolDispatcher } = await import('../../src/server/mcp-server');
     const { logger } = makeSpiedLogger();
     const tool = makeTool({ foo: z.string() }, async (_params, ctx) => {
@@ -485,7 +518,7 @@ describe('createToolDispatcher', () => {
     const dispatch = createToolDispatcher(tool, logger);
     await dispatch({ foo: 'ok' }, extra as never);
 
-    expect(extra.sendNotification).toHaveBeenCalledWith({
+    expect(extra.mcpReq.notify).toHaveBeenCalledWith({
       method: 'notifications/progress',
       params: { progressToken: 99, progress: 2, total: 5, message: 'half' },
     });
@@ -506,7 +539,7 @@ describe('createToolDispatcher', () => {
     await dispatch({ foo: 'ok' }, extra as never);
 
     expect(info).toHaveBeenCalledWith('progress', { step: 1 });
-    expect(extra.sendNotification).toHaveBeenCalledWith({
+    expect(extra.mcpReq.notify).toHaveBeenCalledWith({
       method: 'notifications/message',
       params: {
         level: 'info',

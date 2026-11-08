@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { ToolContext } from '../../../src/registry/tool-context';
 import { z } from 'zod';
-import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolResult } from '@modelcontextprotocol/server';
 import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
 import { createSearchHandlers, type SearchHandlers } from '../../../src/tools/search/handlers';
 import { createSearchModule } from '../../../src/tools/search/index';

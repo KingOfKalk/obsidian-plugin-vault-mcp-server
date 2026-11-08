@@ -1,9 +1,8 @@
 import { createServer as createHttpServer, IncomingMessage, Server, ServerResponse } from 'http';
 import { createServer as createHttpsServer } from 'https';
 import { randomUUID } from 'crypto';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
+import { NodeStreamableHTTPServerTransport } from '@modelcontextprotocol/node';
+import { McpServer, isInitializeRequest } from '@modelcontextprotocol/server';
 import { Logger } from '../utils/logger';
 import { authenticateRequest, sendAuthError, sendRateLimitError } from './auth';
 import { applyCorsHeaders, handlePreflight, CorsOptions, DEFAULT_CORS_OPTIONS } from './cors';
@@ -51,7 +50,7 @@ const DEFAULT_ORIGIN_HOST_OPTIONS: OriginHostOptions = {
 export type McpServerFactory = () => McpServer;
 
 interface Session {
-  transport: StreamableHTTPServerTransport;
+  transport: NodeStreamableHTTPServerTransport;
   server: McpServer;
   lastActivity: number;
 }
@@ -329,7 +328,7 @@ export class HttpMcpServer {
 
   private async createSession(): Promise<Session> {
     const server = this.serverFactory();
-    const transport = new StreamableHTTPServerTransport({
+    const transport = new NodeStreamableHTTPServerTransport({
       sessionIdGenerator: (): string => randomUUID(),
       onsessioninitialized: (id: string): void => {
         this.sessions.set(id, {

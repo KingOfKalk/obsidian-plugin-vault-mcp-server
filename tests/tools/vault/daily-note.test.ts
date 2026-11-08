@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import moment from 'moment';
-import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolResult } from '@modelcontextprotocol/server';
 import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
 import { createHandlers, WriteMutex } from '../../../src/tools/vault/handlers';
 import { createSearchHandlers } from '../../../src/tools/search/handlers';

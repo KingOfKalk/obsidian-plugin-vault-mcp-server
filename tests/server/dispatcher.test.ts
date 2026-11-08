@@ -6,16 +6,22 @@ import type { ToolDefinition } from '../../src/registry/types';
 import { annotations } from '../../src/registry/types';
 
 function makeExtra(): {
-  signal: AbortSignal;
-  sendNotification: ReturnType<typeof vi.fn>;
-  sendRequest: ReturnType<typeof vi.fn>;
-  requestId: number;
+  mcpReq: {
+    id: number;
+    method: string;
+    signal: AbortSignal;
+    notify: ReturnType<typeof vi.fn>;
+    send: ReturnType<typeof vi.fn>;
+  };
 } {
   return {
-    signal: new AbortController().signal,
-    requestId: 1,
-    sendNotification: vi.fn().mockResolvedValue(undefined),
-    sendRequest: vi.fn(),
+    mcpReq: {
+      id: 1,
+      method: 'tools/call',
+      signal: new AbortController().signal,
+      notify: vi.fn().mockResolvedValue(undefined),
+      send: vi.fn(),
+    },
   };
 }
 

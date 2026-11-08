@@ -21,33 +21,46 @@ function makeLogger(): {
   return { logger, debug, info, warn, error };
 }
 
-function makeExtra(overrides: Partial<SdkExtra> = {}): SdkExtra {
-  const sendNotification = vi.fn().mockResolvedValue(undefined);
+interface FakeExtraOptions {
+  signal?: AbortSignal;
+  _meta?: { progressToken?: string | number };
+  notify?: ReturnType<typeof vi.fn>;
+}
+
+interface FakeExtra {
+  extra: SdkExtra;
+  notify: ReturnType<typeof vi.fn>;
+}
+
+function makeExtra(overrides: FakeExtraOptions = {}): FakeExtra {
+  const notify = overrides.notify ?? vi.fn().mockResolvedValue(undefined);
   const fake = {
-    signal: new AbortController().signal,
-    requestId: 1,
-    sendNotification,
-    sendRequest: vi.fn(),
-    ...overrides,
+    mcpReq: {
+      id: 1,
+      method: 'tools/call',
+      signal: overrides.signal ?? new AbortController().signal,
+      _meta: overrides._meta,
+      notify,
+      send: vi.fn(),
+    },
   };
   // vi.fn()'s default loose signature does not structurally satisfy
-  // RequestHandlerExtra's typed sendRequest/sendNotification generics.
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-  return fake as unknown as SdkExtra;
+  // ServerContext's typed send/notify members.
+  return { extra: fake as unknown as SdkExtra, notify };
 }
 
 describe('createToolContext', () => {
   it('surfaces signal verbatim from extra', () => {
     const ac = new AbortController();
     const { logger } = makeLogger();
-    const ctx = createToolContext(makeExtra({ signal: ac.signal }), 'tool_x', logger);
+    const ctx = createToolContext(makeExtra({ signal: ac.signal }).extra, 'tool_x', logger);
     expect(ctx.signal).toBe(ac.signal);
   });
 
   it('lifts progressToken from extra._meta', () => {
     const { logger } = makeLogger();
     const ctx = createToolContext(
-      makeExtra({ _meta: { progressToken: 'tok-42' } }),
+      makeExtra({ _meta: { progressToken: 'tok-42' } }).extra,
       'tool_x',
       logger,
     );
@@ -56,40 +69,40 @@ describe('createToolContext', () => {
 
   it('progressToken is undefined when _meta is absent', () => {
     const { logger } = makeLogger();
-    const ctx = createToolContext(makeExtra(), 'tool_x', logger);
+    const ctx = createToolContext(makeExtra().extra, 'tool_x', logger);
     expect(ctx.progressToken).toBeUndefined();
   });
 
   describe('reportProgress', () => {
     it('is a no-op when progressToken is undefined', async () => {
-      const extra = makeExtra();
+      const { extra, notify } = makeExtra();
       const { logger } = makeLogger();
       const ctx = createToolContext(extra, 'tool_x', logger);
 
       await ctx.reportProgress(5, 10, 'halfway');
 
-      expect(extra.sendNotification).not.toHaveBeenCalled();
+      expect(notify).not.toHaveBeenCalled();
     });
 
     it('emits notifications/progress with the correct params shape when progressToken is set', async () => {
-      const extra = makeExtra({ _meta: { progressToken: 7 } });
+      const { extra, notify } = makeExtra({ _meta: { progressToken: 7 } });
       const { logger } = makeLogger();
       const ctx = createToolContext(extra, 'tool_x', logger);
 
       await ctx.reportProgress(3, 9, 'step 3');
 
-      expect(extra.sendNotification).toHaveBeenCalledTimes(1);
-      expect(extra.sendNotification).toHaveBeenCalledWith({
+      expect(notify).toHaveBeenCalledTimes(1);
+      expect(notify).toHaveBeenCalledWith({
         method: 'notifications/progress',
         params: { progressToken: 7, progress: 3, total: 9, message: 'step 3' },
       });
     });
 
-    it('swallows sendNotification errors and warns via logger', async () => {
-      const sendNotification = vi.fn().mockRejectedValue(new Error('socket gone'));
-      const extra = makeExtra({
+    it('swallows notify errors and warns via logger', async () => {
+      const failingNotify = vi.fn().mockRejectedValue(new Error('socket gone'));
+      const { extra } = makeExtra({
         _meta: { progressToken: 1 },
-        sendNotification,
+        notify: failingNotify,
       });
       const { logger, warn } = makeLogger();
       const ctx = createToolContext(extra, 'tool_x', logger);
@@ -100,16 +113,16 @@ describe('createToolContext', () => {
   });
 
   describe('log', () => {
-    it('fans out to logger.info AND sendNotification with notifications/message', async () => {
-      const extra = makeExtra();
+    it('fans out to logger.info AND notify with notifications/message', async () => {
+      const { extra, notify } = makeExtra();
       const { logger, info } = makeLogger();
       const ctx = createToolContext(extra, 'tool_x', logger);
 
       await ctx.log('info', 'hello', { count: 1 });
 
       expect(info).toHaveBeenCalledWith('hello', { count: 1 });
-      expect(extra.sendNotification).toHaveBeenCalledTimes(1);
-      expect(extra.sendNotification).toHaveBeenCalledWith({
+      expect(notify).toHaveBeenCalledTimes(1);
+      expect(notify).toHaveBeenCalledWith({
         method: 'notifications/message',
         params: {
           level: 'info',
@@ -120,13 +133,13 @@ describe('createToolContext', () => {
     });
 
     it('omits the data field in the notification payload when handler did not pass data', async () => {
-      const extra = makeExtra();
+      const { extra, notify } = makeExtra();
       const { logger } = makeLogger();
       const ctx = createToolContext(extra, 'tool_x', logger);
 
       await ctx.log('info', 'hello');
 
-      expect(extra.sendNotification).toHaveBeenCalledWith({
+      expect(notify).toHaveBeenCalledWith({
         method: 'notifications/message',
         params: {
           level: 'info',
@@ -160,7 +173,7 @@ describe('createToolContext', () => {
       ];
 
       for (const { mcp, project } of cases) {
-        const extra = makeExtra();
+        const { extra } = makeExtra();
         const { logger, debug, info, warn, error } = makeLogger();
         const ctx = createToolContext(extra, 'tool_x', logger);
 
@@ -176,9 +189,9 @@ describe('createToolContext', () => {
       }
     });
 
-    it('swallows sendNotification errors and warns via logger', async () => {
-      const sendNotification = vi.fn().mockRejectedValue(new Error('socket gone'));
-      const extra = makeExtra({ sendNotification });
+    it('swallows notify errors and warns via logger', async () => {
+      const failingNotify = vi.fn().mockRejectedValue(new Error('socket gone'));
+      const { extra } = makeExtra({ notify: failingNotify });
       const { logger, warn } = makeLogger();
       const ctx = createToolContext(extra, 'tool_x', logger);
 

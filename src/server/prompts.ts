@@ -1,6 +1,5 @@
-import type { GetPromptResult } from '@modelcontextprotocol/sdk/types.js';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { completable } from '@modelcontextprotocol/sdk/server/completable.js';
+import { completable } from '@modelcontextprotocol/server';
+import type { GetPromptResult, McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import type { ObsidianAdapter } from '../obsidian/adapter';
 import type { Logger } from '../utils/logger';
@@ -209,9 +208,9 @@ export function registerPrompts(
     {
       title: 'Summarize a vault note',
       description: 'Read a note and produce a concise summary covering its main points and any actionable items.',
-      argsSchema: {
+      argsSchema: z.object({
         path: z.string().min(1).describe('Vault-relative path to the note to summarize'),
-      },
+      }),
     },
     (args: { path: string }, _extra) => summarize(args),
   );
@@ -222,9 +221,9 @@ export function registerPrompts(
     {
       title: 'Find notes related to a given note',
       description: "Cross-reference a note's content against the vault to surface related material.",
-      argsSchema: {
+      argsSchema: z.object({
         path: z.string().min(1).describe('Vault-relative path to the seed note'),
-      },
+      }),
     },
     (args: { path: string }, _extra) => findRelated(args),
   );
@@ -235,12 +234,12 @@ export function registerPrompts(
     {
       title: 'Expand a vault template',
       description: 'Discover the placeholders in a template and walk through filling them in.',
-      argsSchema: {
+      argsSchema: z.object({
         template: completable(
           z.string().min(1).describe('Vault-relative path to the template file'),
           (value) => templateCompleter(value),
         ),
-      },
+      }),
     },
     (args: { template: string }, _extra) => expand(args),
   );
@@ -253,12 +252,12 @@ export function registerPrompts(
     {
       title: "Open or create today's daily note",
       description: "Resolve, create-if-missing, and open today's daily note (or a given date).",
-      argsSchema: {
+      argsSchema: z.object({
         date: z
           .string()
           .optional()
           .describe('Optional ISO date (YYYY-MM-DD). Omit for today (local time).'),
-      },
+      }),
     },
     (args: { date?: string }, _extra) => dailyNote(args),
   );
@@ -273,15 +272,17 @@ export function registerPrompts(
       title: 'Triage broken (unresolved) wikilinks',
       description:
         'Enumerate broken wikilinks (vault-wide or for one note) and walk through retargeting, stubbing out, or deleting them.',
-      argsSchema: {
+      argsSchema: z.object({
+        // SDK v2 resolves completion metadata after unwrapping an outer
+        // optional, so `.optional()` must wrap the completable, not the
+        // inner string schema.
         path: completable(
           z
             .string()
-            .optional()
             .describe('Optional vault-relative path. Omit to triage the whole vault.'),
-          (value) => unresolvedSourcesCompleter(value ?? ''),
-        ),
-      },
+          (value) => unresolvedSourcesCompleter(value),
+        ).optional(),
+      }),
     },
     (args: { path?: string }, _extra) => fixBrokenLinks(args),
   );
