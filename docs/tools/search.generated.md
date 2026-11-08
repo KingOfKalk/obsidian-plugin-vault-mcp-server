@@ -40,6 +40,53 @@ Errors:
 | `hasMore` | boolean | True when more results are available past this page. |
 | `nextOffset` | number | Offset to use in the next request when hasMore is true. |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "search_fulltext",
+  "arguments": {
+    "query": "alpha"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "total": 3,
+  "count": 3,
+  "offset": 0,
+  "items": [
+    {
+      "path": "README.md",
+      "matches": [
+        "See [[projects/alpha]]."
+      ],
+      "matchCount": 1
+    },
+    {
+      "path": "projects/alpha.md",
+      "matches": [
+        "# Alpha"
+      ],
+      "matchCount": 1
+    },
+    {
+      "path": "people/ada.md",
+      "matches": [
+        "Works on [[projects/alpha]]."
+      ],
+      "matchCount": 1
+    }
+  ],
+  "hasMore": false
+}
+```
+
 ### search_tags
 
 **List tags**
@@ -61,6 +108,29 @@ See also:
 |---|---|---|
 | `tags` | object | Map of tag (with leading #) to vault-relative file paths that use it. |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "search_tags",
+  "arguments": {}
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "tags": {
+    "#project": [
+      "projects/alpha.md"
+    ]
+  }
+}
+```
+
 ### search_resolved_links
 
 **Find resolved links**
@@ -81,6 +151,35 @@ See also:
 | Field | Type | Description |
 |---|---|---|
 | `links` | object | Map of source file path to map of target file path to reference count. |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "search_resolved_links",
+  "arguments": {}
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "links": {
+    "README.md": {
+      "projects/alpha.md": 1
+    },
+    "projects/alpha.md": {
+      "people/ada.md": 1
+    },
+    "people/ada.md": {
+      "projects/alpha.md": 1
+    }
+  }
+}
+```
 
 ### search_unresolved_links
 
@@ -105,6 +204,25 @@ See also:
 | Field | Type | Description |
 |---|---|---|
 | `links` | object | Map of source file path to map of target file path to reference count. |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "search_unresolved_links",
+  "arguments": {}
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "links": {}
+}
+```
 
 ### search_by_tag
 
@@ -134,6 +252,33 @@ See also:
 | `items` | string[] | Vault-relative file paths in this page. |
 | `hasMore` | boolean | True when there are more files past this page. |
 | `nextOffset` | number | Offset to use in the next request when hasMore is true. |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "search_by_tag",
+  "arguments": {
+    "tag": "project"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "total": 1,
+  "count": 1,
+  "offset": 0,
+  "items": [
+    "projects/alpha.md"
+  ],
+  "hasMore": false
+}
+```
 
 ### search_by_frontmatter
 
@@ -165,3 +310,31 @@ Examples:
 | `items` | string[] | Vault-relative file paths in this page. |
 | `hasMore` | boolean | True when there are more files past this page. |
 | `nextOffset` | number | Offset to use in the next request when hasMore is true. |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "search_by_frontmatter",
+  "arguments": {
+    "key": "status",
+    "value": "active"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "total": 1,
+  "count": 1,
+  "offset": 0,
+  "items": [
+    "projects/alpha.md"
+  ],
+  "hasMore": false
+}
+```

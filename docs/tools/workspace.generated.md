@@ -30,6 +30,27 @@ Errors:
 | `type` | string | View type for the leaf, e.g. "markdown". |
 | `filePath` | unknown | Vault-relative path of the file in this leaf, or null when none. |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "workspace_get_active_leaf",
+  "arguments": {}
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "id": "leaf-1",
+  "type": "markdown",
+  "filePath": "projects/alpha.md"
+}
+```
+
 ### workspace_open_file
 
 **Open file in workspace**
@@ -53,6 +74,27 @@ Errors:
 | `path` | string | Vault-relative path that was opened. |
 | `mode` | enum: `source` \| `preview` \| `live` | View mode that was requested, when one was given. |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "workspace_open_file",
+  "arguments": {
+    "path": "README.md"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "path": "README.md"
+}
+```
+
 ### workspace_list_leaves
 
 **List open leaves**
@@ -70,6 +112,30 @@ List every open leaf and the file it holds.
 | Field | Type | Description |
 |---|---|---|
 | `leaves` | object[] | All open leaves that hold a file. |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "workspace_list_leaves",
+  "arguments": {}
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "leaves": [
+    {
+      "path": "projects/alpha.md",
+      "leafId": "leaf-1"
+    }
+  ]
+}
+```
 
 ### workspace_set_active_leaf
 
@@ -92,6 +158,27 @@ Errors:
 |---|---|---|
 | `leafId` | string | Id of the leaf that is now active. |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "workspace_set_active_leaf",
+  "arguments": {
+    "leafId": "leaf-1"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "leafId": "leaf-1"
+}
+```
+
 ### workspace_get_layout
 
 **Get workspace layout**
@@ -108,3 +195,30 @@ Get a summary of the current workspace layout.
 
 | Field | Type | Description |
 |---|---|---|
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "workspace_get_layout",
+  "arguments": {}
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "main": {
+    "type": "split",
+    "children": [
+      {
+        "type": "leaf",
+        "id": "leaf-1"
+      }
+    ]
+  }
+}
+```

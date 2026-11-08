@@ -27,3 +27,22 @@ See also:
 | Field | Type | Description |
 |---|---|---|
 | `iso` | string | Local datetime as an ISO-8601 string with timezone offset, e.g. "2026-04-19T08:30:00.000+02:00". |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "extras_get_date",
+  "arguments": {}
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "iso": "2026-01-15T09:30:00.000+00:00"
+}
+```

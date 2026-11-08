@@ -32,6 +32,29 @@ Errors:
 | `path` | string | Vault-relative path that was written. |
 | `created` | boolean | Always true on success. |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "vault_create",
+  "arguments": {
+    "path": "new/one.md",
+    "content": "# One"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "path": "new/one.md",
+  "created": true
+}
+```
+
 ### vault_read
 
 **Read file**
@@ -72,6 +95,31 @@ Errors:
 | `hasMore` | boolean | True when the file continues past this window. |
 | `nextOffset` | number | Offset to pass in the next call when hasMore is true. |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "vault_read",
+  "arguments": {
+    "path": "projects/alpha.md"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "path": "projects/alpha.md",
+  "content": "---\nstatus: active\n---\n# Alpha\n\n## Goals\nShip it. ^goal-1\n",
+  "totalLength": 58,
+  "offset": 0,
+  "hasMore": false
+}
+```
+
 ### vault_update
 
 **Replace file content**
@@ -99,6 +147,29 @@ Errors:
 | `path` | string | Vault-relative path that was written. |
 | `updated` | boolean | Always true on success. |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "vault_update",
+  "arguments": {
+    "path": "README.md",
+    "content": "# Updated"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "path": "README.md",
+  "updated": true
+}
+```
+
 ### vault_delete
 
 **Delete file**
@@ -123,6 +194,28 @@ Errors:
 |---|---|---|
 | `path` | string | Vault-relative path that was written. |
 | `deleted` | boolean | Always true on success. |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "vault_delete",
+  "arguments": {
+    "path": "people/ada.md"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "path": "people/ada.md",
+  "deleted": true
+}
+```
 
 ### vault_append
 
@@ -149,6 +242,29 @@ Errors:
 |---|---|---|
 | `path` | string | Vault-relative path that was written. |
 | `appended` | boolean | Always true on success. |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "vault_append",
+  "arguments": {
+    "path": "README.md",
+    "content": "\nmore"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "path": "README.md",
+  "appended": true
+}
+```
 
 ### vault_get_metadata
 
@@ -181,6 +297,30 @@ Errors:
 | `created` | string | Creation timestamp as an ISO-8601 string. |
 | `modified` | string | Last-modification timestamp as an ISO-8601 string. |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "vault_get_metadata",
+  "arguments": {
+    "path": "README.md"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "path": "README.md",
+  "size": 33,
+  "created": "2026-01-01T12:00:00.000Z",
+  "modified": "2026-01-10T08:15:00.000Z"
+}
+```
+
 ### vault_rename
 
 **Rename file**
@@ -208,6 +348,29 @@ Errors:
 | `from` | string | Vault-relative source path. |
 | `to` | string | Vault-relative destination path. |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "vault_rename",
+  "arguments": {
+    "path": "people/ada.md",
+    "newName": "ada-lovelace.md"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "from": "people/ada.md",
+  "to": "people/ada-lovelace.md"
+}
+```
+
 ### vault_move
 
 **Move file**
@@ -233,6 +396,29 @@ Errors:
 |---|---|---|
 | `from` | string | Vault-relative source path. |
 | `to` | string | Vault-relative destination path. |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "vault_move",
+  "arguments": {
+    "path": "people/ada.md",
+    "newPath": "archive/ada.md"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "from": "people/ada.md",
+  "to": "archive/ada.md"
+}
+```
 
 ### vault_copy
 
@@ -260,6 +446,29 @@ Errors:
 | `from` | string | Vault-relative source path. |
 | `to` | string | Vault-relative destination path. |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "vault_copy",
+  "arguments": {
+    "sourcePath": "README.md",
+    "destPath": "README-copy.md"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "from": "README.md",
+  "to": "README-copy.md"
+}
+```
+
 ### vault_create_folder
 
 **Create folder**
@@ -284,6 +493,28 @@ Errors:
 |---|---|---|
 | `path` | string | Vault-relative path that was written. |
 | `created` | boolean | Always true on success. |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "vault_create_folder",
+  "arguments": {
+    "path": "brand-new"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "path": "brand-new",
+  "created": true
+}
+```
 
 ### vault_delete_folder
 
@@ -312,6 +543,29 @@ Errors:
 | `deleted` | boolean | Always true on success. |
 | `recursive` | boolean | Whether the delete was recursive. |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "vault_delete_folder",
+  "arguments": {
+    "path": "empty"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "path": "empty",
+  "deleted": true,
+  "recursive": false
+}
+```
+
 ### vault_rename_folder
 
 **Rename folder**
@@ -337,6 +591,29 @@ Errors:
 |---|---|---|
 | `from` | string | Vault-relative source path. |
 | `to` | string | Vault-relative destination path. |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "vault_rename_folder",
+  "arguments": {
+    "path": "empty",
+    "newPath": "renamed"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "from": "empty",
+  "to": "renamed"
+}
+```
 
 ### vault_list
 
@@ -366,6 +643,30 @@ Errors:
 |---|---|---|
 | `files` | string[] | Direct file children of the listed folder (names only). |
 | `folders` | string[] | Direct subfolders of the listed folder (names only). |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "vault_list",
+  "arguments": {
+    "path": "projects"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "files": [
+    "projects/alpha.md"
+  ],
+  "folders": []
+}
+```
 
 ### vault_list_recursive
 
@@ -407,6 +708,34 @@ Errors:
 | `hasMore` | boolean | True when there are more files past this page. |
 | `nextOffset` | number | Offset to use in the next request when hasMore is true. |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "vault_list_recursive",
+  "arguments": {
+    "path": "projects"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "folders": [],
+  "total": 1,
+  "count": 1,
+  "offset": 0,
+  "items": [
+    "projects/alpha.md"
+  ],
+  "hasMore": false
+}
+```
+
 ### vault_read_binary
 
 **Read binary file**
@@ -439,6 +768,30 @@ Errors:
 | `encoding` | literal: `base64` | Encoding of the `data` field — always `"base64"` for this tool. |
 | `sizeBytes` | number | Decoded file size in bytes (length of the underlying binary). |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "vault_read_binary",
+  "arguments": {
+    "path": "README.md"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "path": "README.md",
+  "data": "IyBWYXVsdAoKU2VlIFtbcHJvamVjdHMvYWxwaGFdXS4K",
+  "encoding": "base64",
+  "sizeBytes": 33
+}
+```
+
 ### vault_write_binary
 
 **Write binary file**
@@ -464,6 +817,29 @@ Errors:
 |---|---|---|
 | `path` | string | Vault-relative path that was written. |
 | `sizeBytes` | number | Number of bytes written. |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "vault_write_binary",
+  "arguments": {
+    "path": "bin/data.bin",
+    "data": "AAEC"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "path": "bin/data.bin",
+  "sizeBytes": 3
+}
+```
 
 ### vault_get_aspect
 
@@ -499,6 +875,39 @@ Errors:
 | `backlinks` | string[] | aspect=backlinks: paths of files that link TO this file. |
 | `blockRefs` | object[] | aspect=block_references: ^block-ids defined in this file. |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "vault_get_aspect",
+  "arguments": {
+    "path": "projects/alpha.md",
+    "aspect": "headings"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "aspect": "headings",
+  "path": "projects/alpha.md",
+  "headings": [
+    {
+      "heading": "Alpha",
+      "level": 1
+    },
+    {
+      "heading": "Goals",
+      "level": 2
+    }
+  ]
+}
+```
+
 ### vault_daily_note
 
 **Open or create the daily note**
@@ -528,3 +937,26 @@ Errors:
 | `path` | string | Vault-relative path of the daily note. |
 | `created` | boolean | True when the note was just created; false when it already existed. |
 | `content` | string | Full note content (template-expanded body when newly created). |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "vault_daily_note",
+  "arguments": {
+    "date": "2026-11-08"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "path": "daily/2026-11-08.md",
+  "created": true,
+  "content": ""
+}
+```

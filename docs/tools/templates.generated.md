@@ -22,6 +22,27 @@ List files in the vault's "templates" folder.
 |---|---|---|
 | `files` | string[] | Vault-relative paths of files in the "templates" folder. Empty when the folder is missing. |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "template_list",
+  "arguments": {}
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "files": [
+    "templates/meeting.md"
+  ]
+}
+```
+
 ### template_create_from
 
 **Create file from template**
@@ -50,6 +71,32 @@ Errors:
 | `path` | string | Vault-relative path of the new file. |
 | `templatePath` | string | Vault-relative path of the template that was used. |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "template_create_from",
+  "arguments": {
+    "templatePath": "templates/meeting.md",
+    "destPath": "meetings/m1.md",
+    "variables": {
+      "title": "Weekly"
+    }
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "path": "meetings/m1.md",
+  "templatePath": "templates/meeting.md"
+}
+```
+
 ### template_expand
 
 **Expand template inline**
@@ -72,3 +119,27 @@ See also:
 | Field | Type | Description |
 |---|---|---|
 | `expanded` | string | Template text with all {{variable}} placeholders substituted. |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "template_expand",
+  "arguments": {
+    "template": "Hi {{name}}",
+    "variables": {
+      "name": "Ada"
+    }
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "expanded": "Hi Ada"
+}
+```

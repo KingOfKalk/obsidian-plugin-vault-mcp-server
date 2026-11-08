@@ -22,6 +22,31 @@ List every installed community plugin with its enabled flag.
 |---|---|---|
 | `plugins` | object[] | All installed community plugins. |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "plugin_list",
+  "arguments": {}
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "plugins": [
+    {
+      "id": "dataview",
+      "name": "Dataview",
+      "enabled": true
+    }
+  ]
+}
+```
+
 ### plugin_check
 
 **Check plugin enabled**
@@ -42,6 +67,29 @@ Check whether a plugin is installed and enabled.
 | `pluginId` | string | Plugin id that was queried. |
 | `installed` | boolean | Whether the plugin is installed in this vault. |
 | `enabled` | boolean | Whether the plugin is enabled (false when not installed). |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "plugin_check",
+  "arguments": {
+    "pluginId": "dataview"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "pluginId": "dataview",
+  "installed": true,
+  "enabled": true
+}
+```
 
 ### plugin_dataview_query
 
@@ -68,6 +116,28 @@ Errors:
 | `query` | string | Dataview DQL query that was executed. |
 | `markdown` | string | Markdown rendering produced by Dataview. |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "plugin_dataview_query",
+  "arguments": {
+    "query": "LIST"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "query": "LIST",
+  "markdown": "| a |"
+}
+```
+
 ### plugin_dataview_describe_js_query
 
 **Describe Dataview JS query**
@@ -91,6 +161,28 @@ Returns:
 | `query` | string | Dataview-JS source that was passed in. |
 | `note` | string | Note explaining that this server does not execute the source. |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "plugin_dataview_describe_js_query",
+  "arguments": {
+    "query": "dv.list([1])"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "query": "dv.list([1])",
+  "note": "Dataview JS execution is intentionally not performed by this server. Run the source against the Dataview API on the host that owns the vault."
+}
+```
+
 ### plugin_templater_describe_template
 
 **Describe Templater template**
@@ -113,6 +205,28 @@ Returns:
 |---|---|---|
 | `templatePath` | string | Vault-relative Templater template path that was queried. |
 | `note` | string | Note explaining that this server does not execute the template. |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "plugin_templater_describe_template",
+  "arguments": {
+    "templatePath": "templates/meeting.md"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "templatePath": "templates/meeting.md",
+  "note": "Templater execution is intentionally not performed by this server. The host client must run the template via the Templater API."
+}
+```
 
 ### plugin_execute_command
 
@@ -138,3 +252,25 @@ Errors:
 |---|---|---|
 | `commandId` | string | Command id that was executed. |
 | `executed` | boolean | Always true on success. |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "plugin_execute_command",
+  "arguments": {
+    "commandId": "app:reload"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "commandId": "app:reload",
+  "executed": true
+}
+```
