@@ -12,12 +12,12 @@ import { validateVaultPath } from '../../utils/path-guard';
 import { handleToolError } from '../shared/errors';
 import { describeTool } from '../shared/describe';
 import {
+  confirmWithStructured,
   makeResponse,
   readResponseFormat,
   responseFormatField,
 } from '../shared/response';
 
-function text(t: string): CallToolResult { return { content: [{ type: 'text', text: t }] }; }
 function err(m: string): CallToolResult { return handleToolError(new Error(m)); }
 
 const readOnlySchema = { ...responseFormatField };
@@ -51,8 +51,8 @@ const setActiveLeafSchema = {
  * - `workspace_get_active_leaf` — adapter returns `{ id, type, filePath }`
  *   today, but Obsidian's leaf state may grow more fields in future versions.
  * - `workspace_get_layout` — fully opaque pass-through of
- *   `app.workspace.getLayout()`. Schema is empty; tests rely on
- *   `.passthrough()` to assert "an object, contents not described".
+ *   `app.workspace.getLayout()`, declared as a loose object so any keys
+ *   are accepted.
  */
 const getActiveLeafOutputSchema = {
   id: z.string().describe('Leaf id (Obsidian-internal handle).'),
@@ -74,7 +74,24 @@ const listLeavesOutputSchema = {
     .describe('All open leaves that hold a file.'),
 };
 
-const getLayoutOutputSchema: z.ZodRawShape = {};
+// Loose object: the layout is Obsidian's opaque descriptor. A plain `{}`
+// shape is advertised with `additionalProperties: false`, which made SDK
+// clients reject every real layout payload (#388).
+const getLayoutOutputSchema = z
+  .looseObject({})
+  .describe("Obsidian's workspace layout descriptor (opaque; fields vary by version).");
+
+const openFileOutputSchema = {
+  path: z.string().describe('Vault-relative path that was opened.'),
+  mode: z
+    .enum(['source', 'preview', 'live'])
+    .optional()
+    .describe('View mode that was requested, when one was given.'),
+};
+
+const setActiveLeafOutputSchema = {
+  leafId: z.string().describe('Id of the leaf that is now active.'),
+};
 
 interface WorkspaceHandlers {
   getActiveLeaf: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
@@ -106,7 +123,10 @@ function createHandlers(adapter: ObsidianAdapter): WorkspaceHandlers {
       try {
         const path = validateVaultPath(params.path, vaultPath);
         await adapter.openFile(path, params.mode);
-        return text(`Opened: ${path}`);
+        return confirmWithStructured(`Opened: ${path}`, {
+          path,
+          ...(params.mode !== undefined ? { mode: params.mode } : {}),
+        });
       } catch (error) {
         return err(error instanceof Error ? error.message : String(error));
       }
@@ -126,7 +146,11 @@ function createHandlers(adapter: ObsidianAdapter): WorkspaceHandlers {
     },
     setActiveLeaf: (params): Promise<CallToolResult> => {
       const ok = adapter.setActiveLeaf(params.leafId);
-      return Promise.resolve(ok ? text('Active leaf set') : err('Leaf not found'));
+      return Promise.resolve(
+        ok
+          ? confirmWithStructured('Active leaf set', { leafId: params.leafId })
+          : err('Leaf not found'),
+      );
     },
     getLayout: (params): Promise<CallToolResult> => {
       const layout = adapter.getWorkspaceLayout();
@@ -152,12 +176,11 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Get active leaf',
           description: describeTool({
             summary: 'Get info about the currently-focused leaf (pane).',
-            returns: 'JSON: { id, type, ... } describing the active leaf.',
             errors: ['"No active leaf" if no leaf is focused.'],
             seeAlso: [
               'editor_get_active_file — when you only need the active file\'s path, not the surrounding leaf metadata.',
             ],
-          }, readOnlySchema),
+          }),
           schema: readOnlySchema,
           outputSchema: getActiveLeafOutputSchema,
           handler: h.getActiveLeaf,
@@ -168,14 +191,10 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Open file in workspace',
           description: describeTool({
             summary: 'Open a file in a leaf, optionally requesting a view mode.',
-            args: [
-              'path (string): Vault-relative file path.',
-              'mode (enum, optional): "source" | "preview" | "live".',
-            ],
-            returns: 'Plain text "Opened: <path>".',
             errors: ['"Path must not traverse outside the vault" on traversal attempts.'],
           }),
           schema: openFileSchema,
+          outputSchema: openFileOutputSchema,
           handler: h.openFile,
           annotations: annotations.additive,
         }),
@@ -184,8 +203,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
           title: 'List open leaves',
           description: describeTool({
             summary: 'List every open leaf and the file it holds.',
-            returns: 'JSON: [{ path, leafId }].',
-          }, readOnlySchema),
+          }),
           schema: readOnlySchema,
           outputSchema: listLeavesOutputSchema,
           handler: h.listLeaves,
@@ -196,11 +214,10 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Set active leaf',
           description: describeTool({
             summary: 'Focus a specific leaf by id.',
-            args: ['leafId (string): Leaf id from workspace_list_leaves.'],
-            returns: 'Plain text "Active leaf set" on success.',
             errors: ['"Leaf not found" if the id does not match any leaf.'],
           }),
           schema: setActiveLeafSchema,
+          outputSchema: setActiveLeafOutputSchema,
           handler: h.setActiveLeaf,
           annotations: annotations.additive,
         }),
@@ -209,8 +226,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Get workspace layout',
           description: describeTool({
             summary: 'Get a summary of the current workspace layout.',
-            returns: 'JSON: Obsidian\'s layout descriptor (nested splits and leaves).',
-          }, readOnlySchema),
+          }),
           schema: readOnlySchema,
           outputSchema: getLayoutOutputSchema,
           handler: h.getLayout,

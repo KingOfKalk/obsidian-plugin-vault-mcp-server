@@ -10,12 +10,6 @@ Auto-generated schema reference for the `editor` module. See [../tools.generated
 
 Get the full text content of the currently active editor.
 
-Args:
-  - response_format (enum, optional): "markdown" (default) or "json".
-
-Returns:
-  Plain text: the editor's current content.
-
 See also:
   - vault_read — when reading any file by path, not just the active one.
 
@@ -39,12 +33,6 @@ Errors:
 **Get active file path**
 
 Get the vault-relative path of the currently active file.
-
-Args:
-  - response_format (enum, optional): "markdown" (default) or "json".
-
-Returns:
-  Plain text: the path, e.g. "notes/today.md".
 
 See also:
   - workspace_get_active_leaf — when you need the active pane/leaf (id and view type), not just the file path.
@@ -70,14 +58,6 @@ Errors:
 
 Insert text at a (line, ch) position in the active editor.
 
-Args:
-  - line (integer, ≥0): Zero-based line index.
-  - ch (integer, ≥0): Zero-based column index within the line.
-  - text (string): Text to insert (may contain newlines).
-
-Returns:
-  Plain text "Text inserted" on success.
-
 Examples:
   - Use when: inserting a heading at the top of the file (line 0, ch 0).
 
@@ -94,26 +74,21 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `line` | number (0–9007199254740991) | yes | Zero-based line index |
-| `ch` | number (0–9007199254740991) | yes | Zero-based column index |
-| `text` | string (≤5000000) | yes | Text to insert at (line, ch) |
+| `ch` | number (0–9007199254740991) | yes | Zero-based column index within the line |
+| `text` | string (≤5000000) | yes | Text to insert at (line, ch); may contain newlines |
 
 #### Output
 
-_No `structuredContent` declared — returns plain text or binary._
+| Field | Type | Description |
+|---|---|---|
+| `line` | number | Zero-based line index. |
+| `ch` | number | Zero-based column index. |
 
 ### editor_replace
 
 **Replace range**
 
 Replace text in a (fromLine, fromCh)→(toLine, toCh) range.
-
-Args:
-  - fromLine / fromCh (integers, ≥0): Start of range (inclusive).
-  - toLine / toCh (integers, ≥0): End of range (exclusive).
-  - text (string): Replacement text.
-
-Returns:
-  Plain text "Text replaced" on success.
 
 Examples:
   - Use when: replacing a paragraph after locating it with search_fulltext.
@@ -138,20 +113,16 @@ Errors:
 
 #### Output
 
-_No `structuredContent` declared — returns plain text or binary._
+| Field | Type | Description |
+|---|---|---|
+| `from` | object | Range start (inclusive). |
+| `to` | object | Range end (exclusive). |
 
 ### editor_delete
 
 **Delete range**
 
 Delete text in a (fromLine, fromCh)→(toLine, toCh) range.
-
-Args:
-  - fromLine / fromCh (integers, ≥0): Start of range (inclusive).
-  - toLine / toCh (integers, ≥0): End of range (exclusive).
-
-Returns:
-  Plain text "Text deleted" on success.
 
 See also:
   - editor_insert — when you want to add text at a single point without overwriting anything.
@@ -172,19 +143,16 @@ Errors:
 
 #### Output
 
-_No `structuredContent` declared — returns plain text or binary._
+| Field | Type | Description |
+|---|---|---|
+| `from` | object | Range start (inclusive). |
+| `to` | object | Range end (exclusive). |
 
 ### editor_get_cursor
 
 **Get cursor position**
 
 Get the current cursor position in the active editor.
-
-Args:
-  - response_format (enum, optional): "markdown" (default) or "json".
-
-Returns:
-  JSON: { line, ch } (zero-based).
 
 Errors:
   - "No active editor" if no markdown view is focused.
@@ -208,13 +176,6 @@ Errors:
 
 Move the cursor to a (line, ch) position in the active editor.
 
-Args:
-  - line (integer, ≥0): Zero-based line index.
-  - ch (integer, ≥0): Zero-based column index.
-
-Returns:
-  Plain text "Cursor set" on success.
-
 See also:
   - editor_set_selection — when you want to select a range, not collapse the caret to a point.
 
@@ -231,19 +192,16 @@ Errors:
 
 #### Output
 
-_No `structuredContent` declared — returns plain text or binary._
+| Field | Type | Description |
+|---|---|---|
+| `line` | number | Zero-based line index. |
+| `ch` | number | Zero-based column index. |
 
 ### editor_get_selection
 
 **Get selection**
 
 Get the current text selection in the active editor.
-
-Args:
-  - response_format (enum, optional): "markdown" (default) or "json".
-
-Returns:
-  JSON: { from: {line, ch}, to: {line, ch}, text }.
 
 Errors:
   - "No active editor or selection" if nothing is selected.
@@ -268,13 +226,6 @@ Errors:
 
 Select a (fromLine, fromCh)→(toLine, toCh) range in the active editor.
 
-Args:
-  - fromLine / fromCh (integers, ≥0): Start of selection (inclusive).
-  - toLine / toCh (integers, ≥0): End of selection (exclusive).
-
-Returns:
-  Plain text "Selection set" on success.
-
 See also:
   - editor_set_cursor — when you want to place the caret at a point, not select a range.
 
@@ -293,19 +244,16 @@ Errors:
 
 #### Output
 
-_No `structuredContent` declared — returns plain text or binary._
+| Field | Type | Description |
+|---|---|---|
+| `from` | object | Range start (inclusive). |
+| `to` | object | Range end (exclusive). |
 
 ### editor_get_line_count
 
 **Get line count**
 
 Get the number of lines in the active editor.
-
-Args:
-  - response_format (enum, optional): "markdown" (default) or "json".
-
-Returns:
-  Plain text: the line count as a decimal integer.
 
 Errors:
   - "No active editor" if no markdown view is focused.

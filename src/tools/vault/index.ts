@@ -33,7 +33,16 @@ import {
  */
 const readFileOutputSchema = {
   path: z.string().describe('Vault-relative path that was read.'),
-  content: z.string().describe('Full UTF-8 file content.'),
+  content: z
+    .string()
+    .describe('File content in the requested window (the whole file when it fits).'),
+  total_length: z.number().describe('Length of the whole file in characters.'),
+  offset: z.number().describe('Character offset where this window starts.'),
+  has_more: z.boolean().describe('True when the file continues past this window.'),
+  next_offset: z
+    .number()
+    .optional()
+    .describe('Offset to pass in the next call when has_more is true.'),
 };
 
 const getMetadataOutputSchema = {
@@ -78,83 +87,67 @@ const listRecursiveOutputSchema = {
 };
 
 /**
- * Output schema for `vault_get_aspect` (#294). The tool replaces six
- * structurally-identical `vault_get_*` getters with one tool that takes a
- * required `aspect` enum, so the output schema is a discriminated union
- * over the six aspects. Each variant mirrors the corresponding former
- * per-tool shape 1:1, plus an `aspect` literal as the discriminator.
+ * Output schema for `vault_get_aspect` (#294). One flat object: `aspect`
+ * says which aspect was returned and exactly one of the optional per-aspect
+ * fields is populated. It used to be a `z.discriminatedUnion`, which SDK v1
+ * cannot handle — the schema vanished from `tools/list` and every call
+ * failed with "Cannot read properties of undefined (reading '_zod')" (#388).
  */
-const getAspectOutputSchema = z.discriminatedUnion('aspect', [
-  z.object({
-    aspect: z.literal('frontmatter'),
-    path: z.string().describe('Vault-relative path that was inspected.'),
-    frontmatter: z
-      .record(z.string(), z.unknown())
-      .describe('Parsed YAML frontmatter object, or {} when absent.'),
-  }),
-  z.object({
-    aspect: z.literal('headings'),
-    path: z.string().describe('Vault-relative path that was inspected.'),
-    headings: z
-      .array(
-        z.object({
-          heading: z.string().describe('Heading text.'),
-          level: z.number().describe('Heading level (1..6).'),
-        }),
-      )
-      .describe('Headings in document order.'),
-  }),
-  z.object({
-    aspect: z.literal('outgoing_links'),
-    path: z.string().describe('Vault-relative path that was inspected.'),
-    links: z
-      .array(
-        z.object({
-          link: z.string().describe('Link target.'),
-          displayText: z
-            .string()
-            .optional()
-            .describe('Optional alias used in [[link|alias]] notation.'),
-        }),
-      )
-      .describe('Outgoing links from this file.'),
-  }),
-  z.object({
-    aspect: z.literal('embeds'),
-    path: z.string().describe('Vault-relative path that was inspected.'),
-    embeds: z
-      .array(
-        z.object({
-          link: z.string().describe('Embed target.'),
-          displayText: z.string().optional().describe('Optional alias.'),
-        }),
-      )
-      .describe('Embeds (![[...]]) referenced by this file.'),
-  }),
-  z.object({
-    aspect: z.literal('backlinks'),
-    path: z.string().describe('Target path that was queried.'),
-    backlinks: z
-      .array(z.string())
-      .describe('Vault-relative paths of files that link TO the target.'),
-  }),
-  z.object({
-    aspect: z.literal('block_references'),
-    path: z.string().describe('Vault-relative path that was inspected.'),
-    blockRefs: z
-      .array(
-        z.object({
-          id: z
-            .string()
-            .describe('Block-reference id (without the leading ^).'),
-          line: z
-            .string()
-            .describe('The line of text the block-reference is on.'),
-        }),
-      )
-      .describe('Block references defined in this file.'),
-  }),
-]);
+const linkItem = z.object({
+  link: z.string().describe('Link target.'),
+  displayText: z
+    .string()
+    .optional()
+    .describe('Optional alias used in [[link|alias]] notation.'),
+});
+
+const getAspectOutputSchema = {
+  aspect: z
+    .enum([
+      'frontmatter',
+      'headings',
+      'outgoing_links',
+      'embeds',
+      'backlinks',
+      'block_references',
+    ])
+    .describe('The aspect that was returned; selects which field below is set.'),
+  path: z.string().describe('Vault-relative path that was inspected.'),
+  frontmatter: z
+    .record(z.string(), z.unknown())
+    .optional()
+    .describe('aspect=frontmatter: parsed YAML frontmatter, or {} when absent.'),
+  headings: z
+    .array(
+      z.object({
+        heading: z.string().describe('Heading text.'),
+        level: z.number().describe('Heading level (1..6).'),
+      }),
+    )
+    .optional()
+    .describe('aspect=headings: headings in document order.'),
+  links: z
+    .array(linkItem)
+    .optional()
+    .describe('aspect=outgoing_links: [[...]] links from this file.'),
+  embeds: z
+    .array(linkItem)
+    .optional()
+    .describe('aspect=embeds: ![[...]] embeds in this file.'),
+  backlinks: z
+    .array(z.string())
+    .optional()
+    .describe('aspect=backlinks: paths of files that link TO this file.'),
+  blockRefs: z
+    .array(
+      z.object({
+        id: z.string().describe('Block-reference id (without the leading ^).'),
+        line: z.string().describe('The line of text the block-reference is on.'),
+      }),
+    )
+    .optional()
+    .describe('aspect=block_references: ^block-ids defined in this file.'),
+};
 
 /**
  * Output schema for `vault_read_binary` (Batch D of #248). The handler now
@@ -182,6 +175,35 @@ const dailyNoteOutputSchema = {
   content: z.string().describe('Full note content (template-expanded body when newly created).'),
 };
 
+/**
+ * Output schemas for the write tools (#388). They used to return only a
+ * plain-text confirmation; the text is unchanged, and these small payloads
+ * let agents chain calls without parsing it.
+ */
+const writePath = z.string().describe('Vault-relative path that was written.');
+const alwaysTrue = z.boolean().describe('Always true on success.');
+
+const createdOutputSchema = { path: writePath, created: alwaysTrue };
+const updatedOutputSchema = { path: writePath, updated: alwaysTrue };
+const appendedOutputSchema = { path: writePath, appended: alwaysTrue };
+const deletedOutputSchema = { path: writePath, deleted: alwaysTrue };
+
+const deleteFolderOutputSchema = {
+  path: writePath,
+  deleted: alwaysTrue,
+  recursive: z.boolean().describe('Whether the delete was recursive.'),
+};
+
+const fromToOutputSchema = {
+  from: z.string().describe('Vault-relative source path.'),
+  to: z.string().describe('Vault-relative destination path.'),
+};
+
+const writeBinaryOutputSchema = {
+  path: writePath,
+  size_bytes: z.number().describe('Number of bytes written.'),
+};
+
 export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
   const mutex = new WriteMutex();
   const searchHandlers = createSearchHandlers(adapter);
@@ -201,11 +223,6 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Create file',
           description: describeTool({
             summary: 'Create a new file at a vault-relative path with text content.',
-            args: [
-              'path (string): Vault-relative path for the new file.',
-              'content (string): Initial file contents (UTF-8 text).',
-            ],
-            returns: 'Plain text confirmation "Created file: <path>".',
             examples: [
               'Use when: creating notes/ideas.md with "# Ideas"',
               'Don\'t use when: the file already exists — call vault_update instead.',
@@ -216,6 +233,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             ],
           }),
           schema: createFileSchema,
+          outputSchema: createdOutputSchema,
           handler: handlers.createFile,
           annotations: annotations.additive,
         }),
@@ -223,12 +241,11 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           name: 'vault_read',
           title: 'Read file',
           description: describeTool({
-            summary: 'Read the full UTF-8 content of a file by vault-relative path.',
-            args: ['path (string): Vault-relative path to the file.'],
-            returns: 'The full file content as text. Payloads over 25 000 characters are truncated with a [TRUNCATED: ...] footer.',
+            summary: 'Read the UTF-8 content of a file by vault-relative path.',
+            returns: 'Files over 24 000 characters come in windows: while has_more is true, call again with offset=next_offset.',
             examples: [
               'Use when: "show me the README" -> { path: "README.md" }',
-              'Don\'t use when: you only need specific lines (use editor_* or search tools).',
+              'Use when: continuing a large file -> { path: "big.md", offset: 24000 }',
             ],
             errors: [
               '"File not found" if the path does not exist.',
@@ -237,7 +254,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             seeAlso: [
               'editor_get_content — when reading the file currently open in the editor (no path needed).',
             ],
-          }, readFileSchema),
+          }),
           schema: readFileSchema,
           outputSchema: readFileOutputSchema,
           handler: handlers.readFile,
@@ -248,11 +265,6 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Replace file content',
           description: describeTool({
             summary: 'Overwrite an existing file with new content.',
-            args: [
-              'path (string): Vault-relative path to an existing file.',
-              'content (string): Replacement file contents.',
-            ],
-            returns: 'Plain text confirmation "Updated file: <path>".',
             examples: [
               'Use when: replacing a draft with a final version.',
               'Don\'t use when: you only need to append (use vault_append).',
@@ -260,6 +272,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             errors: ['"File not found" if the path does not exist.'],
           }),
           schema: updateFileSchema,
+          outputSchema: updatedOutputSchema,
           handler: handlers.updateFile,
           annotations: annotations.destructiveIdempotent,
         }),
@@ -268,12 +281,11 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Delete file',
           description: describeTool({
             summary: 'Delete a file by vault-relative path.',
-            args: ['path (string): Vault-relative path to the file.'],
-            returns: 'Plain text confirmation "Deleted file: <path>".',
             examples: ['Use when: removing an outdated note.'],
             errors: ['"File not found" if the path does not exist.'],
           }),
           schema: deleteFileSchema,
+          outputSchema: deletedOutputSchema,
           handler: handlers.deleteFile,
           annotations: annotations.destructiveIdempotent,
         }),
@@ -282,15 +294,11 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Append to file',
           description: describeTool({
             summary: 'Append content to the end of an existing file.',
-            args: [
-              'path (string): Vault-relative path to an existing file.',
-              'content (string): Text to append.',
-            ],
-            returns: 'Plain text confirmation "Appended to file: <path>".',
             examples: ['Use when: adding a new bullet to a daily note.'],
             errors: ['"File not found" if the path does not exist.'],
           }),
           schema: appendFileSchema,
+          outputSchema: appendedOutputSchema,
           handler: handlers.appendFile,
           annotations: annotations.additive,
         }),
@@ -299,14 +307,12 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Get file metadata',
           description: describeTool({
             summary: 'Get file stat metadata (size, creation date, modification date).',
-            args: ['path (string): Vault-relative path to the file.'],
-            returns: 'JSON: { path, size, created (ISO), modified (ISO) }.',
             examples: ['Use when: checking if a note has changed recently.'],
             errors: ['"File not found" if the path does not exist.'],
             seeAlso: [
               'extras_get_date — when you need the current date in a specific format, not a file\'s timestamp.',
             ],
-          }, getMetadataSchema),
+          }),
           schema: getMetadataSchema,
           outputSchema: getMetadataOutputSchema,
           handler: handlers.getMetadata,
@@ -317,11 +323,6 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Rename file',
           description: describeTool({
             summary: 'Rename a file within its current folder.',
-            args: [
-              'path (string): Current vault-relative path.',
-              'newName (string): New basename — must not contain / or \\.',
-            ],
-            returns: 'Plain text "Renamed file: <old> → <new>".',
             examples: ['Use when: renaming "draft.md" to "final.md" in the same folder.'],
             errors: [
               '"Invalid rename target" if newName contains path separators.',
@@ -329,6 +330,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             ],
           }),
           schema: renameFileSchema,
+          outputSchema: fromToOutputSchema,
           handler: handlers.renameFile,
           annotations: annotations.destructive,
         }),
@@ -337,15 +339,11 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Move file',
           description: describeTool({
             summary: 'Move a file to a different path (can change folder and name).',
-            args: [
-              'path (string): Current vault-relative path.',
-              'newPath (string): New vault-relative path.',
-            ],
-            returns: 'Plain text "Moved file: <old> → <new>".',
             examples: ['Use when: archiving a note by moving it to "archive/<name>.md".'],
             errors: ['"File not found" if path does not exist.'],
           }),
           schema: moveFileSchema,
+          outputSchema: fromToOutputSchema,
           handler: handlers.moveFile,
           annotations: annotations.destructive,
         }),
@@ -354,15 +352,11 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Copy file',
           description: describeTool({
             summary: 'Copy a file to a new path, leaving the original in place.',
-            args: [
-              'sourcePath (string): Existing vault-relative file.',
-              'destPath (string): New vault-relative path.',
-            ],
-            returns: 'Plain text "Copied file: <src> → <dest>".',
             examples: ['Use when: duplicating a template before editing.'],
             errors: ['"File not found" if sourcePath does not exist.'],
           }),
           schema: copyFileSchema,
+          outputSchema: fromToOutputSchema,
           handler: handlers.copyFile,
           annotations: annotations.additive,
         }),
@@ -371,12 +365,11 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Create folder',
           description: describeTool({
             summary: 'Create a new folder at a vault-relative path.',
-            args: ['path (string): Folder path to create.'],
-            returns: 'Plain text "Created folder: <path>".',
             examples: ['Use when: creating a "projects" folder before adding notes.'],
             errors: ['"Folder already exists" if the path is taken.'],
           }),
           schema: createFolderSchema,
+          outputSchema: createdOutputSchema,
           handler: handlers.createFolder,
           annotations: annotations.additive,
         }),
@@ -385,15 +378,11 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Delete folder',
           description: describeTool({
             summary: 'Delete a folder, optionally recursively.',
-            args: [
-              'path (string): Folder to delete.',
-              'recursive (boolean, default=false): Delete non-empty folders recursively.',
-            ],
-            returns: 'Plain text "Deleted folder: <path>".',
             examples: ['Use when: removing an empty "old-drafts" folder.'],
             errors: ['"Folder not empty" if non-empty and recursive=false.'],
           }),
           schema: deleteFolderSchema,
+          outputSchema: deleteFolderOutputSchema,
           handler: handlers.deleteFolder,
           annotations: annotations.destructiveIdempotent,
         }),
@@ -402,15 +391,11 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Rename folder',
           description: describeTool({
             summary: 'Rename or move a folder.',
-            args: [
-              'path (string): Current folder path.',
-              'newPath (string): New folder path.',
-            ],
-            returns: 'Plain text "Renamed folder: <old> → <new>".',
             examples: ['Use when: renaming "WIP" to "Archive".'],
             errors: ['"Folder not found" if path does not exist.'],
           }),
           schema: renameFolderSchema,
+          outputSchema: fromToOutputSchema,
           handler: handlers.renameFolder,
           annotations: annotations.destructive,
         }),
@@ -419,14 +404,12 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'List folder',
           description: describeTool({
             summary: 'List files and folders directly under a path (non-recursive).',
-            args: ['path (string): Folder to list.'],
-            returns: 'JSON: { files: string[], folders: string[] } (names only, no recursion).',
             examples: ['Use when: inspecting the top level of the vault.'],
             errors: ['"Folder not found" if path does not exist.'],
             seeAlso: [
               'vault_list_recursive — when you also need files in subfolders.',
             ],
-          }, listFolderSchema),
+          }),
           schema: listFolderSchema,
           outputSchema: listFolderOutputSchema,
           handler: handlers.listFolder,
@@ -437,8 +420,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'List folder (recursive)',
           description: describeTool({
             summary: 'List all files and folders under a path, recursively.',
-            args: ['path (string): Folder to walk.'],
-            returns: 'JSON: { files: string[], folders: string[] }. Truncated at 25 000 characters with a footer.',
+            returns: 'Files are paged with limit/offset; folders are always listed in full.',
             examples: [
               'Use when: building an index of a subfolder.',
               'Don\'t use when: the folder is very large — list a narrower subfolder.',
@@ -447,7 +429,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             seeAlso: [
               'vault_list — when you only need direct children of one folder.',
             ],
-          }, listRecursiveSchema),
+          }),
           schema: listRecursiveSchema,
           outputSchema: listRecursiveOutputSchema,
           handler: handlers.listRecursive,
@@ -458,15 +440,13 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Read binary file',
           description: describeTool({
             summary: 'Read binary file contents as base64.',
-            args: ['path (string): Vault-relative path to the file.'],
-            returns:
-              'Plain text: the base64 string (default). With response_format=json: { path, data, encoding, size_bytes }. Refuses files over 1 MiB.',
+            returns: 'The text is the bare base64 string. Refuses files over 1 MiB.',
             examples: ['Use when: embedding an image referenced from a note.'],
             errors: [
               '"File not found" if path does not exist.',
               '"Binary file too large" if the file exceeds 1 MiB.',
             ],
-          }, readBinarySchema),
+          }),
           schema: readBinarySchema,
           outputSchema: readBinaryOutputSchema,
           handler: handlers.readBinary,
@@ -477,15 +457,11 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Write binary file',
           description: describeTool({
             summary: 'Write binary file contents from a base64 string.',
-            args: [
-              'path (string): Vault-relative destination path.',
-              'data (string): Base64-encoded binary content (no data: prefix).',
-            ],
-            returns: 'Plain text "Wrote binary file: <path>".',
             examples: ['Use when: attaching a downloaded PDF to the vault.'],
             errors: ['"Invalid base64 string" if data is not valid base64.'],
           }),
           schema: writeBinarySchema,
+          outputSchema: writeBinaryOutputSchema,
           handler: handlers.writeBinary,
           annotations: annotations.destructiveIdempotent,
         }),
@@ -496,25 +472,12 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             summary:
               'Get one metadata aspect of a file: frontmatter, headings, ' +
               'outgoing links, embeds, backlinks, or block references.',
-            args: [
-              'path (string): Vault-relative path to the file.',
-              'aspect (enum): Which aspect to return. See the enum description ' +
-                'for the shape returned by each value.',
-            ],
-            returns:
-              'JSON: a discriminated union keyed on `aspect`. ' +
-              'frontmatter → { path, aspect: "frontmatter", frontmatter }. ' +
-              'headings → { path, aspect: "headings", headings: [{heading, level}] }. ' +
-              'outgoing_links → { path, aspect: "outgoing_links", links: [{link, displayText?}] }. ' +
-              'embeds → { path, aspect: "embeds", embeds: [{link, displayText?}] }. ' +
-              'backlinks → { path, aspect: "backlinks", backlinks: string[] }. ' +
-              'block_references → { path, aspect: "block_references", blockRefs: [{id, line}] }.',
             examples: [
               'Use when: "list the headings in README.md" → { path: "README.md", aspect: "headings" }.',
               'Use when: "what links to this note?" → { path: "ideas.md", aspect: "backlinks" }.',
             ],
             errors: ['"File not found" if the path does not exist.'],
-          }, getAspectSchema),
+          }),
           schema: getAspectSchema,
           outputSchema: getAspectOutputSchema,
           handler: handlers.getAspect,
@@ -526,11 +489,6 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary:
               "Resolve today's daily-note path from the daily-notes core plugin's settings, creating the note from the configured template if it does not yet exist.",
-            args: [
-              'date (string, optional, YYYY-MM-DD): Specific date to resolve. Omit for today (local time).',
-            ],
-            returns:
-              'Structured { path, created, content } — `created` is true on first call for the date, false on subsequent calls.',
             examples: [
               "Use when: starting a daily review and you need today's note as context.",
               "Don't use when: you want a weekly/monthly note (not supported by this tool).",
@@ -540,7 +498,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
               '"date must be a valid calendar date" for malformed or out-of-calendar input.',
               '"Path must not traverse outside the vault" if the configured format produces a traversing path.',
             ],
-          }, dailyNoteSchema),
+          }),
           schema: dailyNoteSchema,
           outputSchema: dailyNoteOutputSchema,
           handler: handlers.dailyNote,

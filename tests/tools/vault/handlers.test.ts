@@ -460,6 +460,93 @@ describe('vault handlers truncation and size limits', () => {
     expect(getText(result)).toContain('[TRUNCATED:');
   });
 
+  describe('readFile paging (#388)', () => {
+    it('returns a small file unchanged when only path is given', async () => {
+      adapter.addFile('small.md', '# Small');
+      const result = await handlers.readFile({ path: 'small.md' });
+      expect(getText(result)).toBe('# Small');
+      expect(result.structuredContent).toEqual({
+        path: 'small.md',
+        content: '# Small',
+        total_length: 7,
+        offset: 0,
+        has_more: false,
+      });
+    });
+
+    it('returns the first chunk of a large file and points at the next offset', async () => {
+      const big = 'a'.repeat(30_000) + 'b'.repeat(30_000);
+      adapter.addFile('big.md', big);
+      const result = await handlers.readFile({ path: 'big.md' });
+      const structured = result.structuredContent as {
+        content: string;
+        total_length: number;
+        has_more: boolean;
+        next_offset: number;
+      };
+      expect(structured.total_length).toBe(60_000);
+      expect(structured.has_more).toBe(true);
+      expect(structured.content.length).toBe(structured.next_offset);
+      const text = getText(result);
+      expect(text.length).toBeLessThanOrEqual(25_000);
+      expect(text).toContain(`offset=${String(structured.next_offset)}`);
+      expect(text).not.toContain('editor_');
+    });
+
+    it('can read a whole large file chunk by chunk', async () => {
+      const big = Array.from({ length: 5000 }, (_, i) => `line ${String(i)}`).join('\n');
+      adapter.addFile('big.md', big);
+      let offset = 0;
+      let collected = '';
+      for (let guard = 0; guard < 20; guard++) {
+        const result = await handlers.readFile({ path: 'big.md', offset });
+        const s = result.structuredContent as {
+          content: string;
+          has_more: boolean;
+          next_offset?: number;
+        };
+        collected += s.content;
+        if (!s.has_more) break;
+        offset = s.next_offset ?? 0;
+      }
+      expect(collected).toBe(big);
+    });
+
+    it('honours offset and length', async () => {
+      adapter.addFile('abc.md', 'abcdefghij');
+      const result = await handlers.readFile({ path: 'abc.md', offset: 2, length: 3 });
+      expect(result.structuredContent).toEqual({
+        path: 'abc.md',
+        content: 'cde',
+        total_length: 10,
+        offset: 2,
+        has_more: true,
+        next_offset: 5,
+      });
+      expect(getText(result)).toContain('cde');
+      expect(getText(result)).toContain('offset=5');
+    });
+
+    it('returns an empty window past the end of the file', async () => {
+      adapter.addFile('abc.md', 'abc');
+      const result = await handlers.readFile({ path: 'abc.md', offset: 10 });
+      expect(result.isError).not.toBe(true);
+      expect(result.structuredContent).toMatchObject({
+        content: '',
+        total_length: 3,
+        has_more: false,
+      });
+    });
+
+    it('does not split a surrogate pair at the end of a window', async () => {
+      adapter.addFile('emoji.md', 'a\u{1F600}b');
+      const result = await handlers.readFile({ path: 'emoji.md', length: 2 });
+      const s = result.structuredContent as { content: string; next_offset: number };
+      expect(s.content).toBe('a');
+      expect(s.next_offset).toBe(1);
+    });
+  });
+
   it('refuses readBinary when the file is larger than the byte limit', async () => {
     // Seed a 2 MiB blob via the writeBinary adapter path so the mock adapter
     // returns a buffer that exceeds BINARY_BYTE_LIMIT (1 MiB).

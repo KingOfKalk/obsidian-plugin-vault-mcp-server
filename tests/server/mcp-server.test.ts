@@ -209,10 +209,12 @@ describe('createMcpServer', () => {
     expect((withOutput?.config.outputSchema as z.ZodObject).shape).toEqual(
       outputSchema,
     );
-    expect(withOutput?.config.inputSchema).toBeInstanceOf(z.ZodObject);
-    expect((withOutput?.config.inputSchema as z.ZodObject).shape).toEqual(
-      inputSchema,
-    );
+    // inputSchema is wrapped in a strict object so the SDK rejects unknown
+    // keys instead of stripping them (#388).
+    const registeredInput = withOutput?.config.inputSchema as z.ZodObject;
+    expect(registeredInput).toBeInstanceOf(z.ZodObject);
+    expect(registeredInput.shape).toEqual(inputSchema);
+    expect(registeredInput.safeParse({ foo: 'x', extra: 1 }).success).toBe(false);
 
     const withoutOutput = capturedRegisterToolCalls.find(
       (c) => c.name === 'tool_without_output',
@@ -224,13 +226,10 @@ describe('createMcpServer', () => {
     expect('outputSchema' in (withoutOutput?.config ?? {})).toBe(true);
   });
 
-  it('passes a full Zod outputSchema through unchanged', async () => {
+  it('passes a ZodObject outputSchema through unchanged', async () => {
     const { toOutputSchema } = await import('../../src/server/mcp-server');
-    const union = z.discriminatedUnion('kind', [
-      z.object({ kind: z.literal('a'), a: z.string() }),
-      z.object({ kind: z.literal('b'), b: z.number() }),
-    ]);
-    expect(toOutputSchema(union)).toBe(union);
+    const loose = z.looseObject({});
+    expect(toOutputSchema(loose)).toBe(loose);
     expect(toOutputSchema(undefined)).toBeUndefined();
   });
 

@@ -10,13 +10,6 @@ Auto-generated schema reference for the `vault` module. See [../tools.generated.
 
 Create a new file at a vault-relative path with text content.
 
-Args:
-  - path (string): Vault-relative path for the new file.
-  - content (string): Initial file contents (UTF-8 text).
-
-Returns:
-  Plain text confirmation "Created file: <path>".
-
 Examples:
   - Use when: creating notes/ideas.md with "# Ideas"
   - Don't use when: the file already exists — call vault_update instead.
@@ -30,28 +23,27 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
-| `content` | string (≤5000000) | yes | Text content to write into the new file |
+| `content` | string (≤5000000) | yes | Initial UTF-8 text content of the new file |
 
 #### Output
 
-_No `structuredContent` declared — returns plain text or binary._
+| Field | Type | Description |
+|---|---|---|
+| `path` | string | Vault-relative path that was written. |
+| `created` | boolean | Always true on success. |
 
 ### vault_read
 
 **Read file**
 
-Read the full UTF-8 content of a file by vault-relative path.
-
-Args:
-  - path (string): Vault-relative path to the file.
-  - response_format (enum, optional): "markdown" (default) or "json".
+Read the UTF-8 content of a file by vault-relative path.
 
 Returns:
-  The full file content as text. Payloads over 25 000 characters are truncated with a [TRUNCATED: ...] footer.
+  Files over 24 000 characters come in windows: while has_more is true, call again with offset=next_offset.
 
 Examples:
   - Use when: "show me the README" -> { path: "README.md" }
-  - Don't use when: you only need specific lines (use editor_* or search tools).
+  - Use when: continuing a large file -> { path: "big.md", offset: 24000 }
 
 See also:
   - editor_get_content — when reading the file currently open in the editor (no path needed).
@@ -65,6 +57,8 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
+| `offset` | number (0–9007199254740991) | no (default `0`) | Character offset to start reading at (default 0). Use next_offset from the previous call to continue a large file. |
+| `length` | number (1–24000) | no | Maximum characters to return (1..24000, default 24000). Files that fit are returned whole. |
 | `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
@@ -72,20 +66,17 @@ Errors:
 | Field | Type | Description |
 |---|---|---|
 | `path` | string | Vault-relative path that was read. |
-| `content` | string | Full UTF-8 file content. |
+| `content` | string | File content in the requested window (the whole file when it fits). |
+| `total_length` | number | Length of the whole file in characters. |
+| `offset` | number | Character offset where this window starts. |
+| `has_more` | boolean | True when the file continues past this window. |
+| `next_offset` | number | Offset to pass in the next call when has_more is true. |
 
 ### vault_update
 
 **Replace file content**
 
 Overwrite an existing file with new content.
-
-Args:
-  - path (string): Vault-relative path to an existing file.
-  - content (string): Replacement file contents.
-
-Returns:
-  Plain text confirmation "Updated file: <path>".
 
 Examples:
   - Use when: replacing a draft with a final version.
@@ -103,19 +94,16 @@ Errors:
 
 #### Output
 
-_No `structuredContent` declared — returns plain text or binary._
+| Field | Type | Description |
+|---|---|---|
+| `path` | string | Vault-relative path that was written. |
+| `updated` | boolean | Always true on success. |
 
 ### vault_delete
 
 **Delete file**
 
 Delete a file by vault-relative path.
-
-Args:
-  - path (string): Vault-relative path to the file.
-
-Returns:
-  Plain text confirmation "Deleted file: <path>".
 
 Examples:
   - Use when: removing an outdated note.
@@ -131,20 +119,16 @@ Errors:
 
 #### Output
 
-_No `structuredContent` declared — returns plain text or binary._
+| Field | Type | Description |
+|---|---|---|
+| `path` | string | Vault-relative path that was written. |
+| `deleted` | boolean | Always true on success. |
 
 ### vault_append
 
 **Append to file**
 
 Append content to the end of an existing file.
-
-Args:
-  - path (string): Vault-relative path to an existing file.
-  - content (string): Text to append.
-
-Returns:
-  Plain text confirmation "Appended to file: <path>".
 
 Examples:
   - Use when: adding a new bullet to a daily note.
@@ -161,20 +145,16 @@ Errors:
 
 #### Output
 
-_No `structuredContent` declared — returns plain text or binary._
+| Field | Type | Description |
+|---|---|---|
+| `path` | string | Vault-relative path that was written. |
+| `appended` | boolean | Always true on success. |
 
 ### vault_get_metadata
 
 **Get file metadata**
 
 Get file stat metadata (size, creation date, modification date).
-
-Args:
-  - path (string): Vault-relative path to the file.
-  - response_format (enum, optional): "markdown" (default) or "json".
-
-Returns:
-  JSON: { path, size, created (ISO), modified (ISO) }.
 
 Examples:
   - Use when: checking if a note has changed recently.
@@ -207,13 +187,6 @@ Errors:
 
 Rename a file within its current folder.
 
-Args:
-  - path (string): Current vault-relative path.
-  - newName (string): New basename — must not contain / or \.
-
-Returns:
-  Plain text "Renamed file: <old> → <new>".
-
 Examples:
   - Use when: renaming "draft.md" to "final.md" in the same folder.
 
@@ -226,24 +199,20 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `path` | string (1–4096) | yes | Current file path to rename |
-| `newName` | string (1–255) | yes | New file name within the same folder (no separators) |
+| `newName` | string (1–255) | yes | New file name (basename) within the same folder; must not contain / or \\ |
 
 #### Output
 
-_No `structuredContent` declared — returns plain text or binary._
+| Field | Type | Description |
+|---|---|---|
+| `from` | string | Vault-relative source path. |
+| `to` | string | Vault-relative destination path. |
 
 ### vault_move
 
 **Move file**
 
 Move a file to a different path (can change folder and name).
-
-Args:
-  - path (string): Current vault-relative path.
-  - newPath (string): New vault-relative path.
-
-Returns:
-  Plain text "Moved file: <old> → <new>".
 
 Examples:
   - Use when: archiving a note by moving it to "archive/<name>.md".
@@ -260,20 +229,16 @@ Errors:
 
 #### Output
 
-_No `structuredContent` declared — returns plain text or binary._
+| Field | Type | Description |
+|---|---|---|
+| `from` | string | Vault-relative source path. |
+| `to` | string | Vault-relative destination path. |
 
 ### vault_copy
 
 **Copy file**
 
 Copy a file to a new path, leaving the original in place.
-
-Args:
-  - sourcePath (string): Existing vault-relative file.
-  - destPath (string): New vault-relative path.
-
-Returns:
-  Plain text "Copied file: <src> → <dest>".
 
 Examples:
   - Use when: duplicating a template before editing.
@@ -290,19 +255,16 @@ Errors:
 
 #### Output
 
-_No `structuredContent` declared — returns plain text or binary._
+| Field | Type | Description |
+|---|---|---|
+| `from` | string | Vault-relative source path. |
+| `to` | string | Vault-relative destination path. |
 
 ### vault_create_folder
 
 **Create folder**
 
 Create a new folder at a vault-relative path.
-
-Args:
-  - path (string): Folder path to create.
-
-Returns:
-  Plain text "Created folder: <path>".
 
 Examples:
   - Use when: creating a "projects" folder before adding notes.
@@ -318,20 +280,16 @@ Errors:
 
 #### Output
 
-_No `structuredContent` declared — returns plain text or binary._
+| Field | Type | Description |
+|---|---|---|
+| `path` | string | Vault-relative path that was written. |
+| `created` | boolean | Always true on success. |
 
 ### vault_delete_folder
 
 **Delete folder**
 
 Delete a folder, optionally recursively.
-
-Args:
-  - path (string): Folder to delete.
-  - recursive (boolean, default=false): Delete non-empty folders recursively.
-
-Returns:
-  Plain text "Deleted folder: <path>".
 
 Examples:
   - Use when: removing an empty "old-drafts" folder.
@@ -348,20 +306,17 @@ Errors:
 
 #### Output
 
-_No `structuredContent` declared — returns plain text or binary._
+| Field | Type | Description |
+|---|---|---|
+| `path` | string | Vault-relative path that was written. |
+| `deleted` | boolean | Always true on success. |
+| `recursive` | boolean | Whether the delete was recursive. |
 
 ### vault_rename_folder
 
 **Rename folder**
 
 Rename or move a folder.
-
-Args:
-  - path (string): Current folder path.
-  - newPath (string): New folder path.
-
-Returns:
-  Plain text "Renamed folder: <old> → <new>".
 
 Examples:
   - Use when: renaming "WIP" to "Archive".
@@ -378,20 +333,16 @@ Errors:
 
 #### Output
 
-_No `structuredContent` declared — returns plain text or binary._
+| Field | Type | Description |
+|---|---|---|
+| `from` | string | Vault-relative source path. |
+| `to` | string | Vault-relative destination path. |
 
 ### vault_list
 
 **List folder**
 
 List files and folders directly under a path (non-recursive).
-
-Args:
-  - path (string): Folder to list.
-  - response_format (enum, optional): "markdown" (default) or "json".
-
-Returns:
-  JSON: { files: string[], folders: string[] } (names only, no recursion).
 
 Examples:
   - Use when: inspecting the top level of the vault.
@@ -406,7 +357,7 @@ Errors:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string (1–4096) | yes | Folder path to list (non-recursive) |
+| `path` | string (≤4096) | yes | Folder path to list (non-recursive). Use "" (or "/" or ".") for the vault root. |
 | `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
@@ -422,14 +373,8 @@ Errors:
 
 List all files and folders under a path, recursively.
 
-Args:
-  - path (string): Folder to walk.
-  - limit (integer, optional): Maximum items to return (1..100, default 20).
-  - offset (integer, optional): Number of items to skip before returning results (default 0).
-  - response_format (enum, optional): "markdown" (default) or "json".
-
 Returns:
-  JSON: { files: string[], folders: string[] }. Truncated at 25 000 characters with a footer.
+  Files are paged with limit/offset; folders are always listed in full.
 
 Examples:
   - Use when: building an index of a subfolder.
@@ -445,7 +390,7 @@ Errors:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string (1–4096) | yes | Folder path to list recursively |
+| `path` | string (≤4096) | yes | Folder path to list recursively. Use "" (or "/" or ".") for the vault root. |
 | `limit` | number (1–100) | no (default `20`) | Maximum items to return (1..100, default 20). |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Number of items to skip before returning results (default 0). |
 | `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
@@ -468,12 +413,8 @@ Errors:
 
 Read binary file contents as base64.
 
-Args:
-  - path (string): Vault-relative path to the file.
-  - response_format (enum, optional): "markdown" (default) or "json".
-
 Returns:
-  Plain text: the base64 string (default). With response_format=json: { path, data, encoding, size_bytes }. Refuses files over 1 MiB.
+  The text is the bare base64 string. Refuses files over 1 MiB.
 
 Examples:
   - Use when: embedding an image referenced from a note.
@@ -504,13 +445,6 @@ Errors:
 
 Write binary file contents from a base64 string.
 
-Args:
-  - path (string): Vault-relative destination path.
-  - data (string): Base64-encoded binary content (no data: prefix).
-
-Returns:
-  Plain text "Wrote binary file: <path>".
-
 Examples:
   - Use when: attaching a downloaded PDF to the vault.
 
@@ -526,21 +460,16 @@ Errors:
 
 #### Output
 
-_No `structuredContent` declared — returns plain text or binary._
+| Field | Type | Description |
+|---|---|---|
+| `path` | string | Vault-relative path that was written. |
+| `size_bytes` | number | Number of bytes written. |
 
 ### vault_get_aspect
 
 **Get file aspect**
 
 Get one metadata aspect of a file: frontmatter, headings, outgoing links, embeds, backlinks, or block references.
-
-Args:
-  - path (string): Vault-relative path to the file.
-  - aspect (enum): Which aspect to return. See the enum description for the shape returned by each value.
-  - response_format (enum, optional): "markdown" (default) or "json".
-
-Returns:
-  JSON: a discriminated union keyed on `aspect`. frontmatter → { path, aspect: "frontmatter", frontmatter }. headings → { path, aspect: "headings", headings: [{heading, level}] }. outgoing_links → { path, aspect: "outgoing_links", links: [{link, displayText?}] }. embeds → { path, aspect: "embeds", embeds: [{link, displayText?}] }. backlinks → { path, aspect: "backlinks", backlinks: string[] }. block_references → { path, aspect: "block_references", blockRefs: [{id, line}] }.
 
 Examples:
   - Use when: "list the headings in README.md" → { path: "README.md", aspect: "headings" }.
@@ -554,71 +483,27 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `path` | string (1–4096) | yes | Vault-relative path to the file. |
-| `aspect` | enum: `frontmatter` \| `headings` \| `outgoing_links` \| `embeds` \| `backlinks` \| `block_references` | yes | Which metadata aspect to return. "frontmatter" → parsed YAML frontmatter object, or {} when absent. "headings" → [{ heading, level }] in document order. "outgoing_links" → [{ link, displayText? }] for [[...]] links. "embeds" → [{ link, displayText? }] for ![[...]] embeds. "backlinks" → string[] of vault paths that link TO this file. "block_references" → [{ id, line }] for ^block-ids defined in this file. |
+| `aspect` | enum: `frontmatter` \| `headings` \| `outgoing_links` \| `embeds` \| `backlinks` \| `block_references` | yes | Which metadata aspect to return: frontmatter, headings, outgoing_links ([[...]] links), embeds (![[...]]), backlinks (files linking TO this file) or block_references (^block-ids). The result carries the matching field (frontmatter, headings, links, embeds, backlinks or blockRefs). |
 | `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 
-**When `aspect` is `frontmatter`**
-
 | Field | Type | Description |
 |---|---|---|
-| `aspect` | literal: `frontmatter` |  |
+| `aspect` | enum: `frontmatter` \| `headings` \| `outgoing_links` \| `embeds` \| `backlinks` \| `block_references` | The aspect that was returned; selects which field below is set. |
 | `path` | string | Vault-relative path that was inspected. |
-| `frontmatter` | object | Parsed YAML frontmatter object, or {} when absent. |
-
-**When `aspect` is `headings`**
-
-| Field | Type | Description |
-|---|---|---|
-| `aspect` | literal: `headings` |  |
-| `path` | string | Vault-relative path that was inspected. |
-| `headings` | object[] | Headings in document order. |
-
-**When `aspect` is `outgoing_links`**
-
-| Field | Type | Description |
-|---|---|---|
-| `aspect` | literal: `outgoing_links` |  |
-| `path` | string | Vault-relative path that was inspected. |
-| `links` | object[] | Outgoing links from this file. |
-
-**When `aspect` is `embeds`**
-
-| Field | Type | Description |
-|---|---|---|
-| `aspect` | literal: `embeds` |  |
-| `path` | string | Vault-relative path that was inspected. |
-| `embeds` | object[] | Embeds (![[...]]) referenced by this file. |
-
-**When `aspect` is `backlinks`**
-
-| Field | Type | Description |
-|---|---|---|
-| `aspect` | literal: `backlinks` |  |
-| `path` | string | Target path that was queried. |
-| `backlinks` | string[] | Vault-relative paths of files that link TO the target. |
-
-**When `aspect` is `block_references`**
-
-| Field | Type | Description |
-|---|---|---|
-| `aspect` | literal: `block_references` |  |
-| `path` | string | Vault-relative path that was inspected. |
-| `blockRefs` | object[] | Block references defined in this file. |
+| `frontmatter` | object | aspect=frontmatter: parsed YAML frontmatter, or {} when absent. |
+| `headings` | object[] | aspect=headings: headings in document order. |
+| `links` | object[] | aspect=outgoing_links: [[...]] links from this file. |
+| `embeds` | object[] | aspect=embeds: ![[...]] embeds in this file. |
+| `backlinks` | string[] | aspect=backlinks: paths of files that link TO this file. |
+| `blockRefs` | object[] | aspect=block_references: ^block-ids defined in this file. |
 
 ### vault_daily_note
 
 **Open or create the daily note**
 
 Resolve today's daily-note path from the daily-notes core plugin's settings, creating the note from the configured template if it does not yet exist.
-
-Args:
-  - date (string, optional, YYYY-MM-DD): Specific date to resolve. Omit for today (local time).
-  - response_format (enum, optional): "markdown" (default) or "json".
-
-Returns:
-  Structured { path, created, content } — `created` is true on first call for the date, false on subsequent calls.
 
 Examples:
   - Use when: starting a daily review and you need today's note as context.

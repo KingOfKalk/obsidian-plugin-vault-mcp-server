@@ -43,6 +43,22 @@ export function makeResponse<T>(
 }
 
 /**
+ * Result for write tools: the existing plain-text confirmation, plus a small
+ * structured payload so agents can chain calls without parsing the text.
+ * The text is unchanged whatever `response_format` would say — write tools
+ * don't take that parameter.
+ */
+export function confirmWithStructured(
+  text: string,
+  structured: Record<string, unknown>,
+): CallToolResult {
+  return {
+    content: [{ type: 'text' as const, text }],
+    structuredContent: structured,
+  };
+}
+
+/**
  * Coerce an arbitrary value into a safe `Record<string, unknown>` for the
  * `structuredContent` slot. Arrays are wrapped as `{ items: [...] }`, scalars
  * as `{ value }`, so callers never have to worry about the shape here.

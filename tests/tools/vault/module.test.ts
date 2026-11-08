@@ -116,7 +116,13 @@ describe('vault read tools — outputSchema declarations', () => {
       response_format: 'json',
     });
     const parsed = schema.parse(result.structuredContent);
-    expect(parsed).toEqual({ path: 'test.md', content: '# Hello' });
+    expect(parsed).toEqual({
+      path: 'test.md',
+      content: '# Hello',
+      total_length: 7,
+      offset: 0,
+      has_more: false,
+    });
   });
 
   it('vault_get_metadata declares outputSchema and structuredContent parses against it', async () => {
@@ -329,27 +335,28 @@ describe('vault read tools — outputSchema declarations', () => {
   });
 });
 
-describe('vault tool descriptions document shared args', () => {
-  function descriptionFor(name: string): string {
+describe('vault tools document shared args in inputSchema', () => {
+  // Parameters are documented by each field's .describe() in inputSchema,
+  // not by an Args section in the description (#388).
+  function schemaFor(name: string): Record<string, { description?: string }> {
     const adapter = new MockObsidianAdapter();
     const tool = createVaultModule(adapter)
       .tools()
       .find((t) => t.name === name);
     if (!tool) throw new Error(`Tool ${name} not found`);
-    return tool.description;
+    return tool.schema as unknown as Record<string, { description?: string }>;
   }
 
-  it('documents pagination and response_format on vault_list_recursive', () => {
-    const desc = descriptionFor('vault_list_recursive');
-    expect(desc).toContain('limit (integer');
-    expect(desc).toContain('offset (integer');
-    expect(desc).toContain('response_format (enum');
+  it('vault_list_recursive exposes described pagination and response_format fields', () => {
+    const schema = schemaFor('vault_list_recursive');
+    expect(schema.limit.description).toContain('Maximum items');
+    expect(schema.offset.description).toContain('skip');
+    expect(schema.response_format.description).toContain('markdown');
   });
 
-  it('documents response_format on read-only tools that spread responseFormatField', () => {
+  it('read-only tools expose a described response_format field', () => {
     for (const name of ['vault_read', 'vault_get_metadata', 'vault_list']) {
-      const desc = descriptionFor(name);
-      expect(desc).toContain('response_format (enum');
+      expect(schemaFor(name).response_format.description).toContain('markdown');
     }
   });
 });

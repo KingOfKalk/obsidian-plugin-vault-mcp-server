@@ -33,6 +33,8 @@ export interface SearchHandlers {
   searchByFrontmatter: (params: InferredParams<typeof searchByFrontmatterSchema>) => Promise<CallToolResult>;
 }
 
+const DEFAULT_MAX_MATCHES_PER_FILE = 5;
+
 function renderKeyValue(obj: Record<string, unknown>): string {
   const entries = Object.entries(obj);
   if (entries.length === 0) return '_No entries._';
@@ -71,7 +73,8 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
         const lowerQuery = params.query.toLowerCase();
         const allFiles = adapter.getAllFiles();
         const total = allFiles.length;
-        const matched: Array<{ path: string; matches: string[] }> = [];
+        const maxMatchesPerFile = params.maxMatchesPerFile ?? DEFAULT_MAX_MATCHES_PER_FILE;
+        const matched: Array<{ path: string; matches: string[]; matchCount: number }> = [];
 
         let lastPct = -1;
         for (let i = 0; i < total; i++) {
@@ -85,7 +88,11 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
             const matches = lines.filter((line) =>
               line.toLowerCase().includes(lowerQuery),
             );
-            matched.push({ path, matches });
+            matched.push({
+              path,
+              matches: matches.slice(0, maxMatchesPerFile),
+              matchCount: matches.length,
+            });
           }
           if (ctx) {
             const pct = Math.floor(((i + 1) / total) * 100);
@@ -107,7 +114,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
             if (v.items.length === 0) return 'No matches.';
             const lines = v.items.map(
               (m) =>
-                `- ${m.path} (${String(m.matches.length)} match${m.matches.length === 1 ? '' : 'es'})`,
+                `- ${m.path} (${String(m.matchCount)} match${m.matchCount === 1 ? '' : 'es'})`,
             );
             const pager = v.has_more
               ? `\n\n_Showing ${String(v.count)} of ${String(v.total)} — next offset: ${String(v.next_offset ?? '')}_`
@@ -359,15 +366,18 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
         const matching: string[] = [];
         for (const filePath of allFiles) {
           const fm = adapter.getFrontmatter(filePath);
-          if (fm && String(fm[key]) === value) {
+          if (!fm || !Object.prototype.hasOwnProperty.call(fm, key)) continue;
+          // No value: "has this key" query (#388).
+          if (value === undefined || String(fm[key]) === value) {
             matching.push(filePath);
           }
         }
         const page = paginate(matching, readPagination(params));
+        const label = value === undefined ? `file with ${key}` : `file with ${key}=${value}`;
         return Promise.resolve(
           makeResponse(
             page,
-            (v) => renderPaginatedPaths(v, `file with ${key}=${value}`),
+            (v) => renderPaginatedPaths(v, label),
             readResponseFormat(params),
           ),
         );

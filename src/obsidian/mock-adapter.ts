@@ -177,7 +177,7 @@ export class MockObsidianAdapter implements ObsidianAdapter {
   }
 
   list(path: string): ListResult {
-    const isRoot = path === '/' || path === '';
+    const isRoot = path === '/' || path === '' || path === '.';
     if (!this.folders.has(path) && !isRoot) {
       throw new FolderNotFoundError(path);
     }
@@ -185,7 +185,7 @@ export class MockObsidianAdapter implements ObsidianAdapter {
   }
 
   listRecursive(path: string): ListResult {
-    const isRoot = path === '/' || path === '';
+    const isRoot = path === '/' || path === '' || path === '.';
     if (!this.folders.has(path) && !isRoot) {
       throw new FolderNotFoundError(path);
     }
@@ -510,7 +510,7 @@ export class MockObsidianAdapter implements ObsidianAdapter {
   }
 
   private getDirectChildren(path: string): ListResult {
-    const isRoot = path === '/' || path === '';
+    const isRoot = path === '/' || path === '' || path === '.';
     const prefix = isRoot ? '' : path + '/';
     const files: string[] = [];
     const folders: string[] = [];

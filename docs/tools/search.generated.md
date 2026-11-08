@@ -10,14 +10,8 @@ Auto-generated schema reference for the `search` module. See [../tools.generated
 
 Case-insensitive substring search across all vault file contents.
 
-Args:
-  - query (string, 1..500): Substring to look for.
-  - limit (integer, optional): Maximum items to return (1..100, default 20).
-  - offset (integer, optional): Number of items to skip before returning results (default 0).
-  - response_format (enum, optional): "markdown" (default) or "json".
-
 Returns:
-  JSON: [{ path, matches: string[] }]. Truncated at 25 000 characters.
+  limit/offset page over files; matching lines per file are capped by maxMatchesPerFile.
 
 Examples:
   - Use when: "find everything mentioning Obsidian".
@@ -30,6 +24,7 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `query` | string (1–500) | yes | Case-insensitive substring to search for across file contents |
+| `maxMatchesPerFile` | number (1–100) | no (default `5`) | Maximum matching lines returned per file (1..100, default 5). matchCount always reports the full count. |
 | `limit` | number (1–100) | no (default `20`) | Maximum items to return (1..100, default 20). |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Number of items to skip before returning results (default 0). |
 | `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
@@ -50,12 +45,6 @@ Errors:
 **List tags**
 
 List every tag used anywhere in the vault with the files that use it.
-
-Args:
-  - response_format (enum, optional): "markdown" (default) or "json".
-
-Returns:
-  JSON: Record<tag, string[]>. Each key is the tag including leading #.
 
 See also:
   - search_by_tag — when you want notes carrying a tag, not the list of tags.
@@ -78,12 +67,6 @@ See also:
 
 Get the vault-wide map of resolved links (targets that exist).
 
-Args:
-  - response_format (enum, optional): "markdown" (default) or "json".
-
-Returns:
-  JSON: Record<source, Record<target, count>>.
-
 See also:
   - search_unresolved_links — when you want broken/dangling links instead.
 
@@ -104,12 +87,6 @@ See also:
 **Find unresolved links**
 
 Get the vault-wide map of unresolved links (targets that do not exist).
-
-Args:
-  - response_format (enum, optional): "markdown" (default) or "json".
-
-Returns:
-  JSON: Record<source, Record<target, count>>.
 
 Examples:
   - Use when: hunting for broken [[wikilinks]] to clean up.
@@ -135,15 +112,6 @@ See also:
 
 Find files tagged with a given tag (with or without leading #).
 
-Args:
-  - tag (string, 1..200): Tag to search for, e.g. "project" or "#project".
-  - limit (integer, optional): Maximum items to return (1..100, default 20).
-  - offset (integer, optional): Number of items to skip before returning results (default 0).
-  - response_format (enum, optional): "markdown" (default) or "json".
-
-Returns:
-  JSON: string[] of vault-relative file paths.
-
 See also:
   - search_tags — when you want the list of tags in the vault, not notes.
 
@@ -151,7 +119,7 @@ See also:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `tag` | string (1–200) | yes | Tag to search for (with or without leading #) |
+| `tag` | string (1–200) | yes | Tag to search for, with or without leading # (e.g. "project" or "#project") |
 | `limit` | number (1–100) | no (default `20`) | Maximum items to return (1..100, default 20). |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Number of items to skip before returning results (default 0). |
 | `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
@@ -171,27 +139,18 @@ See also:
 
 **Find notes by frontmatter**
 
-Find files whose YAML frontmatter has a key with a given value.
-
-Args:
-  - key (string, 1..200): Frontmatter property name.
-  - value (string, ≤1000): Expected value (compared as stringified).
-  - limit (integer, optional): Maximum items to return (1..100, default 20).
-  - offset (integer, optional): Number of items to skip before returning results (default 0).
-  - response_format (enum, optional): "markdown" (default) or "json".
-
-Returns:
-  JSON: string[] of matching file paths.
+Find files whose YAML frontmatter has a key, optionally with a given value.
 
 Examples:
-  - Use when: "find all notes where status == done".
+  - Use when: "find all notes where status == done" -> { key: "status", value: "done" }
+  - Use when: "which notes have a status?" -> { key: "status" }
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `key` | string (1–200) | yes | Frontmatter property key to match |
-| `value` | string (≤1000) | yes | Frontmatter property value to match exactly (stringified) |
+| `value` | string (≤1000) | no | Value to match exactly (compared as stringified). Omit to match every file that has the key. |
 | `limit` | number (1–100) | no (default `20`) | Maximum items to return (1..100, default 20). |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Number of items to skip before returning results (default 0). |
 | `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |

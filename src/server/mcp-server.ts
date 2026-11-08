@@ -5,6 +5,7 @@ import { ModuleRegistry } from '../registry/module-registry';
 import { ToolDefinition } from '../registry/types';
 import { handleToolError } from '../tools/shared/errors';
 import { createToolContext, type SdkExtra } from '../registry/tool-context';
+import { buildInputSchema } from '../registry/input-schema';
 import { registerResources } from './resources';
 import { registerPrompts } from './prompts';
 import type { ObsidianAdapter } from '../obsidian/adapter';
@@ -81,7 +82,7 @@ export function createToolDispatcher(
   tool: ToolDefinition,
   logger: Logger,
 ): (params: unknown, extra: SdkExtra) => Promise<CallToolResult> {
-  const inputSchema = z.object(tool.schema).strict();
+  const inputSchema = buildInputSchema(tool.schema);
   return async (params: unknown, extra: SdkExtra): Promise<CallToolResult> => {
     try {
       const parsed = inputSchema.parse(params ?? {});
@@ -94,6 +95,11 @@ export function createToolDispatcher(
       if (error instanceof z.ZodError) {
         const message = error.issues
           .map((issue) => {
+            // Unknown-key issues sit at the root and already carry a
+            // self-contained message naming the keys (see input-schema.ts).
+            if (issue.path.length === 0 && issue.code === 'unrecognized_keys') {
+              return issue.message;
+            }
             const path =
               issue.path.length > 0 ? issue.path.join('.') : '<root>';
             return `${path}: ${issue.message}`;
@@ -145,10 +151,9 @@ function registerTools(
       {
         title: tool.title,
         description: tool.description,
-        // SDK v2 expects full schema objects rather than raw shapes. The
-        // non-strict `z.object` matches what v1 built from the raw shape;
-        // strict validation stays in the dispatcher below.
-        inputSchema: z.object(tool.schema),
+        // Strict object (not the raw shape): the SDK validates before our
+        // dispatcher runs, and a raw shape would make it strip unknown keys.
+        inputSchema: buildInputSchema(tool.schema),
         outputSchema: toOutputSchema(tool.outputSchema),
         annotations: tool.title
           ? { ...tool.annotations, title: tool.title }

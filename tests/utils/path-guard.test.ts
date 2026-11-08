@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { validateVaultPath, PathTraversalError } from '../../src/utils/path-guard';
+import {
+  validateVaultPath,
+  validateFolderListPath,
+  PathTraversalError,
+} from '../../src/utils/path-guard';
 
 const VAULT_ROOT = '/home/user/vault';
 
@@ -102,5 +106,25 @@ describe('validateVaultPath', () => {
     it('should handle paths with .. in filenames (not traversal)', () => {
       expect(validateVaultPath('notes/file..name.md', VAULT_ROOT)).toBe('notes/file..name.md');
     });
+  });
+});
+
+describe('validateFolderListPath', () => {
+  it.each(['', '/', '.', './', '  '])('maps %j to the vault root', (input) => {
+    expect(validateFolderListPath(input, VAULT_ROOT)).toBe('');
+  });
+
+  it('passes ordinary folder paths through validateVaultPath', () => {
+    expect(validateFolderListPath('notes/sub', VAULT_ROOT)).toBe('notes/sub');
+    expect(validateFolderListPath('/notes', VAULT_ROOT)).toBe('notes');
+  });
+
+  it('still rejects traversal', () => {
+    expect(() => validateFolderListPath('../etc', VAULT_ROOT)).toThrow(PathTraversalError);
+  });
+
+  it('does not change validateVaultPath, which still rejects the root aliases', () => {
+    expect(() => validateVaultPath('', VAULT_ROOT)).toThrow(PathTraversalError);
+    expect(() => validateVaultPath('/', VAULT_ROOT)).toThrow(PathTraversalError);
   });
 });
