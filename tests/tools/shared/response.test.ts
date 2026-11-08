@@ -41,10 +41,10 @@ describe('response helper', () => {
 
   it('readResponseFormat defaults to markdown for missing or unknown values', () => {
     expect(readResponseFormat({})).toBe('markdown');
-    expect(readResponseFormat({ response_format: 'xml' })).toBe('markdown');
+    expect(readResponseFormat({ responseFormat: 'xml' })).toBe('markdown');
   });
 
   it('readResponseFormat returns json when requested', () => {
-    expect(readResponseFormat({ response_format: 'json' })).toBe('json');
+    expect(readResponseFormat({ responseFormat: 'json' })).toBe('json');
   });
 });

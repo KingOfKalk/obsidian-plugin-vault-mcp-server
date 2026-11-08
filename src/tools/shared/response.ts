@@ -13,7 +13,7 @@ export const ResponseFormat = z.enum(['markdown', 'json']);
 export type ResponseFormat = z.infer<typeof ResponseFormat>;
 
 export const responseFormatField = {
-  response_format: ResponseFormat.default('markdown').describe(
+  responseFormat: ResponseFormat.default('markdown').describe(
     'Output format: "markdown" for humans (default), "json" for machines.',
   ),
 };
@@ -45,7 +45,7 @@ export function makeResponse<T>(
 /**
  * Result for write tools: the existing plain-text confirmation, plus a small
  * structured payload so agents can chain calls without parsing the text.
- * The text is unchanged whatever `response_format` would say — write tools
+ * The text is unchanged whatever `responseFormat` would say — write tools
  * don't take that parameter.
  */
 export function confirmWithStructured(
@@ -76,6 +76,6 @@ export function toStructuredContent(value: unknown): Record<string, unknown> {
 export function readResponseFormat(
   params: Record<string, unknown>,
 ): ResponseFormat {
-  const raw = params.response_format;
+  const raw = params.responseFormat;
   return raw === 'json' ? 'json' : 'markdown';
 }

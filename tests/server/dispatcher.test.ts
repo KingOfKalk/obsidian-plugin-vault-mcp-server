@@ -174,3 +174,51 @@ describe('createToolDispatcher', () => {
     );
   });
 });
+
+describe('createToolDispatcher deprecated response_format alias (#392)', () => {
+  function makeFormatTool(): ToolDefinition {
+    return makeTool({
+      schema: {
+        path: z.string().min(1).describe('Required path'),
+        responseFormat: z.enum(['markdown', 'json']).default('markdown'),
+      },
+    });
+  }
+
+  it('maps response_format to responseFormat and warns once', async () => {
+    const tool = makeFormatTool();
+    const logger = makeLogger();
+    const warn = vi.spyOn(logger, 'warn');
+    const dispatch = createToolDispatcher(tool, logger);
+
+    const first = await dispatch(
+      { path: 'a.md', response_format: 'json' },
+      makeExtra() as never,
+    );
+    await dispatch({ path: 'a.md', response_format: 'json' }, makeExtra() as never);
+
+    expect(first.isError).not.toBe(true);
+    expect(tool.handler).toHaveBeenCalledWith(
+      { path: 'a.md', responseFormat: 'json' },
+       
+      expect.anything(),
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toContain('deprecated parameter "response_format"');
+    expect(warn.mock.calls[0][0]).toContain('"responseFormat"');
+  });
+
+  it('prefers responseFormat when both names are given', async () => {
+    const tool = makeFormatTool();
+    const dispatch = createToolDispatcher(tool, makeLogger());
+    await dispatch(
+      { path: 'a.md', response_format: 'json', responseFormat: 'markdown' },
+      makeExtra() as never,
+    );
+    expect(tool.handler).toHaveBeenCalledWith(
+      { path: 'a.md', responseFormat: 'markdown' },
+       
+      expect.anything(),
+    );
+  });
+});

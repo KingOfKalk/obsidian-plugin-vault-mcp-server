@@ -61,7 +61,7 @@ describe('search handlers', () => {
       adapter.addFile('notes/c.md', 'Nothing here');
       const result = await handlers.searchFulltext({
         query: 'World',
-        response_format: 'json',
+        responseFormat: 'json',
       });
       const page = JSON.parse(getText(result)) as {
         total: number;
@@ -89,7 +89,7 @@ describe('search handlers', () => {
       for (let f = 0; f < 50; f++) adapter.addFile(`big-${String(f)}.md`, bigMatches);
       const result = await handlers.searchFulltext({
         query: 'match',
-        response_format: 'json',
+        responseFormat: 'json',
         limit: 100,
         maxMatchesPerFile: 100,
       });
@@ -233,7 +233,7 @@ describe('search handlers', () => {
       adapter.setMetadata('test.md', { frontmatter: { title: 'My Note', tags: ['project'] } });
       const result = await handlers.searchFrontmatter({
         path: 'test.md',
-        response_format: 'json',
+        responseFormat: 'json',
       });
       const data = JSON.parse(getText(result)) as {
         path: string;
@@ -256,7 +256,7 @@ describe('search handlers', () => {
       adapter.setMetadata('a.md', { tags: ['#project', '#work'] });
       adapter.addFile('b.md', 'content');
       adapter.setMetadata('b.md', { tags: ['#project'] });
-      const result = await handlers.searchTags({ response_format: 'json' });
+      const result = await handlers.searchTags({ responseFormat: 'json' });
       const data = JSON.parse(getText(result)) as { tags: Record<string, string[]> };
       expect(data.tags['#project']).toHaveLength(2);
       expect(data.tags['#work']).toHaveLength(1);
@@ -274,7 +274,7 @@ describe('search handlers', () => {
       });
       const result = await handlers.searchHeadings({
         path: 'test.md',
-        response_format: 'json',
+        responseFormat: 'json',
       });
       const data = JSON.parse(getText(result)) as {
         headings: Array<{ heading: string; level: number }>;
@@ -292,7 +292,7 @@ describe('search handlers', () => {
       });
       const result = await handlers.searchOutgoingLinks({
         path: 'test.md',
-        response_format: 'json',
+        responseFormat: 'json',
       });
       const data = JSON.parse(getText(result)) as {
         links: Array<{ link: string }>;
@@ -311,7 +311,7 @@ describe('search handlers', () => {
       adapter.addFile('target.md', 'target content');
       const result = await handlers.searchBacklinks({
         path: 'target.md',
-        response_format: 'json',
+        responseFormat: 'json',
       });
       const data = JSON.parse(getText(result)) as { backlinks: string[] };
       expect(data.backlinks).toContain('source.md');
@@ -326,7 +326,7 @@ describe('search handlers', () => {
       adapter.setMetadata('b.md', { tags: ['#personal'] });
       const result = await handlers.searchByTag({
         tag: '#project',
-        response_format: 'json',
+        responseFormat: 'json',
       });
       const page = JSON.parse(getText(result)) as { items: string[] };
       expect(page.items).toEqual(['a.md']);
@@ -337,7 +337,7 @@ describe('search handlers', () => {
       adapter.setMetadata('a.md', { tags: ['#project'] });
       const result = await handlers.searchByTag({
         tag: 'project',
-        response_format: 'json',
+        responseFormat: 'json',
       });
       const page = JSON.parse(getText(result)) as { items: string[] };
       expect(page.items).toEqual(['a.md']);
@@ -353,7 +353,7 @@ describe('search handlers', () => {
       const result = await handlers.searchByFrontmatter({
         key: 'status',
         value: 'done',
-        response_format: 'json',
+        responseFormat: 'json',
       });
       const page = JSON.parse(getText(result)) as { items: string[] };
       expect(page.items).toEqual(['a.md']);
@@ -435,7 +435,7 @@ describe('search handlers', () => {
       adapter.addFile('test.md', 'Some content ^block-1\nMore text\nAnother block ^ref-2');
       const result = await handlers.searchBlockReferences({
         path: 'test.md',
-        response_format: 'json',
+        responseFormat: 'json',
       });
       const data = JSON.parse(getText(result)) as {
         blockRefs: Array<{ id: string }>;
@@ -459,23 +459,23 @@ describe('search tools document shared args in inputSchema', () => {
     return tool.schema as unknown as Record<string, { description?: string }>;
   }
 
-  it('paginated search tools expose described limit, offset and response_format', () => {
+  it('paginated search tools expose described limit, offset and responseFormat', () => {
     for (const name of ['search_fulltext', 'search_by_tag', 'search_by_frontmatter']) {
       const schema = schemaFor(name);
       expect(schema.limit.description, name).toContain('Maximum items');
       expect(schema.offset.description, name).toContain('skip');
-      expect(schema.response_format.description, name).toContain('markdown');
+      expect(schema.responseFormat.description, name).toContain('markdown');
     }
   });
 
-  it('map-style search tools expose only response_format', () => {
+  it('map-style search tools expose only responseFormat', () => {
     for (const name of [
       'search_tags',
       'search_resolved_links',
       'search_unresolved_links',
     ]) {
       const schema = schemaFor(name);
-      expect(Object.keys(schema)).toEqual(['response_format']);
+      expect(Object.keys(schema)).toEqual(['responseFormat']);
     }
   });
 });
@@ -509,7 +509,7 @@ describe('search read tools — outputSchema declarations', () => {
     return tool;
   }
 
-  it('search_fulltext declares outputSchema and parses with has_more=false', async () => {
+  it('search_fulltext declares outputSchema and parses with hasMore=false', async () => {
     const tool = findTool('search_fulltext');
     const schema = getStructured(tool);
 
@@ -520,17 +520,17 @@ describe('search read tools — outputSchema declarations', () => {
 
     const result = await handlers.searchFulltext({
       query: 'World',
-      response_format: 'json',
+      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.total).toBe(2);
     expect(parsed.count).toBe(2);
-    expect(parsed.has_more).toBe(false);
-    expect(parsed.next_offset).toBeUndefined();
+    expect(parsed.hasMore).toBe(false);
+    expect(parsed.nextOffset).toBeUndefined();
     expect(parsed.items).toHaveLength(2);
   });
 
-  it('search_fulltext parses with has_more=true and next_offset', async () => {
+  it('search_fulltext parses with hasMore=true and nextOffset', async () => {
     const tool = findTool('search_fulltext');
     const schema = getStructured(tool);
 
@@ -543,13 +543,13 @@ describe('search read tools — outputSchema declarations', () => {
     const result = await handlers.searchFulltext({
       query: 'World',
       limit: 2,
-      response_format: 'json',
+      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.total).toBe(5);
     expect(parsed.count).toBe(2);
-    expect(parsed.has_more).toBe(true);
-    expect(parsed.next_offset).toBe(2);
+    expect(parsed.hasMore).toBe(true);
+    expect(parsed.nextOffset).toBe(2);
   });
 
   it('search_tags declares outputSchema and parses against handler output', async () => {
@@ -561,7 +561,7 @@ describe('search read tools — outputSchema declarations', () => {
     adapter.setMetadata('a.md', { tags: ['#project'] });
     const handlers = createSearchHandlers(adapter);
 
-    const result = await handlers.searchTags({ response_format: 'json' });
+    const result = await handlers.searchTags({ responseFormat: 'json' });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.tags).toEqual({ '#project': ['a.md'] });
   });
@@ -577,7 +577,7 @@ describe('search read tools — outputSchema declarations', () => {
     const handlers = createSearchHandlers(adapter);
 
     const result = await handlers.searchResolvedLinks({
-      response_format: 'json',
+      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.links).toEqual({ 'a.md': { 'b.md': 1 } });
@@ -593,13 +593,13 @@ describe('search read tools — outputSchema declarations', () => {
     const handlers = createSearchHandlers(adapter);
 
     const result = await handlers.searchUnresolvedLinks({
-      response_format: 'json',
+      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.links).toEqual({ 'a.md': { missing: 1 } });
   });
 
-  it('search_by_tag declares outputSchema and parses with has_more=false', async () => {
+  it('search_by_tag declares outputSchema and parses with hasMore=false', async () => {
     const tool = findTool('search_by_tag');
     const schema = getStructured(tool);
 
@@ -610,16 +610,16 @@ describe('search read tools — outputSchema declarations', () => {
 
     const result = await handlers.searchByTag({
       tag: 'project',
-      response_format: 'json',
+      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.total).toBe(1);
-    expect(parsed.has_more).toBe(false);
-    expect(parsed.next_offset).toBeUndefined();
+    expect(parsed.hasMore).toBe(false);
+    expect(parsed.nextOffset).toBeUndefined();
     expect(parsed.items).toEqual(['a.md']);
   });
 
-  it('search_by_tag parses with has_more=true and next_offset', async () => {
+  it('search_by_tag parses with hasMore=true and nextOffset', async () => {
     const tool = findTool('search_by_tag');
     const schema = getStructured(tool);
 
@@ -633,13 +633,13 @@ describe('search read tools — outputSchema declarations', () => {
     const result = await handlers.searchByTag({
       tag: 'project',
       limit: 2,
-      response_format: 'json',
+      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.total).toBe(5);
     expect(parsed.count).toBe(2);
-    expect(parsed.has_more).toBe(true);
-    expect(parsed.next_offset).toBe(2);
+    expect(parsed.hasMore).toBe(true);
+    expect(parsed.nextOffset).toBe(2);
   });
 
   it('search_by_frontmatter declares outputSchema and parses against handler output', async () => {
@@ -654,11 +654,11 @@ describe('search read tools — outputSchema declarations', () => {
     const result = await handlers.searchByFrontmatter({
       key: 'status',
       value: 'done',
-      response_format: 'json',
+      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.total).toBe(1);
-    expect(parsed.has_more).toBe(false);
+    expect(parsed.hasMore).toBe(false);
     expect(parsed.items).toEqual(['a.md']);
   });
 });

@@ -38,7 +38,7 @@ export const readFileSchema = {
     .min(0)
     .default(0)
     .describe(
-      'Character offset to start reading at (default 0). Use next_offset from the previous call to continue a large file.',
+      'Character offset to start reading at (default 0). Use nextOffset from the previous call to continue a large file.',
     ),
   length: z
     .number()

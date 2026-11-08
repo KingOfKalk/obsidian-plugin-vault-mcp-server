@@ -20,7 +20,7 @@ See also:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 

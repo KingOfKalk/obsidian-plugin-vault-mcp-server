@@ -38,7 +38,7 @@ describe('plugin interop module', () => {
     adapter.addInstalledPlugin('templater-obsidian', 'Templater', false);
     const module = createPluginInteropModule(adapter);
     const tool = module.tools().find((t) => t.name === 'plugin_list')!;
-    const result = await tool.handler({ response_format: 'json' });
+    const result = await tool.handler({ responseFormat: 'json' });
     const data = JSON.parse(getText(result)) as { plugins: Array<{ id: string }> };
     expect(data.plugins).toHaveLength(2);
   });
@@ -47,7 +47,7 @@ describe('plugin interop module', () => {
     adapter.addInstalledPlugin('dataview', 'Dataview', true);
     const module = createPluginInteropModule(adapter);
     const tool = module.tools().find((t) => t.name === 'plugin_check')!;
-    const result = await tool.handler({ pluginId: 'dataview', response_format: 'json' });
+    const result = await tool.handler({ pluginId: 'dataview', responseFormat: 'json' });
     const data = JSON.parse(getText(result)) as { installed: boolean; enabled: boolean };
     expect(data.installed).toBe(true);
     expect(data.enabled).toBe(true);
@@ -116,7 +116,7 @@ describe('plugin interop module', () => {
       .find((t) => t.name === 'plugin_dataview_describe_js_query')!;
     const result = await tool.handler({
       query: 'dv.pages("#projects").file.name',
-      response_format: 'json',
+      responseFormat: 'json',
     });
     expect(result.isError).toBeUndefined();
     expect(result.structuredContent).toMatchObject({
@@ -133,7 +133,7 @@ describe('plugin interop module', () => {
       .find((t) => t.name === 'plugin_templater_describe_template')!;
     const result = await tool.handler({
       templatePath: 'Templates/daily.md',
-      response_format: 'json',
+      responseFormat: 'json',
     });
     expect(result.isError).toBeUndefined();
     const data = JSON.parse(getText(result)) as {
@@ -220,7 +220,7 @@ describe('plugin-interop read tools — outputSchema declarations', () => {
     const tool = createPluginInteropModule(adapter).tools().find((t) => t.name === 'plugin_list')!;
     const schema = getStructured(tool);
 
-    const result = await tool.handler({ response_format: 'json' });
+    const result = await tool.handler({ responseFormat: 'json' });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.plugins).toEqual([
       { id: 'dataview', name: 'Dataview', enabled: true },
@@ -234,7 +234,7 @@ describe('plugin-interop read tools — outputSchema declarations', () => {
     const tool = createPluginInteropModule(adapter).tools().find((t) => t.name === 'plugin_check')!;
     const schema = getStructured(tool);
 
-    const result = await tool.handler({ pluginId: 'dataview', response_format: 'json' });
+    const result = await tool.handler({ pluginId: 'dataview', responseFormat: 'json' });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed).toEqual({ pluginId: 'dataview', installed: true, enabled: true });
   });
@@ -249,7 +249,7 @@ describe('plugin-interop read tools — outputSchema declarations', () => {
     const tool = createPluginInteropModule(adapter).tools().find((t) => t.name === 'plugin_dataview_query')!;
     const schema = getStructured(tool);
 
-    const result = await tool.handler({ query: 'TABLE col FROM ""', response_format: 'json' });
+    const result = await tool.handler({ query: 'TABLE col FROM ""', responseFormat: 'json' });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.query).toBe('TABLE col FROM ""');
     expect(parsed.markdown).toBe('| col |\n| --- |\n| x |');
@@ -260,7 +260,7 @@ describe('plugin-interop read tools — outputSchema declarations', () => {
     const tool = createPluginInteropModule(adapter).tools().find((t) => t.name === 'plugin_dataview_describe_js_query')!;
     const schema = getStructured(tool);
 
-    const result = await tool.handler({ query: 'dv.pages()', response_format: 'json' });
+    const result = await tool.handler({ query: 'dv.pages()', responseFormat: 'json' });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.query).toBe('dv.pages()');
     expect(typeof parsed.note).toBe('string');
@@ -271,7 +271,7 @@ describe('plugin-interop read tools — outputSchema declarations', () => {
     const tool = createPluginInteropModule(adapter).tools().find((t) => t.name === 'plugin_templater_describe_template')!;
     const schema = getStructured(tool);
 
-    const result = await tool.handler({ templatePath: 'templates/daily.md', response_format: 'json' });
+    const result = await tool.handler({ templatePath: 'templates/daily.md', responseFormat: 'json' });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.templatePath).toBe('templates/daily.md');
     expect(typeof parsed.note).toBe('string');

@@ -75,7 +75,7 @@ describe('vault module', () => {
  * payload is the failure mode this guards against.
  *
  * `vault_read_binary` was retrofitted in Batch D so it now emits
- * `structuredContent: { path, data, encoding, size_bytes }` while keeping
+ * `structuredContent: { path, data, encoding, sizeBytes }` while keeping
  * the bare base64 string in `result.content[0].text` for existing callers.
  */
 describe('vault read tools — outputSchema declarations', () => {
@@ -113,15 +113,15 @@ describe('vault read tools — outputSchema declarations', () => {
 
     const result = await handlers.readFile({
       path: 'test.md',
-      response_format: 'json',
+      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed).toEqual({
       path: 'test.md',
       content: '# Hello',
-      total_length: 7,
+      totalLength: 7,
       offset: 0,
-      has_more: false,
+      hasMore: false,
     });
   });
 
@@ -135,7 +135,7 @@ describe('vault read tools — outputSchema declarations', () => {
 
     const result = await handlers.getMetadata({
       path: 'note.md',
-      response_format: 'json',
+      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent) as {
       path: string;
@@ -161,7 +161,7 @@ describe('vault read tools — outputSchema declarations', () => {
 
     const result = await handlers.listFolder({
       path: 'notes',
-      response_format: 'json',
+      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent) as {
       files: string[];
@@ -171,7 +171,7 @@ describe('vault read tools — outputSchema declarations', () => {
     expect(parsed.folders).toEqual(expect.any(Array));
   });
 
-  it('vault_list_recursive declares outputSchema and parses with next_offset present', async () => {
+  it('vault_list_recursive declares outputSchema and parses with nextOffset present', async () => {
     const tool = findTool('vault_list_recursive');
     const schema = getStructured(tool);
 
@@ -185,23 +185,23 @@ describe('vault read tools — outputSchema declarations', () => {
     const result = await handlers.listRecursive({
       path: 'lots',
       limit: 2,
-      response_format: 'json',
+      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent) as {
       total: number;
       count: number;
-      has_more: boolean;
-      next_offset?: number;
+      hasMore: boolean;
+      nextOffset?: number;
       items: string[];
     };
     expect(parsed.total).toBe(5);
     expect(parsed.count).toBe(2);
-    expect(parsed.has_more).toBe(true);
-    expect(parsed.next_offset).toBe(2);
+    expect(parsed.hasMore).toBe(true);
+    expect(parsed.nextOffset).toBe(2);
     expect(parsed.items).toHaveLength(2);
   });
 
-  it('vault_list_recursive parses cleanly when has_more is false (no next_offset)', async () => {
+  it('vault_list_recursive parses cleanly when hasMore is false (no nextOffset)', async () => {
     const tool = findTool('vault_list_recursive');
     const schema = getStructured(tool);
 
@@ -213,14 +213,14 @@ describe('vault read tools — outputSchema declarations', () => {
 
     const result = await handlers.listRecursive({
       path: 'few',
-      response_format: 'json',
+      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent) as {
-      has_more: boolean;
-      next_offset?: number;
+      hasMore: boolean;
+      nextOffset?: number;
     };
-    expect(parsed.has_more).toBe(false);
-    expect(parsed.next_offset).toBeUndefined();
+    expect(parsed.hasMore).toBe(false);
+    expect(parsed.nextOffset).toBeUndefined();
   });
 
   it('vault_read_binary declares outputSchema and structuredContent parses against it', async () => {
@@ -234,14 +234,14 @@ describe('vault read tools — outputSchema declarations', () => {
 
     const result = await handlers.readBinary({
       path: 'img.png',
-      response_format: 'json',
+      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed).toEqual({
       path: 'img.png',
       data: '/9j/',
       encoding: 'base64',
-      size_bytes: 3,
+      sizeBytes: 3,
     });
   });
 
@@ -251,7 +251,7 @@ describe('vault read tools — outputSchema declarations', () => {
     await adapter.writeBinary('img.png', new Uint8Array([0xff, 0xd8, 0xff]).buffer);
     const handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
 
-    // Default response_format ('markdown'); no callsite churn for existing
+    // Default responseFormat ('markdown'); no callsite churn for existing
     // callers — the rendered text remains the bare base64 string.
     const result = await handlers.readBinary({ path: 'img.png' });
     expect(result.content[0].type).toBe('text');
@@ -327,7 +327,7 @@ describe('vault read tools — outputSchema declarations', () => {
       const result = await handlers.getAspect({
         path: 'a.md',
         aspect,
-        response_format: 'json',
+        responseFormat: 'json',
       });
       const parsed = schema.parse(result.structuredContent);
       expect(parsed).toEqual(expected);
@@ -347,16 +347,16 @@ describe('vault tools document shared args in inputSchema', () => {
     return tool.schema as unknown as Record<string, { description?: string }>;
   }
 
-  it('vault_list_recursive exposes described pagination and response_format fields', () => {
+  it('vault_list_recursive exposes described pagination and responseFormat fields', () => {
     const schema = schemaFor('vault_list_recursive');
     expect(schema.limit.description).toContain('Maximum items');
     expect(schema.offset.description).toContain('skip');
-    expect(schema.response_format.description).toContain('markdown');
+    expect(schema.responseFormat.description).toContain('markdown');
   });
 
-  it('read-only tools expose a described response_format field', () => {
+  it('read-only tools expose a described responseFormat field', () => {
     for (const name of ['vault_read', 'vault_get_metadata', 'vault_list']) {
-      expect(schemaFor(name).response_format.description).toContain('markdown');
+      expect(schemaFor(name).responseFormat.description).toContain('markdown');
     }
   });
 });
@@ -377,42 +377,42 @@ describe('vault_get_aspect dispatcher', () => {
     const searchHandlers = createSearchHandlers(adapter);
     const handlers = createHandlers(adapter, new WriteMutex(), searchHandlers);
 
-    const fm = await handlers.getAspect({ path: 'a.md', aspect: 'frontmatter', response_format: 'json' });
+    const fm = await handlers.getAspect({ path: 'a.md', aspect: 'frontmatter', responseFormat: 'json' });
     expect(fm.structuredContent).toEqual({
       aspect: 'frontmatter',
       path: 'a.md',
       frontmatter: { tag: 'x' },
     });
 
-    const headings = await handlers.getAspect({ path: 'a.md', aspect: 'headings', response_format: 'json' });
+    const headings = await handlers.getAspect({ path: 'a.md', aspect: 'headings', responseFormat: 'json' });
     expect(headings.structuredContent).toEqual({
       aspect: 'headings',
       path: 'a.md',
       headings: [{ heading: 'H', level: 1 }],
     });
 
-    const out = await handlers.getAspect({ path: 'a.md', aspect: 'outgoing_links', response_format: 'json' });
+    const out = await handlers.getAspect({ path: 'a.md', aspect: 'outgoing_links', responseFormat: 'json' });
     expect(out.structuredContent).toEqual({
       aspect: 'outgoing_links',
       path: 'a.md',
       links: [{ link: 'b' }],
     });
 
-    const emb = await handlers.getAspect({ path: 'a.md', aspect: 'embeds', response_format: 'json' });
+    const emb = await handlers.getAspect({ path: 'a.md', aspect: 'embeds', responseFormat: 'json' });
     expect(emb.structuredContent).toEqual({
       aspect: 'embeds',
       path: 'a.md',
       embeds: [{ link: 'img.png' }],
     });
 
-    const back = await handlers.getAspect({ path: 'a.md', aspect: 'backlinks', response_format: 'json' });
+    const back = await handlers.getAspect({ path: 'a.md', aspect: 'backlinks', responseFormat: 'json' });
     expect(back.structuredContent).toEqual({
       aspect: 'backlinks',
       path: 'a.md',
       backlinks: ['b.md'],
     });
 
-    const blocks = await handlers.getAspect({ path: 'a.md', aspect: 'block_references', response_format: 'json' });
+    const blocks = await handlers.getAspect({ path: 'a.md', aspect: 'block_references', responseFormat: 'json' });
     expect(blocks.structuredContent).toEqual({
       aspect: 'block_references',
       path: 'a.md',

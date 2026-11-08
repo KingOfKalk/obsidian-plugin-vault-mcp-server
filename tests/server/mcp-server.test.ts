@@ -210,10 +210,13 @@ describe('createMcpServer', () => {
       outputSchema,
     );
     // inputSchema is wrapped in a strict object so the SDK rejects unknown
-    // keys instead of stripping them (#388).
-    const registeredInput = withOutput?.config.inputSchema as z.ZodObject;
-    expect(registeredInput).toBeInstanceOf(z.ZodObject);
-    expect(registeredInput.shape).toEqual(inputSchema);
+    // keys instead of stripping them (#388). It sits behind a preprocess
+    // step that renames deprecated aliases (#392).
+    const registeredInput = withOutput?.config.inputSchema as z.ZodPipe;
+    expect(registeredInput).toBeInstanceOf(z.ZodPipe);
+    const strictObject = registeredInput.out as z.ZodObject;
+    expect(strictObject).toBeInstanceOf(z.ZodObject);
+    expect(strictObject.shape).toEqual(inputSchema);
     expect(registeredInput.safeParse({ foo: 'x', extra: 1 }).success).toBe(false);
 
     const withoutOutput = capturedRegisterToolCalls.find(

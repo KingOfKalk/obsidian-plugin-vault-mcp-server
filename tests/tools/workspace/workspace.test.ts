@@ -26,7 +26,7 @@ describe('workspace module', () => {
     const openTool = module.tools().find((t) => t.name === 'workspace_open_file')!;
     await openTool.handler({ path: 'test.md' });
     const listTool = module.tools().find((t) => t.name === 'workspace_list_leaves')!;
-    const result = await listTool.handler({ response_format: 'json' });
+    const result = await listTool.handler({ responseFormat: 'json' });
     const data = JSON.parse(getText(result)) as { leaves: Array<{ path: string }> };
     expect(data.leaves).toHaveLength(1);
     expect(data.leaves[0].path).toBe('test.md');
@@ -38,7 +38,7 @@ describe('workspace module', () => {
     adapter.setActiveLeafId('leaf-1');
     const module = createWorkspaceModule(adapter);
     const tool = module.tools().find((t) => t.name === 'workspace_get_active_leaf')!;
-    const result = await tool.handler({ response_format: 'json' });
+    const result = await tool.handler({ responseFormat: 'json' });
     const data = JSON.parse(getText(result)) as Record<string, unknown>;
     expect(data.id).toBe('leaf-1');
   });
@@ -110,7 +110,7 @@ describe('workspace read tools — outputSchema declarations', () => {
     const tool = createWorkspaceModule(adapter).tools().find((t) => t.name === 'workspace_get_active_leaf')!;
     const schema = getStructured(tool, { passthrough: true });
 
-    const result = await tool.handler({ response_format: 'json' });
+    const result = await tool.handler({ responseFormat: 'json' });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.id).toBe('leaf-1');
     expect(parsed.type).toBe('markdown');
@@ -124,7 +124,7 @@ describe('workspace read tools — outputSchema declarations', () => {
     const tool = createWorkspaceModule(adapter).tools().find((t) => t.name === 'workspace_list_leaves')!;
     const schema = getStructured(tool);
 
-    const result = await tool.handler({ response_format: 'json' });
+    const result = await tool.handler({ responseFormat: 'json' });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.leaves).toEqual([{ leafId: 'leaf-A', path: 'a.md' }]);
   });
@@ -139,7 +139,7 @@ describe('workspace read tools — outputSchema declarations', () => {
     expect(tool.outputSchema).toBeInstanceOf(z.ZodObject);
     const schema = tool.outputSchema as z.ZodObject;
 
-    const result = await tool.handler({ response_format: 'json' });
+    const result = await tool.handler({ responseFormat: 'json' });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed).toEqual(result.structuredContent);
     expect(z.toJSONSchema(schema, { io: 'output' }).additionalProperties).not.toBe(false);

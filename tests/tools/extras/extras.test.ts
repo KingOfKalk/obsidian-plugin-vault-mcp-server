@@ -86,7 +86,7 @@ describe('extras read tools — outputSchema declarations', () => {
     const tool = createExtrasModule(adapter).tools().find((t) => t.name === 'extras_get_date')!;
     const schema = getStructured(tool);
 
-    const result = await tool.handler({ response_format: 'json' });
+    const result = await tool.handler({ responseFormat: 'json' });
     const parsed = schema.parse(result.structuredContent);
     expect(typeof parsed.iso).toBe('string');
     expect(parsed.iso).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{2}:\d{2}$/);

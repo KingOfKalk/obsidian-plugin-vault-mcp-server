@@ -39,7 +39,7 @@ Errors:
 Read the UTF-8 content of a file by vault-relative path.
 
 Returns:
-  Files over 24 000 characters come in windows: while has_more is true, call again with offset=next_offset.
+  Files over 24 000 characters come in windows: while hasMore is true, call again with offset=nextOffset.
 
 Examples:
   - Use when: "show me the README" -> { path: "README.md" }
@@ -57,9 +57,9 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
-| `offset` | number (0–9007199254740991) | no (default `0`) | Character offset to start reading at (default 0). Use next_offset from the previous call to continue a large file. |
+| `offset` | number (0–9007199254740991) | no (default `0`) | Character offset to start reading at (default 0). Use nextOffset from the previous call to continue a large file. |
 | `length` | number (1–24000) | no | Maximum characters to return (1..24000, default 24000). Files that fit are returned whole. |
-| `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 
@@ -67,10 +67,10 @@ Errors:
 |---|---|---|
 | `path` | string | Vault-relative path that was read. |
 | `content` | string | File content in the requested window (the whole file when it fits). |
-| `total_length` | number | Length of the whole file in characters. |
+| `totalLength` | number | Length of the whole file in characters. |
 | `offset` | number | Character offset where this window starts. |
-| `has_more` | boolean | True when the file continues past this window. |
-| `next_offset` | number | Offset to pass in the next call when has_more is true. |
+| `hasMore` | boolean | True when the file continues past this window. |
+| `nextOffset` | number | Offset to pass in the next call when hasMore is true. |
 
 ### vault_update
 
@@ -170,7 +170,7 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
-| `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 
@@ -358,7 +358,7 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `path` | string (≤4096) | yes | Folder path to list (non-recursive). Use "" (or "/" or ".") for the vault root. |
-| `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 
@@ -393,7 +393,7 @@ Errors:
 | `path` | string (≤4096) | yes | Folder path to list recursively. Use "" (or "/" or ".") for the vault root. |
 | `limit` | number (1–100) | no (default `20`) | Maximum items to return (1..100, default 20). |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Number of items to skip before returning results (default 0). |
-| `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 
@@ -404,8 +404,8 @@ Errors:
 | `count` | number | Number of files in this page. |
 | `offset` | number | Offset of the first item in this page. |
 | `items` | string[] | Files in this page (vault-relative paths). |
-| `has_more` | boolean | True when there are more files past this page. |
-| `next_offset` | number | Offset to use in the next request when has_more is true. |
+| `hasMore` | boolean | True when there are more files past this page. |
+| `nextOffset` | number | Offset to use in the next request when hasMore is true. |
 
 ### vault_read_binary
 
@@ -428,7 +428,7 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
-| `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 
@@ -437,7 +437,7 @@ Errors:
 | `path` | string | Vault-relative path that was read. |
 | `data` | string | Base64-encoded file contents (no data: prefix). |
 | `encoding` | literal: `base64` | Encoding of the `data` field — always `"base64"` for this tool. |
-| `size_bytes` | number | Decoded file size in bytes (length of the underlying binary). |
+| `sizeBytes` | number | Decoded file size in bytes (length of the underlying binary). |
 
 ### vault_write_binary
 
@@ -463,7 +463,7 @@ Errors:
 | Field | Type | Description |
 |---|---|---|
 | `path` | string | Vault-relative path that was written. |
-| `size_bytes` | number | Number of bytes written. |
+| `sizeBytes` | number | Number of bytes written. |
 
 ### vault_get_aspect
 
@@ -484,7 +484,7 @@ Errors:
 |---|---|---|---|
 | `path` | string (1–4096) | yes | Vault-relative path to the file. |
 | `aspect` | enum: `frontmatter` \| `headings` \| `outgoing_links` \| `embeds` \| `backlinks` \| `block_references` | yes | Which metadata aspect to return: frontmatter, headings, outgoing_links ([[...]] links), embeds (![[...]]), backlinks (files linking TO this file) or block_references (^block-ids). The result carries the matching field (frontmatter, headings, links, embeds, backlinks or blockRefs). |
-| `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 
@@ -519,7 +519,7 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `date` | string | no | Optional ISO date (YYYY-MM-DD). Omit for today (local time). |
-| `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 

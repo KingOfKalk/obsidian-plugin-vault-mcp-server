@@ -20,7 +20,7 @@ Errors:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 
@@ -63,7 +63,7 @@ List every open leaf and the file it holds.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 
@@ -102,7 +102,7 @@ Get a summary of the current workspace layout.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 

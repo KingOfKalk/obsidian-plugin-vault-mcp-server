@@ -14,7 +14,7 @@ List files in the vault's "templates" folder.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 
@@ -65,7 +65,7 @@ See also:
 |---|---|---|---|
 | `template` | string (≤100000) | yes | Template text containing {{variable}} placeholders |
 | `variables` | object | no | Template variables keyed by name. date, time and title are built in; values given here override them. |
-| `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 
