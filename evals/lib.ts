@@ -46,7 +46,14 @@ function innerText(block: string, tag: string): string | null {
  * a question.
  */
 export function parseEvaluationXml(xml: string): QaPair[] {
-  const withoutComments = xml.replace(/<!--[\s\S]*?-->/g, '');
+  // Strip comments until none are left, so overlapping fragments such as
+  // `<!<!---->--` cannot reassemble into a new `<!--` after one pass.
+  let withoutComments = xml;
+  let previous: string;
+  do {
+    previous = withoutComments;
+    withoutComments = withoutComments.replace(/<!--[\s\S]*?-->/g, '');
+  } while (withoutComments !== previous);
   if (!/<evaluation>[\s\S]*<\/evaluation>/.test(withoutComments)) {
     throw new Error('Evaluation file has no <evaluation> root element.');
   }

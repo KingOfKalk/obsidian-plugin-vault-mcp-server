@@ -18,6 +18,14 @@ describe('parseEvaluationXml', () => {
     ]);
   });
 
+  it('strips comments that only appear after a first stripping pass', () => {
+    const xml = `<evaluation>
+  <!<!-- x -->-- <qa_pair><question>Hidden?</question><answer>no</answer></qa_pair> -->
+  <qa_pair><question>Real?</question><answer>yes</answer></qa_pair>
+</evaluation>`;
+    expect(parseEvaluationXml(xml)).toEqual([{ question: 'Real?', answer: 'yes' }]);
+  });
+
   it('rejects a qa_pair without an answer', () => {
     expect(() =>
       parseEvaluationXml('<evaluation><qa_pair><question>Q</question></qa_pair></evaluation>'),
