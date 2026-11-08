@@ -10,12 +10,6 @@ Auto-generated schema reference for the `workspace` module. See [../tools.genera
 
 Get info about the currently-focused leaf (pane).
 
-Args:
-  - response_format (enum, optional): "markdown" (default) or "json".
-
-Returns:
-  JSON: { id, type, ... } describing the active leaf.
-
 See also:
   - editor_get_active_file — when you only need the active file's path, not the surrounding leaf metadata.
 
@@ -42,13 +36,6 @@ Errors:
 
 Open a file in a leaf, optionally requesting a view mode.
 
-Args:
-  - path (string): Vault-relative file path.
-  - mode (enum, optional): "source" | "preview" | "live".
-
-Returns:
-  Plain text "Opened: <path>".
-
 Errors:
   - "Path must not traverse outside the vault" on traversal attempts.
 
@@ -61,19 +48,16 @@ Errors:
 
 #### Output
 
-_No `structuredContent` declared — returns plain text or binary._
+| Field | Type | Description |
+|---|---|---|
+| `path` | string | Vault-relative path that was opened. |
+| `mode` | enum: `source` \| `preview` \| `live` | View mode that was requested, when one was given. |
 
 ### workspace_list_leaves
 
 **List open leaves**
 
 List every open leaf and the file it holds.
-
-Args:
-  - response_format (enum, optional): "markdown" (default) or "json".
-
-Returns:
-  JSON: [{ path, leafId }].
 
 #### Input
 
@@ -93,12 +77,6 @@ Returns:
 
 Focus a specific leaf by id.
 
-Args:
-  - leafId (string): Leaf id from workspace_list_leaves.
-
-Returns:
-  Plain text "Active leaf set" on success.
-
 Errors:
   - "Leaf not found" if the id does not match any leaf.
 
@@ -110,19 +88,15 @@ Errors:
 
 #### Output
 
-_No `structuredContent` declared — returns plain text or binary._
+| Field | Type | Description |
+|---|---|---|
+| `leafId` | string | Id of the leaf that is now active. |
 
 ### workspace_get_layout
 
 **Get workspace layout**
 
 Get a summary of the current workspace layout.
-
-Args:
-  - response_format (enum, optional): "markdown" (default) or "json".
-
-Returns:
-  JSON: Obsidian's layout descriptor (nested splits and leaves).
 
 #### Input
 

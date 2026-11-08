@@ -288,6 +288,42 @@ Source of truth: [`src/server/mcp-server.ts`](https://github.com/KingOfKalk/obsi
 (`SERVER_INSTRUCTIONS`). If you suspect drift between the quoted text above
 and the live string, the source file wins.
 
+### Tool behaviour worth knowing
+
+The full parameter and output reference for every tool is in
+[`docs/tools.generated.md`](../tools.generated.md). A few behaviours that
+clients and agents commonly trip over:
+
+- **Parameters are documented in the input schema.** Tool descriptions hold
+  a summary, examples and error notes; each parameter's meaning lives in its
+  `description` inside `inputSchema` in `tools/list`.
+- **Unknown parameters are rejected.** A call with a parameter the tool does
+  not declare fails with an error that names it and lists the valid ones,
+  e.g. `Unknown parameter: new_name. Valid parameters: path, newName.`
+  `tools/list` advertises `additionalProperties: false` for every tool.
+- **Listing the vault root.** `vault_list` and `vault_list_recursive` accept
+  `""`, `"/"` or `"."` as `path` for the top level of the vault. Tools that
+  work on a single file still require a real path.
+- **Reading large files.** `vault_read` returns files of up to 24 000
+  characters whole. Longer files come back in windows: the text ends with a
+  `[TRUNCATED: …]` footer, and `structuredContent` carries `total_length`,
+  `has_more` and `next_offset`. Call `vault_read` again with
+  `offset: <next_offset>` to continue. You can also pass `length` (1–24 000)
+  for smaller windows.
+- **Full-text search results per file.** `search_fulltext` returns at most
+  `maxMatchesPerFile` matching lines per file (default 5, maximum 100);
+  `matchCount` always reports the real number of matches. `limit` and
+  `offset` page over files.
+- **Frontmatter key search.** `search_by_frontmatter` with only `key` finds
+  every note that has that frontmatter property; add `value` to match a
+  specific value.
+- **Structured output on every tool.** All tools declare an `outputSchema`
+  and return `structuredContent`. Write tools keep their plain-text
+  confirmation (for example `Created file: notes/a.md`) and add a small
+  payload such as `{ "path": "notes/a.md", "created": true }` or
+  `{ "from": "a.md", "to": "b.md" }`, so agents can chain calls without
+  parsing the text.
+
 ---
 
 ## Resources
@@ -447,6 +483,26 @@ again retries the start.
   Modules**.
 - For Extras tools (e.g. `extras_get_date` (Get current date)), the per-tool toggle is off by default.
 - The client cached the previous `tools/list` response. Reconnect.
+
+### A tool call fails with "Unknown parameter"
+
+The client sent a parameter the tool does not declare, often a typo or the
+wrong case (`new_name` instead of `newName`). The error lists the valid
+parameter names; resend the call with one of them. Earlier versions silently
+dropped unknown parameters, so a call that "worked" before may now be
+rejected.
+
+### `vault_read` output ends with "[TRUNCATED: …]"
+
+The file is longer than one window (24 000 characters). The footer names the
+offset to continue at; call `vault_read` again with that `offset`, or read
+`next_offset` from `structuredContent`. See
+[Tool behaviour worth knowing](#tool-behaviour-worth-knowing).
+
+### `vault_get_aspect` fails with "Cannot read properties of undefined (reading '_zod')"
+
+This was a bug in earlier versions: every `vault_get_aspect` call failed
+inside the MCP SDK. Update the plugin to the current release.
 
 ### How do I expose the server to another machine on my LAN?
 

@@ -10,12 +10,6 @@ Auto-generated schema reference for the `templates` module. See [../tools.genera
 
 List files in the vault's "templates" folder.
 
-Args:
-  - response_format (enum, optional): "markdown" (default) or "json".
-
-Returns:
-  JSON: string[] of template file paths. Empty array if the folder is missing.
-
 #### Input
 
 | Field | Type | Required | Description |
@@ -34,14 +28,6 @@ Returns:
 
 Create a file by expanding {{variable}} placeholders in a template.
 
-Args:
-  - templatePath (string): Template source file.
-  - destPath (string): New file path.
-  - variables (Record<string,string>, optional): Variable map. date/time/title are built in.
-
-Returns:
-  Plain text "Created <dest> from template <src>".
-
 See also:
   - template_expand — when you want the expanded template content returned inline, not written to a new vault file.
 
@@ -55,25 +41,20 @@ Errors:
 |---|---|---|---|
 | `templatePath` | string (1–4096) | yes | Vault-relative path to the template source file |
 | `destPath` | string (1–4096) | yes | Vault-relative path for the new file |
-| `variables` | object | no | Template variables keyed by name (e.g. { title: "Today" }) |
+| `variables` | object | no | Template variables keyed by name (e.g. { title: "Today" }). date, time and title are built in; values given here override them. |
 
 #### Output
 
-_No `structuredContent` declared — returns plain text or binary._
+| Field | Type | Description |
+|---|---|---|
+| `path` | string | Vault-relative path of the new file. |
+| `templatePath` | string | Vault-relative path of the template that was used. |
 
 ### template_expand
 
 **Expand template inline**
 
 Expand {{variable}} placeholders in a supplied string without writing any file.
-
-Args:
-  - template (string): Template body containing {{variable}} tokens.
-  - variables (Record<string,string>, optional): Variable map.
-  - response_format (enum, optional): "markdown" (default) or "json".
-
-Returns:
-  Plain text: the expanded string.
 
 See also:
   - template_create_from — when you want the expanded template written to a new vault file, not just returned as text.
@@ -83,7 +64,7 @@ See also:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `template` | string (≤100000) | yes | Template text containing {{variable}} placeholders |
-| `variables` | object | no | Template variables keyed by name |
+| `variables` | object | no | Template variables keyed by name. date, time and title are built in; values given here override them. |
 | `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output

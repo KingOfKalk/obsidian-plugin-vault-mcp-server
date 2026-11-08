@@ -10,13 +10,6 @@ Auto-generated schema reference for the `ui` module. See [../tools.generated.md]
 
 Show a transient notice/toast in Obsidian.
 
-Args:
-  - message (string, 1..1000): Notice text.
-  - duration (integer ms, 0..60000, optional): Auto-dismiss delay (0 = sticky).
-
-Returns:
-  Plain text "Notice shown".
-
 #### Input
 
 | Field | Type | Required | Description |
@@ -26,4 +19,6 @@ Returns:
 
 #### Output
 
-_No `structuredContent` declared — returns plain text or binary._
+| Field | Type | Description |
+|---|---|---|
+| `shown` | boolean | Always true once the notice was shown. |
