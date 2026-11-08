@@ -4,15 +4,14 @@
  * Unit tests call handlers directly and therefore skip the SDK's own input
  * and output validation. That is how `vault_get_aspect` shipped broken: its
  * `outputSchema` was a `z.discriminatedUnion`, which SDK v1 cannot handle,
- * so every call failed inside the SDK. The tests here go through
+ * so every call failed inside the SDK v1. The tests here go through
  * `tools/list` and `tools/call` exactly like a client would. The SDK client
  * also validates `structuredContent` against the advertised `outputSchema`,
  * so a schema/payload mismatch fails here too.
  */
 import { describe, it, expect } from 'vitest';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
+import type { CallToolResult } from '@modelcontextprotocol/server';
 import { createMcpServer } from '../../src/server/mcp-server';
 import { ModuleRegistry, type ModuleStateMap } from '../../src/registry/module-registry';
 import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';
@@ -100,7 +99,7 @@ async function call(
   name: string,
   args: Record<string, unknown>,
 ): Promise<CallToolResult> {
-  return (await h.client.callTool({ name, arguments: args })) as CallToolResult;
+  return await h.client.callTool({ name, arguments: args });
 }
 
 /**

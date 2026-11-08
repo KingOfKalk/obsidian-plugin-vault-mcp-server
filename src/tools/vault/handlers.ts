@@ -1,4 +1,4 @@
-import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolResult } from '@modelcontextprotocol/server';
 // Obsidian re-exports moment at runtime; importing from 'moment' directly
 // gives us a properly callable type while still resolving to the same
 // bundled instance Obsidian uses (moment is a direct dependency).

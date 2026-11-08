@@ -1,5 +1,4 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { McpServer, CallToolResult } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import { Logger } from '../utils/logger';
 import { ModuleRegistry } from '../registry/module-registry';
@@ -126,6 +125,19 @@ export function createToolDispatcher(
   };
 }
 
+/**
+ * Normalise a tool's `outputSchema` for `McpServer.registerTool`: raw shapes
+ * are wrapped in `z.object` (as SDK v1 did implicitly), full Zod schemas pass
+ * through unchanged.
+ */
+export function toOutputSchema(
+  schema: ToolDefinition['outputSchema'],
+): z.ZodType | undefined {
+  if (schema === undefined) return undefined;
+  if (schema instanceof z.ZodType) return schema;
+  return z.object(schema);
+}
+
 function registerTools(
   server: McpServer,
   registry: ModuleRegistry,
@@ -142,7 +154,7 @@ function registerTools(
         // Strict object (not the raw shape): the SDK validates before our
         // dispatcher runs, and a raw shape would make it strip unknown keys.
         inputSchema: buildInputSchema(tool.schema),
-        outputSchema: tool.outputSchema,
+        outputSchema: toOutputSchema(tool.outputSchema),
         annotations: tool.title
           ? { ...tool.annotations, title: tool.title }
           : tool.annotations,

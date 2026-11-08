@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
 import { createMcpServer } from '../../src/server/mcp-server';
 import { ModuleRegistry } from '../../src/registry/module-registry';
 import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';

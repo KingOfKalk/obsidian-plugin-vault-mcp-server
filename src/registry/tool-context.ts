@@ -1,11 +1,7 @@
-import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
-import type {
-  ServerNotification,
-  ServerRequest,
-} from '@modelcontextprotocol/sdk/types.js';
+import type { ServerContext } from '@modelcontextprotocol/server';
 import type { Logger, LogLevel } from '../utils/logger';
 
-export type SdkExtra = RequestHandlerExtra<ServerRequest, ServerNotification>;
+export type SdkExtra = ServerContext;
 
 export type McpLogLevel =
   | 'debug'
@@ -48,10 +44,10 @@ export function createToolContext(
   toolName: string,
   logger: Logger,
 ): ToolContext {
-  const progressToken = extra._meta?.progressToken;
+  const progressToken = extra.mcpReq._meta?.progressToken;
 
   return {
-    signal: extra.signal,
+    signal: extra.mcpReq.signal,
     progressToken,
 
     async reportProgress(
@@ -61,7 +57,7 @@ export function createToolContext(
     ): Promise<void> {
       if (progressToken === undefined) return;
       try {
-        await extra.sendNotification({
+        await extra.mcpReq.notify({
           method: 'notifications/progress',
           params: { progressToken, progress, total, message },
         });
@@ -81,12 +77,12 @@ export function createToolContext(
       const payload =
         data === undefined ? { msg: message } : { msg: message, data };
       try {
-        await extra.sendNotification({
+        await extra.mcpReq.notify({
           method: 'notifications/message',
           params: { level, logger: toolName, data: payload },
         });
       } catch (err) {
-        logger.warn('ctx.log sendNotification failed', err);
+        logger.warn('ctx.log notify failed', err);
       }
     },
   };

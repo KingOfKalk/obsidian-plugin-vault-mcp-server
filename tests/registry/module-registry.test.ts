@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ModuleRegistry } from '../../src/registry/module-registry';
 import { ToolModule, ToolDefinition, annotations as annPresets } from '../../src/registry/types';
-import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolResult } from '@modelcontextprotocol/server';
 import { Logger } from '../../src/utils/logger';
 
 function createMockLogger(): Logger {

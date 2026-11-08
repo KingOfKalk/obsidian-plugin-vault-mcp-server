@@ -250,7 +250,7 @@ The plugin UI is translated via a tiny in-house i18n helper modelled on the [obs
 
 ### MCP Server
 
-- **TR8** — Streamable HTTP transport using @modelcontextprotocol/sdk
+- **TR8** — Streamable HTTP transport using the MCP TypeScript SDK (`@modelcontextprotocol/server` + `@modelcontextprotocol/node`) — *audit (2026-11-08, #389): migrated from `@modelcontextprotocol/sdk` v1 to SDK v2; the stateful `/mcp` session transport, auth, and Origin/Host checks are unchanged*
 - **TR9** — Tool registration system: each feature category registers its tools via a common interface
 - **TR10** — Input validation on all tool parameters using Zod schemas
 - **TR11** — Standardized error responses following MCP error format
