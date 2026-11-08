@@ -447,47 +447,35 @@ describe('search handlers', () => {
   });
 });
 
-describe('search tool descriptions document shared args', () => {
-  function descriptionFor(name: string): string {
+describe('search tools document shared args in inputSchema', () => {
+  // Parameters are documented by each field's .describe() in inputSchema,
+  // not by an Args section in the description (#388).
+  function schemaFor(name: string): Record<string, { description?: string }> {
     const adapter = new MockObsidianAdapter();
     const tool = createSearchModule(adapter)
       .tools()
       .find((t) => t.name === name);
     if (!tool) throw new Error(`Tool ${name} not found`);
-    return tool.description;
+    return tool.schema as unknown as Record<string, { description?: string }>;
   }
 
-  it('documents pagination and response_format on search_fulltext', () => {
-    const desc = descriptionFor('search_fulltext');
-    expect(desc).toContain('limit (integer');
-    expect(desc).toContain('offset (integer');
-    expect(desc).toContain('response_format (enum');
+  it('paginated search tools expose described limit, offset and response_format', () => {
+    for (const name of ['search_fulltext', 'search_by_tag', 'search_by_frontmatter']) {
+      const schema = schemaFor(name);
+      expect(schema.limit.description, name).toContain('Maximum items');
+      expect(schema.offset.description, name).toContain('skip');
+      expect(schema.response_format.description, name).toContain('markdown');
+    }
   });
 
-  it('documents pagination and response_format on search_by_tag', () => {
-    const desc = descriptionFor('search_by_tag');
-    expect(desc).toContain('limit (integer');
-    expect(desc).toContain('offset (integer');
-    expect(desc).toContain('response_format (enum');
-  });
-
-  it('documents pagination and response_format on search_by_frontmatter', () => {
-    const desc = descriptionFor('search_by_frontmatter');
-    expect(desc).toContain('limit (integer');
-    expect(desc).toContain('offset (integer');
-    expect(desc).toContain('response_format (enum');
-  });
-
-  it('documents response_format on tools that only spread responseFormatField', () => {
+  it('map-style search tools expose only response_format', () => {
     for (const name of [
       'search_tags',
       'search_resolved_links',
       'search_unresolved_links',
     ]) {
-      const desc = descriptionFor(name);
-      expect(desc).toContain('response_format (enum');
-      expect(desc).not.toContain('limit (integer');
-      expect(desc).not.toContain('offset (integer');
+      const schema = schemaFor(name);
+      expect(Object.keys(schema)).toEqual(['response_format']);
     }
   });
 });

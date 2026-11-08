@@ -20,7 +20,7 @@ export const createFileSchema = {
   content: z
     .string()
     .max(5_000_000)
-    .describe('Text content to write into the new file'),
+    .describe('Initial UTF-8 text content of the new file'),
 };
 
 /**
@@ -92,7 +92,7 @@ export const renameFileSchema = {
       /^[^/\\\x00]+$/,
       'newName must not contain path separators or null bytes',
     )
-    .describe('New file name within the same folder (no separators)'),
+    .describe('New file name (basename) within the same folder; must not contain / or \\'),
 };
 
 export const moveFileSchema = {
@@ -194,13 +194,9 @@ export const getAspectSchema = {
       'block_references',
     ])
     .describe(
-      'Which metadata aspect to return. ' +
-        '"frontmatter" → parsed YAML frontmatter object, or {} when absent. ' +
-        '"headings" → [{ heading, level }] in document order. ' +
-        '"outgoing_links" → [{ link, displayText? }] for [[...]] links. ' +
-        '"embeds" → [{ link, displayText? }] for ![[...]] embeds. ' +
-        '"backlinks" → string[] of vault paths that link TO this file. ' +
-        '"block_references" → [{ id, line }] for ^block-ids defined in this file.',
+      'Which metadata aspect to return: frontmatter, headings, outgoing_links ([[...]] links), ' +
+        'embeds (![[...]]), backlinks (files linking TO this file) or block_references (^block-ids). ' +
+        'The result carries the matching field (frontmatter, headings, links, embeds, backlinks or blockRefs).',
     ),
   ...responseFormatField,
 };

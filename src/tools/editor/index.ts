@@ -61,11 +61,11 @@ const readOnlySchema = { ...responseFormatField };
 
 const insertSchema = {
   line: z.number().int().min(0).describe('Zero-based line index'),
-  ch: z.number().int().min(0).describe('Zero-based column index'),
+  ch: z.number().int().min(0).describe('Zero-based column index within the line'),
   text: z
     .string()
     .max(5_000_000)
-    .describe('Text to insert at (line, ch)'),
+    .describe('Text to insert at (line, ch); may contain newlines'),
 };
 
 const replaceSchema = {
@@ -353,12 +353,11 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Get active file content',
           description: describeTool({
             summary: 'Get the full text content of the currently active editor.',
-            returns: 'Plain text: the editor\'s current content.',
             errors: ['"No active editor" if no markdown view is focused.'],
             seeAlso: [
               'vault_read — when reading any file by path, not just the active one.',
             ],
-          }, readOnlySchema),
+          }),
           schema: readOnlySchema,
           outputSchema: getContentOutputSchema,
           handler: h.getContent,
@@ -369,12 +368,11 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Get active file path',
           description: describeTool({
             summary: 'Get the vault-relative path of the currently active file.',
-            returns: 'Plain text: the path, e.g. "notes/today.md".',
             errors: ['"No active file" if no file is open.'],
             seeAlso: [
               'workspace_get_active_leaf — when you need the active pane/leaf (id and view type), not just the file path.',
             ],
-          }, readOnlySchema),
+          }),
           schema: readOnlySchema,
           outputSchema: getActiveFileOutputSchema,
           handler: h.getActivePath,
@@ -385,12 +383,6 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Insert at cursor',
           description: describeTool({
             summary: 'Insert text at a (line, ch) position in the active editor.',
-            args: [
-              'line (integer, ≥0): Zero-based line index.',
-              'ch (integer, ≥0): Zero-based column index within the line.',
-              'text (string): Text to insert (may contain newlines).',
-            ],
-            returns: 'Plain text "Text inserted" on success.',
             examples: ['Use when: inserting a heading at the top of the file (line 0, ch 0).'],
             errors: [
               '"No active editor" if no markdown view is focused.',
@@ -411,12 +403,6 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Replace range',
           description: describeTool({
             summary: 'Replace text in a (fromLine, fromCh)→(toLine, toCh) range.',
-            args: [
-              'fromLine / fromCh (integers, ≥0): Start of range (inclusive).',
-              'toLine / toCh (integers, ≥0): End of range (exclusive).',
-              'text (string): Replacement text.',
-            ],
-            returns: 'Plain text "Text replaced" on success.',
             examples: ['Use when: replacing a paragraph after locating it with search_fulltext.'],
             errors: [
               '"No active editor" if no markdown view is focused.',
@@ -437,11 +423,6 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Delete range',
           description: describeTool({
             summary: 'Delete text in a (fromLine, fromCh)→(toLine, toCh) range.',
-            args: [
-              'fromLine / fromCh (integers, ≥0): Start of range (inclusive).',
-              'toLine / toCh (integers, ≥0): End of range (exclusive).',
-            ],
-            returns: 'Plain text "Text deleted" on success.',
             errors: [
               '"No active editor" if no markdown view is focused.',
               '"Position is out of range" if either endpoint is outside the document.',
@@ -461,9 +442,8 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Get cursor position',
           description: describeTool({
             summary: 'Get the current cursor position in the active editor.',
-            returns: 'JSON: { line, ch } (zero-based).',
             errors: ['"No active editor" if no markdown view is focused.'],
-          }, readOnlySchema),
+          }),
           schema: readOnlySchema,
           outputSchema: getCursorOutputSchema,
           handler: h.getCursor,
@@ -474,11 +454,6 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Set cursor position',
           description: describeTool({
             summary: 'Move the cursor to a (line, ch) position in the active editor.',
-            args: [
-              'line (integer, ≥0): Zero-based line index.',
-              'ch (integer, ≥0): Zero-based column index.',
-            ],
-            returns: 'Plain text "Cursor set" on success.',
             errors: [
               '"No active editor" if no markdown view is focused.',
               '"Position is out of range" if (line, ch) is outside the document.',
@@ -497,9 +472,8 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Get selection',
           description: describeTool({
             summary: 'Get the current text selection in the active editor.',
-            returns: 'JSON: { from: {line, ch}, to: {line, ch}, text }.',
             errors: ['"No active editor or selection" if nothing is selected.'],
-          }, readOnlySchema),
+          }),
           schema: readOnlySchema,
           outputSchema: getSelectionOutputSchema,
           handler: h.getSelection,
@@ -510,11 +484,6 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Set selection',
           description: describeTool({
             summary: 'Select a (fromLine, fromCh)→(toLine, toCh) range in the active editor.',
-            args: [
-              'fromLine / fromCh (integers, ≥0): Start of selection (inclusive).',
-              'toLine / toCh (integers, ≥0): End of selection (exclusive).',
-            ],
-            returns: 'Plain text "Selection set" on success.',
             errors: [
               '"No active editor" if no markdown view is focused.',
               '"Position is out of range" if either endpoint is outside the document.',
@@ -533,9 +502,8 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Get line count',
           description: describeTool({
             summary: 'Get the number of lines in the active editor.',
-            returns: 'Plain text: the line count as a decimal integer.',
             errors: ['"No active editor" if no markdown view is focused.'],
-          }, readOnlySchema),
+          }),
           schema: readOnlySchema,
           outputSchema: getLineCountOutputSchema,
           handler: h.getLineCount,

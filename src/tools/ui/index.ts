@@ -55,11 +55,6 @@ export function createUiModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Show notice',
           description: describeTool({
             summary: 'Show a transient notice/toast in Obsidian.',
-            args: [
-              'message (string, 1..1000): Notice text.',
-              'duration (integer ms, 0..60000, optional): Auto-dismiss delay (0 = sticky).',
-            ],
-            returns: 'Plain text "Notice shown".',
           }),
           schema: showNoticeSchema,
           outputSchema: showNoticeOutputSchema,

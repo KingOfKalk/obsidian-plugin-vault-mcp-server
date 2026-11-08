@@ -176,12 +176,11 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Get active leaf',
           description: describeTool({
             summary: 'Get info about the currently-focused leaf (pane).',
-            returns: 'JSON: { id, type, ... } describing the active leaf.',
             errors: ['"No active leaf" if no leaf is focused.'],
             seeAlso: [
               'editor_get_active_file — when you only need the active file\'s path, not the surrounding leaf metadata.',
             ],
-          }, readOnlySchema),
+          }),
           schema: readOnlySchema,
           outputSchema: getActiveLeafOutputSchema,
           handler: h.getActiveLeaf,
@@ -192,11 +191,6 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Open file in workspace',
           description: describeTool({
             summary: 'Open a file in a leaf, optionally requesting a view mode.',
-            args: [
-              'path (string): Vault-relative file path.',
-              'mode (enum, optional): "source" | "preview" | "live".',
-            ],
-            returns: 'Plain text "Opened: <path>".',
             errors: ['"Path must not traverse outside the vault" on traversal attempts.'],
           }),
           schema: openFileSchema,
@@ -209,8 +203,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
           title: 'List open leaves',
           description: describeTool({
             summary: 'List every open leaf and the file it holds.',
-            returns: 'JSON: [{ path, leafId }].',
-          }, readOnlySchema),
+          }),
           schema: readOnlySchema,
           outputSchema: listLeavesOutputSchema,
           handler: h.listLeaves,
@@ -221,8 +214,6 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Set active leaf',
           description: describeTool({
             summary: 'Focus a specific leaf by id.',
-            args: ['leafId (string): Leaf id from workspace_list_leaves.'],
-            returns: 'Plain text "Active leaf set" on success.',
             errors: ['"Leaf not found" if the id does not match any leaf.'],
           }),
           schema: setActiveLeafSchema,
@@ -235,8 +226,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Get workspace layout',
           description: describeTool({
             summary: 'Get a summary of the current workspace layout.',
-            returns: 'JSON: Obsidian\'s layout descriptor (nested splits and leaves).',
-          }, readOnlySchema),
+          }),
           schema: readOnlySchema,
           outputSchema: getLayoutOutputSchema,
           handler: h.getLayout,

@@ -89,10 +89,10 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Full-text search',
           description: describeTool({
             summary: 'Case-insensitive substring search across all vault file contents.',
-            returns: 'One item per matching file with up to maxMatchesPerFile matching lines and the full matchCount. limit/offset page over files.',
+            returns: 'limit/offset page over files; matching lines per file are capped by maxMatchesPerFile.',
             examples: ['Use when: "find everything mentioning Obsidian".'],
             errors: ['"Query must not be empty" on empty input.'],
-          }, searchFulltextSchema),
+          }),
           schema: searchFulltextSchema,
           outputSchema: searchFulltextOutputSchema,
           handler: handlers.searchFulltext,
@@ -103,11 +103,10 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           title: 'List tags',
           description: describeTool({
             summary: 'List every tag used anywhere in the vault with the files that use it.',
-            returns: 'JSON: Record<tag, string[]>. Each key is the tag including leading #.',
             seeAlso: [
               'search_by_tag — when you want notes carrying a tag, not the list of tags.',
             ],
-          }, readOnlySchema),
+          }),
           schema: readOnlySchema,
           outputSchema: searchTagsOutputSchema,
           handler: handlers.searchTags,
@@ -118,11 +117,10 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Find resolved links',
           description: describeTool({
             summary: 'Get the vault-wide map of resolved links (targets that exist).',
-            returns: 'JSON: Record<source, Record<target, count>>.',
             seeAlso: [
               'search_unresolved_links — when you want broken/dangling links instead.',
             ],
-          }, readOnlySchema),
+          }),
           schema: readOnlySchema,
           outputSchema: searchLinksMapOutputSchema,
           handler: handlers.searchResolvedLinks,
@@ -133,12 +131,11 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Find unresolved links',
           description: describeTool({
             summary: 'Get the vault-wide map of unresolved links (targets that do not exist).',
-            returns: 'JSON: Record<source, Record<target, count>>.',
             examples: ['Use when: hunting for broken [[wikilinks]] to clean up.'],
             seeAlso: [
               'search_resolved_links — when you want only links that successfully resolve.',
             ],
-          }, readOnlySchema),
+          }),
           schema: readOnlySchema,
           outputSchema: searchLinksMapOutputSchema,
           handler: handlers.searchUnresolvedLinks,
@@ -149,12 +146,10 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Find notes by tag',
           description: describeTool({
             summary: 'Find files tagged with a given tag (with or without leading #).',
-            args: ['tag (string, 1..200): Tag to search for, e.g. "project" or "#project".'],
-            returns: 'JSON: string[] of vault-relative file paths.',
             seeAlso: [
               'search_tags — when you want the list of tags in the vault, not notes.',
             ],
-          }, searchByTagSchema),
+          }),
           schema: searchByTagSchema,
           outputSchema: paginatedPathPageOutputSchema,
           handler: handlers.searchByTag,
@@ -169,7 +164,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
               'Use when: "find all notes where status == done" -> { key: "status", value: "done" }',
               'Use when: "which notes have a status?" -> { key: "status" }',
             ],
-          }, searchByFrontmatterSchema),
+          }),
           schema: searchByFrontmatterSchema,
           outputSchema: paginatedPathPageOutputSchema,
           handler: handlers.searchByFrontmatter,

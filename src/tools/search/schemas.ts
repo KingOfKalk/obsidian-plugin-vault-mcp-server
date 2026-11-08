@@ -36,7 +36,7 @@ export const searchByTagSchema = {
     .string()
     .min(1)
     .max(200)
-    .describe('Tag to search for (with or without leading #)'),
+    .describe('Tag to search for, with or without leading # (e.g. "project" or "#project")'),
   ...paginationFields,
   ...responseFormatField,
 };

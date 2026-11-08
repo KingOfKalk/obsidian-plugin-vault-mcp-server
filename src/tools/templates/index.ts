@@ -39,7 +39,7 @@ const createFromTemplateSchema = {
   variables: z
     .record(z.string(), z.string())
     .optional()
-    .describe('Template variables keyed by name (e.g. { title: "Today" })'),
+    .describe('Template variables keyed by name (e.g. { title: "Today" }). date, time and title are built in; values given here override them.'),
 };
 
 const expandVariablesSchema = {
@@ -50,7 +50,7 @@ const expandVariablesSchema = {
   variables: z
     .record(z.string(), z.string())
     .optional()
-    .describe('Template variables keyed by name'),
+    .describe('Template variables keyed by name. date, time and title are built in; values given here override them.'),
   ...responseFormatField,
 };
 
@@ -152,8 +152,7 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
           title: 'List templates',
           description: describeTool({
             summary: 'List files in the vault\'s "templates" folder.',
-            returns: 'JSON: string[] of template file paths. Empty array if the folder is missing.',
-          }, listTemplatesSchema),
+          }),
           schema: listTemplatesSchema,
           outputSchema: templateListOutputSchema,
           handler: h.listTemplates,
@@ -164,12 +163,6 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Create file from template',
           description: describeTool({
             summary: 'Create a file by expanding {{variable}} placeholders in a template.',
-            args: [
-              'templatePath (string): Template source file.',
-              'destPath (string): New file path.',
-              'variables (Record<string,string>, optional): Variable map. date/time/title are built in.',
-            ],
-            returns: 'Plain text "Created <dest> from template <src>".',
             errors: [
               '"File not found" if templatePath is missing.',
               '"File already exists" if destPath is taken.',
@@ -177,7 +170,7 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
             seeAlso: [
               'template_expand — when you want the expanded template content returned inline, not written to a new vault file.',
             ],
-          }, createFromTemplateSchema),
+          }),
           schema: createFromTemplateSchema,
           outputSchema: createFromTemplateOutputSchema,
           handler: h.createFromTemplate,
@@ -188,15 +181,10 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Expand template inline',
           description: describeTool({
             summary: 'Expand {{variable}} placeholders in a supplied string without writing any file.',
-            args: [
-              'template (string): Template body containing {{variable}} tokens.',
-              'variables (Record<string,string>, optional): Variable map.',
-            ],
-            returns: 'Plain text: the expanded string.',
             seeAlso: [
               'template_create_from — when you want the expanded template written to a new vault file, not just returned as text.',
             ],
-          }, expandVariablesSchema),
+          }),
           schema: expandVariablesSchema,
           outputSchema: templateExpandOutputSchema,
           handler: h.expandVariables,
