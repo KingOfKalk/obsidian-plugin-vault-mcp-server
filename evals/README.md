@@ -60,9 +60,7 @@ The exit code is 0 when every question ran (whatever the score), 1 when a questi
 
 To poke at the server with any MCP client, run `npx tsx evals/harness.ts` (set `EVAL_PORT` to pick the port). It prints the URL and token and runs until Ctrl+C.
 
-### In GitHub Actions
-
-`.github/workflows/eval.yml` runs the eval on demand (Actions → LLM eval → Run workflow) with the `ANTHROPIC_API_KEY` repository secret. It never runs on pushes or pull requests and is not a required check.
+The eval is run manually only. There is no GitHub Actions workflow for it, so no API key is stored in the repository.
 
 ## Adding or changing questions
 
