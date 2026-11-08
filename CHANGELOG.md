@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.1.4](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v3.1.3...v3.1.4) (2026-11-08)
+
+
+### Documentation
+
+* render a request/response example for every tool ([#397](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/397)) ([533301c](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/533301c555ac572754a46705b55fb330010522d1))
+
+
+### Code Refactoring
+
+* **tools:** use camelCase for tool parameters and output fields ([#394](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/394)) ([f06fb4f](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/f06fb4feb16cf1376bf19b76ce4ff70eccbfc2ee))
+
+
+### Tests
+
+* add LLM evaluation suite for the MCP tools ([#395](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/395)) ([6c12981](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/6c1298173656d6a22359aca05c1598e3801fe3be))
+
 ## [3.1.3](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v3.1.2...v3.1.3) (2026-11-08)
 
 
