@@ -1,5 +1,32 @@
 # Changelog
 
+## [3.1.3](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v3.1.2...v3.1.3) (2026-11-08)
+
+
+### Bug Fixes
+
+* repair tool output schemas and apply MCP audit fixes ([#391](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/391)) ([26ce55b](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/26ce55be480cc2ddd7638e7885cc3e841a7637f6))
+
+
+### Continuous Integration
+
+* pin runs-on to ubuntu-26.04 ([#385](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/385)) ([a1a8c75](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/a1a8c75d4ada4038ecf0f9144b645415d264d8c5)), closes [#384](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/384)
+* split CI into lint, test and build jobs ([#382](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/382)) ([1ff13e8](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/1ff13e8c1a63ff6a1e297010acbe7a8f8e0bf7a8)), closes [#381](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/381)
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** Bump the dev-deps group with 3 updates ([#377](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/377)) ([a7e62ff](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/a7e62ff6770da607be0ef3337dbfc7bde9fe3c69))
+* **deps-dev:** Bump the dev-deps group with 4 updates ([#378](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/378)) ([d536121](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/d536121264a1e020f4678b31091c60c5e17bf5eb))
+* **deps-dev:** Bump the dev-deps group with 4 updates ([#380](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/380)) ([b6afadc](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/b6afadca06936bcd9efd36f5f92606e3b090304d))
+* **deps-dev:** Bump the dev-deps group with 5 updates ([#374](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/374)) ([270537c](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/270537c19072291b80780e4accbe67dbb89b7fac))
+* **deps-dev:** Bump the dev-deps group with 5 updates ([#375](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/375)) ([b999998](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/b9999989fb960b107661c74b9090b74c23fdc98e))
+* **deps-dev:** Bump typescript-eslint ([019e33b](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/019e33b44c7b84c67909613c772f70b40be50715))
+* **deps-dev:** Bump typescript-eslint from 8.71.2 to 8.72.0 in the dev-deps group ([#379](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/379)) ([019e33b](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/019e33b44c7b84c67909613c772f70b40be50715))
+* **deps:** Bump the production-deps group across 1 directory with 3 updates ([#376](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/376)) ([a54963b](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/a54963b913002e42886fbe49cd872ea502d2e685))
+* **deps:** migrate to MCP TypeScript SDK v2 ([#390](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/390)) ([a04d1c8](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/a04d1c875bb2c218c578c6a24eb5c9db874f3850))
+* remove unused screenshot pipeline ([#387](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/387)) ([fa24bb9](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/fa24bb92d262c9ad1c27838d1618935df185f940)), closes [#386](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/386)
+
 ## [3.1.2](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v3.1.1...v3.1.2) (2026-09-25)
 
 
