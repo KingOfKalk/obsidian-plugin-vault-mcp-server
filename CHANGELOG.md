@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.5](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v3.1.4...v3.1.5) (2026-11-08)
+
+
+### Bug Fixes
+
+* **tests:** give tool-example tests an explicit timeout ([#400](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/400)) ([4b18466](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/4b184660642aaf0c6b533661e950ec47c6e49eaf)), closes [#399](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/399)
+
 ## [3.1.4](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v3.1.3...v3.1.4) (2026-11-08)
 
 
