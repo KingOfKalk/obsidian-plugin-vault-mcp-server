@@ -116,7 +116,13 @@ describe('vault read tools — outputSchema declarations', () => {
       response_format: 'json',
     });
     const parsed = schema.parse(result.structuredContent);
-    expect(parsed).toEqual({ path: 'test.md', content: '# Hello' });
+    expect(parsed).toEqual({
+      path: 'test.md',
+      content: '# Hello',
+      total_length: 7,
+      offset: 0,
+      has_more: false,
+    });
   });
 
   it('vault_get_metadata declares outputSchema and structuredContent parses against it', async () => {

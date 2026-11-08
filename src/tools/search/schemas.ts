@@ -5,6 +5,15 @@ import { responseFormatField } from '../shared/response';
 
 export const searchFulltextSchema = {
   query: searchQuerySchema.describe('Case-insensitive substring to search for across file contents'),
+  maxMatchesPerFile: z
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .default(5)
+    .describe(
+      'Maximum matching lines returned per file (1..100, default 5). matchCount always reports the full count.',
+    ),
   ...paginationFields,
   ...responseFormatField,
 };
@@ -41,7 +50,10 @@ export const searchByFrontmatterSchema = {
   value: z
     .string()
     .max(1000)
-    .describe('Frontmatter property value to match exactly (stringified)'),
+    .optional()
+    .describe(
+      'Value to match exactly (compared as stringified). Omit to match every file that has the key.',
+    ),
   ...paginationFields,
   ...responseFormatField,
 };

@@ -26,7 +26,10 @@ const searchFulltextOutputSchema = {
         path: z.string().describe('Vault-relative path of the matching file.'),
         matches: z
           .array(z.string())
-          .describe('Lines from the file that contain the query.'),
+          .describe('Lines that contain the query, capped at maxMatchesPerFile.'),
+        matchCount: z
+          .number()
+          .describe('Total number of matching lines in the file (not capped).'),
       }),
     )
     .describe('Matches in this page.'),
@@ -86,8 +89,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Full-text search',
           description: describeTool({
             summary: 'Case-insensitive substring search across all vault file contents.',
-            args: ['query (string, 1..500): Substring to look for.'],
-            returns: 'JSON: [{ path, matches: string[] }]. Truncated at 25 000 characters.',
+            returns: 'One item per matching file with up to maxMatchesPerFile matching lines and the full matchCount. limit/offset page over files.',
             examples: ['Use when: "find everything mentioning Obsidian".'],
             errors: ['"Query must not be empty" on empty input.'],
           }, searchFulltextSchema),
@@ -162,13 +164,11 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           name: 'search_by_frontmatter',
           title: 'Find notes by frontmatter',
           description: describeTool({
-            summary: 'Find files whose YAML frontmatter has a key with a given value.',
-            args: [
-              'key (string, 1..200): Frontmatter property name.',
-              'value (string, ≤1000): Expected value (compared as stringified).',
+            summary: 'Find files whose YAML frontmatter has a key, optionally with a given value.',
+            examples: [
+              'Use when: "find all notes where status == done" -> { key: "status", value: "done" }',
+              'Use when: "which notes have a status?" -> { key: "status" }',
             ],
-            returns: 'JSON: string[] of matching file paths.',
-            examples: ['Use when: "find all notes where status == done".'],
           }, searchByFrontmatterSchema),
           schema: searchByFrontmatterSchema,
           outputSchema: paginatedPathPageOutputSchema,

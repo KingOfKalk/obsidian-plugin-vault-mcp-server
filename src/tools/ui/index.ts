@@ -9,8 +9,8 @@ import {
 } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { describeTool } from '../shared/describe';
+import { confirmWithStructured } from '../shared/response';
 
-function text(t: string): CallToolResult { return { content: [{ type: 'text', text: t }] }; }
 
 const showNoticeSchema = {
   message: z
@@ -27,6 +27,10 @@ const showNoticeSchema = {
     .describe('Milliseconds before the notice auto-dismisses (0 = sticky)'),
 };
 
+const showNoticeOutputSchema = {
+  shown: z.boolean().describe('Always true once the notice was shown.'),
+};
+
 interface UiHandlers {
   showNotice: (params: InferredParams<typeof showNoticeSchema>) => Promise<CallToolResult>;
 }
@@ -35,7 +39,7 @@ function createHandlers(adapter: ObsidianAdapter): UiHandlers {
   return {
     showNotice: (params): Promise<CallToolResult> => {
       adapter.showNotice(params.message, params.duration);
-      return Promise.resolve(text('Notice shown'));
+      return Promise.resolve(confirmWithStructured('Notice shown', { shown: true }));
     },
   };
 }
@@ -58,6 +62,7 @@ export function createUiModule(adapter: ObsidianAdapter): ToolModule {
             returns: 'Plain text "Notice shown".',
           }),
           schema: showNoticeSchema,
+          outputSchema: showNoticeOutputSchema,
           handler: h.showNotice,
           annotations: annotations.additive,
         }),

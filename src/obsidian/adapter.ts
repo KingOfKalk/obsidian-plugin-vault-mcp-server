@@ -499,6 +499,11 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   }
 
   private getFolder(path: string): TFolder {
+    // `getAbstractFileByPath('')` does not return the root folder, so the
+    // vault root ("", "/" or ".") is resolved explicitly (#388).
+    if (path === '' || path === '/' || path === '.') {
+      return this.app.vault.getRoot();
+    }
     const folder = this.app.vault.getAbstractFileByPath(path);
     if (!(folder instanceof TFolder)) {
       throw new FolderNotFoundError(path);

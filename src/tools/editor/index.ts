@@ -11,12 +11,12 @@ import { ObsidianAdapter } from '../../obsidian/adapter';
 import { handleToolError } from '../shared/errors';
 import { describeTool } from '../shared/describe';
 import {
+  confirmWithStructured,
   makeResponse,
   readResponseFormat,
   responseFormatField,
 } from '../shared/response';
 
-function text(t: string): CallToolResult { return { content: [{ type: 'text', text: t }] }; }
 function err(m: string): CallToolResult { return handleToolError(new Error(m)); }
 
 /**
@@ -136,6 +136,32 @@ const getLineCountOutputSchema = {
   lineCount: z.number().describe('Number of lines in the active editor.'),
 };
 
+/**
+ * Output schemas for the editor write tools (#388): the position or range
+ * that was acted on, next to the unchanged plain-text confirmation.
+ */
+const positionOutputSchema = {
+  line: z.number().describe('Zero-based line index.'),
+  ch: z.number().describe('Zero-based column index.'),
+};
+
+const rangeOutputSchema = {
+  from: z.object(positionOutputSchema).describe('Range start (inclusive).'),
+  to: z.object(positionOutputSchema).describe('Range end (exclusive).'),
+};
+
+function rangeOf(params: {
+  fromLine: number;
+  fromCh: number;
+  toLine: number;
+  toCh: number;
+}): { from: { line: number; ch: number }; to: { line: number; ch: number } } {
+  return {
+    from: { line: params.fromLine, ch: params.fromCh },
+    to: { line: params.toLine, ch: params.toCh },
+  };
+}
+
 interface EditorHandlers {
   getContent: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
   getActivePath: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
@@ -186,7 +212,11 @@ function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
         );
       }
       const ok = adapter.insertTextAt(params.line, params.ch, params.text);
-      return Promise.resolve(ok ? text('Text inserted') : err('No active editor'));
+      return Promise.resolve(
+        ok
+          ? confirmWithStructured('Text inserted', { line: params.line, ch: params.ch })
+          : err('No active editor'),
+      );
     },
     replace: (params): Promise<CallToolResult> => {
       const lineCount = adapter.getActiveLineCount();
@@ -208,7 +238,9 @@ function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
         params.toCh,
         params.text,
       );
-      return Promise.resolve(ok ? text('Text replaced') : err('No active editor'));
+      return Promise.resolve(
+        ok ? confirmWithStructured('Text replaced', rangeOf(params)) : err('No active editor'),
+      );
     },
     deleteRange: (params): Promise<CallToolResult> => {
       const lineCount = adapter.getActiveLineCount();
@@ -229,7 +261,9 @@ function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
         params.toLine,
         params.toCh,
       );
-      return Promise.resolve(ok ? text('Text deleted') : err('No active editor'));
+      return Promise.resolve(
+        ok ? confirmWithStructured('Text deleted', rangeOf(params)) : err('No active editor'),
+      );
     },
     getCursor: (params): Promise<CallToolResult> => {
       const pos = adapter.getCursorPosition();
@@ -253,7 +287,11 @@ function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
         );
       }
       const ok = adapter.setCursorPosition(params.line, params.ch);
-      return Promise.resolve(ok ? text('Cursor set') : err('No active editor'));
+      return Promise.resolve(
+        ok
+          ? confirmWithStructured('Cursor set', { line: params.line, ch: params.ch })
+          : err('No active editor'),
+      );
     },
     getSelection: (params): Promise<CallToolResult> => {
       const sel = adapter.getSelection();
@@ -286,7 +324,9 @@ function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
         params.toLine,
         params.toCh,
       );
-      return Promise.resolve(ok ? text('Selection set') : err('No active editor'));
+      return Promise.resolve(
+        ok ? confirmWithStructured('Selection set', rangeOf(params)) : err('No active editor'),
+      );
     },
     getLineCount: (params): Promise<CallToolResult> => {
       const count = adapter.getActiveLineCount();
@@ -362,6 +402,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             ],
           }),
           schema: insertSchema,
+          outputSchema: positionOutputSchema,
           handler: h.insert,
           annotations: annotations.additive,
         }),
@@ -387,6 +428,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             ],
           }),
           schema: replaceSchema,
+          outputSchema: rangeOutputSchema,
           handler: h.replace,
           annotations: annotations.destructive,
         }),
@@ -410,6 +452,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             ],
           }),
           schema: deleteRangeSchema,
+          outputSchema: rangeOutputSchema,
           handler: h.deleteRange,
           annotations: annotations.destructive,
         }),
@@ -445,6 +488,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             ],
           }),
           schema: setCursorSchema,
+          outputSchema: positionOutputSchema,
           handler: h.setCursor,
           annotations: annotations.additive,
         }),
@@ -480,6 +524,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             ],
           }),
           schema: setSelectionSchema,
+          outputSchema: rangeOutputSchema,
           handler: h.setSelection,
           annotations: annotations.additive,
         }),

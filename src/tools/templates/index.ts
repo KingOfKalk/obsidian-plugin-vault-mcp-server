@@ -13,12 +13,12 @@ import { FolderNotFoundError, handleToolError } from '../shared/errors';
 import { describeTool } from '../shared/describe';
 import { expandPlaceholders } from '../shared/placeholders';
 import {
+  confirmWithStructured,
   makeResponse,
   readResponseFormat,
   responseFormatField,
 } from '../shared/response';
 
-function text(t: string): CallToolResult { return { content: [{ type: 'text', text: t }] }; }
 function err(m: string): CallToolResult { return handleToolError(new Error(m)); }
 
 const listTemplatesSchema = {
@@ -70,6 +70,11 @@ const templateExpandOutputSchema = {
     .describe('Template text with all {{variable}} placeholders substituted.'),
 };
 
+const createFromTemplateOutputSchema = {
+  path: z.string().describe('Vault-relative path of the new file.'),
+  templatePath: z.string().describe('Vault-relative path of the template that was used.'),
+};
+
 interface TemplatesHandlers {
   listTemplates: (params: InferredParams<typeof listTemplatesSchema>) => Promise<CallToolResult>;
   createFromTemplate: (params: InferredParams<typeof createFromTemplateSchema>) => Promise<CallToolResult>;
@@ -113,7 +118,10 @@ function createHandlers(adapter: ObsidianAdapter): TemplatesHandlers {
         const templateContent = await adapter.readFile(templatePath);
         const expanded = expandPlaceholders(templateContent, variables);
         await adapter.createFile(destPath, expanded);
-        return text(`Created ${destPath} from template ${templatePath}`);
+        return confirmWithStructured(`Created ${destPath} from template ${templatePath}`, {
+          path: destPath,
+          templatePath,
+        });
       } catch (error) {
         return err(error instanceof Error ? error.message : String(error));
       }
@@ -171,6 +179,7 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
             ],
           }, createFromTemplateSchema),
           schema: createFromTemplateSchema,
+          outputSchema: createFromTemplateOutputSchema,
           handler: h.createFromTemplate,
           annotations: annotations.additive,
         }),

@@ -83,16 +83,55 @@ describe('search handlers', () => {
     });
 
     it('truncates oversized json responses with a clear footer', async () => {
-      const bigMatches = Array.from({ length: 5000 }, (_, i) => `match ${String(i)}`).join(
+      const bigMatches = Array.from({ length: 200 }, (_, i) => `match ${String(i)}`).join(
         '\n',
       );
-      adapter.addFile('big.md', bigMatches);
+      for (let f = 0; f < 50; f++) adapter.addFile(`big-${String(f)}.md`, bigMatches);
       const result = await handlers.searchFulltext({
         query: 'match',
         response_format: 'json',
         limit: 100,
+        maxMatchesPerFile: 100,
       });
       expect(getText(result)).toContain('[TRUNCATED:');
+    });
+
+    it('caps matches per file at 5 by default and reports the real matchCount (#388)', async () => {
+      const lines = Array.from({ length: 2000 }, (_, i) => `hit ${String(i)}`).join('\n');
+      adapter.addFile('many.md', lines);
+      adapter.addFile('one.md', 'a single hit');
+      const result = await handlers.searchFulltext({ query: 'hit' });
+      const page = result.structuredContent as {
+        items: Array<{ path: string; matches: string[]; matchCount: number }>;
+      };
+      const many = page.items.find((i) => i.path === 'many.md');
+      const one = page.items.find((i) => i.path === 'one.md');
+      expect(many?.matches).toEqual(['hit 0', 'hit 1', 'hit 2', 'hit 3', 'hit 4']);
+      expect(many?.matchCount).toBe(2000);
+      expect(one?.matches).toEqual(['a single hit']);
+      expect(one?.matchCount).toBe(1);
+      expect(getText(result)).toContain('many.md (2000 matches)');
+    });
+
+    it('honours maxMatchesPerFile', async () => {
+      const lines = Array.from({ length: 50 }, (_, i) => `hit ${String(i)}`).join('\n');
+      adapter.addFile('many.md', lines);
+      const result = await handlers.searchFulltext({ query: 'hit', maxMatchesPerFile: 20 });
+      const page = result.structuredContent as {
+        items: Array<{ matches: string[]; matchCount: number }>;
+      };
+      expect(page.items[0].matches).toHaveLength(20);
+      expect(page.items[0].matchCount).toBe(50);
+    });
+
+    it('rejects maxMatchesPerFile outside 1..100 at the schema level', () => {
+      const tool = createSearchModule(adapter)
+        .tools()
+        .find((t) => t.name === 'search_fulltext');
+      const schema = z.object(tool!.schema);
+      expect(schema.safeParse({ query: 'x', maxMatchesPerFile: 0 }).success).toBe(false);
+      expect(schema.safeParse({ query: 'x', maxMatchesPerFile: 101 }).success).toBe(false);
+      expect(schema.parse({ query: 'x' })).toMatchObject({ maxMatchesPerFile: 5 });
     });
 
     it('returns an error envelope when signal is already aborted at invocation', async () => {
@@ -318,6 +357,30 @@ describe('search handlers', () => {
       });
       const page = JSON.parse(getText(result)) as { items: string[] };
       expect(page.items).toEqual(['a.md']);
+    });
+
+    it('matches every file that has the key when value is omitted (#388)', async () => {
+      adapter.addFile('a.md', 'content');
+      adapter.setMetadata('a.md', { frontmatter: { status: 'done' } });
+      adapter.addFile('b.md', 'content');
+      adapter.setMetadata('b.md', { frontmatter: { status: '' } });
+      adapter.addFile('c.md', 'content');
+      adapter.setMetadata('c.md', { frontmatter: { title: 'no status' } });
+      adapter.addFile('d.md', 'no frontmatter');
+      const result = await handlers.searchByFrontmatter({ key: 'status' });
+      const page = result.structuredContent as { items: string[] };
+      expect(page.items.sort()).toEqual(['a.md', 'b.md']);
+      expect(getText(result)).toContain('with status');
+    });
+
+    it('still compares the value when it is given, including an empty string', async () => {
+      adapter.addFile('a.md', 'content');
+      adapter.setMetadata('a.md', { frontmatter: { status: 'done' } });
+      adapter.addFile('b.md', 'content');
+      adapter.setMetadata('b.md', { frontmatter: { status: '' } });
+      const result = await handlers.searchByFrontmatter({ key: 'status', value: '' });
+      const page = result.structuredContent as { items: string[] };
+      expect(page.items).toEqual(['b.md']);
     });
   });
 

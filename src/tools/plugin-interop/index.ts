@@ -15,13 +15,13 @@ import {
 } from '../shared/errors';
 import { describeTool } from '../shared/describe';
 import {
+  confirmWithStructured,
   makeResponse,
   readResponseFormat,
   responseFormatField,
 } from '../shared/response';
 import type { ModuleOptions } from '../index';
 
-function text(t: string): CallToolResult { return { content: [{ type: 'text', text: t }] }; }
 function err(m: string): CallToolResult { return handleToolError(new Error(m)); }
 
 const listSchema = { ...responseFormatField };
@@ -106,6 +106,11 @@ const pluginDescribeOutputSchema = {
 const pluginTemplaterDescribeOutputSchema = {
   templatePath: z.string().describe('Vault-relative Templater template path that was queried.'),
   note: z.string().describe('Note explaining that this server does not execute the template.'),
+};
+
+const executeCommandOutputSchema = {
+  commandId: z.string().describe('Command id that was executed.'),
+  executed: z.boolean().describe('Always true on success.'),
 };
 
 interface PluginInteropHandlers {
@@ -233,7 +238,10 @@ function createHandlers(
       const ok = adapter.executeCommand(params.commandId);
       return Promise.resolve(
         ok
-          ? text(`Executed command: ${params.commandId}`)
+          ? confirmWithStructured(`Executed command: ${params.commandId}`, {
+              commandId: params.commandId,
+              executed: true,
+            })
           : err(`Command not found: ${params.commandId}`),
       );
     },
@@ -332,6 +340,7 @@ export function createPluginInteropModule(
             errors: ['"Command not found" if the id is not registered.'],
           }),
           schema: executeCommandSchema,
+          outputSchema: executeCommandOutputSchema,
           handler: h.executeCommand,
           annotations: annotations.destructiveExternal,
         }),

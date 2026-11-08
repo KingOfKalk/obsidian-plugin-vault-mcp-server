@@ -129,16 +129,19 @@ describe('workspace read tools — outputSchema declarations', () => {
     expect(parsed.leaves).toEqual([{ leafId: 'leaf-A', path: 'a.md' }]);
   });
 
-  it('workspace_get_layout declares outputSchema (passthrough) and parses against handler output', async () => {
+  it('workspace_get_layout declares a loose object outputSchema that accepts any layout', async () => {
     // Obsidian's layout descriptor (returned by app.workspace.getLayout()) is
     // an opaque nested tree whose internal shape is not stable across versions.
-    // The schema is `{}` so .passthrough() accepts any object.
+    // A plain `{}` shape is advertised with additionalProperties: false, which
+    // made SDK clients reject every payload (#388); it is a loose object now.
     const adapter = new MockObsidianAdapter();
     const tool = createWorkspaceModule(adapter).tools().find((t) => t.name === 'workspace_get_layout')!;
-    const schema = getStructured(tool, { passthrough: true });
+    expect(tool.outputSchema).toBeInstanceOf(z.ZodObject);
+    const schema = tool.outputSchema as z.ZodObject;
 
     const result = await tool.handler({ response_format: 'json' });
     const parsed = schema.parse(result.structuredContent);
-    expect(typeof parsed).toBe('object');
+    expect(parsed).toEqual(result.structuredContent);
+    expect(z.toJSONSchema(schema, { io: 'output' }).additionalProperties).not.toBe(false);
   });
 });

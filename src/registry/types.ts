@@ -42,23 +42,26 @@ export interface ToolDefinition<
   schema: Shape;
   /**
    * Optional schema describing the `structuredContent` payload the handler
-   * emits. Two shapes are accepted, both forwarded to
-   * `McpServer.registerTool` unchanged:
+   * emits, forwarded to `McpServer.registerTool` unchanged. Usually a raw
+   * Zod shape (the SDK wraps it in `z.object()`); a `z.ZodObject` is
+   * accepted for the rare case that needs object-level options, e.g.
+   * `z.looseObject({})` for an opaque payload. Note that a strip-mode
+   * object is advertised with `additionalProperties: false`, and SDK
+   * clients reject payloads carrying undeclared keys.
    *
-   *   - **Raw shape** (`z.ZodRawShape`) — the common case, used by every
-   *     tool whose output is a flat object. The SDK turns it into an
-   *     object schema.
-   *   - **Full Zod schema** (`z.ZodTypeAny`) — used when the output shape
-   *     varies by input, e.g. `z.discriminatedUnion('aspect', [...])`.
-   *     The SDK's `OutputArgs extends ZodRawShapeCompat | AnySchema`
-   *     generic accepts these directly.
+   * Only object schemas are accepted. SDK v1 cannot advertise or
+   * validate non-object schemas (e.g. `z.discriminatedUnion`): such a
+   * schema is dropped from `tools/list` and every call fails with
+   * "Cannot read properties of undefined (reading '_zod')" (#388). When the
+   * output varies by input, use one object with a discriminator enum and
+   * optional per-variant fields instead.
    *
-   * Tools that don't emit a `structuredContent` slot (e.g. plain-text
-   * confirmations or binary payloads) MUST leave this undefined — the MCP
-   * SDK requires that any call returning a tool with `outputSchema`
-   * declared also carry `structuredContent` matching that schema.
+   * Tools that don't emit a `structuredContent` slot (e.g. binary payloads)
+   * MUST leave this undefined — the MCP SDK requires that any call
+   * returning a tool with `outputSchema` declared also carry
+   * `structuredContent` matching that schema.
    */
-  outputSchema?: z.ZodRawShape | z.ZodTypeAny;
+  outputSchema?: z.ZodRawShape | z.ZodObject;
   handler: TypedHandler<Shape>;
   annotations: ToolAnnotations;
 }

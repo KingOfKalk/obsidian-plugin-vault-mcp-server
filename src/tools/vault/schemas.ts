@@ -23,8 +23,32 @@ export const createFileSchema = {
     .describe('Text content to write into the new file'),
 };
 
+/**
+ * Largest window `vault_read` returns in one call, in characters. Kept
+ * below CHARACTER_LIMIT so the content plus the "continue at offset=…"
+ * footer fits without being cut by the response truncation.
+ */
+export const READ_MAX_LENGTH = 24_000;
+
 export const readFileSchema = {
   path,
+  offset: z
+    .number()
+    .int()
+    .min(0)
+    .default(0)
+    .describe(
+      'Character offset to start reading at (default 0). Use next_offset from the previous call to continue a large file.',
+    ),
+  length: z
+    .number()
+    .int()
+    .min(1)
+    .max(READ_MAX_LENGTH)
+    .optional()
+    .describe(
+      `Maximum characters to return (1..${String(READ_MAX_LENGTH)}, default ${String(READ_MAX_LENGTH)}). Files that fit are returned whole.`,
+    ),
   ...responseFormatField,
 };
 
@@ -114,13 +138,23 @@ export const renameFolderSchema = {
   newPath: folderPath.describe('New folder path'),
 };
 
+/**
+ * Folder path for the listing tools. Unlike `folderPath` it may be empty:
+ * `""`, `"/"` and `"."` all mean the vault root (#388).
+ */
+const listFolderPath = z.string().max(4096);
+
 export const listFolderSchema = {
-  path: folderPath.describe('Folder path to list (non-recursive)'),
+  path: listFolderPath.describe(
+    'Folder path to list (non-recursive). Use "" (or "/" or ".") for the vault root.',
+  ),
   ...responseFormatField,
 };
 
 export const listRecursiveSchema = {
-  path: folderPath.describe('Folder path to list recursively'),
+  path: listFolderPath.describe(
+    'Folder path to list recursively. Use "" (or "/" or ".") for the vault root.',
+  ),
   ...paginationFields,
   ...responseFormatField,
 };
