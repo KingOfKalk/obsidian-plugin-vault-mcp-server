@@ -39,7 +39,7 @@ afterAll(async () => {
 
 async function call(name: string, args: Record<string, unknown> = {}): Promise<CallToolResult> {
   used.add(name);
-  const result = await client.callTool({ name, arguments: { ...args, response_format: 'json' } });
+  const result = await client.callTool({ name, arguments: { ...args, responseFormat: 'json' } });
   expect(result.isError, `${name} failed: ${JSON.stringify(result.content)}`).not.toBe(true);
   return result;
 }
@@ -164,15 +164,15 @@ const solutions: Array<() => Promise<string>> = [
     let offset = 0;
     let pages = 0;
     for (;;) {
-      const r = await data<{ content: string; has_more: boolean; next_offset?: number; total_length: number }>(
+      const r = await data<{ content: string; hasMore: boolean; nextOffset?: number; totalLength: number }>(
         'vault_read',
         { path, offset },
       );
-      expect(r.total_length).toBeGreaterThan(25_000);
+      expect(r.totalLength).toBeGreaterThan(25_000);
       content += r.content;
       pages++;
-      if (!r.has_more) break;
-      offset = r.next_offset ?? 0;
+      if (!r.hasMore) break;
+      offset = r.nextOffset ?? 0;
     }
     expect(pages).toBeGreaterThan(1);
     const rows = content.split('\n').filter((l) => l.includes('| S-05 |'));
