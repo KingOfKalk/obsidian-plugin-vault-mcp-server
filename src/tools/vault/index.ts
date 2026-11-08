@@ -36,13 +36,13 @@ const readFileOutputSchema = {
   content: z
     .string()
     .describe('File content in the requested window (the whole file when it fits).'),
-  total_length: z.number().describe('Length of the whole file in characters.'),
+  totalLength: z.number().describe('Length of the whole file in characters.'),
   offset: z.number().describe('Character offset where this window starts.'),
-  has_more: z.boolean().describe('True when the file continues past this window.'),
-  next_offset: z
+  hasMore: z.boolean().describe('True when the file continues past this window.'),
+  nextOffset: z
     .number()
     .optional()
-    .describe('Offset to pass in the next call when has_more is true.'),
+    .describe('Offset to pass in the next call when hasMore is true.'),
 };
 
 const getMetadataOutputSchema = {
@@ -77,13 +77,13 @@ const listRecursiveOutputSchema = {
   items: z
     .array(z.string())
     .describe('Files in this page (vault-relative paths).'),
-  has_more: z
+  hasMore: z
     .boolean()
     .describe('True when there are more files past this page.'),
-  next_offset: z
+  nextOffset: z
     .number()
     .optional()
-    .describe('Offset to use in the next request when has_more is true.'),
+    .describe('Offset to use in the next request when hasMore is true.'),
 };
 
 /**
@@ -151,7 +151,7 @@ const getAspectOutputSchema = {
 
 /**
  * Output schema for `vault_read_binary` (Batch D of #248). The handler now
- * emits `structuredContent: { path, data, encoding: 'base64', size_bytes }`
+ * emits `structuredContent: { path, data, encoding: 'base64', sizeBytes }`
  * alongside the plain-text base64 string so modern clients can introspect
  * the typed payload while existing `result.content[0].text` callers see no
  * change.
@@ -162,7 +162,7 @@ const readBinaryOutputSchema = {
   encoding: z
     .literal('base64')
     .describe('Encoding of the `data` field — always `"base64"` for this tool.'),
-  size_bytes: z
+  sizeBytes: z
     .number()
     .describe('Decoded file size in bytes (length of the underlying binary).'),
 };
@@ -201,7 +201,7 @@ const fromToOutputSchema = {
 
 const writeBinaryOutputSchema = {
   path: writePath,
-  size_bytes: z.number().describe('Number of bytes written.'),
+  sizeBytes: z.number().describe('Number of bytes written.'),
 };
 
 export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
@@ -242,7 +242,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Read file',
           description: describeTool({
             summary: 'Read the UTF-8 content of a file by vault-relative path.',
-            returns: 'Files over 24 000 characters come in windows: while has_more is true, call again with offset=next_offset.',
+            returns: 'Files over 24 000 characters come in windows: while hasMore is true, call again with offset=nextOffset.',
             examples: [
               'Use when: "show me the README" -> { path: "README.md" }',
               'Use when: continuing a large file -> { path: "big.md", offset: 24000 }',

@@ -71,7 +71,7 @@ async function dispatchAspect(
     | 'embeds'
     | 'backlinks'
     | 'block_references',
-  params: { path: string; response_format?: 'markdown' | 'json' },
+  params: { path: string; responseFormat?: 'markdown' | 'json' },
 ): Promise<CallToolResult> {
   switch (aspect) {
     case 'frontmatter':
@@ -290,16 +290,16 @@ export function createHandlers(
         const payload = {
           path,
           content: window.content,
-          total_length: fullContent.length,
+          totalLength: fullContent.length,
           offset: window.offset,
-          has_more: window.hasMore,
-          ...(window.hasMore ? { next_offset: window.end } : {}),
+          hasMore: window.hasMore,
+          ...(window.hasMore ? { nextOffset: window.end } : {}),
         };
         const result = makeResponse(
           payload,
           (v) =>
-            v.has_more
-              ? `${v.content}\n\n[TRUNCATED: Showing characters ${String(v.offset)}-${String(window.end)} of ${String(v.total_length)}. Call vault_read again with offset=${String(window.end)} to continue.]`
+            v.hasMore
+              ? `${v.content}\n\n[TRUNCATED: Showing characters ${String(v.offset)}-${String(window.end)} of ${String(v.totalLength)}. Call vault_read again with offset=${String(window.end)} to continue.]`
               : v.content,
           readResponseFormat(params),
         );
@@ -502,8 +502,8 @@ export function createHandlers(
               v.folders,
               v.items,
               v.total,
-              v.has_more,
-              v.next_offset,
+              v.hasMore,
+              v.nextOffset,
             ),
           readResponseFormat(params),
         );
@@ -534,7 +534,7 @@ export function createHandlers(
             path,
             data: base64,
             encoding: 'base64' as const,
-            size_bytes: data.byteLength,
+            sizeBytes: data.byteLength,
           },
           (v) => v.data,
           readResponseFormat(params),
@@ -555,7 +555,7 @@ export function createHandlers(
           );
           return confirmWithStructured(`Wrote binary file: ${path}`, {
             path,
-            size_bytes: buffer.byteLength,
+            sizeBytes: buffer.byteLength,
           });
         });
       } catch (error) {

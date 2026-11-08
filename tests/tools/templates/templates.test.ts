@@ -126,23 +126,23 @@ describe('templates module', () => {
     expect(text).not.toContain('{{date}}');
   });
 
-  describe('response_format support', () => {
-    it('documents response_format on template_list and template_expand', () => {
+  describe('responseFormat support', () => {
+    it('documents responseFormat on template_list and template_expand', () => {
       const module = createTemplatesModule(adapter);
       const tools = module.tools();
       for (const name of ['template_list', 'template_expand']) {
         const tool = tools.find((t) => t.name === name)!;
-        expect((tool.schema.response_format as z.ZodType).description).toContain('markdown');
+        expect((tool.schema.responseFormat as z.ZodType).description).toContain('markdown');
       }
     });
 
-    it('template_list returns structuredContent with files when response_format=json', async () => {
+    it('template_list returns structuredContent with files when responseFormat=json', async () => {
       adapter.addFolder('templates');
       adapter.addFile('templates/a.md', 'a');
       adapter.addFile('templates/b.md', 'b');
       const module = createTemplatesModule(adapter);
       const tool = module.tools().find((t) => t.name === 'template_list')!;
-      const result = await tool.handler({ response_format: 'json' });
+      const result = await tool.handler({ responseFormat: 'json' });
       expect(result.structuredContent).toEqual({
         files: ['templates/a.md', 'templates/b.md'],
       });
@@ -164,17 +164,17 @@ describe('templates module', () => {
     it('template_list returns empty list with structuredContent when folder missing and json', async () => {
       const module = createTemplatesModule(adapter);
       const tool = module.tools().find((t) => t.name === 'template_list')!;
-      const result = await tool.handler({ response_format: 'json' });
+      const result = await tool.handler({ responseFormat: 'json' });
       expect(result.structuredContent).toEqual({ files: [] });
     });
 
-    it('template_expand returns structuredContent.expanded when response_format=json', async () => {
+    it('template_expand returns structuredContent.expanded when responseFormat=json', async () => {
       const module = createTemplatesModule(adapter);
       const tool = module.tools().find((t) => t.name === 'template_expand')!;
       const result = await tool.handler({
         template: 'Hello {{name}}',
         variables: { name: 'World' },
-        response_format: 'json',
+        responseFormat: 'json',
       });
       expect(result.structuredContent).toEqual({ expanded: 'Hello World' });
       const data = JSON.parse(getText(result)) as { expanded: string };
@@ -220,7 +220,7 @@ describe('templates read tools — outputSchema declarations', () => {
     const tool = createTemplatesModule(adapter).tools().find((t) => t.name === 'template_list')!;
     const schema = getStructured(tool);
 
-    const result = await tool.handler({ response_format: 'json' });
+    const result = await tool.handler({ responseFormat: 'json' });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.files).toEqual(
       expect.arrayContaining(['templates/daily.md', 'templates/meeting.md']),
@@ -232,7 +232,7 @@ describe('templates read tools — outputSchema declarations', () => {
     const tool = createTemplatesModule(adapter).tools().find((t) => t.name === 'template_list')!;
     const schema = getStructured(tool);
 
-    const result = await tool.handler({ response_format: 'json' });
+    const result = await tool.handler({ responseFormat: 'json' });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.files).toEqual([]);
   });
@@ -245,7 +245,7 @@ describe('templates read tools — outputSchema declarations', () => {
     const result = await tool.handler({
       template: 'Hello, {{name}}!',
       variables: { name: 'World' },
-      response_format: 'json',
+      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.expanded).toBe('Hello, World!');

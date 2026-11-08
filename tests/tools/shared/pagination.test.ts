@@ -15,8 +15,8 @@ describe('paginate()', () => {
     const page = paginate(data, { limit: 100, offset: 0 });
     expect(page.total).toBe(25);
     expect(page.count).toBe(25);
-    expect(page.has_more).toBe(false);
-    expect(page.next_offset).toBeUndefined();
+    expect(page.hasMore).toBe(false);
+    expect(page.nextOffset).toBeUndefined();
     expect(page.items).toEqual(data);
   });
 
@@ -25,8 +25,8 @@ describe('paginate()', () => {
     expect(page.total).toBe(25);
     expect(page.count).toBe(10);
     expect(page.items).toEqual([5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
-    expect(page.has_more).toBe(true);
-    expect(page.next_offset).toBe(15);
+    expect(page.hasMore).toBe(true);
+    expect(page.nextOffset).toBe(15);
   });
 
   it('clamps offset beyond the total to an empty page', () => {
@@ -34,7 +34,7 @@ describe('paginate()', () => {
     expect(page.total).toBe(25);
     expect(page.count).toBe(0);
     expect(page.items).toEqual([]);
-    expect(page.has_more).toBe(false);
+    expect(page.hasMore).toBe(false);
   });
 
   it('readPagination narrows unknown params to {limit, offset}', () => {
@@ -58,40 +58,40 @@ describe('search_fulltext pagination end-to-end', () => {
       query: 'match',
       limit: 10,
       offset: 0,
-      response_format: 'json',
+      responseFormat: 'json',
     });
     const p1 = JSON.parse(getText(r1)) as {
       total: number;
       count: number;
-      has_more: boolean;
-      next_offset?: number;
+      hasMore: boolean;
+      nextOffset?: number;
       items: unknown[];
     };
     expect(p1.total).toBe(25);
     expect(p1.count).toBe(10);
-    expect(p1.has_more).toBe(true);
-    expect(p1.next_offset).toBe(10);
+    expect(p1.hasMore).toBe(true);
+    expect(p1.nextOffset).toBe(10);
 
     const r2 = await handlers.searchFulltext({
       query: 'match',
       limit: 10,
-      offset: p1.next_offset,
-      response_format: 'json',
+      offset: p1.nextOffset,
+      responseFormat: 'json',
     });
     const p2 = JSON.parse(getText(r2)) as typeof p1;
     expect(p2.count).toBe(10);
-    expect(p2.has_more).toBe(true);
-    expect(p2.next_offset).toBe(20);
+    expect(p2.hasMore).toBe(true);
+    expect(p2.nextOffset).toBe(20);
 
     const r3 = await handlers.searchFulltext({
       query: 'match',
       limit: 10,
-      offset: p2.next_offset,
-      response_format: 'json',
+      offset: p2.nextOffset,
+      responseFormat: 'json',
     });
     const p3 = JSON.parse(getText(r3)) as typeof p1;
     expect(p3.count).toBe(5);
-    expect(p3.has_more).toBe(false);
-    expect(p3.next_offset).toBeUndefined();
+    expect(p3.hasMore).toBe(false);
+    expect(p3.nextOffset).toBeUndefined();
   });
 });

@@ -285,7 +285,7 @@ describe('write tools keep their text and add structuredContent (#388)', () => {
       { path: 'empty', deleted: true, recursive: false },
     ],
     ['vault_rename_folder', 'Renamed folder: empty → renamed', { from: 'empty', to: 'renamed' }],
-    ['vault_write_binary', 'Wrote binary file: bin/data.bin', { path: 'bin/data.bin', size_bytes: 3 }],
+    ['vault_write_binary', 'Wrote binary file: bin/data.bin', { path: 'bin/data.bin', sizeBytes: 3 }],
     ['editor_insert', 'Text inserted', { line: 0, ch: 0 }],
     [
       'editor_replace',
@@ -404,7 +404,7 @@ describe('vault_get_aspect through a real SDK client', () => {
       const refs = await call(h, 'vault_get_aspect', {
         path: 'projects/alpha.md',
         aspect: 'block_references',
-        response_format: 'json',
+        responseFormat: 'json',
       });
       expect(refs.structuredContent).toMatchObject({
         aspect: 'block_references',
@@ -493,6 +493,132 @@ describe('unknown arguments through a real SDK client', () => {
       for (const tool of tools) {
         expect(tool.inputSchema.additionalProperties, tool.name).toBe(false);
       }
+    } finally {
+      await h.close();
+    }
+  });
+});
+
+describe('deprecated response_format alias through a real SDK client (#392)', () => {
+  it('accepts response_format and behaves like responseFormat', async () => {
+    const h = await connect();
+    try {
+      const viaAlias = await call(h, 'vault_get_aspect', {
+        path: 'projects/alpha.md',
+        aspect: 'headings',
+        response_format: 'json',
+      });
+      const viaNew = await call(h, 'vault_get_aspect', {
+        path: 'projects/alpha.md',
+        aspect: 'headings',
+        responseFormat: 'json',
+      });
+      expect(viaAlias.isError, textOf(viaAlias)).not.toBe(true);
+      expect(textOf(viaAlias)).toBe(textOf(viaNew));
+      expect(viaAlias.structuredContent).toEqual(viaNew.structuredContent);
+      // json format: the text block is the pretty-printed payload.
+      expect(JSON.parse(textOf(viaAlias))).toMatchObject({ aspect: 'headings' });
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('lets responseFormat win when both names are given', async () => {
+    const h = await connect();
+    try {
+      const both = await call(h, 'vault_get_aspect', {
+        path: 'projects/alpha.md',
+        aspect: 'headings',
+        response_format: 'json',
+        responseFormat: 'markdown',
+      });
+      expect(both.isError, textOf(both)).not.toBe(true);
+      expect(() => JSON.parse(textOf(both)) as unknown).toThrow();
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('keeps response_format out of tools/list', async () => {
+    const h = await connect();
+    try {
+      const { tools } = await h.client.listTools();
+      const withFormat = tools.filter(
+        (t) => t.inputSchema.properties?.responseFormat !== undefined,
+      );
+      expect(withFormat.length).toBeGreaterThan(0);
+      for (const tool of tools) {
+        expect(tool.inputSchema.properties ?? {}, tool.name).not.toHaveProperty(
+          'response_format',
+        );
+      }
+    } finally {
+      await h.close();
+    }
+  });
+});
+
+/**
+ * Collect every property name declared anywhere in a JSON Schema: object
+ * `properties`, plus nested schemas under `items`, `additionalProperties`,
+ * compositions and `$defs`.
+ */
+function collectPropertyNames(schema: unknown, path: string, out: string[]): void {
+  if (schema === null || typeof schema !== 'object') return;
+  if (Array.isArray(schema)) {
+    schema.forEach((s, i) => {
+      collectPropertyNames(s, `${path}[${String(i)}]`, out);
+    });
+    return;
+  }
+  const node = schema as Record<string, unknown>;
+  const props = node.properties;
+  if (props !== null && typeof props === 'object') {
+    for (const [name, sub] of Object.entries(props as Record<string, unknown>)) {
+      out.push(`${path}.${name}`);
+      collectPropertyNames(sub, `${path}.${name}`, out);
+    }
+  }
+  for (const key of [
+    'items',
+    'prefixItems',
+    'additionalProperties',
+    'anyOf',
+    'oneOf',
+    'allOf',
+    'not',
+  ]) {
+    if (key in node) collectPropertyNames(node[key], `${path}.${key}`, out);
+  }
+  for (const key of ['$defs', 'definitions']) {
+    const defs = node[key];
+    if (defs !== null && typeof defs === 'object') {
+      for (const [name, sub] of Object.entries(defs as Record<string, unknown>)) {
+        collectPropertyNames(sub, `${path}.${key}[${name}]`, out);
+      }
+    }
+  }
+}
+
+describe('naming convention guard (#392)', () => {
+  const CAMEL_CASE = /^[a-z][a-zA-Z0-9]*$/;
+
+  it('uses camelCase for every input and output property name in tools/list', async () => {
+    const h = await connect();
+    try {
+      const { tools } = await h.client.listTools();
+      expect(tools.length).toBe(Object.keys(SAMPLE_ARGS).length);
+      const offenders: string[] = [];
+      for (const tool of tools) {
+        const names: string[] = [];
+        collectPropertyNames(tool.inputSchema, `${tool.name}.input`, names);
+        collectPropertyNames(tool.outputSchema, `${tool.name}.output`, names);
+        for (const full of names) {
+          const leaf = full.slice(full.lastIndexOf('.') + 1);
+          if (!CAMEL_CASE.test(leaf)) offenders.push(full);
+        }
+      }
+      expect(offenders).toEqual([]);
     } finally {
       await h.close();
     }

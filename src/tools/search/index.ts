@@ -33,13 +33,13 @@ const searchFulltextOutputSchema = {
       }),
     )
     .describe('Matches in this page.'),
-  has_more: z
+  hasMore: z
     .boolean()
     .describe('True when more results are available past this page.'),
-  next_offset: z
+  nextOffset: z
     .number()
     .optional()
-    .describe('Offset to use in the next request when has_more is true.'),
+    .describe('Offset to use in the next request when hasMore is true.'),
 };
 
 const searchTagsOutputSchema = {
@@ -63,13 +63,13 @@ const paginatedPathPageOutputSchema = {
   items: z
     .array(z.string())
     .describe('Vault-relative file paths in this page.'),
-  has_more: z
+  hasMore: z
     .boolean()
     .describe('True when there are more files past this page.'),
-  next_offset: z
+  nextOffset: z
     .number()
     .optional()
-    .describe('Offset to use in the next request when has_more is true.'),
+    .describe('Offset to use in the next request when hasMore is true.'),
 };
 
 export function createSearchModule(adapter: ObsidianAdapter): ToolModule {

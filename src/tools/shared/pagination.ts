@@ -33,8 +33,8 @@ export interface PaginatedResponse<T> {
   count: number;
   offset: number;
   items: T[];
-  has_more: boolean;
-  next_offset?: number;
+  hasMore: boolean;
+  nextOffset?: number;
 }
 
 /**
@@ -53,14 +53,14 @@ export function paginate<T>(
   const start = Math.min(offset, total);
   const end = Math.min(offset + limit, total);
   const page = items.slice(start, end);
-  const has_more = end < total;
+  const hasMore = end < total;
   return {
     total,
     count: page.length,
     offset,
     items: page,
-    has_more,
-    ...(has_more ? { next_offset: end } : {}),
+    hasMore,
+    ...(hasMore ? { nextOffset: end } : {}),
   };
 }
 

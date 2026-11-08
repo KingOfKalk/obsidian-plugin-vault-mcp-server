@@ -71,7 +71,7 @@ describe('editor module', () => {
       const setCursor = module.tools().find((t) => t.name === 'editor_set_cursor')!;
       await setCursor.handler({ line: 0, ch: 3 });
       const getCursor = module.tools().find((t) => t.name === 'editor_get_cursor')!;
-      const result = await getCursor.handler({ response_format: 'json' });
+      const result = await getCursor.handler({ responseFormat: 'json' });
       const pos = JSON.parse(getText(result)) as { line: number; ch: number };
       expect(pos).toEqual({ line: 0, ch: 3 });
     });
@@ -168,7 +168,7 @@ describe('editor read tools — outputSchema declarations', () => {
     const tool = createEditorModule(adapter).tools().find((t) => t.name === 'editor_get_content')!;
     const schema = getStructured(tool);
 
-    const result = await tool.handler({ response_format: 'json' });
+    const result = await tool.handler({ responseFormat: 'json' });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.content).toBe('# Hello\nWorld');
   });
@@ -179,7 +179,7 @@ describe('editor read tools — outputSchema declarations', () => {
     const tool = createEditorModule(adapter).tools().find((t) => t.name === 'editor_get_active_file')!;
     const schema = getStructured(tool);
 
-    const result = await tool.handler({ response_format: 'json' });
+    const result = await tool.handler({ responseFormat: 'json' });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.path).toBe('notes/today.md');
   });
@@ -191,7 +191,7 @@ describe('editor read tools — outputSchema declarations', () => {
     const tool = createEditorModule(adapter).tools().find((t) => t.name === 'editor_get_cursor')!;
     const schema = getStructured(tool);
 
-    const result = await tool.handler({ response_format: 'json' });
+    const result = await tool.handler({ responseFormat: 'json' });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.line).toBe(1);
     expect(parsed.ch).toBe(2);
@@ -204,7 +204,7 @@ describe('editor read tools — outputSchema declarations', () => {
     const tool = createEditorModule(adapter).tools().find((t) => t.name === 'editor_get_selection')!;
     const schema = getStructured(tool);
 
-    const result = await tool.handler({ response_format: 'json' });
+    const result = await tool.handler({ responseFormat: 'json' });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.from).toEqual({ line: 0, ch: 0 });
     expect(parsed.to).toEqual({ line: 0, ch: 3 });
@@ -217,7 +217,7 @@ describe('editor read tools — outputSchema declarations', () => {
     const tool = createEditorModule(adapter).tools().find((t) => t.name === 'editor_get_line_count')!;
     const schema = getStructured(tool);
 
-    const result = await tool.handler({ response_format: 'json' });
+    const result = await tool.handler({ responseFormat: 'json' });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.lineCount).toBe(3);
   });

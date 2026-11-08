@@ -14,7 +14,7 @@ List every installed community plugin with its enabled flag.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 
@@ -33,7 +33,7 @@ Check whether a plugin is installed and enabled.
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `pluginId` | string (1–200) | yes | Community plugin id (e.g. "dataview") |
-| `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 
@@ -59,7 +59,7 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `query` | string (1–10000) | yes | Dataview DQL query text. JavaScript queries are not executed by this tool — see plugin_dataview_describe_js_query. |
-| `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 
@@ -82,7 +82,7 @@ Returns:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `query` | string (1–10000) | yes | Dataview-JS source. Returned verbatim — execution is the host client's responsibility. |
-| `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 
@@ -105,7 +105,7 @@ Returns:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `templatePath` | string (1–4096) | yes | Vault-relative path to the Templater template |
-| `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 

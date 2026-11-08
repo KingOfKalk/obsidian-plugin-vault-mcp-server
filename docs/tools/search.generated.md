@@ -27,7 +27,7 @@ Errors:
 | `maxMatchesPerFile` | number (1–100) | no (default `5`) | Maximum matching lines returned per file (1..100, default 5). matchCount always reports the full count. |
 | `limit` | number (1–100) | no (default `20`) | Maximum items to return (1..100, default 20). |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Number of items to skip before returning results (default 0). |
-| `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 
@@ -37,8 +37,8 @@ Errors:
 | `count` | number | Number of matches in this page. |
 | `offset` | number | Offset of the first item in this page. |
 | `items` | object[] | Matches in this page. |
-| `has_more` | boolean | True when more results are available past this page. |
-| `next_offset` | number | Offset to use in the next request when has_more is true. |
+| `hasMore` | boolean | True when more results are available past this page. |
+| `nextOffset` | number | Offset to use in the next request when hasMore is true. |
 
 ### search_tags
 
@@ -53,7 +53,7 @@ See also:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 
@@ -74,7 +74,7 @@ See also:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 
@@ -98,7 +98,7 @@ See also:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 
@@ -122,7 +122,7 @@ See also:
 | `tag` | string (1–200) | yes | Tag to search for, with or without leading # (e.g. "project" or "#project") |
 | `limit` | number (1–100) | no (default `20`) | Maximum items to return (1..100, default 20). |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Number of items to skip before returning results (default 0). |
-| `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 
@@ -132,8 +132,8 @@ See also:
 | `count` | number | Number of files in this page. |
 | `offset` | number | Offset of the first item in this page. |
 | `items` | string[] | Vault-relative file paths in this page. |
-| `has_more` | boolean | True when there are more files past this page. |
-| `next_offset` | number | Offset to use in the next request when has_more is true. |
+| `hasMore` | boolean | True when there are more files past this page. |
+| `nextOffset` | number | Offset to use in the next request when hasMore is true. |
 
 ### search_by_frontmatter
 
@@ -153,7 +153,7 @@ Examples:
 | `value` | string (≤1000) | no | Value to match exactly (compared as stringified). Omit to match every file that has the key. |
 | `limit` | number (1–100) | no (default `20`) | Maximum items to return (1..100, default 20). |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Number of items to skip before returning results (default 0). |
-| `response_format` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 
@@ -163,5 +163,5 @@ Examples:
 | `count` | number | Number of files in this page. |
 | `offset` | number | Offset of the first item in this page. |
 | `items` | string[] | Vault-relative file paths in this page. |
-| `has_more` | boolean | True when there are more files past this page. |
-| `next_offset` | number | Offset to use in the next request when has_more is true. |
+| `hasMore` | boolean | True when there are more files past this page. |
+| `nextOffset` | number | Offset to use in the next request when hasMore is true. |

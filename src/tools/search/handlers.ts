@@ -51,15 +51,15 @@ function renderPaginatedPaths(
     total: number;
     count: number;
     items: string[];
-    has_more: boolean;
-    next_offset?: number;
+    hasMore: boolean;
+    nextOffset?: number;
   },
   label: string,
 ): string {
   const header = `**${String(page.total)} ${label}${page.total === 1 ? '' : 's'}**`;
   const body = renderPathList(page.items);
-  const footer = page.has_more
-    ? `\n\n_Showing ${String(page.count)} of ${String(page.total)} — next offset: ${String(page.next_offset ?? '')}_`
+  const footer = page.hasMore
+    ? `\n\n_Showing ${String(page.count)} of ${String(page.total)} — next offset: ${String(page.nextOffset ?? '')}_`
     : '';
   return `${header}\n\n${body}${footer}`;
 }
@@ -116,8 +116,8 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
               (m) =>
                 `- ${m.path} (${String(m.matchCount)} match${m.matchCount === 1 ? '' : 'es'})`,
             );
-            const pager = v.has_more
-              ? `\n\n_Showing ${String(v.count)} of ${String(v.total)} — next offset: ${String(v.next_offset ?? '')}_`
+            const pager = v.hasMore
+              ? `\n\n_Showing ${String(v.count)} of ${String(v.total)} — next offset: ${String(v.nextOffset ?? '')}_`
               : '';
             return `**${String(v.total)} result${v.total === 1 ? '' : 's'}**\n\n${lines.join('\n')}${pager}`;
           },

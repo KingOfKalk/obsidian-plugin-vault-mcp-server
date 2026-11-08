@@ -117,7 +117,7 @@ describe('vault handlers', () => {
       adapter.addFile('test.md', 'content', { ctime: 1000, mtime: 2000 });
       const result = await handlers.getMetadata({
         path: 'test.md',
-        response_format: 'json',
+        responseFormat: 'json',
       });
       const data = JSON.parse(getText(result)) as Record<string, unknown>;
       expect(data.path).toBe('test.md');
@@ -313,7 +313,7 @@ describe('vault handlers', () => {
       adapter.addFile('notes/b.md', 'b');
       const result = await handlers.listFolder({
         path: 'notes',
-        response_format: 'json',
+        responseFormat: 'json',
       });
       const data = JSON.parse(getText(result)) as { files: string[]; folders: string[] };
       expect(data.files).toHaveLength(2);
@@ -342,7 +342,7 @@ describe('vault handlers', () => {
       adapter.addFile('notes/sub/b.md', 'b');
       const result = await handlers.listRecursive({
         path: 'notes',
-        response_format: 'json',
+        responseFormat: 'json',
       });
       const data = JSON.parse(getText(result)) as {
         folders: string[];
@@ -365,21 +365,21 @@ describe('vault handlers', () => {
         path: 'lots',
         limit: 3,
         offset: 5,
-        response_format: 'json',
+        responseFormat: 'json',
       });
       const page = JSON.parse(getText(result)) as {
         total: number;
         count: number;
         offset: number;
-        has_more: boolean;
-        next_offset?: number;
+        hasMore: boolean;
+        nextOffset?: number;
         items: string[];
       };
       expect(page.total).toBe(10);
       expect(page.count).toBe(3);
       expect(page.offset).toBe(5);
-      expect(page.has_more).toBe(true);
-      expect(page.next_offset).toBe(8);
+      expect(page.hasMore).toBe(true);
+      expect(page.nextOffset).toBe(8);
     });
   });
 
@@ -468,9 +468,9 @@ describe('vault handlers truncation and size limits', () => {
       expect(result.structuredContent).toEqual({
         path: 'small.md',
         content: '# Small',
-        total_length: 7,
+        totalLength: 7,
         offset: 0,
-        has_more: false,
+        hasMore: false,
       });
     });
 
@@ -480,16 +480,16 @@ describe('vault handlers truncation and size limits', () => {
       const result = await handlers.readFile({ path: 'big.md' });
       const structured = result.structuredContent as {
         content: string;
-        total_length: number;
-        has_more: boolean;
-        next_offset: number;
+        totalLength: number;
+        hasMore: boolean;
+        nextOffset: number;
       };
-      expect(structured.total_length).toBe(60_000);
-      expect(structured.has_more).toBe(true);
-      expect(structured.content.length).toBe(structured.next_offset);
+      expect(structured.totalLength).toBe(60_000);
+      expect(structured.hasMore).toBe(true);
+      expect(structured.content.length).toBe(structured.nextOffset);
       const text = getText(result);
       expect(text.length).toBeLessThanOrEqual(25_000);
-      expect(text).toContain(`offset=${String(structured.next_offset)}`);
+      expect(text).toContain(`offset=${String(structured.nextOffset)}`);
       expect(text).not.toContain('editor_');
     });
 
@@ -502,12 +502,12 @@ describe('vault handlers truncation and size limits', () => {
         const result = await handlers.readFile({ path: 'big.md', offset });
         const s = result.structuredContent as {
           content: string;
-          has_more: boolean;
-          next_offset?: number;
+          hasMore: boolean;
+          nextOffset?: number;
         };
         collected += s.content;
-        if (!s.has_more) break;
-        offset = s.next_offset ?? 0;
+        if (!s.hasMore) break;
+        offset = s.nextOffset ?? 0;
       }
       expect(collected).toBe(big);
     });
@@ -518,10 +518,10 @@ describe('vault handlers truncation and size limits', () => {
       expect(result.structuredContent).toEqual({
         path: 'abc.md',
         content: 'cde',
-        total_length: 10,
+        totalLength: 10,
         offset: 2,
-        has_more: true,
-        next_offset: 5,
+        hasMore: true,
+        nextOffset: 5,
       });
       expect(getText(result)).toContain('cde');
       expect(getText(result)).toContain('offset=5');
@@ -533,17 +533,17 @@ describe('vault handlers truncation and size limits', () => {
       expect(result.isError).not.toBe(true);
       expect(result.structuredContent).toMatchObject({
         content: '',
-        total_length: 3,
-        has_more: false,
+        totalLength: 3,
+        hasMore: false,
       });
     });
 
     it('does not split a surrogate pair at the end of a window', async () => {
       adapter.addFile('emoji.md', 'a\u{1F600}b');
       const result = await handlers.readFile({ path: 'emoji.md', length: 2 });
-      const s = result.structuredContent as { content: string; next_offset: number };
+      const s = result.structuredContent as { content: string; nextOffset: number };
       expect(s.content).toBe('a');
-      expect(s.next_offset).toBe(1);
+      expect(s.nextOffset).toBe(1);
     });
   });
 
