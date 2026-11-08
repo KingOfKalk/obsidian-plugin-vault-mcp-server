@@ -1,0 +1,48 @@
+<!--
+  LLM evaluation for the vault MCP tools (#393), in the mcp-builder format.
+  Every question is read-only, needs several tool calls, and has one short
+  answer derived only from evals/fixture-vault/. The scripted solution for
+  each question lives in tests/evals/answers.test.ts; keep the two in step.
+-->
+<evaluation>
+  <qa_pair>
+    <question>Among the projects whose status is active, exactly one has a note that does not link to any other note. What is the job role of the person who owns that project?</question>
+    <answer>Field Technician</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>One team member's personal note refers to a document that does not exist anywhere in the vault yet. What is the title of that missing document?</question>
+    <answer>Sensor Network Spec</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>The team's Lead Researcher owns exactly one project that is still active. How many distinct notes link to or embed that project's note? Answer with a number only.</question>
+    <answer>4</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>The kickoff meeting quotes a single paragraph of a project note by embedding it. What spending limit, in euros, does that paragraph state? Answer with digits only, without separators or a currency sign.</question>
+    <answer>42000</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>The groundwater pilot project note embeds one section of a reference procedure. What is the first sub-section heading inside that embedded section? Give the heading text only.</question>
+    <answer>Pressure sensors</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>In the long table of raw readings from the pressure stations, what water temperature in degrees Celsius did station S-05 report in its most recent reading? Answer with the number only.</question>
+    <answer>5.4</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>How many distinct placeholder variables does the vault's meeting template ask to be filled in? Answer with a number only.</question>
+    <answer>4</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Exactly one note tagged as a project is not stored in the projects folder. Which team does the owner of that project belong to?</question>
+    <answer>Hydrology</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Which person is listed as an attendee of both recorded meetings? Give their full name.</question>
+    <answer>Lena Fischer</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Of the projects that are not finished, which one started first? Answer with the project's short name as used in its file name.</question>
+    <answer>Beacon</answer>
+  </qa_pair>
+</evaluation>
