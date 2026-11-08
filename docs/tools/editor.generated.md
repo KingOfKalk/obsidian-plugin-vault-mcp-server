@@ -28,6 +28,25 @@ Errors:
 |---|---|---|
 | `content` | string | Full text content of the active editor. |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "editor_get_content",
+  "arguments": {}
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "content": "---\nstatus: active\n---\n# Alpha\n\n## Goals\nShip it. ^goal-1\n"
+}
+```
+
 ### editor_get_active_file
 
 **Get active file path**
@@ -51,6 +70,25 @@ Errors:
 | Field | Type | Description |
 |---|---|---|
 | `path` | string | Vault-relative path of the active file. |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "editor_get_active_file",
+  "arguments": {}
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "path": "projects/alpha.md"
+}
+```
 
 ### editor_insert
 
@@ -83,6 +121,30 @@ Errors:
 |---|---|---|
 | `line` | number | Zero-based line index. |
 | `ch` | number | Zero-based column index. |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "editor_insert",
+  "arguments": {
+    "line": 0,
+    "ch": 0,
+    "text": "x"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "line": 0,
+  "ch": 0
+}
+```
 
 ### editor_replace
 
@@ -118,6 +180,38 @@ Errors:
 | `from` | object | Range start (inclusive). |
 | `to` | object | Range end (exclusive). |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "editor_replace",
+  "arguments": {
+    "fromLine": 0,
+    "fromCh": 0,
+    "toLine": 0,
+    "toCh": 3,
+    "text": "+++"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "from": {
+    "line": 0,
+    "ch": 0
+  },
+  "to": {
+    "line": 0,
+    "ch": 3
+  }
+}
+```
+
 ### editor_delete
 
 **Delete range**
@@ -148,6 +242,37 @@ Errors:
 | `from` | object | Range start (inclusive). |
 | `to` | object | Range end (exclusive). |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "editor_delete",
+  "arguments": {
+    "fromLine": 0,
+    "fromCh": 0,
+    "toLine": 0,
+    "toCh": 1
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "from": {
+    "line": 0,
+    "ch": 0
+  },
+  "to": {
+    "line": 0,
+    "ch": 1
+  }
+}
+```
+
 ### editor_get_cursor
 
 **Get cursor position**
@@ -169,6 +294,26 @@ Errors:
 |---|---|---|
 | `line` | number | Zero-based line index of the cursor. |
 | `ch` | number | Zero-based column index of the cursor. |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "editor_get_cursor",
+  "arguments": {}
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "line": 0,
+  "ch": 0
+}
+```
 
 ### editor_set_cursor
 
@@ -197,6 +342,29 @@ Errors:
 | `line` | number | Zero-based line index. |
 | `ch` | number | Zero-based column index. |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "editor_set_cursor",
+  "arguments": {
+    "line": 1,
+    "ch": 0
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "line": 1,
+  "ch": 0
+}
+```
+
 ### editor_get_selection
 
 **Get selection**
@@ -219,6 +387,33 @@ Errors:
 | `from` | object | Selection start. |
 | `to` | object | Selection end. |
 | `text` | string | Selected text. |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "editor_get_selection",
+  "arguments": {}
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "from": {
+    "line": 0,
+    "ch": 0
+  },
+  "to": {
+    "line": 1,
+    "ch": 0
+  },
+  "text": "---\n"
+}
+```
 
 ### editor_set_selection
 
@@ -249,6 +444,37 @@ Errors:
 | `from` | object | Range start (inclusive). |
 | `to` | object | Range end (exclusive). |
 
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "editor_set_selection",
+  "arguments": {
+    "fromLine": 0,
+    "fromCh": 0,
+    "toLine": 1,
+    "toCh": 0
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "from": {
+    "line": 0,
+    "ch": 0
+  },
+  "to": {
+    "line": 1,
+    "ch": 0
+  }
+}
+```
+
 ### editor_get_line_count
 
 **Get line count**
@@ -269,3 +495,22 @@ Errors:
 | Field | Type | Description |
 |---|---|---|
 | `lineCount` | number | Number of lines in the active editor. |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "editor_get_line_count",
+  "arguments": {}
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "lineCount": 8
+}
+```

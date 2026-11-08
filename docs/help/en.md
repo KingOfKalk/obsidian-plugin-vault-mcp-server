@@ -290,7 +290,8 @@ and the live string, the source file wins.
 
 ### Tool behaviour worth knowing
 
-The full parameter and output reference for every tool is in
+The full parameter and output reference for every tool, with an example
+call and its response, is in
 [`docs/tools.generated.md`](../tools.generated.md). A few behaviours that
 clients and agents commonly trip over:
 

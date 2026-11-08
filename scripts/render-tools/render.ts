@@ -7,6 +7,16 @@
 import { z } from 'zod';
 import { inputShapeToTable, outputSchemaToTables } from './schema-to-table';
 
+/**
+ * One recorded successful call, rendered under the tool's section. The
+ * response is the `structuredContent` when the tool returned one, otherwise
+ * its `content` blocks.
+ */
+export interface ToolExampleDoc {
+  arguments: Record<string, unknown>;
+  response: { kind: 'structuredContent' | 'content'; value: unknown };
+}
+
 export interface ToolDoc {
   name: string;
   title: string;
@@ -15,6 +25,7 @@ export interface ToolDoc {
   outputSchema: z.ZodRawShape | z.ZodTypeAny | undefined;
   readOnly: boolean;
   destructive: boolean;
+  example?: ToolExampleDoc;
 }
 
 export interface ModuleDoc {
@@ -105,7 +116,71 @@ export function renderModulePage(module: ModuleDoc): string {
     lines.push('');
     lines.push(outputSchemaToTables(tool.outputSchema));
     lines.push('');
+    if (tool.example) {
+      lines.push(...renderExample(tool.name, tool.example));
+    }
   }
 
   return lines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';
+}
+
+/** Strings longer than this are cut in rendered examples. */
+export const EXAMPLE_MAX_STRING = 300;
+/** Arrays longer than this are cut in rendered examples. */
+export const EXAMPLE_MAX_ITEMS = 10;
+
+/**
+ * Shorten long strings and arrays so example blocks stay readable. Cuts are
+ * marked inline: a string ends with `… [truncated, N more chars]` and an
+ * array gets a final `"… N more items"` element.
+ */
+export function truncateExampleValue(value: unknown): unknown {
+  if (typeof value === 'string') {
+    if (value.length <= EXAMPLE_MAX_STRING) return value;
+    const rest = value.length - EXAMPLE_MAX_STRING;
+    return `${value.slice(0, EXAMPLE_MAX_STRING)}… [truncated, ${String(rest)} more chars]`;
+  }
+  if (Array.isArray(value)) {
+    const kept = value.slice(0, EXAMPLE_MAX_ITEMS).map(truncateExampleValue);
+    if (value.length > EXAMPLE_MAX_ITEMS) {
+      kept.push(`… ${String(value.length - EXAMPLE_MAX_ITEMS)} more items`);
+    }
+    return kept;
+  }
+  if (value !== null && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = truncateExampleValue(v);
+    }
+    return out;
+  }
+  return value;
+}
+
+/** A fenced block whose fence is longer than any backtick run inside it. */
+function fenced(lang: string, body: string): string[] {
+  const longestRun = Math.max(0, ...(body.match(/`+/g) ?? []).map((r) => r.length));
+  const fence = '`'.repeat(Math.max(3, longestRun + 1));
+  return [`${fence}${lang}`, body, fence];
+}
+
+function renderExample(name: string, example: ToolExampleDoc): string[] {
+  const request = JSON.stringify(
+    { name, arguments: truncateExampleValue(example.arguments) },
+    null,
+    2,
+  );
+  const response = JSON.stringify(truncateExampleValue(example.response.value), null, 2);
+  return [
+    '#### Example',
+    '',
+    'Request (`tools/call` params):',
+    '',
+    ...fenced('json', request),
+    '',
+    `Response (\`${example.response.kind}\`):`,
+    '',
+    ...fenced('json', response),
+    '',
+  ];
 }

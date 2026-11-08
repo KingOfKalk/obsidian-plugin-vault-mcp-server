@@ -22,3 +22,24 @@ Show a transient notice/toast in Obsidian.
 | Field | Type | Description |
 |---|---|---|
 | `shown` | boolean | Always true once the notice was shown. |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "ui_notice",
+  "arguments": {
+    "message": "hi"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "shown": true
+}
+```

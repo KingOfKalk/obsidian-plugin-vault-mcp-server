@@ -1,6 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
-import { renderModulePage, renderIndexPage, type ToolDoc, type ModuleDoc } from '../../../scripts/render-tools/render';
+import {
+  renderModulePage,
+  renderIndexPage,
+  truncateExampleValue,
+  EXAMPLE_MAX_ITEMS,
+  EXAMPLE_MAX_STRING,
+  type ToolDoc,
+  type ModuleDoc,
+} from '../../../scripts/render-tools/render';
 
 const sampleModule: ModuleDoc = {
   moduleId: 'sample',
@@ -84,5 +92,64 @@ describe('renderIndexPage', () => {
   it('adds a schema link line per module', () => {
     const md = renderIndexPage([sampleModule]);
     expect(md).toContain('Schemas → [docs/tools/sample.generated.md](tools/sample.generated.md)');
+  });
+});
+
+describe('tool examples (#324)', () => {
+  const withExample: ModuleDoc = {
+    moduleId: 'sample',
+    moduleName: 'Sample Module',
+    tools: [
+      {
+        ...sampleModule.tools[0],
+        example: {
+          arguments: { path: 'a.md' },
+          response: { kind: 'structuredContent', value: { path: 'a.md' } },
+        },
+      },
+      {
+        ...sampleModule.tools[1],
+        example: {
+          arguments: { path: 'b.md', content: 'x' },
+          response: { kind: 'content', value: [{ type: 'text', text: '```js\nx\n```' }] },
+        },
+      },
+    ],
+  };
+
+  it('renders the request and structuredContent response after the Output section', () => {
+    const md = renderModulePage(withExample);
+    const section = md.slice(md.indexOf('### sample_read'), md.indexOf('### sample_write'));
+    expect(section.indexOf('#### Output')).toBeLessThan(section.indexOf('#### Example'));
+    expect(section).toContain('Request (`tools/call` params):');
+    expect(section).toContain(
+      '```json\n{\n  "name": "sample_read",\n  "arguments": {\n    "path": "a.md"\n  }\n}\n```',
+    );
+    expect(section).toContain('Response (`structuredContent`):');
+    expect(section).toContain('```json\n{\n  "path": "a.md"\n}\n```');
+  });
+
+  it('falls back to the content blocks and widens the fence past inner backticks', () => {
+    const md = renderModulePage(withExample);
+    const section = md.slice(md.indexOf('### sample_write'));
+    expect(section).toContain('Response (`content`):');
+    expect(section).toContain('````json\n[');
+  });
+
+  it('omits the Example heading for tools without an example', () => {
+    expect(renderModulePage(sampleModule)).not.toContain('#### Example');
+  });
+
+  it('truncates long strings and arrays with a visible marker', () => {
+    const long = 'a'.repeat(EXAMPLE_MAX_STRING + 5);
+    const items = Array.from({ length: EXAMPLE_MAX_ITEMS + 3 }, (_, i) => i);
+    expect(truncateExampleValue({ nested: { long, items } })).toEqual({
+      nested: {
+        long: `${'a'.repeat(EXAMPLE_MAX_STRING)}… [truncated, 5 more chars]`,
+        items: [...items.slice(0, EXAMPLE_MAX_ITEMS), '… 3 more items'],
+      },
+    });
+    expect(truncateExampleValue('short')).toBe('short');
+    expect(truncateExampleValue(null)).toBeNull();
   });
 });

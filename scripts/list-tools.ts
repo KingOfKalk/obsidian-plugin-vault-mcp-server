@@ -11,33 +11,59 @@ import { join } from 'node:path';
 import { argv } from 'node:process';
 import { MockObsidianAdapter } from '../src/obsidian/mock-adapter';
 import { discoverModules } from '../src/tools';
-import { renderIndexPage, renderModulePage, type ModuleDoc } from './render-tools/render';
+import {
+  renderIndexPage,
+  renderModulePage,
+  type ModuleDoc,
+  type ToolExampleDoc,
+} from './render-tools/render';
+import { collectToolExamples, type ToolExample } from './tool-examples';
 
 export type ToolRow = ModuleDoc;
 
-export function collectToolRows(): ToolRow[] {
+/** Reduce a recorded call to what the reference renders (#324). */
+export function toExampleDoc(example: ToolExample): ToolExampleDoc {
+  const { structuredContent, content } = example.result;
+  return {
+    arguments: example.request.arguments,
+    response:
+      structuredContent !== undefined
+        ? { kind: 'structuredContent', value: structuredContent }
+        : { kind: 'content', value: content },
+  };
+}
+
+/**
+ * Walk the registry. With `examples` (from `collectToolExamples`), each tool
+ * that has a recorded call carries it for rendering.
+ */
+export function collectToolRows(examples?: ReadonlyMap<string, ToolExample>): ToolRow[] {
   const adapter = new MockObsidianAdapter();
   const modules = discoverModules(adapter);
   return modules.map((module) => ({
     moduleId: module.metadata.id,
     moduleName: module.metadata.name,
-    tools: module.tools().map((t) => ({
-      name: t.name,
-      title: t.title,
-      description: t.description,
-      schema: t.schema,
-      outputSchema: t.outputSchema,
-      readOnly: t.annotations.readOnlyHint === true,
-      destructive: t.annotations.destructiveHint === true,
-    })),
+    tools: module.tools().map((t) => {
+      const example = examples?.get(t.name);
+      return {
+        name: t.name,
+        title: t.title,
+        description: t.description,
+        schema: t.schema,
+        outputSchema: t.outputSchema,
+        readOnly: t.annotations.readOnlyHint === true,
+        destructive: t.annotations.destructiveHint === true,
+        ...(example ? { example: toExampleDoc(example) } : {}),
+      };
+    }),
   }));
 }
 
 export { renderIndexPage, renderModulePage };
 
-function main(): void {
+async function main(): Promise<void> {
   const outDir = argv[2] ?? 'docs';
-  const rows = collectToolRows();
+  const rows = collectToolRows(await collectToolExamples());
 
   // Index page at <outDir>/tools.generated.md.
   writeFileSync(join(outDir, 'tools.generated.md'), renderIndexPage(rows));
@@ -59,5 +85,9 @@ function main(): void {
 }
 
 if (import.meta.url === `file://${argv[1]}`) {
-  main();
+  main().catch((err: unknown) => {
+    // eslint-disable-next-line no-console
+    console.error(err);
+    process.exit(1);
+  });
 }

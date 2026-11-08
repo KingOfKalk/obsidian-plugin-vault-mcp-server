@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { collectToolRows, renderIndexPage, renderModulePage } from '../../scripts/list-tools';
+import { collectToolExamples, SAMPLE_ARGS } from '../../scripts/tool-examples';
 
 describe('scripts/list-tools', () => {
   it('collects all registered modules with tool docs', () => {
@@ -71,5 +72,42 @@ describe('scripts/list-tools', () => {
     expect(md).not.toContain(
       '_No `structuredContent` declared — returns plain text or binary._',
     );
+  });
+
+  it('records a successful example for every tool and renders it on its module page (#324)', async () => {
+    const rows = collectToolRows(await collectToolExamples());
+    for (const row of rows) {
+      const md = renderModulePage(row);
+      for (const tool of row.tools) {
+        expect(tool.example, tool.name).toBeDefined();
+        expect(tool.example?.arguments).toEqual(SAMPLE_ARGS[tool.name]);
+        const section = md.slice(md.indexOf(`### ${tool.name}\n`));
+        expect(section).toContain('#### Example');
+      }
+    }
+  });
+
+  it('produces byte-identical example pages across runs and timezones (#324)', async () => {
+    const render = async (): Promise<string> =>
+      collectToolRows(await collectToolExamples()).map(renderModulePage).join('\n');
+    const previousTz = process.env.TZ;
+    try {
+      process.env.TZ = 'UTC';
+      const first = await render();
+      process.env.TZ = 'America/Los_Angeles';
+      const second = await render();
+      expect(second).toBe(first);
+      expect(first).toContain('2026-01-15T09:30:00.000+00:00');
+    } finally {
+      if (previousTz === undefined) delete process.env.TZ;
+      else process.env.TZ = previousTz;
+    }
+  });
+
+  it('restores the real clock after collecting examples', async () => {
+    const RealDate = Date;
+    await collectToolExamples();
+    expect(Date).toBe(RealDate);
+    expect(Math.abs(Date.now() - new RealDate().getTime())).toBeLessThan(60_000);
   });
 });
