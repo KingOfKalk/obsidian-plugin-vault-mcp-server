@@ -306,9 +306,9 @@ clients and agents commonly trip over:
   work on a single file still require a real path.
 - **Reading large files.** `vault_read` returns files of up to 24 000
   characters whole. Longer files come back in windows: the text ends with a
-  `[TRUNCATED: …]` footer, and `structuredContent` carries `total_length`,
-  `has_more` and `next_offset`. Call `vault_read` again with
-  `offset: <next_offset>` to continue. You can also pass `length` (1–24 000)
+  `[TRUNCATED: …]` footer, and `structuredContent` carries `totalLength`,
+  `hasMore` and `nextOffset`. Call `vault_read` again with
+  `offset: <nextOffset>` to continue. You can also pass `length` (1–24 000)
   for smaller windows.
 - **Full-text search results per file.** `search_fulltext` returns at most
   `maxMatchesPerFile` matching lines per file (default 5, maximum 100);
@@ -323,6 +323,26 @@ clients and agents commonly trip over:
   payload such as `{ "path": "notes/a.md", "created": true }` or
   `{ "from": "a.md", "to": "b.md" }`, so agents can chain calls without
   parsing the text.
+- **One naming convention: camelCase.** Every parameter and every
+  `structuredContent` field uses camelCase (`newName`, `maxMatchesPerFile`,
+  `responseFormat`, `hasMore`, …). Paginated tools return `hasMore` and
+  `nextOffset`; while `hasMore` is `true`, call again with
+  `offset: <nextOffset>`.
+- **Choosing text or JSON output.** Most read tools take an optional
+  `responseFormat` parameter: `"markdown"` (default) for readable text, or
+  `"json"` for the same payload as pretty-printed JSON in the text block.
+  `structuredContent` is the same either way.
+- **Deprecated `response_format`.** Earlier versions called this parameter
+  `response_format`. The old name still works for now: it is mapped to
+  `responseFormat`, the server log shows a deprecation warning, and if a
+  call sends both names, `responseFormat` wins. `response_format` is not
+  listed in `tools/list` and will be removed in the next major release, so
+  switch to `responseFormat`.
+- **Renamed output fields.** These `structuredContent` fields were renamed
+  with no alias; update clients that read them:
+  `has_more` → `hasMore` and `next_offset` → `nextOffset` (all paginated
+  tools), `total_length` → `totalLength` (`vault_read`), `size_bytes` →
+  `sizeBytes` (`vault_read_binary`, `vault_write_binary`).
 
 ---
 
@@ -496,7 +516,7 @@ rejected.
 
 The file is longer than one window (24 000 characters). The footer names the
 offset to continue at; call `vault_read` again with that `offset`, or read
-`next_offset` from `structuredContent`. See
+`nextOffset` from `structuredContent`. See
 [Tool behaviour worth knowing](#tool-behaviour-worth-knowing).
 
 ### `vault_get_aspect` fails with "Cannot read properties of undefined (reading '_zod')"
