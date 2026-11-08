@@ -11,7 +11,7 @@ permissions:
 jobs:
   file-issue:
     if: ${{ github.event.workflow_run.conclusion == 'failure' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Create or comment on failure issue
         env:
