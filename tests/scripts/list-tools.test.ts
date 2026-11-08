@@ -74,6 +74,11 @@ describe('scripts/list-tools', () => {
     );
   });
 
+  // Collecting examples starts one in-memory MCP server per tool; under
+  // coverage instrumentation on CI that runs close to Vitest's default 5 s
+  // test timeout (#399).
+  const EXAMPLES_TIMEOUT_MS = 30_000;
+
   it('records a successful example for every tool and renders it on its module page (#324)', async () => {
     const rows = collectToolRows(await collectToolExamples());
     for (const row of rows) {
@@ -85,7 +90,7 @@ describe('scripts/list-tools', () => {
         expect(section).toContain('#### Example');
       }
     }
-  });
+  }, EXAMPLES_TIMEOUT_MS);
 
   it('produces byte-identical example pages across runs and timezones (#324)', async () => {
     const render = async (): Promise<string> =>
@@ -102,12 +107,12 @@ describe('scripts/list-tools', () => {
       if (previousTz === undefined) delete process.env.TZ;
       else process.env.TZ = previousTz;
     }
-  });
+  }, EXAMPLES_TIMEOUT_MS);
 
   it('restores the real clock after collecting examples', async () => {
     const RealDate = Date;
     await collectToolExamples();
     expect(Date).toBe(RealDate);
     expect(Math.abs(Date.now() - new RealDate().getTime())).toBeLessThan(60_000);
-  });
+  }, EXAMPLES_TIMEOUT_MS);
 });
