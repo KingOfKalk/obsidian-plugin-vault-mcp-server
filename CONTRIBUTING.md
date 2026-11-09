@@ -21,6 +21,9 @@
 | `npm run lint:fix` | Auto-fix lint issues |
 | `npm run format` | Format with Prettier |
 | `npm run typecheck` | TypeScript type checking (`src/`, `tests/`, `scripts/`, `evals/`, then `e2e/` with `e2e/tsconfig.json`) |
+| `npm run docs:tools` | Regenerate the tool reference (`docs/tools.generated.md`, `docs/tools/`) after changing the tool registry |
+| `npm run surface:measure` | Print the size of the agent-facing surface (instructions, `tools/list`, `prompts/list`) per part, module and tool (see [Tool surface budget](#tool-surface-budget)) |
+| `npm run surface:update` | Measure and rewrite the committed baseline `docs/surface-baseline.json` |
 | `npm run eval` | LLM evaluation of the MCP tools (needs `ANTHROPIC_API_KEY`, costs money; see [`evals/README.md`](evals/README.md)) |
 
 ## E2E tests (headless Obsidian)
@@ -68,6 +71,15 @@ See existing modules (e.g., `src/tools/vault/`) for examples.
 
 When you change tool names, descriptions, parameters or error messages, consider running the LLM evaluation in [`evals/`](evals/README.md). It checks that a model can still use the tools to answer questions about a fixture vault.
 
+## Tool surface budget
+
+Every client sends the server instructions and the tool list to the model, so each character of a tool description, parameter description or schema costs tokens in every session. `docs/surface-baseline.json` records how big that surface is, and a test keeps it there.
+
+- **Measure:** `npm run surface:measure` connects a real MCP client to the seeded test server (the same one the tool reference uses) and prints characters and ~tokens (chars / 4) for the server instructions, `tools/list` and `prompts/list`, per part, per module and per tool. "Model view" counts only name, description and input schema per tool, the shape the Anthropic Messages API passes to the model; other clients may pass more. The numbers are for every module enabled (extras included), plus the totals for a fresh install's defaults. The server reports a fixed version, so a release does not change them.
+- **Budget:** `tests/scripts/surface/surface-budget.test.ts` (part of `npm test`) compares the measurement with the baseline. Each total and each tool's size may differ from the baseline by 1 % or 40 characters, whichever is larger. The test fails when something grew by more (over budget), when something shrank by more (so the saving is locked in and cannot grow back unnoticed), and when a tool was added or removed.
+- **Update the baseline:** when you change tool texts, schemas or the instructions on purpose, run `npm run surface:update` and commit `docs/surface-baseline.json` with the change. After merging `main` into your branch, run it again if the test fails; the file is generated, so take the regenerated version instead of resolving conflicts by hand.
+- **Review:** the `test` job summary shows the numbers next to the baseline on `main` and lists the tools that changed size, so reviewers see what a PR adds or saves.
+
 ## UI Requirements
 
 ### MCP Client Configuration Display
@@ -105,7 +117,7 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/):
 The `CI` workflow runs `lint`, `test` and `build` one after another, and `e2e` after `lint`, in parallel with `test`. Open a run (the **Details** link of a check on the PR) and look at its **Summary** page:
 
 - **lint** lists every ESLint finding, type error and out-of-date generated doc file. ESLint and `tsc` findings also show up as annotations on the affected lines in the PR's **Files changed** tab.
-- **test** shows Vitest's results and a coverage table with the thresholds from `vitest.config.ts`.
+- **test** shows Vitest's results and a coverage table with the thresholds from `vitest.config.ts`, then the size of the agent-facing surface compared with `docs/surface-baseline.json` on `main` (see [Tool surface budget](#tool-surface-budget)).
 - **e2e** runs `npm run test:e2e` in headless Obsidian, once per pinned Obsidian version (`e2e (minimum)`, `e2e (current)`). It is not a required check yet.
 - **build** shows the size of `main.js` (raw and gzipped) compared with the latest `main` build, and links the artifact `vault-mcp-server-<short-sha>`. It holds `main.js`, `manifest.json` and `styles.css` for 14 days. To try the PR in Obsidian, copy the three files into `<vault>/.obsidian/plugins/vault-mcp-server/` of a test vault and reload the plugin.
 
