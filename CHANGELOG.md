@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v3.1.5...v3.2.0) (2026-11-09)
+
+
+### Features
+
+* show the server version to the model via instructions and server_info ([#403](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/403)) ([6383f50](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/6383f5085ba30f33161977664fb2731dbf58cf41))
+
 ## [3.1.5](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v3.1.4...v3.1.5) (2026-11-08)
 
 
