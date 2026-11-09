@@ -33,6 +33,26 @@ describe('plugin interop module', () => {
     ]);
   });
 
+  it('marks only plugin_execute_command as open-world (#463)', () => {
+    const tools = createPluginInteropModule(adapter).tools();
+    const openWorld = tools.filter((t) => t.annotations.openWorldHint === true).map((t) => t.name);
+    expect(openWorld).toEqual(['plugin_execute_command']);
+    for (const name of [
+      'plugin_list',
+      'plugin_check',
+      'plugin_dataview_query',
+      'plugin_dataview_describe_js_query',
+      'plugin_templater_describe_template',
+    ]) {
+      const tool = tools.find((t) => t.name === name)!;
+      expect(tool.annotations).toEqual({
+        readOnlyHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      });
+    }
+  });
+
   it('should list installed plugins (json)', async () => {
     adapter.addInstalledPlugin('dataview', 'Dataview', true);
     adapter.addInstalledPlugin('templater-obsidian', 'Templater', false);

@@ -90,19 +90,16 @@ export function defineTool<Shape extends z.ZodRawShape>(
 /**
  * Shared annotation presets for tool categories. Pure reads default to
  * `readOnlyHint + idempotentHint` with a closed domain; writes default to
- * `destructiveHint` with a closed domain. Tools that interact with external
- * plugins or arbitrary Obsidian commands opt into `openWorldHint`.
+ * `destructiveHint` with a closed domain. Only tools that can reach beyond
+ * the vault and the app opt into `openWorldHint`: arbitrary Obsidian
+ * commands may touch the network or the filesystem. Reads of local plugin
+ * state (plugin list, Dataview queries over the vault) are closed (#463).
  */
 export const annotations = {
   read: {
     readOnlyHint: true,
     idempotentHint: true,
     openWorldHint: false,
-  },
-  readExternal: {
-    readOnlyHint: true,
-    idempotentHint: true,
-    openWorldHint: true,
   },
   additive: {
     readOnlyHint: false,

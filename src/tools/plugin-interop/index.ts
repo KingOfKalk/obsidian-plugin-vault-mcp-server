@@ -269,7 +269,7 @@ export function createPluginInteropModule(
           schema: listSchema,
           outputSchema: pluginListOutputSchema,
           handler: h.listPlugins,
-          annotations: annotations.readExternal,
+          annotations: annotations.read,
         }),
         defineTool({
           name: 'plugin_check',
@@ -280,7 +280,7 @@ export function createPluginInteropModule(
           schema: checkSchema,
           outputSchema: pluginCheckOutputSchema,
           handler: h.checkPlugin,
-          annotations: annotations.readExternal,
+          annotations: annotations.read,
         }),
         defineTool({
           name: 'plugin_dataview_query',
@@ -296,7 +296,7 @@ export function createPluginInteropModule(
           schema: dataviewSchema,
           outputSchema: pluginDataviewQueryOutputSchema,
           handler: h.dataviewQuery,
-          annotations: annotations.readExternal,
+          annotations: annotations.read,
         }),
         defineTool({
           name: 'plugin_dataview_describe_js_query',
@@ -309,7 +309,7 @@ export function createPluginInteropModule(
           schema: dataviewJsSchema,
           outputSchema: pluginDescribeOutputSchema,
           handler: h.dataviewDescribeJsQuery,
-          annotations: annotations.readExternal,
+          annotations: annotations.read,
         }),
         defineTool({
           name: 'plugin_templater_describe_template',
@@ -322,7 +322,7 @@ export function createPluginInteropModule(
           schema: templaterSchema,
           outputSchema: pluginTemplaterDescribeOutputSchema,
           handler: h.templaterDescribeTemplate,
-          annotations: annotations.readExternal,
+          annotations: annotations.read,
         }),
         defineTool({
           name: 'plugin_execute_command',
