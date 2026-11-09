@@ -733,7 +733,7 @@ export class MockObsidianAdapter implements ObsidianAdapter {
   }
 
   /** The file at `path`, or the real adapter's "File not found" error. */
-  private requireFile(path: string): MockFile {
+  protected requireFile(path: string): MockFile {
     const file = this.files.get(path);
     if (!file) throw this.fileNotFound(path);
     return file;

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { answersMatch, extractTagged, normaliseAnswer, parseEvaluationXml } from '../../evals/lib';
-import { parseFrontmatter, parseNote, splitFrontmatter } from '../../evals/fixture-adapter';
+import {
+  FixtureAdapter,
+  parseFrontmatter,
+  parseNote,
+  splitFrontmatter,
+} from '../../evals/fixture-adapter';
 
 describe('parseEvaluationXml', () => {
   it('reads qa_pairs in order, trimmed and entity-decoded', () => {
@@ -114,5 +119,21 @@ describe('fixture note parsing', () => {
       { link: 'Deep#Part', displayText: 'alias' },
     ]);
     expect(note.embeds).toEqual([{ link: 'Doc#^block', displayText: 'Doc#^block' }]);
+  });
+});
+
+describe('FixtureAdapter.getBacklinks', () => {
+  it('lists notes that link to the path by basename', () => {
+    const adapter = new FixtureAdapter();
+    adapter.addNote('projects/Atlas.md', '# Atlas\n');
+    adapter.addNote('log.md', 'See [[Atlas]].\n');
+    expect(adapter.getBacklinks('projects/Atlas.md')).toEqual(['log.md']);
+  });
+
+  it('fails with "File not found" for a missing path, like the real adapter (#463)', () => {
+    const adapter = new FixtureAdapter();
+    adapter.addNote('log.md', 'See [[Atlas]].\n');
+    expect(() => adapter.getBacklinks('missing.md')).toThrow('File not found: missing.md');
+    expect(() => adapter.getBacklinkLines('missing.md')).toThrow('File not found: missing.md');
   });
 });
