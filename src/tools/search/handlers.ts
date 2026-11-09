@@ -184,18 +184,23 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
 
     searchTags(params): Promise<CallToolResult> {
       try {
-        const allTags = adapter.getAllTags();
+        const tags: Record<string, string[]> = {};
+        const counts: Record<string, number> = {};
+        for (const [tag, usage] of Object.entries(adapter.getAllTags())) {
+          tags[tag] = usage.files;
+          counts[tag] = usage.count;
+        }
         return Promise.resolve(
           makeResponse(
-            { tags: allTags },
+            { tags, counts },
             (v) => {
               const entries = Object.entries(v.tags);
               if (entries.length === 0) return 'No tags in this vault.';
               return entries
-                .map(
-                  ([tag, files]) =>
-                    `- **${tag}** — ${String(files.length)} file${files.length === 1 ? '' : 's'}`,
-                )
+                .map(([tag, files]) => {
+                  const count = v.counts[tag] ?? files.length;
+                  return `- **${tag}** — ${String(files.length)} file${files.length === 1 ? '' : 's'}, ${String(count)} occurrence${count === 1 ? '' : 's'}`;
+                })
                 .join('\n');
             },
             readResponseFormat(params),
@@ -388,7 +393,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
         const tag = params.tag;
         const normalizedTag = tag.startsWith('#') ? tag : `#${tag}`;
         const allTags = adapter.getAllTags();
-        const files = allTags[normalizedTag] ?? [];
+        const files = allTags[normalizedTag]?.files ?? [];
         const page = paginate(files, readPagination(params));
         return Promise.resolve(
           makeResponse(

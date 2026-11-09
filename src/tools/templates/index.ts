@@ -12,6 +12,7 @@ import { validateVaultPath } from '../../utils/path-guard';
 import { FolderNotFoundError, handleToolError } from '../shared/errors';
 import { describeTool } from '../shared/describe';
 import { expandPlaceholders } from '../shared/placeholders';
+import { assertSafeFrontmatterKeys, frontmatterKeySchema } from '../shared/frontmatter';
 import {
   confirmWithStructured,
   makeResponse,
@@ -40,6 +41,13 @@ const createFromTemplateSchema = {
     .record(z.string(), z.string())
     .optional()
     .describe('Template variables keyed by name (e.g. { title: "Today" }). date, time and title are built in; values given here override them.'),
+  frontmatter: z
+    .record(frontmatterKeySchema, z.unknown())
+    .optional()
+    .describe(
+      'Frontmatter keys to set on the new note, mapped to JSON-compatible values (string, number, boolean, null, array or object). ' +
+        'Applied after the template is expanded: keys from the template are kept, keys given here overwrite them. Markdown (.md) destinations only.',
+    ),
 };
 
 const expandVariablesSchema = {
@@ -73,6 +81,10 @@ const templateExpandOutputSchema = {
 const createFromTemplateOutputSchema = {
   path: z.string().describe('Vault-relative path of the new file.'),
   templatePath: z.string().describe('Vault-relative path of the template that was used.'),
+  frontmatter: z
+    .record(z.string(), z.unknown())
+    .optional()
+    .describe('The new note\'s whole frontmatter after the frontmatter parameter was applied. Present only when frontmatter was given.'),
 };
 
 interface TemplatesHandlers {
@@ -115,13 +127,36 @@ function createHandlers(adapter: ObsidianAdapter): TemplatesHandlers {
         const templatePath = validateVaultPath(params.templatePath, vaultPath);
         const destPath = validateVaultPath(params.destPath, vaultPath);
         const variables = params.variables ?? {};
+        const set = params.frontmatter ?? {};
+        const setKeys = Object.keys(set);
+        if (setKeys.length > 0) {
+          if (!destPath.toLowerCase().endsWith('.md')) {
+            throw new Error('Frontmatter can only be set on Markdown (.md) files');
+          }
+          assertSafeFrontmatterKeys(setKeys);
+        }
         const templateContent = await adapter.readFile(templatePath);
         const expanded = expandPlaceholders(templateContent, variables);
         await adapter.createFile(destPath, expanded);
-        return confirmWithStructured(`Created ${destPath} from template ${templatePath}`, {
-          path: destPath,
-          templatePath,
+        if (setKeys.length === 0) {
+          return confirmWithStructured(`Created ${destPath} from template ${templatePath}`, {
+            path: destPath,
+            templatePath,
+          });
+        }
+        let frontmatter: Record<string, unknown> = {};
+        await adapter.processFrontMatter(destPath, (fm) => {
+          for (const key of setKeys) {
+            fm[key] = set[key];
+          }
+          // Snapshot as plain JSON so the result is serialisable even if
+          // Obsidian hands back richer YAML values.
+          frontmatter = JSON.parse(JSON.stringify(fm)) as Record<string, unknown>;
         });
+        return confirmWithStructured(
+          `Created ${destPath} from template ${templatePath} (set frontmatter ${setKeys.join(', ')})`,
+          { path: destPath, templatePath, frontmatter },
+        );
       } catch (error) {
         return err(error instanceof Error ? error.message : String(error));
       }
@@ -162,10 +197,11 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
           name: 'template_create_from',
           title: 'Create file from template',
           description: describeTool({
-            summary: 'Create a file by expanding {{variable}} placeholders in a template. Missing parent folders are created.',
+            summary: 'Create a file by expanding {{variable}} placeholders in a template, optionally setting frontmatter keys on the new note in the same call. Missing parent folders are created.',
             errors: [
               '"File not found" if templatePath is missing.',
               '"File already exists" if destPath is taken.',
+              '"Frontmatter can only be set on Markdown (.md) files" if frontmatter is given for a non-.md destPath.',
             ],
             seeAlso: [
               'template_expand — when you want the expanded template content returned inline, not written to a new vault file.',

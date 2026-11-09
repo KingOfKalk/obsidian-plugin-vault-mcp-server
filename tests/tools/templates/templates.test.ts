@@ -115,6 +115,101 @@ describe('templates module', () => {
     expect(content).not.toContain('{{title}}');
   });
 
+  describe('template_create_from with frontmatter (#431)', () => {
+    function createTool(): ReturnType<ReturnType<typeof createTemplatesModule>['tools']>[number] {
+      return createTemplatesModule(adapter).tools().find((t) => t.name === 'template_create_from')!;
+    }
+
+    it('sets frontmatter on the new note in the same call, keeping template keys', async () => {
+      adapter.addFolder('templates');
+      adapter.addFile('templates/person.md', '---\ntype: person\nemail: tbd\n---\n# {{title}}\n');
+      const result = await createTool().handler({
+        templatePath: 'templates/person.md',
+        destPath: 'people/ada.md',
+        variables: { title: 'Ada' },
+        frontmatter: { eid: 42, email: 'ada@example.com', tags: ['team'] },
+      });
+      expect(result.isError).toBeUndefined();
+      expect(getText(result)).toContain('set frontmatter eid, email, tags');
+      expect(result.structuredContent).toEqual({
+        path: 'people/ada.md',
+        templatePath: 'templates/person.md',
+        frontmatter: { type: 'person', email: 'ada@example.com', eid: 42, tags: ['team'] },
+      });
+      expect(adapter.getFrontmatter('people/ada.md')).toEqual({
+        type: 'person',
+        email: 'ada@example.com',
+        eid: 42,
+        tags: ['team'],
+      });
+      const content = await adapter.readFile('people/ada.md');
+      expect(content).toContain('# Ada');
+      expect(content).toContain('email: ada@example.com');
+    });
+
+    it('creates the frontmatter block when the template has none', async () => {
+      adapter.addFile('templates/plain.md', 'Body');
+      const result = await createTool().handler({
+        templatePath: 'templates/plain.md',
+        destPath: 'plain.md',
+        frontmatter: { status: 'new' },
+      });
+      expect(result.isError).toBeUndefined();
+      expect(await adapter.readFile('plain.md')).toBe('---\nstatus: new\n---\nBody');
+    });
+
+    it('omits frontmatter from the result when none (or {}) is given', async () => {
+      adapter.addFile('templates/plain.md', 'Body');
+      const result = await createTool().handler({
+        templatePath: 'templates/plain.md',
+        destPath: 'plain.md',
+        frontmatter: {},
+      });
+      expect(result.structuredContent).toEqual({ path: 'plain.md', templatePath: 'templates/plain.md' });
+      expect(await adapter.readFile('plain.md')).toBe('Body');
+    });
+
+    it('rejects frontmatter for a non-Markdown destination without creating the file', async () => {
+      adapter.addFile('templates/data.txt', 'x');
+      const result = await createTool().handler({
+        templatePath: 'templates/data.txt',
+        destPath: 'out.txt',
+        frontmatter: { a: 1 },
+      });
+      expect(result.isError).toBe(true);
+      expect(getText(result)).toContain('Frontmatter can only be set on Markdown (.md) files');
+      expect(await adapter.exists('out.txt')).toBe(false);
+    });
+
+    it('rejects prototype keys without creating the file', async () => {
+      adapter.addFile('templates/plain.md', 'Body');
+      const result = await createTool().handler({
+        templatePath: 'templates/plain.md',
+        destPath: 'plain.md',
+        frontmatter: JSON.parse('{"__proto__": 1}') as Record<string, unknown>,
+      });
+      expect(result.isError).toBe(true);
+      expect(getText(result)).toContain('Invalid frontmatter key: __proto__');
+      expect(await adapter.exists('plain.md')).toBe(false);
+    });
+
+    it('declares the frontmatter field in its outputSchema', async () => {
+      adapter.addFile('templates/plain.md', 'Body');
+      const tool = createTool();
+      const result = await tool.handler({
+        templatePath: 'templates/plain.md',
+        destPath: 'plain.md',
+        frontmatter: { status: 'new' },
+      });
+      const schema = z.object(tool.outputSchema as z.ZodRawShape).strict();
+      expect(schema.parse(result.structuredContent)).toEqual({
+        path: 'plain.md',
+        templatePath: 'templates/plain.md',
+        frontmatter: { status: 'new' },
+      });
+    });
+  });
+
   it('should expand template variables', async () => {
     const module = createTemplatesModule(adapter);
     const tool = module.tools().find((t) => t.name === 'template_expand')!;

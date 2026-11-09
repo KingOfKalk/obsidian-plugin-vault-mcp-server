@@ -99,14 +99,14 @@ describe('createMcpServer', () => {
     capturedRegisterPromptCalls.length = 0;
   });
 
-  it('advertises the server as "obsidian-mcp-server" per the {service}-mcp-server convention', async () => {
+  it('advertises the server as "vault-mcp-server", the name used by the instructions and server_info (#431)', async () => {
     const { createMcpServer } = await import('../../src/server/mcp-server');
     const registry = new ModuleRegistry(makeLogger());
 
     createMcpServer(registry, new MockObsidianAdapter(), DEFAULT_SETTINGS, makeLogger());
 
     expect(capturedConstructorArgs).toHaveLength(1);
-    expect(capturedConstructorArgs[0].serverInfo.name).toBe('obsidian-mcp-server');
+    expect(capturedConstructorArgs[0].serverInfo.name).toBe('vault-mcp-server');
   });
 
   it('reports the version from manifest.json (not a hardcoded placeholder)', async () => {

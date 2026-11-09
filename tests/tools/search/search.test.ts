@@ -261,6 +261,29 @@ describe('search handlers', () => {
       expect(data.tags['#project']).toHaveLength(2);
       expect(data.tags['#work']).toHaveLength(1);
     });
+
+    it('lists a file once per tag and counts every occurrence (#431)', async () => {
+      adapter.addFile('a.md', 'content');
+      adapter.setMetadata('a.md', { tags: ['#project', '#work', '#project'] });
+      adapter.addFile('b.md', 'content');
+      adapter.setMetadata('b.md', { tags: ['#project'] });
+      const result = await handlers.searchTags({ responseFormat: 'json' });
+      const data = JSON.parse(getText(result)) as {
+        tags: Record<string, string[]>;
+        counts: Record<string, number>;
+      };
+      expect(data.tags['#project']).toEqual(['a.md', 'b.md']);
+      expect(data.counts).toEqual({ '#project': 3, '#work': 1 });
+    });
+
+    it('search_by_tag lists a file with a repeated tag once (#431)', async () => {
+      adapter.addFile('a.md', 'content');
+      adapter.setMetadata('a.md', { tags: ['#project', '#project'] });
+      const result = await handlers.searchByTag({ tag: 'project', responseFormat: 'json' });
+      const data = JSON.parse(getText(result)) as { items: string[]; total: number };
+      expect(data.items).toEqual(['a.md']);
+      expect(data.total).toBe(1);
+    });
   });
 
   describe('searchHeadings', () => {
@@ -485,6 +508,16 @@ describe('search handlers', () => {
       expect(getText(result)).toContain('**#foo**');
     });
 
+    it('searchTags renders file and occurrence counts', async () => {
+      adapter.addFile('a.md', 'x');
+      adapter.setMetadata('a.md', { tags: ['#foo', '#foo'] });
+      adapter.addFile('b.md', 'x');
+      adapter.setMetadata('b.md', { tags: ['#foo', '#bar'] });
+      const result = await handlers.searchTags({});
+      expect(getText(result)).toContain('- **#foo** — 2 files, 3 occurrences');
+      expect(getText(result)).toContain('- **#bar** — 1 file, 1 occurrence');
+    });
+
     it('searchHeadings renders as a nested outline', async () => {
       adapter.addFile('a.md', '# h1\n## h2');
       adapter.setMetadata('a.md', {
@@ -649,6 +682,7 @@ describe('search read tools — outputSchema declarations', () => {
     const result = await handlers.searchTags({ responseFormat: 'json' });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.tags).toEqual({ '#project': ['a.md'] });
+    expect(parsed.counts).toEqual({ '#project': 1 });
   });
 
   it('search_resolved_links declares outputSchema and parses against handler output', async () => {

@@ -16,6 +16,7 @@ import {
 import { paginate, readPagination } from '../shared/pagination';
 import { confirmWithStructured, makeResponse, readResponseFormat } from '../shared/response';
 import { expandPlaceholders } from '../shared/placeholders';
+import { assertSafeFrontmatterKeys } from '../shared/frontmatter';
 import { BINARY_BYTE_LIMIT } from '../../constants';
 import type { InferredParams } from '../../registry/types';
 import type { SearchHandlers } from '../search/handlers';
@@ -298,9 +299,6 @@ function sliceReadWindow(
   };
 }
 
-/** Keys that would reach Object.prototype when assigned on a plain object. */
-const FORBIDDEN_FRONTMATTER_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
-
 /**
  * Check a vault_set_frontmatter request before touching the file: at least
  * one key to change, no key both set and removed, no prototype keys.
@@ -309,11 +307,7 @@ function validateFrontmatterChange(setKeys: string[], removeKeys: string[]): voi
   if (setKeys.length === 0 && removeKeys.length === 0) {
     throw new Error('Nothing to change: pass at least one key in set or remove');
   }
-  for (const key of [...setKeys, ...removeKeys]) {
-    if (FORBIDDEN_FRONTMATTER_KEYS.has(key)) {
-      throw new Error(`Invalid frontmatter key: ${key}`);
-    }
-  }
+  assertSafeFrontmatterKeys([...setKeys, ...removeKeys]);
   const both = setKeys.filter((key) => removeKeys.includes(key));
   if (both.length > 0) {
     throw new Error(`Keys cannot be both set and removed: ${both.join(', ')}`);

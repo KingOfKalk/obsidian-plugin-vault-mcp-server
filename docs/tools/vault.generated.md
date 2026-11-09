@@ -561,7 +561,7 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `path` | string (1–4096) | yes | Current file path |
-| `newPath` | string (1–4096) | yes | New file path (different folder) |
+| `newPath` | string (1–4096) | yes | New vault-relative path; can change the folder, the file name, or both |
 
 #### Output
 

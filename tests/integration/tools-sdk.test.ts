@@ -183,8 +183,12 @@ describe('write tools keep their text and add structuredContent (#388)', () => {
     ['ui_notice', 'Notice shown', { shown: true }],
     [
       'template_create_from',
-      'Created meetings/m1.md from template templates/meeting.md',
-      { path: 'meetings/m1.md', templatePath: 'templates/meeting.md' },
+      'Created meetings/m1.md from template templates/meeting.md (set frontmatter status)',
+      {
+        path: 'meetings/m1.md',
+        templatePath: 'templates/meeting.md',
+        frontmatter: { status: 'draft' },
+      },
     ],
     [
       'plugin_execute_command',
@@ -528,6 +532,8 @@ describe('server_info (#402)', () => {
       const listed = tools.find((t) => t.name === 'server_info');
       expect(listed?.description).toContain('v1.2.3');
       expect(h.client.getInstructions()?.split('\n')[0]).toBe('vault-mcp-server v1.2.3');
+      // #431: the handshake name matches the instructions and server_info.
+      expect(h.client.getServerVersion()?.name).toBe('vault-mcp-server');
 
       const result = await call(h, 'server_info', {});
       expect(result.isError).not.toBe(true);
@@ -554,6 +560,12 @@ describe('server_info (#402)', () => {
         expect(entry.version).toMatch(/^\d+\.\d+\.\d+$/);
         expect(entry.notes.length).toBeGreaterThan(0);
       }
+      // #431: a version without an entry is explained, not a gap.
+      expect(listed?.description).toContain(
+        'Versions without an entry had no agent-relevant changes.',
+      );
+      const text = result.content[0].type === 'text' ? result.content[0].text : '';
+      expect(text).toContain('Versions without an entry had no agent-relevant changes.');
     } finally {
       await h.close();
     }

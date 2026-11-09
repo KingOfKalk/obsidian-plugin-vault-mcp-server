@@ -95,7 +95,7 @@ const pluginCheckOutputSchema = {
 
 const pluginDataviewQueryOutputSchema = {
   query: z.string().describe('Dataview DQL query that was executed.'),
-  markdown: z.string().describe('Markdown rendering produced by Dataview.'),
+  markdown: z.string().describe('Markdown rendering produced by Dataview, without HTML: list and object values in TABLE cells are plain text (e.g. "a, b").'),
 };
 
 const pluginDescribeOutputSchema = {
@@ -286,7 +286,7 @@ export function createPluginInteropModule(
           name: 'plugin_dataview_query',
           title: 'Run Dataview query',
           description: describeTool({
-            summary: 'Execute a Dataview DQL query and return the rendered markdown.',
+            summary: 'Execute a Dataview DQL query and return the rendered markdown. List fields in TABLE cells come back as plain text ("a, b"), not HTML.',
             errors: [
               '"Plugin not installed or disabled: dataview" if Dataview is missing.',
               '"Plugin API unavailable for dataview" if Dataview is loaded but its API is not yet exposed.',

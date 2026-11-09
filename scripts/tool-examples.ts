@@ -131,6 +131,7 @@ export const SAMPLE_ARGS: Record<string, Record<string, unknown>> = {
     templatePath: 'templates/meeting.md',
     destPath: 'meetings/m1.md',
     variables: { title: 'Weekly' },
+    frontmatter: { status: 'draft' },
   },
   template_expand: { template: 'Hi {{name}}', variables: { name: 'Ada' } },
   plugin_list: {},

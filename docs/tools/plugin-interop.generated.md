@@ -95,7 +95,7 @@ Response (`structuredContent`):
 
 **Run Dataview query**
 
-Execute a Dataview DQL query and return the rendered markdown.
+Execute a Dataview DQL query and return the rendered markdown. List fields in TABLE cells come back as plain text ("a, b"), not HTML.
 
 Errors:
   - "Plugin not installed or disabled: dataview" if Dataview is missing.
@@ -114,7 +114,7 @@ Errors:
 | Field | Type | Description |
 |---|---|---|
 | `query` | string | Dataview DQL query that was executed. |
-| `markdown` | string | Markdown rendering produced by Dataview. |
+| `markdown` | string | Markdown rendering produced by Dataview, without HTML: list and object values in TABLE cells are plain text (e.g. "a, b"). |
 
 #### Example
 
