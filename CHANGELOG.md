@@ -4,6 +4,24 @@
 > were renamed from `vX.Y.Z` (and `obsidian-mcp-v1.1.0`) to `X.Y.Z`; old links
 > containing `v` no longer resolve.
 
+## [3.4.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/3.3.0...3.4.0) (2026-11-09)
+
+
+### Features
+
+* **settings:** add About section with version and issue links ([#420](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/420)) ([aacc79e](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/aacc79e10b272a0191726fe0bbee308c45827ec8))
+
+
+### Continuous Integration
+
+* add job summaries, annotations and plugin artifact ([#417](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/417)) ([07ed0ef](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/07ed0ef290f68128f956be868e2b7d6513db671a))
+* add one-off workflow to migrate release tags to plain versions ([#422](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/422)) ([d943352](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/d943352911dfc2c6623800c91d25bb6e71ed6d84)), closes [#421](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/421)
+
+
+### Miscellaneous Chores
+
+* **release:** use plain version tags, fix changelog links, keep versions.json current ([#423](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/423)) ([5ccdd73](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/5ccdd73b51e8684fa368f024c67f63420d042c75))
+
 ## [3.3.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/3.2.0...3.3.0) (2026-11-09)
 
 
