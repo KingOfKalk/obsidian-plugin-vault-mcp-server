@@ -59,9 +59,41 @@ function assertEditorPosition(
 
 const readOnlySchema = { ...responseFormatField };
 
+/**
+ * Range parameters shared by replace, delete and set_selection (#449).
+ * The end is a CodeMirror position: the range stops before the character
+ * at (toLine, toCh), so an edit within one line has toLine == fromLine.
+ */
+const rangeFields = {
+  fromLine: z.number().int().min(0).describe('Start line (0-based).'),
+  fromCh: z
+    .number()
+    .int()
+    .min(0)
+    .describe('Start column (0-based); included.'),
+  toLine: z
+    .number()
+    .int()
+    .min(0)
+    .describe('End line (0-based); equals fromLine for a range within one line.'),
+  toCh: z
+    .number()
+    .int()
+    .min(0)
+    .describe('End column (0-based); not included.'),
+};
+
+/** One sentence on how ranges work, for the range tools' summaries. */
+const RANGE_NOTE =
+  'Range: from (fromLine, fromCh) up to but not including (toLine, toCh), 0-based.';
+
+/** "Position is out of range" for the range tools; only lines are checked. */
+const RANGE_OUT_OF_RANGE_ERROR =
+  '"Position is out of range" if fromLine is past the last line or toLine > line count (columns are not checked; a ch past the line end runs into the next line).';
+
 const insertSchema = {
-  line: z.number().int().min(0).describe('Zero-based line index'),
-  ch: z.number().int().min(0).describe('Zero-based column index within the line'),
+  line: z.number().int().min(0).describe('Line (0-based)'),
+  ch: z.number().int().min(0).describe('Column within the line (0-based)'),
   text: z
     .string()
     .max(5_000_000)
@@ -69,34 +101,21 @@ const insertSchema = {
 };
 
 const replaceSchema = {
-  fromLine: z.number().int().min(0).describe('Start line (inclusive, zero-based)'),
-  fromCh: z.number().int().min(0).describe('Start column (inclusive, zero-based)'),
-  toLine: z.number().int().min(0).describe('End line (exclusive, zero-based)'),
-  toCh: z.number().int().min(0).describe('End column (exclusive, zero-based)'),
+  ...rangeFields,
   text: z
     .string()
     .max(5_000_000)
     .describe('Replacement text for the range'),
 };
 
-const deleteRangeSchema = {
-  fromLine: z.number().int().min(0).describe('Start line (inclusive)'),
-  fromCh: z.number().int().min(0).describe('Start column (inclusive)'),
-  toLine: z.number().int().min(0).describe('End line (exclusive)'),
-  toCh: z.number().int().min(0).describe('End column (exclusive)'),
-};
+const deleteRangeSchema = { ...rangeFields };
 
 const setCursorSchema = {
-  line: z.number().int().min(0).describe('Zero-based line index'),
-  ch: z.number().int().min(0).describe('Zero-based column index'),
+  line: z.number().int().min(0).describe('Line (0-based)'),
+  ch: z.number().int().min(0).describe('Column (0-based)'),
 };
 
-const setSelectionSchema = {
-  fromLine: z.number().int().min(0).describe('Start line (inclusive)'),
-  fromCh: z.number().int().min(0).describe('Start column (inclusive)'),
-  toLine: z.number().int().min(0).describe('End line (exclusive)'),
-  toCh: z.number().int().min(0).describe('End column (exclusive)'),
-};
+const setSelectionSchema = { ...rangeFields };
 
 /**
  * Output schemas for the editor read tools that emit `structuredContent`
@@ -112,24 +131,24 @@ const getActiveFileOutputSchema = {
 };
 
 const getCursorOutputSchema = {
-  line: z.number().describe('Zero-based line index of the cursor.'),
-  ch: z.number().describe('Zero-based column index of the cursor.'),
+  line: z.number().describe('Cursor line (0-based).'),
+  ch: z.number().describe('Cursor column (0-based).'),
 };
 
 const getSelectionOutputSchema = {
   from: z
     .object({
-      line: z.number().describe('Zero-based start line (inclusive).'),
-      ch: z.number().describe('Zero-based start column (inclusive).'),
+      line: z.number().describe('Start line (0-based).'),
+      ch: z.number().describe('Start column (0-based; included).'),
     })
     .describe('Selection start.'),
   to: z
     .object({
-      line: z.number().describe('Zero-based end line (exclusive).'),
-      ch: z.number().describe('Zero-based end column (exclusive).'),
+      line: z.number().describe('End line (0-based).'),
+      ch: z.number().describe('End column (0-based; not included).'),
     })
-    .describe('Selection end.'),
-  text: z.string().describe('Selected text.'),
+    .describe('Selection end; equals from when nothing is selected.'),
+  text: z.string().describe('Selected text; "" when nothing is selected.'),
 };
 
 const getLineCountOutputSchema = {
@@ -141,13 +160,13 @@ const getLineCountOutputSchema = {
  * that was acted on, next to the unchanged plain-text confirmation.
  */
 const positionOutputSchema = {
-  line: z.number().describe('Zero-based line index.'),
-  ch: z.number().describe('Zero-based column index.'),
+  line: z.number().describe('Line (0-based).'),
+  ch: z.number().describe('Column (0-based).'),
 };
 
 const rangeOutputSchema = {
-  from: z.object(positionOutputSchema).describe('Range start (inclusive).'),
-  to: z.object(positionOutputSchema).describe('Range end (exclusive).'),
+  from: z.object(positionOutputSchema).describe('Start position (included).'),
+  to: z.object(positionOutputSchema).describe('End position (not included).'),
 };
 
 function rangeOf(params: {
@@ -380,13 +399,13 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'editor_insert',
-          title: 'Insert at cursor',
+          title: 'Insert at position',
           description: describeTool({
-            summary: 'Insert text at a (line, ch) position in the active editor.',
+            summary: 'Insert text at a (line, ch) position in the active editor (not at the cursor). 0-based.',
             examples: ['Use when: inserting a heading at the top of the file (line 0, ch 0).'],
             errors: [
               '"No active editor" if no markdown view is focused.',
-              '"Position is out of range" if (line, ch) is outside the document.',
+              '"Position is out of range" if line is greater than the line count (ch is not checked; past the line end it runs into the next line).',
             ],
             seeAlso: [
               'editor_replace — when you want to overwrite an existing range, not insert at a point.',
@@ -402,13 +421,13 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           name: 'editor_replace',
           title: 'Replace range',
           description: describeTool({
-            summary: 'Replace text in a (fromLine, fromCh)→(toLine, toCh) range.',
-            examples: ['Use when: replacing a paragraph after locating it with search_fulltext.'],
-            errors: [
-              '"No active editor" if no markdown view is focused.',
-              '"Position is out of range" if either endpoint is outside the document.',
+            summary: `Replace a range of the active editor's text. ${RANGE_NOTE}`,
+            examples: [
+              'Use when: replacing "abc" that starts at column 4 of line 3 -> { fromLine: 3, fromCh: 4, toLine: 3, toCh: 7, text: "xyz" }',
             ],
+            errors: ['"No active editor" if no markdown view is focused.', RANGE_OUT_OF_RANGE_ERROR],
             seeAlso: [
+              'vault_replace — to change exact text in a file by content, with a conflict check.',
               'editor_insert — when you want to add text at a single point without overwriting anything.',
               'editor_delete — when you want to remove a range without writing anything in its place.',
             ],
@@ -422,11 +441,8 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           name: 'editor_delete',
           title: 'Delete range',
           description: describeTool({
-            summary: 'Delete text in a (fromLine, fromCh)→(toLine, toCh) range.',
-            errors: [
-              '"No active editor" if no markdown view is focused.',
-              '"Position is out of range" if either endpoint is outside the document.',
-            ],
+            summary: `Delete a range of the active editor's text. ${RANGE_NOTE}`,
+            errors: ['"No active editor" if no markdown view is focused.', RANGE_OUT_OF_RANGE_ERROR],
             seeAlso: [
               'editor_insert — when you want to add text at a single point without overwriting anything.',
               'editor_replace — when you want to overwrite an existing range, not just remove it.',
@@ -453,10 +469,10 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           name: 'editor_set_cursor',
           title: 'Set cursor position',
           description: describeTool({
-            summary: 'Move the cursor to a (line, ch) position in the active editor.',
+            summary: 'Move the cursor to a (line, ch) position in the active editor. 0-based.',
             errors: [
               '"No active editor" if no markdown view is focused.',
-              '"Position is out of range" if (line, ch) is outside the document.',
+              '"Position is out of range" if line is past the last line (ch is not checked).',
             ],
             seeAlso: [
               'editor_set_selection — when you want to select a range, not collapse the caret to a point.',
@@ -471,8 +487,8 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           name: 'editor_get_selection',
           title: 'Get selection',
           description: describeTool({
-            summary: 'Get the current text selection in the active editor.',
-            errors: ['"No active editor or selection" if nothing is selected.'],
+            summary: 'Get the current text selection in the active editor. With nothing selected, from equals to (the cursor) and text is "".',
+            errors: ['"No active editor or selection" if no editor is open.'],
           }),
           schema: readOnlySchema,
           outputSchema: getSelectionOutputSchema,
@@ -483,11 +499,8 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           name: 'editor_set_selection',
           title: 'Set selection',
           description: describeTool({
-            summary: 'Select a (fromLine, fromCh)→(toLine, toCh) range in the active editor.',
-            errors: [
-              '"No active editor" if no markdown view is focused.',
-              '"Position is out of range" if either endpoint is outside the document.',
-            ],
+            summary: `Select a range in the active editor. ${RANGE_NOTE}`,
+            errors: ['"No active editor" if no markdown view is focused.', RANGE_OUT_OF_RANGE_ERROR],
             seeAlso: [
               'editor_set_cursor — when you want to place the caret at a point, not select a range.',
             ],

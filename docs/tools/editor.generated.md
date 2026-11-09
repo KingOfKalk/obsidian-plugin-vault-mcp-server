@@ -92,9 +92,9 @@ Response (`structuredContent`):
 
 ### editor_insert
 
-**Insert at cursor**
+**Insert at position**
 
-Insert text at a (line, ch) position in the active editor.
+Insert text at a (line, ch) position in the active editor (not at the cursor). 0-based.
 
 Examples:
   - Use when: inserting a heading at the top of the file (line 0, ch 0).
@@ -105,22 +105,22 @@ See also:
 
 Errors:
   - "No active editor" if no markdown view is focused.
-  - "Position is out of range" if (line, ch) is outside the document.
+  - "Position is out of range" if line is greater than the line count (ch is not checked; past the line end it runs into the next line).
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `line` | number (0–9007199254740991) | yes | Zero-based line index |
-| `ch` | number (0–9007199254740991) | yes | Zero-based column index within the line |
+| `line` | number (0–9007199254740991) | yes | Line (0-based) |
+| `ch` | number (0–9007199254740991) | yes | Column within the line (0-based) |
 | `text` | string (≤5000000) | yes | Text to insert at (line, ch); may contain newlines |
 
 #### Output
 
 | Field | Type | Description |
 |---|---|---|
-| `line` | number | Zero-based line index. |
-| `ch` | number | Zero-based column index. |
+| `line` | number | Line (0-based). |
+| `ch` | number | Column (0-based). |
 
 #### Example
 
@@ -150,35 +150,36 @@ Response (`structuredContent`):
 
 **Replace range**
 
-Replace text in a (fromLine, fromCh)→(toLine, toCh) range.
+Replace a range of the active editor's text. Range: from (fromLine, fromCh) up to but not including (toLine, toCh), 0-based.
 
 Examples:
-  - Use when: replacing a paragraph after locating it with search_fulltext.
+  - Use when: replacing "abc" that starts at column 4 of line 3 -> { fromLine: 3, fromCh: 4, toLine: 3, toCh: 7, text: "xyz" }
 
 See also:
+  - vault_replace — to change exact text in a file by content, with a conflict check.
   - editor_insert — when you want to add text at a single point without overwriting anything.
   - editor_delete — when you want to remove a range without writing anything in its place.
 
 Errors:
   - "No active editor" if no markdown view is focused.
-  - "Position is out of range" if either endpoint is outside the document.
+  - "Position is out of range" if fromLine is past the last line or toLine > line count (columns are not checked; a ch past the line end runs into the next line).
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `fromLine` | number (0–9007199254740991) | yes | Start line (inclusive, zero-based) |
-| `fromCh` | number (0–9007199254740991) | yes | Start column (inclusive, zero-based) |
-| `toLine` | number (0–9007199254740991) | yes | End line (exclusive, zero-based) |
-| `toCh` | number (0–9007199254740991) | yes | End column (exclusive, zero-based) |
+| `fromLine` | number (0–9007199254740991) | yes | Start line (0-based). |
+| `fromCh` | number (0–9007199254740991) | yes | Start column (0-based); included. |
+| `toLine` | number (0–9007199254740991) | yes | End line (0-based); equals fromLine for a range within one line. |
+| `toCh` | number (0–9007199254740991) | yes | End column (0-based); not included. |
 | `text` | string (≤5000000) | yes | Replacement text for the range |
 
 #### Output
 
 | Field | Type | Description |
 |---|---|---|
-| `from` | object | Range start (inclusive). |
-| `to` | object | Range end (exclusive). |
+| `from` | object | Start position (included). |
+| `to` | object | End position (not included). |
 
 #### Example
 
@@ -216,7 +217,7 @@ Response (`structuredContent`):
 
 **Delete range**
 
-Delete text in a (fromLine, fromCh)→(toLine, toCh) range.
+Delete a range of the active editor's text. Range: from (fromLine, fromCh) up to but not including (toLine, toCh), 0-based.
 
 See also:
   - editor_insert — when you want to add text at a single point without overwriting anything.
@@ -224,23 +225,23 @@ See also:
 
 Errors:
   - "No active editor" if no markdown view is focused.
-  - "Position is out of range" if either endpoint is outside the document.
+  - "Position is out of range" if fromLine is past the last line or toLine > line count (columns are not checked; a ch past the line end runs into the next line).
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `fromLine` | number (0–9007199254740991) | yes | Start line (inclusive) |
-| `fromCh` | number (0–9007199254740991) | yes | Start column (inclusive) |
-| `toLine` | number (0–9007199254740991) | yes | End line (exclusive) |
-| `toCh` | number (0–9007199254740991) | yes | End column (exclusive) |
+| `fromLine` | number (0–9007199254740991) | yes | Start line (0-based). |
+| `fromCh` | number (0–9007199254740991) | yes | Start column (0-based); included. |
+| `toLine` | number (0–9007199254740991) | yes | End line (0-based); equals fromLine for a range within one line. |
+| `toCh` | number (0–9007199254740991) | yes | End column (0-based); not included. |
 
 #### Output
 
 | Field | Type | Description |
 |---|---|---|
-| `from` | object | Range start (inclusive). |
-| `to` | object | Range end (exclusive). |
+| `from` | object | Start position (included). |
+| `to` | object | End position (not included). |
 
 #### Example
 
@@ -292,8 +293,8 @@ Errors:
 
 | Field | Type | Description |
 |---|---|---|
-| `line` | number | Zero-based line index of the cursor. |
-| `ch` | number | Zero-based column index of the cursor. |
+| `line` | number | Cursor line (0-based). |
+| `ch` | number | Cursor column (0-based). |
 
 #### Example
 
@@ -319,28 +320,28 @@ Response (`structuredContent`):
 
 **Set cursor position**
 
-Move the cursor to a (line, ch) position in the active editor.
+Move the cursor to a (line, ch) position in the active editor. 0-based.
 
 See also:
   - editor_set_selection — when you want to select a range, not collapse the caret to a point.
 
 Errors:
   - "No active editor" if no markdown view is focused.
-  - "Position is out of range" if (line, ch) is outside the document.
+  - "Position is out of range" if line is past the last line (ch is not checked).
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `line` | number (0–9007199254740991) | yes | Zero-based line index |
-| `ch` | number (0–9007199254740991) | yes | Zero-based column index |
+| `line` | number (0–9007199254740991) | yes | Line (0-based) |
+| `ch` | number (0–9007199254740991) | yes | Column (0-based) |
 
 #### Output
 
 | Field | Type | Description |
 |---|---|---|
-| `line` | number | Zero-based line index. |
-| `ch` | number | Zero-based column index. |
+| `line` | number | Line (0-based). |
+| `ch` | number | Column (0-based). |
 
 #### Example
 
@@ -369,10 +370,10 @@ Response (`structuredContent`):
 
 **Get selection**
 
-Get the current text selection in the active editor.
+Get the current text selection in the active editor. With nothing selected, from equals to (the cursor) and text is "".
 
 Errors:
-  - "No active editor or selection" if nothing is selected.
+  - "No active editor or selection" if no editor is open.
 
 #### Input
 
@@ -385,8 +386,8 @@ Errors:
 | Field | Type | Description |
 |---|---|---|
 | `from` | object | Selection start. |
-| `to` | object | Selection end. |
-| `text` | string | Selected text. |
+| `to` | object | Selection end; equals from when nothing is selected. |
+| `text` | string | Selected text; "" when nothing is selected. |
 
 #### Example
 
@@ -419,30 +420,30 @@ Response (`structuredContent`):
 
 **Set selection**
 
-Select a (fromLine, fromCh)→(toLine, toCh) range in the active editor.
+Select a range in the active editor. Range: from (fromLine, fromCh) up to but not including (toLine, toCh), 0-based.
 
 See also:
   - editor_set_cursor — when you want to place the caret at a point, not select a range.
 
 Errors:
   - "No active editor" if no markdown view is focused.
-  - "Position is out of range" if either endpoint is outside the document.
+  - "Position is out of range" if fromLine is past the last line or toLine > line count (columns are not checked; a ch past the line end runs into the next line).
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `fromLine` | number (0–9007199254740991) | yes | Start line (inclusive) |
-| `fromCh` | number (0–9007199254740991) | yes | Start column (inclusive) |
-| `toLine` | number (0–9007199254740991) | yes | End line (exclusive) |
-| `toCh` | number (0–9007199254740991) | yes | End column (exclusive) |
+| `fromLine` | number (0–9007199254740991) | yes | Start line (0-based). |
+| `fromCh` | number (0–9007199254740991) | yes | Start column (0-based); included. |
+| `toLine` | number (0–9007199254740991) | yes | End line (0-based); equals fromLine for a range within one line. |
+| `toCh` | number (0–9007199254740991) | yes | End column (0-based); not included. |
 
 #### Output
 
 | Field | Type | Description |
 |---|---|---|
-| `from` | object | Range start (inclusive). |
-| `to` | object | Range end (exclusive). |
+| `from` | object | Start position (included). |
+| `to` | object | End position (not included). |
 
 #### Example
 

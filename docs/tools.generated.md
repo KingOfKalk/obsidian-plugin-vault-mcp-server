@@ -45,7 +45,7 @@ Schemas → [docs/tools/vault.generated.md](tools/vault.generated.md)
 | `vault_read_binary` | Read binary file | ✓ |  |
 | `vault_write_binary` | Write binary file |  | ✓ |
 | `vault_get_aspect` | Get file aspect | ✓ |  |
-| `vault_daily_note` | Open or create the daily note |  |  |
+| `vault_daily_note` | Get or create a daily note |  |  |
 | `vault_set_frontmatter` | Set frontmatter |  | ✓ |
 
 ### Editor Operations (`editor`)
@@ -56,7 +56,7 @@ Schemas → [docs/tools/editor.generated.md](tools/editor.generated.md)
 |---|---|---|---|
 | `editor_get_content` | Get active file content | ✓ |  |
 | `editor_get_active_file` | Get active file path | ✓ |  |
-| `editor_insert` | Insert at cursor |  |  |
+| `editor_insert` | Insert at position |  |  |
 | `editor_replace` | Replace range |  | ✓ |
 | `editor_delete` | Delete range |  | ✓ |
 | `editor_get_cursor` | Get cursor position | ✓ |  |

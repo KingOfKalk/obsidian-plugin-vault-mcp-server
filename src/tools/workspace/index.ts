@@ -11,6 +11,7 @@ import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateVaultPath } from '../../utils/path-guard';
 import { handleToolError } from '../shared/errors';
 import { describeTool } from '../shared/describe';
+import { FILE_PATH_DESC, vaultPathField } from '../shared/descriptions';
 import {
   confirmWithStructured,
   makeResponse,
@@ -23,11 +24,7 @@ function err(m: string): CallToolResult { return handleToolError(new Error(m)); 
 const readOnlySchema = { ...responseFormatField };
 
 const openFileSchema = {
-  path: z
-    .string()
-    .min(1)
-    .max(4096)
-    .describe('Vault-relative file path to open'),
+  path: vaultPathField(FILE_PATH_DESC),
   mode: z
     .enum(['source', 'preview', 'live'])
     .optional()
@@ -210,7 +207,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
           name: 'workspace_list_leaves',
           title: 'List open leaves',
           description: describeTool({
-            summary: 'List every open leaf and the file it holds.',
+            summary: 'List the open leaves that show a file, with their leaf ids and file paths.',
           }),
           schema: readOnlySchema,
           outputSchema: listLeavesOutputSchema,
@@ -233,7 +230,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
           name: 'workspace_get_layout',
           title: 'Get workspace layout',
           description: describeTool({
-            summary: 'Get a summary of the current workspace layout.',
+            summary: "Get Obsidian's raw workspace layout JSON (opaque, varies by Obsidian version, can be large; not truncated).",
           }),
           schema: readOnlySchema,
           outputSchema: getLayoutOutputSchema,

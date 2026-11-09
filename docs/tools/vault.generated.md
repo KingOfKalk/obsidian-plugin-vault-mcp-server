@@ -22,7 +22,7 @@ Errors:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
+| `path` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
 | `content` | string (≤5000000) | yes | Initial UTF-8 text content of the new file |
 
 #### Output
@@ -31,7 +31,7 @@ Errors:
 |---|---|---|
 | `path` | string | Vault-relative path that was written. |
 | `created` | boolean | Always true on success. |
-| `modified` | string | New last-modification timestamp (ISO-8601); usable as the next expectedMtime. |
+| `modified` | string | New last-modification time (ISO-8601); pass it as the next expectedMtime. |
 
 #### Example
 
@@ -84,7 +84,7 @@ Errors:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
+| `path` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
 | `heading` | string (1–1024) | no | Optional: return only this section — the heading line up to the next heading of the same or a higher level. Heading text without the # marks (e.g. "Log"), or with them to pin the level (e.g. "## Log"). offset/length then page within the section. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Character offset to start reading at (default 0). Use nextOffset from the previous call to continue a large file. |
 | `length` | number (1–24000) | no | Maximum characters to return (1..24000, default 24000). Files that fit are returned whole. |
@@ -102,7 +102,7 @@ Errors:
 | `offset` | number | Character offset where this window starts. |
 | `hasMore` | boolean | True when the file continues past this window. |
 | `nextOffset` | number | Offset to pass in the next call when hasMore is true. |
-| `modified` | string | Last-modification timestamp (ISO-8601). Pass it as expectedMtime to a write tool to detect concurrent edits. |
+| `modified` | string | Last-modification time (ISO-8601); pass it as expectedMtime to a write tool to detect concurrent edits. |
 
 #### Example
 
@@ -149,9 +149,9 @@ Errors:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
+| `path` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
 | `content` | string (≤5000000) | yes | Replacement content for the file |
-| `expectedMtime` | string (≤64) | no | Optional conflict check: the latest `modified` value you got for this file, from a read (vault_read, vault_get_metadata) or a write (every vault write tool returns it) (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
+| `expectedMtime` | string (≤64) | no | Optional conflict check: the latest `modified` you have for this file, from vault_read, vault_get_metadata or a write result (ISO-8601 or epoch ms). If the file's mtime differs, nothing is written and the error gives the current one. |
 
 #### Output
 
@@ -159,7 +159,7 @@ Errors:
 |---|---|---|
 | `path` | string | Vault-relative path that was written. |
 | `updated` | boolean | Always true on success. |
-| `modified` | string | New last-modification timestamp (ISO-8601); usable as the next expectedMtime. |
+| `modified` | string | New last-modification time (ISO-8601); pass it as the next expectedMtime. |
 
 #### Example
 
@@ -204,13 +204,13 @@ Errors:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
+| `path` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
 
 #### Output
 
 | Field | Type | Description |
 |---|---|---|
-| `path` | string | Vault-relative path that was written. |
+| `path` | string | Vault-relative path of the deleted file. |
 | `deleted` | boolean | Always true on success. |
 | `trashedTo` | enum: `system` \| `vault` \| `permanent` \| `unknown` | Where the item went, per the user's "Deleted files" setting: "system" (system trash), "vault" (the vault's .trash folder), "permanent" (deleted for good), or "unknown" if the setting could not be read. |
 
@@ -257,9 +257,9 @@ Errors:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
+| `path` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
 | `content` | string (1–5000000) | yes | Content to append to the end of the file |
-| `expectedMtime` | string (≤64) | no | Optional conflict check: the latest `modified` value you got for this file, from a read (vault_read, vault_get_metadata) or a write (every vault write tool returns it) (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
+| `expectedMtime` | string (≤64) | no | Optional conflict check: the latest `modified` you have for this file, from vault_read, vault_get_metadata or a write result (ISO-8601 or epoch ms). If the file's mtime differs, nothing is written and the error gives the current one. |
 
 #### Output
 
@@ -267,7 +267,7 @@ Errors:
 |---|---|---|
 | `path` | string | Vault-relative path that was written. |
 | `appended` | boolean | Always true on success. |
-| `modified` | string | New last-modification timestamp (ISO-8601); usable as the next expectedMtime. |
+| `modified` | string | New last-modification time (ISO-8601); pass it as the next expectedMtime. |
 
 #### Example
 
@@ -300,13 +300,13 @@ Response (`structuredContent`):
 Replace an exact passage in a file without rewriting the rest. oldString must match exactly once unless replaceAll is true. Pass edits instead of oldString/newString to make several replacements all or nothing.
 
 Returns:
-  Matching and writing happen in one atomic step (app.vault.process). With edits, every edit is checked against the file as it was before the call, and the result adds edits: [{ index, replacements }].
+  Matching and writing happen in one atomic step. oldString is matched against the raw file text, line endings included (in a CRLF file a line break is \r\n). With edits, every edit is checked against the file as it was before the call, and the result adds edits: [{ index, replacements }].
 
 Examples:
   - Use when: fixing one line in a large note -> { path: "notes/a.md", oldString: "status: draft", newString: "status: done" }
   - Use when: renaming a term everywhere in one file -> { ..., replaceAll: true }
   - Use when: changing two sections at once -> { path: "notes/a.md", edits: [{ oldString: "## Agenda\n- old", newString: "## Agenda\n- new" }, { oldString: "- [ ] task", newString: "- [x] task" }] }
-  - Don't use when: editing the open file at a cursor position (use editor_replace).
+  - Don't use when: editing the open note by line/column position (use editor_replace).
 
 See also:
   - vault_update — when replacing the whole file.
@@ -322,12 +322,12 @@ Errors:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
+| `path` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
 | `oldString` | string (1–5000000) | no | Single-edit form: exact text to find (literal, case-sensitive, no regex). Must occur exactly once unless replaceAll is true. Give it with newString, or use edits instead. |
 | `newString` | string (≤5000000) | no | Single-edit form: replacement text (literal; may be empty to delete oldString). Give it with oldString. |
 | `replaceAll` | boolean | no (default `false`) | Single-edit form: replace every occurrence instead of requiring exactly one (default false). With edits, set replaceAll on each edit instead. |
 | `edits` | object[] | no | Multi-edit form, instead of oldString/newString: up to 100 { oldString, newString, replaceAll? } edits, all or nothing. Every edit is matched against the file as it was before the call (text inserted by one edit is never matched by another), and the matches of different edits must not overlap. If any edit fails, nothing is written. |
-| `expectedMtime` | string (≤64) | no | Optional conflict check: the latest `modified` value you got for this file, from a read (vault_read, vault_get_metadata) or a write (every vault write tool returns it) (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
+| `expectedMtime` | string (≤64) | no | Optional conflict check: the latest `modified` you have for this file, from vault_read, vault_get_metadata or a write result (ISO-8601 or epoch ms). If the file's mtime differs, nothing is written and the error gives the current one. |
 
 #### Output
 
@@ -336,7 +336,7 @@ Errors:
 | `path` | string | Vault-relative path that was written. |
 | `replacements` | number | Number of occurrences replaced (over all edits). |
 | `edits` | object[] | Multi-edit form only: occurrences replaced per edit, in input order. |
-| `modified` | string | New last-modification timestamp (ISO-8601); usable as the next expectedMtime. |
+| `modified` | string | New last-modification time (ISO-8601); pass it as the next expectedMtime. |
 
 #### Example
 
@@ -371,7 +371,7 @@ Response (`structuredContent`):
 Insert text at the start or end of a Markdown section, addressed by its heading, without rewriting the rest of the file.
 
 Returns:
-  A section runs from its heading to the next heading of the same or a higher level (or the end of the file). Finding the section and writing happen in one atomic step (app.vault.process).
+  A section runs from its heading to the next heading of the same or a higher level (or the end of the file). Finding the section and writing happen in one atomic step.
 
 Examples:
   - Use when: adding a log entry -> { path: "journal.md", heading: "## Log", text: "- 09:30 standup" }
@@ -392,11 +392,11 @@ Errors:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
+| `path` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
 | `heading` | string (1–1024) | yes | Heading of the target section: its text without the # marks (e.g. "Log"), or with them to pin the level (e.g. "## Log"). Must match exactly one heading; headings in code blocks and frontmatter are ignored. |
-| `position` | enum: `start` \| `end` | no (default `end`) | "end" (default): after the last non-blank line of the section, nested subsections included. "start": right below the heading (after a blank line that follows it). |
+| `position` | enum: `start` \| `end` | no (default `end`) | "end" (default): after the last non-blank line of the section, nested subsections included. "start": before the first non-blank line below the heading (blank lines after the heading stay above the text; in an empty section, right below the heading). |
 | `text` | string (1–5000000) | yes | Text to insert as whole lines; one trailing newline is ignored. Start it with a newline to leave a blank line before it. |
-| `expectedMtime` | string (≤64) | no | Optional conflict check: the latest `modified` value you got for this file, from a read (vault_read, vault_get_metadata) or a write (every vault write tool returns it) (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
+| `expectedMtime` | string (≤64) | no | Optional conflict check: the latest `modified` you have for this file, from vault_read, vault_get_metadata or a write result (ISO-8601 or epoch ms). If the file's mtime differs, nothing is written and the error gives the current one. |
 
 #### Output
 
@@ -406,7 +406,7 @@ Errors:
 | `heading` | string | The matched heading as written, e.g. "## Log". |
 | `position` | enum: `start` \| `end` | Where the text went in the section. |
 | `line` | number | 1-based line number where the inserted text starts. |
-| `modified` | string | New last-modification timestamp (ISO-8601); usable as the next expectedMtime. |
+| `modified` | string | New last-modification time (ISO-8601); pass it as the next expectedMtime. |
 
 #### Example
 
@@ -454,7 +454,7 @@ Errors:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
+| `path` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
 | `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
@@ -464,7 +464,7 @@ Errors:
 | `path` | string | Vault-relative path that was inspected. |
 | `size` | number | File size in bytes. |
 | `created` | string | Creation timestamp as an ISO-8601 string. |
-| `modified` | string | Last-modification timestamp as an ISO-8601 string. |
+| `modified` | string | Last-modification time (ISO-8601); pass it as expectedMtime to a write tool to detect concurrent edits. |
 
 #### Example
 
@@ -494,24 +494,25 @@ Response (`structuredContent`):
 
 **Rename file**
 
-Rename a file within its current folder.
+Rename a file or folder within its current folder.
 
 Returns:
-  Works on a folder too. Links to the file (for a folder: to every file in it) are updated if the user enabled "Automatically update internal links"; with it off, links are not updated and no Obsidian prompt appears. `linksUpdated` and `updatedFiles` report the rewritten links, `autoUpdateLinks` the setting, and `warning` is set when other files link to it but were not updated.
+  Links to the file (for a folder: to every file in it) are updated if the user enabled "Automatically update internal links"; with it off, links are not updated and no Obsidian prompt appears. `linksUpdated` and `updatedFiles` report the rewritten links, `autoUpdateLinks` the setting, and `warning` is set when other files link to it but were not updated.
 
 Examples:
-  - Use when: renaming "draft.md" to "final.md" in the same folder.
+  - Use when: renaming "notes/draft.md" to "notes/final.md" -> { path: "notes/draft.md", newName: "final.md" }
 
 Errors:
-  - "Invalid rename target" if newName contains path separators.
-  - "File not found" if path does not exist.
+  - "newName must not contain path separators" if newName has / or \; "Invalid rename target" if it is blank or invalid.
+  - "Path not found" if path does not exist.
+  - "Destination file already exists!" if the new path is taken; nothing is moved.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string (1–4096) | yes | Current file path to rename |
-| `newName` | string (1–255) | yes | New file name (basename) within the same folder; must not contain / or \\ |
+| `path` | string (1–4096) | yes | Vault-relative path of a file (with extension) or folder, e.g. `notes/a.md` or `notes`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
+| `newName` | string (1–255) | yes | New name for the last path segment, extension included (e.g. "final.md", not "final"); the folder stays the same. No / or \\. |
 
 #### Output
 
@@ -554,23 +555,24 @@ Response (`structuredContent`):
 
 **Move file**
 
-Move a file to a different path (can change folder and name). Missing parent folders are created.
+Move a file or folder to a new path (can change folder and name). Missing parent folders are created.
 
 Returns:
-  Works on a folder too. Links to the file (for a folder: to every file in it) are updated if the user enabled "Automatically update internal links"; with it off, links are not updated and no Obsidian prompt appears. `linksUpdated` and `updatedFiles` report the rewritten links, `autoUpdateLinks` the setting, and `warning` is set when other files link to it but were not updated.
+  Links to the file (for a folder: to every file in it) are updated if the user enabled "Automatically update internal links"; with it off, links are not updated and no Obsidian prompt appears. `linksUpdated` and `updatedFiles` report the rewritten links, `autoUpdateLinks` the setting, and `warning` is set when other files link to it but were not updated.
 
 Examples:
   - Use when: archiving a note by moving it to "archive/<name>.md".
 
 Errors:
-  - "File not found" if path does not exist.
+  - "Path not found" if path does not exist.
+  - "Destination file already exists!" if the new path is taken; nothing is moved.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string (1–4096) | yes | Current file path |
-| `newPath` | string (1–4096) | yes | New vault-relative path; can change the folder, the file name, or both |
+| `path` | string (1–4096) | yes | Vault-relative path of a file (with extension) or folder, e.g. `notes/a.md` or `notes`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
+| `newPath` | string (1–4096) | yes | Vault-relative path of a file (with extension) or folder, e.g. `notes/a.md` or `notes`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
 
 #### Output
 
@@ -619,14 +621,15 @@ Examples:
   - Use when: duplicating a template before editing.
 
 Errors:
-  - "File not found" if sourcePath does not exist.
+  - "File not found" if sourcePath does not exist or is a folder.
+  - "EEXIST: file already exists" if destPath is taken; nothing is copied.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `sourcePath` | string (1–4096) | yes | Source file path |
-| `destPath` | string (1–4096) | yes | Destination file path |
+| `sourcePath` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
+| `destPath` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
 
 #### Output
 
@@ -674,13 +677,13 @@ Errors:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string (1–4096) | yes | Folder path to create |
+| `path` | string (1–4096) | yes | Vault-relative folder path, e.g. `projects/2026`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
 
 #### Output
 
 | Field | Type | Description |
 |---|---|---|
-| `path` | string | Vault-relative path that was written. |
+| `path` | string | Vault-relative path of the created folder. |
 | `created` | boolean | Always true on success. |
 
 #### Example
@@ -718,20 +721,21 @@ Examples:
   - Use when: removing an empty "old-drafts" folder.
 
 Errors:
-  - "Folder not empty" if non-empty and recursive=false.
+  - "Folder not found" if path does not exist or is not a folder.
+  - "Folder "<path>" is not empty. Use recursive=true to delete." if it has contents and recursive is false.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string (1–4096) | yes | Folder path to delete |
-| `recursive` | boolean | no (default `false`) | Delete non-empty folders recursively |
+| `path` | string (1–4096) | yes | Vault-relative folder path, e.g. `projects/2026`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
+| `recursive` | boolean | no (default `false`) | Also delete everything inside (default false: only an empty folder is deleted). |
 
 #### Output
 
 | Field | Type | Description |
 |---|---|---|
-| `path` | string | Vault-relative path that was written. |
+| `path` | string | Vault-relative path of the deleted folder. |
 | `deleted` | boolean | Always true on success. |
 | `recursive` | boolean | Whether the delete was recursive. |
 | `trashedTo` | enum: `system` \| `vault` \| `permanent` \| `unknown` | Where the item went, per the user's "Deleted files" setting: "system" (system trash), "vault" (the vault's .trash folder), "permanent" (deleted for good), or "unknown" if the setting could not be read. |
@@ -764,7 +768,7 @@ Response (`structuredContent`):
 
 **Rename folder**
 
-Rename or move a folder.
+Rename or move a folder (a file works too). Missing parent folders of newPath are created.
 
 Returns:
   Links into the folder are updated if the user enabled "Automatically update internal links"; with it off, links are not updated and no Obsidian prompt appears. `linksUpdated` and `updatedFiles` report the rewritten links, `autoUpdateLinks` the setting, and `warning` is set when other files link to it but were not updated.
@@ -773,14 +777,15 @@ Examples:
   - Use when: renaming "WIP" to "Archive".
 
 Errors:
-  - "Folder not found" if path does not exist.
+  - "Path not found" if path does not exist.
+  - "Destination file already exists!" if the new path is taken; nothing is moved.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string (1–4096) | yes | Current folder path |
-| `newPath` | string (1–4096) | yes | New folder path |
+| `path` | string (1–4096) | yes | Vault-relative folder path, e.g. `projects/2026`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
+| `newPath` | string (1–4096) | yes | Vault-relative folder path, e.g. `projects/2026`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
 
 #### Output
 
@@ -823,7 +828,7 @@ Response (`structuredContent`):
 
 **List folder**
 
-List files and folders directly under a path (non-recursive).
+List files and folders directly under a path (non-recursive), as full vault-relative paths.
 
 Examples:
   - Use when: inspecting the top level of the vault.
@@ -838,15 +843,15 @@ Errors:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string (≤4096) | yes | Folder path to list (non-recursive). Use "" (or "/" or ".") for the vault root. |
+| `path` | string (≤4096) | yes | Vault-relative folder path to list (non-recursive), e.g. "projects". Use "" (or "/" or ".") for the vault root. |
 | `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 
 | Field | Type | Description |
 |---|---|---|
-| `files` | string[] | Direct file children of the listed folder (names only). |
-| `folders` | string[] | Direct subfolders of the listed folder (names only). |
+| `files` | string[] | Vault-relative paths of the files directly in the folder (e.g. `notes/a.md`, not `a.md`). |
+| `folders` | string[] | Vault-relative paths of the folders directly in the folder (e.g. `notes/sub`, not `sub`). |
 
 #### Example
 
@@ -895,7 +900,7 @@ Errors:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string (≤4096) | yes | Folder path to list recursively. Use "" (or "/" or ".") for the vault root. |
+| `path` | string (≤4096) | yes | Vault-relative folder path to list recursively, e.g. "projects". Use "" (or "/" or ".") for the vault root. |
 | `limit` | number (1–100) | no (default `20`) | Maximum items to return (1..100, default 20). |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Number of items to skip before returning results (default 0). |
 | `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
@@ -947,7 +952,7 @@ Response (`structuredContent`):
 Read binary file contents as base64.
 
 Returns:
-  The text is the bare base64 string. Refuses files over 1 MiB.
+  The text is the bare base64 string of the whole file, never truncated: up to 1 MiB, about 1.4 million characters. Check the size with vault_get_metadata first.
 
 Examples:
   - Use when: embedding an image referenced from a note.
@@ -960,7 +965,7 @@ Errors:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
+| `path` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
 | `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
@@ -1000,7 +1005,7 @@ Response (`structuredContent`):
 
 **Write binary file**
 
-Write binary file contents from a base64 string. Missing parent folders are created.
+Create a binary file from base64, or overwrite it if it exists. Missing parent folders are created.
 
 Examples:
   - Use when: attaching a downloaded PDF to the vault.
@@ -1013,9 +1018,9 @@ Errors:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
-| `data` | string | yes | Base64-encoded binary content (no leading data: prefix) |
-| `expectedMtime` | string (≤64) | no | Optional conflict check: the latest `modified` value you got for this file, from a read (vault_read, vault_get_metadata) or a write (every vault write tool returns it) (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
+| `path` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
+| `data` | string | yes | Standard base64 (A-Z a-z 0-9 + /, = padding) on one line: no whitespace or line breaks, no data: prefix, no base64url. |
+| `expectedMtime` | string (≤64) | no | Optional conflict check: the latest `modified` you have for this file, from vault_read, vault_get_metadata or a write result (ISO-8601 or epoch ms). If the file's mtime differs, nothing is written and the error gives the current one. |
 
 #### Output
 
@@ -1023,7 +1028,7 @@ Errors:
 |---|---|---|
 | `path` | string | Vault-relative path that was written. |
 | `sizeBytes` | number | Number of bytes written. |
-| `modified` | string | New last-modification timestamp (ISO-8601); usable as the next expectedMtime. |
+| `modified` | string | New last-modification time (ISO-8601); pass it as the next expectedMtime. |
 
 #### Example
 
@@ -1067,8 +1072,8 @@ Errors:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string (1–4096) | yes | Vault-relative path to the file. |
-| `aspect` | enum: `frontmatter` \| `headings` \| `outgoing_links` \| `embeds` \| `backlinks` \| `block_references` | yes | Which metadata aspect to return: frontmatter, headings, outgoing_links ([[...]] links), embeds (![[...]]), backlinks (files linking TO this file) or block_references (^block-ids). The result carries the matching field (frontmatter, headings, links, embeds, backlinks or blockRefs). |
+| `path` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
+| `aspect` | enum: `frontmatter` \| `headings` \| `outgoing_links` \| `embeds` \| `backlinks` \| `block_references` | yes | Which metadata aspect to return: frontmatter, headings, outgoing_links ([[...]] and [text](note.md) links), embeds (![[...]]), backlinks (files linking TO this file) or block_references (^block-ids). The result carries the matching field (frontmatter, headings, links, embeds, backlinks or blockRefs). |
 | `includeContext` | boolean | no | aspect=backlinks only (default false): also return backlinkContext — for each linking file, the 1-based line number and text of every line that links here. Ignored for other aspects. |
 | `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
@@ -1080,8 +1085,8 @@ Errors:
 | `path` | string | Vault-relative path that was inspected. |
 | `frontmatter` | object | aspect=frontmatter: parsed YAML frontmatter, or {} when absent. |
 | `headings` | object[] | aspect=headings: headings in document order. |
-| `links` | object[] | aspect=outgoing_links: [[...]] links from this file. |
-| `embeds` | object[] | aspect=embeds: ![[...]] embeds in this file. |
+| `links` | object[] | aspect=outgoing_links: links from this file, as written. |
+| `embeds` | object[] | aspect=embeds: ![[...]] embeds in this file, as written. |
 | `backlinks` | string[] | aspect=backlinks: paths of files that link TO this file. |
 | `backlinkContext` | object[] | aspect=backlinks with includeContext=true: where each backlink sits, one entry per path in backlinks. |
 | `blockRefs` | object[] | aspect=block_references: ^block-ids defined in this file. |
@@ -1136,9 +1141,12 @@ Response (`structuredContent`):
 
 ### vault_daily_note
 
-**Open or create the daily note**
+**Get or create a daily note**
 
-Resolve today's daily-note path from the daily-notes core plugin's settings and return the note if it exists. Nothing is created by default; pass create=true to create a missing note from the configured template.
+Resolve the daily note's path for today or date from the Daily notes core plugin settings and return the note if it exists. Does not open it in the editor. Nothing is created by default; pass create=true to create a missing note from the configured template.
+
+Returns:
+  In a new note {{date}} is the note's date (YYYY-MM-DD), {{time}} the local time (HH:mm) and {{title}} the file name without .md. A template with Templater syntax (<%) is copied unchanged; a configured template that is missing gives an empty note, without a warning.
 
 Examples:
   - Use when: starting a daily review and you need today's note, creating it if missing → { create: true }.
@@ -1204,7 +1212,7 @@ Returns:
 Examples:
   - Use when: marking a note done -> { path: "projects/alpha.md", set: { status: "done" } }
   - Use when: dropping a key -> { path: "projects/alpha.md", set: {}, remove: ["draft"] }
-  - Don't use when: changing the note body — use vault_update or the editor tools.
+  - Don't use when: changing the note body — use vault_replace or vault_insert.
 
 See also:
   - vault_get_aspect — with aspect=frontmatter to read frontmatter without changing it.
@@ -1220,10 +1228,10 @@ Errors:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
+| `path` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
 | `set` | object | yes | Frontmatter keys to set, mapped to JSON-compatible values (string, number, boolean, null, array or object). Existing keys are overwritten; keys not listed are left untouched. Pass {} to only remove keys. |
 | `remove` | string[] | no | Frontmatter keys to delete. Keys that are not present are ignored. |
-| `expectedMtime` | string (≤64) | no | Optional conflict check: the latest `modified` value you got for this file, from a read (vault_read, vault_get_metadata) or a write (every vault write tool returns it) (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
+| `expectedMtime` | string (≤64) | no | Optional conflict check: the latest `modified` you have for this file, from vault_read, vault_get_metadata or a write result (ISO-8601 or epoch ms). If the file's mtime differs, nothing is written and the error gives the current one. |
 
 #### Output
 
@@ -1231,7 +1239,7 @@ Errors:
 |---|---|---|
 | `path` | string | Vault-relative path that was written. |
 | `frontmatter` | object | The whole frontmatter after the change ({} when no keys are left). |
-| `modified` | string | New last-modification timestamp (ISO-8601); usable as the next expectedMtime. |
+| `modified` | string | New last-modification time (ISO-8601); pass it as the next expectedMtime. |
 
 #### Example
 
