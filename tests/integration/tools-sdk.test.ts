@@ -524,6 +524,8 @@ describe('server_info (#402)', () => {
       const listed = tools.find((t) => t.name === 'server_info');
       expect(listed?.description).toContain('v1.2.3');
       expect(h.client.getInstructions()?.split('\n')[0]).toBe('vault-mcp-server v1.2.3');
+      // #431: the handshake name matches the instructions and server_info.
+      expect(h.client.getServerVersion()?.name).toBe('vault-mcp-server');
 
       const result = await call(h, 'server_info', {});
       expect(result.isError).not.toBe(true);

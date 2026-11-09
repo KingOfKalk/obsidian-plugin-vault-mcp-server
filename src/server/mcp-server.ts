@@ -74,10 +74,9 @@ export function createMcpServer(
 
   const server = new McpServer(
     {
-      // {service}-mcp-server naming convention for the MCP protocol
-      // handshake. This is internal to the protocol and intentionally
-      // distinct from the npm package name and Obsidian plugin id.
-      name: 'obsidian-mcp-server',
+      // Same name as the instructions' first line and `server_info`
+      // (#431). Clients show it as the server's display name.
+      name: SERVER_DISPLAY_NAME,
       version,
     },
     {
