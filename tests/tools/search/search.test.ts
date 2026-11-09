@@ -113,6 +113,36 @@ describe('search handlers', () => {
       expect(getText(result)).toContain('many.md (2000 matches)');
     });
 
+    it('shows the matching lines with line numbers in markdown (#463)', async () => {
+      adapter.addFile('projects/Atlas.md', '# Atlas\nno\nthe atlas launch\r\nother');
+      const result = await handlers.searchFulltext({ query: 'atlas' });
+      expect(getText(result)).toBe(
+        '**1 result**\n\n- projects/Atlas.md (2 matches)\n  - 1: # Atlas\n  - 3: the atlas launch',
+      );
+      // structuredContent keeps its shape: plain lines, no numbers.
+      expect(result.structuredContent).toMatchObject({
+        items: [{ path: 'projects/Atlas.md', matches: ['# Atlas', 'the atlas launch\r'], matchCount: 2 }],
+      });
+    });
+
+    it('says how many matching lines the markdown left out (#463)', async () => {
+      const lines = Array.from({ length: 8 }, (_, i) => `hit ${String(i)}`).join('\n');
+      adapter.addFile('many.md', lines);
+      const text = getText(await handlers.searchFulltext({ query: 'hit', maxMatchesPerFile: 2 }));
+      expect(text).toContain('- many.md (8 matches)\n  - 1: hit 0\n  - 2: hit 1\n  - … 6 more');
+      expect(text).not.toContain('hit 2');
+    });
+
+    it('cuts long matching lines at 200 characters in markdown (#463)', async () => {
+      const long = `needle ${'x'.repeat(300)}`;
+      adapter.addFile('long.md', long);
+      const result = await handlers.searchFulltext({ query: 'needle' });
+      expect(getText(result)).toContain(`  - 1: ${long.slice(0, 200)}…`);
+      expect(getText(result)).not.toContain(long);
+      const page = result.structuredContent as { items: Array<{ matches: string[] }> };
+      expect(page.items[0].matches[0]).toBe(long);
+    });
+
     it('honours maxMatchesPerFile', async () => {
       const lines = Array.from({ length: 50 }, (_, i) => `hit ${String(i)}`).join('\n');
       adapter.addFile('many.md', lines);

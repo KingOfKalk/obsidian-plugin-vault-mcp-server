@@ -105,8 +105,8 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
             summary:
               'Case-insensitive substring search in the text of Markdown (.md) notes. Does not match file names or other file types.',
             returns:
-              'Pages over matching files (total and count are files). Each item has up to maxMatchesPerFile matching lines, ' +
-              'but the markdown text lists only paths and match counts: use responseFormat=json (or structuredContent) for the lines.',
+              'Pages over matching files (total and count are files). Each item has up to maxMatchesPerFile matching lines; ' +
+              'the markdown text shows them as "<line>: <text>" (1-based, cut at 200 characters).',
             seeAlso: ['vault_list_recursive — to find a file by its name.'],
           }),
           schema: searchFulltextSchema,
