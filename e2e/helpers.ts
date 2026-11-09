@@ -184,3 +184,16 @@ export async function expectNoModal(): Promise<void> {
     throw new Error(`expected no open modal, found ${String(open)}: ${text}`);
   }
 }
+
+/** Call a tool that must fail; returns its error text. */
+export async function callToolError(
+  client: Client,
+  name: string,
+  args: Record<string, unknown> = {},
+): Promise<string> {
+  const result = await client.callTool({ name, arguments: args });
+  if (result.isError !== true) {
+    throw new Error(`${name} succeeded, expected an error: ${JSON.stringify(result.structuredContent)}`);
+  }
+  return result.content.map((c) => (c.type === 'text' ? c.text : '')).join('\n');
+}
