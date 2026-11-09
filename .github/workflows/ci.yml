@@ -13,6 +13,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Job summaries and annotations come from scripts/ci-summary.ts (#416).
 jobs:
   lint:
     runs-on: ubuntu-26.04
@@ -22,14 +23,44 @@ jobs:
 
       - uses: ./.github/actions/setup
 
+      # The three checks continue on error so all of them are reported; the
+      # last step fails the job if any of them failed.
       - name: Lint
-        run: npm run lint
+        id: eslint
+        continue-on-error: true
+        run: |
+          status=0
+          npm run --silent lint -- --format json --output-file "$RUNNER_TEMP/eslint.json" || status=$?
+          npx tsx scripts/ci-summary.ts annotate eslint "$RUNNER_TEMP/eslint.json"
+          exit "$status"
 
       - name: Type check
-        run: npm run typecheck
+        id: typecheck
+        continue-on-error: true
+        run: |
+          status=0
+          npm run --silent typecheck -- --pretty false > "$RUNNER_TEMP/tsc.txt" 2>&1 || status=$?
+          cat "$RUNNER_TEMP/tsc.txt"
+          npx tsx scripts/ci-summary.ts annotate tsc "$RUNNER_TEMP/tsc.txt"
+          exit "$status"
 
       - name: Check tool registry snapshot is up to date
-        run: npm run docs:check
+        id: docs
+        continue-on-error: true
+        run: npm run --silent docs:check 2>&1 | tee "$RUNNER_TEMP/docs-check.txt"
+
+      - name: Summary
+        run: >-
+          npx tsx scripts/ci-summary.ts lint
+          --eslint "$RUNNER_TEMP/eslint.json" --eslint-outcome "${{ steps.eslint.outcome }}"
+          --tsc "$RUNNER_TEMP/tsc.txt" --tsc-outcome "${{ steps.typecheck.outcome }}"
+          --docs "$RUNNER_TEMP/docs-check.txt" --docs-outcome "${{ steps.docs.outcome }}"
+
+      - name: Fail if any check failed
+        if: steps.eslint.outcome != 'success' || steps.typecheck.outcome != 'success' || steps.docs.outcome != 'success'
+        run: |
+          echo "::error::ESLint: ${{ steps.eslint.outcome }}, Typecheck: ${{ steps.typecheck.outcome }}, docs:check: ${{ steps.docs.outcome }}. See the job summary."
+          exit 1
 
   test:
     needs: lint
@@ -39,14 +70,27 @@ jobs:
       - uses: actions/checkout@v7
 
       - uses: ./.github/actions/setup
+        id: setup
 
       - name: Test
         run: npm run test:coverage
+
+      # Also runs when the coverage thresholds fail the previous step.
+      - name: Coverage summary
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: npx tsx scripts/ci-summary.ts coverage coverage/coverage-summary.json
 
   build:
     needs: test
     runs-on: ubuntu-26.04
     timeout-minutes: 10
+    # actions: read lets `gh run download` fetch the bundle size baseline.
+    permissions:
+      contents: read
+      actions: read
+    env:
+      HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      PLUGIN_ARTIFACT_RETENTION_DAYS: 14
     steps:
       - uses: actions/checkout@v7
 
@@ -57,3 +101,66 @@ jobs:
 
       - name: Verify main.js exists
         run: test -f main.js
+
+      - name: Create styles.css placeholder
+        run: echo "/* vault-mcp-server styles */" > styles.css
+
+      - name: Measure bundle size
+        id: size
+        run: |
+          npx tsx scripts/ci-summary.ts size main.js --sha "$HEAD_SHA" --out "$RUNNER_TEMP/bundle-size.json"
+          echo "artifact-name=vault-mcp-server-${HEAD_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload bundle size baseline
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v7
+        with:
+          name: bundle-size
+          path: ${{ runner.temp }}/bundle-size.json
+          if-no-files-found: error
+          retention-days: 90
+
+      # A missing baseline (first run, expired artifact) is not an error: the
+      # summary then says "no baseline".
+      - name: Download bundle size baseline
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          run_id=$(gh run list --repo "$REPO" --workflow ci.yml --branch main --event push \
+            --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          if [ -z "$run_id" ]; then
+            echo "No successful CI run on main found; no baseline."
+            exit 0
+          fi
+          gh run download "$run_id" --repo "$REPO" --name bundle-size --dir "$RUNNER_TEMP/baseline" \
+            || echo "Run $run_id has no bundle-size artifact; no baseline."
+
+      - name: Upload plugin artifact
+        id: plugin
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.size.outputs.artifact-name }}
+          path: |
+            main.js
+            manifest.json
+            styles.css
+          if-no-files-found: error
+          retention-days: ${{ env.PLUGIN_ARTIFACT_RETENTION_DAYS }}
+
+      - name: Summary
+        if: ${{ !cancelled() && steps.size.outcome == 'success' }}
+        env:
+          ARTIFACT_NAME: ${{ steps.plugin.outcome == 'success' && steps.size.outputs.artifact-name || '' }}
+          ARTIFACT_URL: ${{ steps.plugin.outputs.artifact-url }}
+        run: >-
+          npx tsx scripts/ci-summary.ts build
+          --size "$RUNNER_TEMP/bundle-size.json"
+          --baseline "$RUNNER_TEMP/baseline/bundle-size.json"
+          --manifest manifest.json
+          --event "$GITHUB_EVENT_NAME"
+          --artifact-name "$ARTIFACT_NAME"
+          --artifact-url "$ARTIFACT_URL"
+          --retention-days "$PLUGIN_ARTIFACT_RETENTION_DAYS"
