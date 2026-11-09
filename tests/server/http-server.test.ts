@@ -384,7 +384,7 @@ describe('HttpMcpServer — endpoint path', () => {
     await server.stop();
   });
 
-  it.each(['/mcp', '/mcp/', '/', '/mcp?x=1'])('serves MCP on %s', async (path) => {
+  it.each(['/mcp', '/mcp?x=1'])('serves MCP on %s', async (path) => {
     const { factory } = trackingFactory();
     server = createServer(factory);
     await server.start();
@@ -395,7 +395,7 @@ describe('HttpMcpServer — endpoint path', () => {
     expect(sessionIdOf(res)).toMatch(/^[0-9a-f-]{36}$/);
   });
 
-  it.each(['/foo', '/mcpx', '/mcp/extra', '/api/mcp', '/favicon.ico'])(
+  it.each(['/', '/?x=1', '/mcp/', '/MCP', '/foo', '/mcpx', '/mcp/extra', '/api/mcp', '/favicon.ico'])(
     'answers 404 with JSON on %s and creates no session',
     async (path) => {
       const { factory } = trackingFactory();
@@ -406,7 +406,9 @@ describe('HttpMcpServer — endpoint path', () => {
 
       expect(res.status).toBe(404);
       expect(res.headers['content-type']).toContain('application/json');
-      expect((JSON.parse(res.body) as { error: string }).error).toContain('/mcp');
+      expect((JSON.parse(res.body) as { error: string }).error).toBe(
+        'Not found. The MCP endpoint is /mcp',
+      );
       expect(res.headers['access-control-allow-origin']).toBeDefined();
       expect(factory).not.toHaveBeenCalled();
       expect(server.activeSessions).toBe(0);

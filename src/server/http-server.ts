@@ -67,12 +67,11 @@ const DEFAULT_SESSION_SWEEP_INTERVAL_MS = 60 * 1000;
 export const DEFAULT_MAX_SESSIONS = 32;
 
 /**
- * URL paths that serve MCP. `/mcp` is the documented endpoint (settings
- * tab, client config snippet, README, user manual). `/` stays for clients
- * configured before the endpoint was documented as `/mcp`. A trailing
- * slash is tolerated. Every other path answers 404.
+ * The one URL path that serves MCP, as shown in the settings tab, the
+ * client config snippet, the README and the user manual. The query string
+ * is ignored. Every other path, `/` and `/mcp/` included, answers 404.
  */
-export const MCP_ENDPOINT_PATHS: readonly string[] = ['/mcp', '/mcp/', '/'];
+export const MCP_ENDPOINT_PATH = '/mcp';
 
 function requestPath(url: string | undefined): string {
   const raw = url ?? '/';
@@ -257,11 +256,11 @@ export class HttpMcpServer {
     const allowedOrigin = requestOrigin(req);
 
     const path = requestPath(req.url);
-    if (!MCP_ENDPOINT_PATHS.includes(path)) {
+    if (path !== MCP_ENDPOINT_PATH) {
       this.logger.debug(`Request to unknown path rejected: ${req.method ?? 'UNKNOWN'} ${path}`);
       applyCorsHeaders(res, corsOptions, allowedOrigin);
       res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Not found. The MCP endpoint is /mcp' }));
+      res.end(JSON.stringify({ error: `Not found. The MCP endpoint is ${MCP_ENDPOINT_PATH}` }));
       return;
     }
 
