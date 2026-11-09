@@ -295,7 +295,7 @@ Examples:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `key` | string (1–200) | yes | Frontmatter property key to match |
-| `value` | string (≤1000) | no | Value to match exactly (compared as stringified). Omit to match every file that has the key. |
+| `value` | string (≤1000) | no | Value to match exactly (compared as stringified). For a list property, a file matches if any element equals the value. Omit to match every file that has the key. |
 | `limit` | number (1–100) | no (default `20`) | Maximum items to return (1..100, default 20). |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Number of items to skip before returning results (default 0). |
 | `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
