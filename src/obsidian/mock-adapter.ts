@@ -6,7 +6,7 @@ import {
   ObsidianAdapter,
   TrashDestination,
 } from './adapter';
-import { buildTagIndex, type TagUsage } from './tag-index';
+import { buildTagIndex, parseFrontmatterTags, type TagUsage } from './tag-index';
 import { FolderNotFoundError } from '../tools/shared/errors';
 // Dev-only dependency: the mock adapter is used by tests, scripts and
 // evals, never imported by src/main.ts, so `yaml` stays out of main.js.
@@ -305,18 +305,22 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     };
   }
 
+  /**
+   * Frontmatter tags (`tags` / `tag`) followed by inline tags, one entry
+   * per occurrence, like Obsidian's `getAllTags(cache)` (#440).
+   */
   getTags(path: string): string[] {
     const file = this.files.get(path);
     if (!file) return [];
-    return file.metadata?.tags ?? [];
+    return [
+      ...parseFrontmatterTags(file.metadata?.frontmatter),
+      ...(file.metadata?.tags ?? []),
+    ];
   }
 
   getAllTags(): Record<string, TagUsage> {
     return buildTagIndex(
-      Array.from(this.files.entries(), ([path, file]) => ({
-        path,
-        tags: file.metadata?.tags ?? [],
-      })),
+      Array.from(this.files.keys(), (path) => ({ path, tags: this.getTags(path) })),
     );
   }
 

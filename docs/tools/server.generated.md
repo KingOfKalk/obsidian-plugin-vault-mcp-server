@@ -55,6 +55,12 @@ Response (`structuredContent`):
   ],
   "changes": [
     {
+      "version": "4.0.1",
+      "notes": [
+        "`search_by_tag` and `search_tags` include tags from the frontmatter (`tags` / `tag`, as a list or a comma/space separated string), not only inline `#tags`. `counts` counts frontmatter and inline occurrences; each file is still listed once per tag."
+      ]
+    },
+    {
       "version": "4.0.0",
       "notes": [
         "Breaking: `vault_daily_note` no longer creates the note by default (`create` now defaults to false). Without `create: true` a missing note is not created and the result is `{ path, created: false, exists: false }` without `content`. Pass `create: true` to create a missing note from the template as b… [truncated, 6 more chars]",
