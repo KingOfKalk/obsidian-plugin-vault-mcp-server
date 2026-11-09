@@ -8,7 +8,7 @@ import {
   type InferredParams,
 } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
-import { validateVaultPath } from '../../utils/path-guard';
+import { validateToolPath } from '../../utils/path-guard';
 import { FolderNotFoundError, handleToolError } from '../shared/errors';
 import { describeTool } from '../shared/describe';
 import {
@@ -95,6 +95,7 @@ interface TemplatesHandlers {
 
 function createHandlers(adapter: ObsidianAdapter): TemplatesHandlers {
   const vaultPath = adapter.getVaultPath();
+  const configDir = adapter.getConfigDir();
   const templatesFolder = 'templates';
 
   return {
@@ -124,8 +125,8 @@ function createHandlers(adapter: ObsidianAdapter): TemplatesHandlers {
     },
     async createFromTemplate(params): Promise<CallToolResult> {
       try {
-        const templatePath = validateVaultPath(params.templatePath, vaultPath);
-        const destPath = validateVaultPath(params.destPath, vaultPath);
+        const templatePath = validateToolPath(params.templatePath, vaultPath, configDir);
+        const destPath = validateToolPath(params.destPath, vaultPath, configDir);
         const variables = params.variables ?? {};
         const set = params.frontmatter ?? {};
         const setKeys = Object.keys(set);

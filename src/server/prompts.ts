@@ -3,7 +3,7 @@ import type { GetPromptResult, McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import type { ObsidianAdapter } from '../obsidian/adapter';
 import type { Logger } from '../utils/logger';
-import { validateVaultPath } from '../utils/path-guard';
+import { validateToolPath } from '../utils/path-guard';
 
 const TEMPLATE_BUILTIN_PLACEHOLDERS = new Set(['date', 'time', 'title']);
 
@@ -47,11 +47,11 @@ function userTextMessage(text: string): GetPromptResult {
 export function createSummarizeNoteHandler(
   adapter: ObsidianAdapter,
 ): (args: PathArgs) => Promise<GetPromptResult> {
-  // async so a synchronous throw from validateVaultPath surfaces as a
+  // async so a synchronous throw from validateToolPath surfaces as a
   // rejected promise rather than a synchronous throw at the call site.
   // eslint-disable-next-line @typescript-eslint/require-await
   return async (args) => {
-    const path = validateVaultPath(args.path, adapter.getVaultPath());
+    const path = validateToolPath(args.path, adapter.getVaultPath(), adapter.getConfigDir());
     return userTextMessage(
       `Summarize the note at \`${path}\`. First call \`vault_read\` to fetch its contents, then produce a concise summary covering the main points and any actionable items.`,
     );
@@ -61,11 +61,11 @@ export function createSummarizeNoteHandler(
 export function createFindRelatedHandler(
   adapter: ObsidianAdapter,
 ): (args: PathArgs) => Promise<GetPromptResult> {
-  // async so a synchronous throw from validateVaultPath surfaces as a
+  // async so a synchronous throw from validateToolPath surfaces as a
   // rejected promise rather than a synchronous throw at the call site.
   // eslint-disable-next-line @typescript-eslint/require-await
   return async (args) => {
-    const path = validateVaultPath(args.path, adapter.getVaultPath());
+    const path = validateToolPath(args.path, adapter.getVaultPath(), adapter.getConfigDir());
     return userTextMessage(
       `Find notes related to \`${path}\`. First read it with \`vault_read\`, then run \`search_fulltext\` on its key terms and \`vault_get_aspect\` with \`aspect: "backlinks"\` on its path. Cross-reference the results and report the most relevant connections.`,
     );
@@ -83,7 +83,7 @@ export function createExpandTemplateHandler(
   adapter: ObsidianAdapter,
 ): (args: TemplateArgs) => Promise<GetPromptResult> {
   return async (args) => {
-    const template = validateVaultPath(args.template, adapter.getVaultPath());
+    const template = validateToolPath(args.template, adapter.getVaultPath(), adapter.getConfigDir());
     const body = await adapter.readFile(template);
     const placeholders = extractPlaceholders(body);
     const text = placeholders.length === 0
@@ -165,12 +165,12 @@ interface FixBrokenLinksArgs {
 export function createFixBrokenLinksHandler(
   adapter: ObsidianAdapter,
 ): (args: FixBrokenLinksArgs) => Promise<GetPromptResult> {
-  // async so a synchronous throw from validateVaultPath surfaces as a
+  // async so a synchronous throw from validateToolPath surfaces as a
   // rejected promise rather than a synchronous throw at the call site.
   // eslint-disable-next-line @typescript-eslint/require-await
   return async (args) => {
     const text = args.path !== undefined
-      ? fixBrokenLinksSingleNoteBody(validateVaultPath(args.path, adapter.getVaultPath()))
+      ? fixBrokenLinksSingleNoteBody(validateToolPath(args.path, adapter.getVaultPath(), adapter.getConfigDir()))
       : FIX_BROKEN_LINKS_VAULT_WIDE_BODY;
     return userTextMessage(text);
   };

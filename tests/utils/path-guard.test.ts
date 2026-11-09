@@ -2,10 +2,16 @@ import { describe, it, expect } from 'vitest';
 import {
   validateVaultPath,
   validateFolderListPath,
+  validateToolPath,
+  isInConfigDir,
+  assertOutsideConfigDir,
+  withoutConfigDir,
+  ConfigDirError,
   PathTraversalError,
 } from '../../src/utils/path-guard';
 
 const VAULT_ROOT = '/home/user/vault';
+const CONFIG_DIR = '.obsidian';
 
 describe('validateVaultPath', () => {
   describe('valid paths', () => {
@@ -111,20 +117,127 @@ describe('validateVaultPath', () => {
 
 describe('validateFolderListPath', () => {
   it.each(['', '/', '.', './', '  '])('maps %j to the vault root', (input) => {
-    expect(validateFolderListPath(input, VAULT_ROOT)).toBe('');
+    expect(validateFolderListPath(input, VAULT_ROOT, CONFIG_DIR)).toBe('');
+  });
+
+  it('rejects the config folder and folders inside it (#462)', () => {
+    expect(() => validateFolderListPath('.obsidian', VAULT_ROOT, CONFIG_DIR)).toThrow(ConfigDirError);
+    expect(() => validateFolderListPath('.obsidian/plugins', VAULT_ROOT, CONFIG_DIR)).toThrow(
+      ConfigDirError,
+    );
   });
 
   it('passes ordinary folder paths through validateVaultPath', () => {
-    expect(validateFolderListPath('notes/sub', VAULT_ROOT)).toBe('notes/sub');
-    expect(validateFolderListPath('/notes', VAULT_ROOT)).toBe('notes');
+    expect(validateFolderListPath('notes/sub', VAULT_ROOT, CONFIG_DIR)).toBe('notes/sub');
+    expect(validateFolderListPath('/notes', VAULT_ROOT, CONFIG_DIR)).toBe('notes');
   });
 
   it('still rejects traversal', () => {
-    expect(() => validateFolderListPath('../etc', VAULT_ROOT)).toThrow(PathTraversalError);
+    expect(() => validateFolderListPath('../etc', VAULT_ROOT, CONFIG_DIR)).toThrow(PathTraversalError);
   });
 
   it('does not change validateVaultPath, which still rejects the root aliases', () => {
     expect(() => validateVaultPath('', VAULT_ROOT)).toThrow(PathTraversalError);
     expect(() => validateVaultPath('/', VAULT_ROOT)).toThrow(PathTraversalError);
+  });
+});
+
+describe('isInConfigDir (#462)', () => {
+  it.each([
+    '.obsidian',
+    '.obsidian/',
+    '.obsidian/app.json',
+    '.obsidian/plugins/vault-mcp-server/data.json',
+    '.Obsidian/app.json',
+    '.OBSIDIAN',
+    './.obsidian/app.json',
+    '.obsidian//plugins',
+    'notes/../.obsidian/app.json',
+    '.obsidian./app.json',
+    '.obsidian /app.json',
+  ])('matches %j', (path) => {
+    expect(isInConfigDir(path, CONFIG_DIR)).toBe(true);
+  });
+
+  it.each([
+    'notes/a.md',
+    '.obsidianx/a.md',
+    'x.obsidian/a.md',
+    'notes/.obsidian/a.md',
+    '.obsidian-notes.md',
+    '.trash/a.md',
+    '',
+  ])('does not match %j', (path) => {
+    expect(isInConfigDir(path, CONFIG_DIR)).toBe(false);
+  });
+
+  it('uses the given config folder, not a hard-coded .obsidian', () => {
+    expect(isInConfigDir('.config/app.json', '.config')).toBe(true);
+    expect(isInConfigDir('.obsidian/app.json', '.config')).toBe(false);
+    expect(isInConfigDir('.config/app.json', '/.config/')).toBe(true);
+  });
+
+  it('matches nothing for an empty config folder', () => {
+    expect(isInConfigDir('.obsidian/app.json', '')).toBe(false);
+    expect(isInConfigDir('notes/a.md', '/')).toBe(false);
+  });
+});
+
+describe('assertOutsideConfigDir (#462)', () => {
+  it('throws ConfigDirError, a PathTraversalError, naming the folder', () => {
+    let caught: unknown;
+    try {
+      assertOutsideConfigDir('.obsidian/app.json', CONFIG_DIR);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ConfigDirError);
+    expect(caught).toBeInstanceOf(PathTraversalError);
+    expect((caught as Error).message).toBe(
+      'Path is inside the Obsidian config folder (.obsidian); it cannot be read or written',
+    );
+  });
+
+  it('passes other paths', () => {
+    expect(() => assertOutsideConfigDir('notes/a.md', CONFIG_DIR)).not.toThrow();
+  });
+});
+
+describe('validateToolPath (#462)', () => {
+  it('returns the normalised path outside the config folder', () => {
+    expect(validateToolPath('/notes/a.md', VAULT_ROOT, CONFIG_DIR)).toBe('notes/a.md');
+  });
+
+  it('rejects the config folder after normalisation', () => {
+    expect(() => validateToolPath('/.obsidian/app.json', VAULT_ROOT, CONFIG_DIR)).toThrow(
+      ConfigDirError,
+    );
+    expect(() => validateToolPath('notes/../.Obsidian/app.json', VAULT_ROOT, CONFIG_DIR)).toThrow(
+      ConfigDirError,
+    );
+  });
+
+  it('still rejects traversal first', () => {
+    expect(() => validateToolPath('../x', VAULT_ROOT, CONFIG_DIR)).toThrow(
+      'Path must not traverse outside the vault',
+    );
+  });
+
+  it('leaves validateVaultPath alone: it does not know the config folder', () => {
+    expect(validateVaultPath('.obsidian/app.json', VAULT_ROOT)).toBe('.obsidian/app.json');
+  });
+});
+
+describe('withoutConfigDir (#462)', () => {
+  it('drops the config folder and its contents from a listing', () => {
+    expect(
+      withoutConfigDir(
+        {
+          files: ['a.md', '.obsidian/app.json', '.Obsidian/x.json'],
+          folders: ['notes', '.obsidian', '.obsidian/plugins'],
+        },
+        CONFIG_DIR,
+      ),
+    ).toEqual({ files: ['a.md'], folders: ['notes'] });
   });
 });

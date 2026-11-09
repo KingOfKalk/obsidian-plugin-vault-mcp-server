@@ -1,6 +1,6 @@
 import { CallToolResult } from '@modelcontextprotocol/server';
 import { ObsidianAdapter } from '../../obsidian/adapter';
-import { validateVaultPath } from '../../utils/path-guard';
+import { validateToolPath } from '../../utils/path-guard';
 import { truncateText } from '../shared/truncate';
 import { handleToolError } from '../shared/errors';
 import { paginate, readPagination } from '../shared/pagination';
@@ -95,6 +95,7 @@ function renderPaginatedPaths(
 
 export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
   const vaultPath = adapter.getVaultPath();
+  const configDir = adapter.getConfigDir();
 
   return {
     async searchFulltext(params, ctx): Promise<CallToolResult> {
@@ -167,7 +168,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
 
     searchFrontmatter(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
+        const path = validateToolPath(params.path, vaultPath, configDir);
         const frontmatter = adapter.getFrontmatter(path) ?? {};
         return Promise.resolve(
           makeResponse(
@@ -213,7 +214,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
 
     searchHeadings(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
+        const path = validateToolPath(params.path, vaultPath, configDir);
         const headings = adapter.getHeadings(path);
         return Promise.resolve(
           makeResponse(
@@ -235,7 +236,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
 
     searchOutgoingLinks(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
+        const path = validateToolPath(params.path, vaultPath, configDir);
         const links = adapter.getLinks(path);
         return Promise.resolve(
           makeResponse(
@@ -257,7 +258,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
 
     searchEmbeds(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
+        const path = validateToolPath(params.path, vaultPath, configDir);
         const embeds = adapter.getEmbeds(path);
         return Promise.resolve(
           makeResponse(
@@ -277,7 +278,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
 
     async searchBacklinks(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
+        const path = validateToolPath(params.path, vaultPath, configDir);
         if (params.includeContext === true) {
           const backlinkContext = await readBacklinkContext(adapter, path);
           return makeResponse(
@@ -363,7 +364,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
 
     searchBlockReferences(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
+        const path = validateToolPath(params.path, vaultPath, configDir);
         return adapter.getFileContent(path).then((content) => {
           const blockRefs = content
             .split('\n')

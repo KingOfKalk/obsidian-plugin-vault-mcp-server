@@ -6,13 +6,15 @@ import { z } from 'zod';
  *
  * The path texts carry only what a correct call needs on every parameter
  * (vault-relative, the extension, an example). The full path rule (forward
- * slashes, case-sensitive, leading / ignored, must stay in the vault, see
- * `validateVaultPath` in src/utils/path-guard.ts) is `PATH_RULE_HINT`,
+ * slashes, case-sensitive, leading / ignored, must stay in the vault and out
+ * of the config folder, see `validateToolPath` in src/utils/path-guard.ts)
+ * is `PATH_RULE_HINT`,
  * sent once in the server instructions of every session (#457).
  */
 export const PATH_RULE_HINT =
   '- Paths: vault-relative, forward slashes, case-sensitive; files with the extension (e.g. `notes/foo.md`); a leading / is ignored. ' +
-  'Never absolute filesystem paths; leaving the vault fails with "Path must not traverse outside the vault".';
+  'Never absolute filesystem paths; leaving the vault fails with "Path must not traverse outside the vault". ' +
+  'The config folder (usually `.obsidian`) is blocked.';
 
 /** A path to one file. */
 export const FILE_PATH_DESC = 'Vault-relative file path with extension, e.g. `notes/a.md`.';
