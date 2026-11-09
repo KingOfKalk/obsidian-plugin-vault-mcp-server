@@ -250,9 +250,10 @@ default. Today this contains:
 
 One tool is **always on** and has no toggle: `server_info` (Get server
 info). It reports the plugin version, the ids of the enabled modules and a
-short list of agent-relevant changes per version (renamed parameters or
-output fields, new tools). Turning every module off still leaves
-`server_info` in `tools/list`.
+short list of agent-relevant changes of the three most recent versions
+(renamed parameters or output fields, new tools); `allChanges: true` returns
+every version. Turning every module off still leaves `server_info` in
+`tools/list`.
 
 ### Execute Command Allowlist
 
@@ -361,8 +362,11 @@ shows it in two other places:
 - The first line of the `instructions` text above: `vault-mcp-server v<version>`.
 - The description of the `server_info` tool, which every client passes to
   the model. Calling `server_info` (no arguments) returns `name`,
-  `version`, `enabledModules` and `changes`, a short list of agent-relevant
-  changes per version. A version without an entry had no agent-relevant
+  `version`, `enabledModules`, `changes`, a short list of agent-relevant
+  changes of the three most recent versions that have any, and
+  `olderVersionsOmitted`, the number of older versions left out. Pass
+  `allChanges: true` for every version (before 4.0.2 every version was
+  always returned). A version without an entry had no agent-relevant
   changes; the list is not out of date. It is not the full changelog; see
   `CHANGELOG.md` for that.
 
@@ -486,9 +490,11 @@ clients and agents commonly trip over:
   `maxMatchesPerFile` matching lines per file (default 5, maximum 100);
   `matchCount` always reports the real number of matches. `limit` and
   `offset` page over files, and `total` and `count` count files. The
-  default Markdown text lists only the paths and match counts; the
-  matching lines are in `structuredContent` and in the text with
-  `responseFormat: "json"`.
+  default Markdown text shows the matching lines under each file as
+  `<line>: <text>` (1-based line number, lines cut at 200 characters) and
+  how many matching lines were left out; before 4.0.2 it listed only the
+  paths and match counts. `structuredContent` and the text with
+  `responseFormat: "json"` carry the full lines without line numbers.
 - **Frontmatter key search.** `search_by_frontmatter` with only `key` finds
   every note that has that frontmatter property; add `value` to match a
   specific value. For a list property such as `tags: [project, idea]`, a
@@ -516,9 +522,11 @@ clients and agents commonly trip over:
   against your setting. `vault_rename` and `vault_move` also accept a
   folder; like `vault_rename_folder` they then count the links to every
   file in it (before 4.0.2 they missed those links and gave no warning).
-  Renaming, moving or copying onto a path that already exists fails
-  (`Destination file already exists!`, or an `EEXIST` error for
-  `vault_copy`); nothing is overwritten.
+  Renaming, moving or copying onto a path that already exists fails with
+  `Destination already exists: <path>. Choose another path or delete it
+  first; nothing was changed.`; nothing is overwritten. (Before 4.0.2 the
+  error was Obsidian's `Destination file already exists!`, or an `EEXIST`
+  error for `vault_copy`.)
 - **Missing folders are created.** `vault_create`, `vault_copy`,
   `vault_move`, `vault_write_binary` and `template_create_from` create any
   folders in the target path that do not exist yet, so writing
@@ -527,6 +535,23 @@ clients and agents commonly trip over:
 - **No absolute paths in errors.** Error messages never show where your vault
   lives on disk: paths inside the vault appear vault-relative (for example
   `projects/plan.md`), other filesystem paths appear as `<path>`.
+- **Errors name the next step.** A path without its extension, such as
+  `projects/Atlas` taken from a wikilink, fails with `File not found:
+  projects/Atlas. Did you mean projects/Atlas.md?` (or `Path not found: …`
+  for the rename and move tools) when that `.md` file exists. The
+  `editor_*` tools' `No active editor` error suggests opening the note
+  (`workspace_open_file`) or using the `vault_*` tools. Base64 data for
+  `vault_write_binary` that contains whitespace, often a trailing newline,
+  fails with a message that says so.
+- **Search headers.** `search_by_tag` and `search_by_frontmatter` start
+  with a header such as `**4 files tagged #project**` or `**1 file with
+  status=active**`; the tag or value is shown exactly as matched (before
+  4.0.2 the plural "s" was appended to the tag or value instead).
+- **Tool annotations.** Only `plugin_execute_command` is marked
+  `openWorldHint: true`, because an Obsidian command can reach beyond the
+  vault. The other Plugin Interop tools only read local plugin state and
+  the vault and are marked `openWorldHint: false` (before 4.0.2 they were
+  `true`).
 - **Changing frontmatter.** `vault_set_frontmatter` sets and removes
   frontmatter keys of a Markdown note without touching the rest of the file:
   `{ "path": "notes/a.md", "set": { "status": "done" }, "remove": ["draft"] }`.
