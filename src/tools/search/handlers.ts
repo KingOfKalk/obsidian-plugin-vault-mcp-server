@@ -412,7 +412,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
           const fm = adapter.getFrontmatter(filePath);
           if (!fm || !Object.prototype.hasOwnProperty.call(fm, key)) continue;
           // No value: "has this key" query (#388).
-          if (value === undefined || String(fm[key]) === value) {
+          if (value === undefined || frontmatterValueMatches(fm[key], value)) {
             matching.push(filePath);
           }
         }
@@ -430,4 +430,15 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
       }
     },
   };
+}
+
+/**
+ * A list value (`tags: [a, b]`) matches when any element equals `value`;
+ * anything else is compared as a string (#405).
+ */
+function frontmatterValueMatches(actual: unknown, value: string): boolean {
+  if (Array.isArray(actual)) {
+    return actual.some((item) => String(item) === value);
+  }
+  return String(actual) === value;
 }

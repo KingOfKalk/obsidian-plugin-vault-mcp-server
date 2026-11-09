@@ -20,6 +20,11 @@ export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
   {
     version: '3.3.0',
     notes: [
+      '`vault_delete` and `vault_delete_folder` follow the user\'s "Deleted files" setting (system trash, `.trash` folder, or permanent) instead of always deleting for good.',
+      '`vault_rename`, `vault_move` and `vault_rename_folder` update links to the moved file when the user enabled "Automatically update internal links".',
+      '`vault_create`, `vault_copy`, `vault_move`, `vault_write_binary` and `template_create_from` create missing parent folders instead of failing.',
+      'Error messages no longer contain absolute filesystem paths; vault paths are vault-relative, other paths read `<path>`.',
+      '`search_by_frontmatter`: a list property matches when any element equals `value`.',
       '`vault_daily_note` takes `create` (default true). With `create: false` a missing note is not created and the result is `{ path, created: false, exists: false }` without `content`. Every result now carries `exists`. The default may change to false in the next major release.',
       '`vault_get_aspect` with `aspect: "backlinks"` takes `includeContext` (default false). When true the result adds `backlinkContext`: per linking file, the 1-based `line` and `text` of each line that links to the note.',
     ],

@@ -47,7 +47,7 @@ Response (`structuredContent`):
 
 **Create file from template**
 
-Create a file by expanding {{variable}} placeholders in a template.
+Create a file by expanding {{variable}} placeholders in a template. Missing parent folders are created.
 
 See also:
   - template_expand — when you want the expanded template content returned inline, not written to a new vault file.
