@@ -205,7 +205,7 @@ describe('createMcpServer', () => {
 
     it('drops the workspace_open_file hint when the workspace module is off', () => {
       const text = build(['workspace']);
-      expect(text).toContain('`editor_*` tools operate on the **active** file only');
+      expect(text).toContain('`editor_*` tools work on the **active** file only');
       expect(text).not.toContain('workspace_open_file');
     });
 
@@ -223,8 +223,21 @@ describe('createMcpServer', () => {
       const text = build(['vault', 'search', 'editor', 'workspace']);
       expect(text.split('\n')[0]).toBe(`vault-mcp-server v${manifest.version}`);
       expect(text).toContain('server_info');
-      expect(text).toContain('Paths are vault-relative');
+      expect(text).toContain('Paths: vault-relative');
       expect(text).not.toMatch(/editor_|search_|vault_get_aspect|workspace_open_file/);
+    });
+
+    it('carries the full path rule whenever a path tool is on (#457)', async () => {
+      // Path parameters carry only a short form; the rule lives here.
+      const { buildServerInstructions } = await import('../../src/server/mcp-server');
+      const { PATH_RULE_HINT } = await import('../../src/tools/shared/descriptions');
+      for (const active of [undefined, ['vault_read'], ['workspace_open_file'], ['template_create_from'], []]) {
+        const text = buildServerInstructions('1.0.0', active);
+        expect(text).toContain(PATH_RULE_HINT);
+      }
+      for (const fact of ['forward slashes', 'case-sensitive', 'with the extension', 'leading / is ignored', 'Path must not traverse outside the vault']) {
+        expect(PATH_RULE_HINT).toContain(fact);
+      }
     });
 
     it('drops a line when its tool is switched off on its own', async () => {
@@ -726,13 +739,15 @@ describe('SERVER_INSTRUCTIONS', () => {
     expect(SERVER_INSTRUCTIONS.length).toBeGreaterThan(0);
   });
 
-  it('stays within the 800-character budget (paid every turn)', async () => {
+  it('stays within the 1000-character budget (paid every turn)', async () => {
     const { SERVER_INSTRUCTIONS } = await import(
       '../../src/server/mcp-server'
     );
     // Hard cap so we notice if the string drifts toward bloat. Current
-    // length is ~790 chars including the version line (#402, #449).
-    expect(SERVER_INSTRUCTIONS.length).toBeLessThanOrEqual(800);
+    // length is ~940 chars including the version line (#402, #449). It
+    // grew when the full path rule moved here from ~30 path parameters
+    // (#457), which saved far more in tools/list.
+    expect(SERVER_INSTRUCTIONS.length).toBeLessThanOrEqual(1000);
   });
 
   it.each([

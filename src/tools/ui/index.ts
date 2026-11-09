@@ -17,14 +17,14 @@ const showNoticeSchema = {
     .string()
     .min(1)
     .max(1000)
-    .describe('Notice text to show to the user'),
+    .describe('Notice text.'),
   duration: z
     .number()
     .int()
     .min(0)
     .max(60_000)
     .optional()
-    .describe('Milliseconds before the notice auto-dismisses (0 = sticky)'),
+    .describe('Milliseconds until the notice auto-dismisses (0 = sticky).'),
 };
 
 const showNoticeOutputSchema = {

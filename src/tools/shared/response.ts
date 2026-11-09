@@ -14,7 +14,7 @@ export type ResponseFormat = z.infer<typeof ResponseFormat>;
 
 export const responseFormatField = {
   responseFormat: ResponseFormat.default('markdown').describe(
-    'Output format: "markdown" for humans (default), "json" for machines.',
+    '"json" returns the full result as JSON.',
   ),
 };
 

@@ -5,7 +5,7 @@ import { responseFormatField } from '../shared/response';
 import { FILE_PATH_DESC, vaultPathField } from '../shared/descriptions';
 
 export const searchFulltextSchema = {
-  query: searchQuerySchema.describe('Case-insensitive substring to find in the text of Markdown notes'),
+  query: searchQuerySchema.describe('Case-insensitive substring to find.'),
   maxMatchesPerFile: z
     .number()
     .int()
@@ -13,7 +13,7 @@ export const searchFulltextSchema = {
     .max(100)
     .default(5)
     .describe(
-      'Maximum matching lines returned per file (1..100, default 5). matchCount always reports the full count.',
+      'Maximum matching lines returned per file; matchCount always reports the full count.',
     ),
   ...paginationFields,
   ...responseFormatField,
@@ -34,8 +34,7 @@ export const searchByTagSchema = {
     .min(1)
     .max(200)
     .describe(
-      'Tag with or without the leading # (e.g. "project"). Exact, case-sensitive match: "project" does not find ' +
-        '"Project" or nested "project/alpha"; use search_tags for the exact spellings.',
+      'Tag with or without the leading # (e.g. "project"). "project" does not find "Project" or nested "project/alpha".',
     ),
   ...paginationFields,
   ...responseFormatField,
@@ -52,7 +51,7 @@ export const searchByFrontmatterSchema = {
     .max(1000)
     .optional()
     .describe(
-      'Value to match exactly, compared as text (the number 5 matches "5", the boolean true matches "true"). For a list property, a file matches if any element equals the value. Omit to match every file that has the key.',
+      'Value to match exactly, compared as text (5 matches "5", true matches "true"); for a list, any element may match. Omit to match every note with the key.',
     ),
   ...paginationFields,
   ...responseFormatField,

@@ -29,7 +29,7 @@ const openFileSchema = {
     .enum(['source', 'preview', 'live'])
     .optional()
     .describe(
-      'Optional view mode for a Markdown note: "source" (Source mode), "live" (Live Preview) or "preview" (Reading view). Without it, Obsidian\'s default view applies.',
+      'View mode for a Markdown note: "source" (Source mode), "live" (Live Preview) or "preview" (Reading view); omit for Obsidian\'s default view.',
     ),
 };
 
@@ -38,7 +38,7 @@ const setActiveLeafSchema = {
     .string()
     .min(1)
     .max(200)
-    .describe('Leaf id returned by workspace_list_leaves'),
+    .describe('Leaf id from workspace_list_leaves.'),
 };
 
 /**
@@ -174,11 +174,9 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
           name: 'workspace_get_active_leaf',
           title: 'Get active leaf',
           description: describeTool({
-            summary: 'Get info about the currently-focused leaf (pane).',
+            summary: 'Get the focused leaf (pane): its id, view type and file path.',
             errors: ['"No active leaf" if no leaf is focused.'],
-            seeAlso: [
-              'editor_get_active_file — when you only need the active file\'s path, not the surrounding leaf metadata.',
-            ],
+            seeAlso: ['editor_get_active_file — for just the active file\'s path.'],
           }),
           schema: readOnlySchema,
           outputSchema: getActiveLeafOutputSchema,
@@ -193,10 +191,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
             examples: [
               'Use when: showing a note read-only -> { path: "notes/a.md", mode: "preview" }',
             ],
-            errors: [
-              '"File not found" if the path does not exist.',
-              '"Path must not traverse outside the vault" on traversal attempts.',
-            ],
+            errors: ['"File not found" if path does not exist.'],
           }),
           schema: openFileSchema,
           outputSchema: openFileOutputSchema,

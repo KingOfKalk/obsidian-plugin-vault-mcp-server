@@ -2,19 +2,17 @@
  * Build a consistent tool description in the mcp-builder format:
  *
  *   <summary>
- *
- *   Returns:
- *     <what the result means, beyond its shape>
- *
+ *   Returns: <what the result means, beyond its shape>
  *   Examples:
- *     - Use when: ...
- *     - Don't use when: ...
- *
+ *   - Use when: ...
+ *   - Don't use when: ...
  *   See also:
- *     - other_tool — when ...
- *
+ *   - other_tool — when ...
  *   Errors:
- *     - "msg" when ...
+ *   - "msg" when ...
+ *
+ * No blank lines between sections and no indentation: the headings already
+ * separate them, and every character is paid in every session (#457).
  *
  * All sections except the summary are optional — pass only what's
  * relevant.
@@ -39,26 +37,17 @@ export function describeTool(doc: ToolDoc): string {
   const lines: string[] = [doc.summary.trim()];
 
   if (doc.returns !== undefined) {
-    lines.push('', 'Returns:');
-    for (const line of doc.returns.trim().split('\n')) {
-      lines.push(`  ${line}`);
-    }
+    lines.push(`Returns: ${doc.returns.trim()}`);
   }
 
-  if (doc.examples && doc.examples.length > 0) {
-    lines.push('', 'Examples:');
-    for (const ex of doc.examples) lines.push(`  - ${ex}`);
-  }
-
-  if (doc.seeAlso && doc.seeAlso.length > 0) {
-    lines.push('', 'See also:');
-    for (const s of doc.seeAlso) lines.push(`  - ${s}`);
-  }
-
-  if (doc.errors && doc.errors.length > 0) {
-    lines.push('', 'Errors:');
-    for (const e of doc.errors) lines.push(`  - ${e}`);
-  }
+  const list = (heading: string, items: string[] | undefined): void => {
+    if (items === undefined || items.length === 0) return;
+    lines.push(heading);
+    for (const item of items) lines.push(`- ${item}`);
+  };
+  list('Examples:', doc.examples);
+  list('See also:', doc.seeAlso);
+  list('Errors:', doc.errors);
 
   return lines.join('\n');
 }

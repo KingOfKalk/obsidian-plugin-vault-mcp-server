@@ -330,9 +330,8 @@ export function createPluginInteropModule(
           description: describeTool({
             summary:
               'Run an Obsidian command by id. Only ids the user put on the Execute Command Allowlist in the plugin settings run; the list is empty by default.',
-            examples: ['Use when: triggering "editor:save-file" programmatically.'],
             errors: [
-              '"Command execution disabled" if the allowlist is empty; ask the user to add the command id in the plugin settings.',
+              '"Command execution disabled" if the allowlist is empty; ask the user to add the id in the plugin settings.',
               '"Command "<id>" is not on the executeCommand allowlist" if the id is not listed.',
               '"Command not found" if the id is listed but no such command exists.',
             ],

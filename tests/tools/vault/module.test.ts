@@ -406,12 +406,12 @@ describe('vault tools document shared args in inputSchema', () => {
     const schema = schemaFor('vault_list_recursive');
     expect(schema.limit.description).toContain('Maximum items');
     expect(schema.offset.description).toContain('skip');
-    expect(schema.responseFormat.description).toContain('markdown');
+    expect(schema.responseFormat.description).toContain('json');
   });
 
   it('read-only tools expose a described responseFormat field', () => {
     for (const name of ['vault_read', 'vault_get_metadata', 'vault_list']) {
-      expect(schemaFor(name).responseFormat.description).toContain('markdown');
+      expect(schemaFor(name).responseFormat.description).toContain('json');
     }
   });
 });

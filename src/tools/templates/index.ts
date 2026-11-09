@@ -44,8 +44,8 @@ const createFromTemplateSchema = {
     .record(frontmatterKeySchema, z.unknown())
     .optional()
     .describe(
-      'Frontmatter keys to set on the new note, mapped to JSON-compatible values (string, number, boolean, null, array or object). ' +
-        'Applied after the template is expanded: keys from the template are kept, keys given here overwrite them. Markdown (.md) destinations only.',
+      'Keys to set on the new note, mapped to JSON-compatible values (string, number, boolean, null, array or object). ' +
+        'Applied after expansion: template keys are kept, keys given here overwrite them. Markdown (.md) destinations only.',
     ),
 };
 
@@ -53,7 +53,7 @@ const expandVariablesSchema = {
   template: z
     .string()
     .max(100_000)
-    .describe('Template text containing {{variable}} placeholders'),
+    .describe('Template text with {{variable}} placeholders.'),
   variables: z
     .record(z.string(), z.string())
     .optional()
@@ -200,15 +200,13 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
           name: 'template_create_from',
           title: 'Create file from template',
           description: describeTool({
-            summary: 'Create a file by expanding {{variable}} placeholders in a template, optionally setting frontmatter keys on the new note in the same call. Missing parent folders are created.',
+            summary: 'Create a file by expanding {{variable}} placeholders in a template, optionally setting frontmatter keys on it in the same call. Missing parent folders are created.',
             errors: [
               '"File not found" if templatePath is missing.',
               '"File already exists" if destPath is taken.',
               '"Frontmatter can only be set on Markdown (.md) files" if frontmatter is given for a non-.md destPath.',
             ],
-            seeAlso: [
-              'template_expand — when you want the expanded template content returned inline, not written to a new vault file.',
-            ],
+            seeAlso: ['template_expand — to get the expanded text without writing a file.'],
           }),
           schema: createFromTemplateSchema,
           outputSchema: createFromTemplateOutputSchema,
@@ -219,10 +217,8 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
           name: 'template_expand',
           title: 'Expand template inline',
           description: describeTool({
-            summary: 'Expand {{variable}} placeholders in a supplied string without writing any file.',
-            seeAlso: [
-              'template_create_from — when you want the expanded template written to a new vault file, not just returned as text.',
-            ],
+            summary: 'Expand {{variable}} placeholders in a given string without writing any file.',
+            seeAlso: ['template_create_from — to write the expanded template to a new file.'],
           }),
           schema: expandVariablesSchema,
           outputSchema: templateExpandOutputSchema,

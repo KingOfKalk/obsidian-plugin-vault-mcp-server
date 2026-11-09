@@ -235,7 +235,7 @@ describe('templates module', () => {
       const tools = module.tools();
       for (const name of ['template_list', 'template_expand']) {
         const tool = tools.find((t) => t.name === name)!;
-        expect((tool.schema.responseFormat as z.ZodType).description).toContain('markdown');
+        expect((tool.schema.responseFormat as z.ZodType).description).toContain('json');
       }
     });
 

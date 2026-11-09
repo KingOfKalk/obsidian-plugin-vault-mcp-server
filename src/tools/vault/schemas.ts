@@ -43,7 +43,7 @@ export const createFileSchema = {
   content: z
     .string()
     .max(5_000_000)
-    .describe('Initial UTF-8 text content of the new file'),
+    .describe('Initial UTF-8 text content.'),
 };
 
 /**
@@ -68,9 +68,8 @@ export const readFileSchema = {
   heading: heading
     .optional()
     .describe(
-      'Optional: return only this section — the heading line up to the next heading of the same or a higher level. ' +
-        'Heading text without the # marks (e.g. "Log"), or with them to pin the level (e.g. "## Log"). ' +
-        'offset/length then page within the section.',
+      'Return only this section: the heading line up to the next heading of the same or a higher level. ' +
+        'Text without the # marks (e.g. "Log"), or with them to pin the level ("## Log"). offset/length then page within it.',
     ),
   offset: z
     .number()
@@ -78,7 +77,7 @@ export const readFileSchema = {
     .min(0)
     .default(0)
     .describe(
-      'Character offset to start reading at (default 0). Use nextOffset from the previous call to continue a large file.',
+      'Character offset to start at; pass nextOffset from the previous call to continue.',
     ),
   length: z
     .number()
@@ -87,7 +86,7 @@ export const readFileSchema = {
     .max(READ_MAX_LENGTH)
     .optional()
     .describe(
-      `Maximum characters to return (1..${String(READ_MAX_LENGTH)}, default ${String(READ_MAX_LENGTH)}). Files that fit are returned whole.`,
+      `Maximum characters to return (default ${String(READ_MAX_LENGTH)}). Files that fit are returned whole.`,
     ),
   ...responseFormatField,
 };
@@ -97,7 +96,7 @@ export const updateFileSchema = {
   content: z
     .string()
     .max(5_000_000)
-    .describe('Replacement content for the file'),
+    .describe('New content of the whole file.'),
   expectedMtime,
 };
 
@@ -111,7 +110,7 @@ export const appendFileSchema = {
     .string()
     .min(1)
     .max(5_000_000)
-    .describe('Content to append to the end of the file'),
+    .describe('Content to append.'),
   expectedMtime,
 };
 
@@ -127,15 +126,13 @@ const replaceNewString = z.string().max(5_000_000);
  */
 const replaceEdit = z.strictObject({
   oldString: replaceOldString.describe(
-    'Exact text to find (literal, case-sensitive, no regex). Must occur exactly once unless replaceAll is true.',
+    'Exact text to find (literal, case-sensitive, no regex); must occur exactly once unless replaceAll.',
   ),
-  newString: replaceNewString.describe(
-    'Replacement text (literal; may be empty to delete oldString).',
-  ),
+  newString: replaceNewString.describe('Replacement text (literal; empty deletes oldString).'),
   replaceAll: z
     .boolean()
     .default(false)
-    .describe("Replace every occurrence of this edit's oldString (default false)."),
+    .describe("Replace every occurrence of this edit's oldString."),
 });
 
 /**
@@ -148,20 +145,19 @@ export const replaceInFileSchema = {
   oldString: replaceOldString
     .optional()
     .describe(
-      'Single-edit form: exact text to find (literal, case-sensitive, no regex). ' +
-        'Must occur exactly once unless replaceAll is true. Give it with newString, or use edits instead.',
+      'Single-edit form: exact text to find (literal, case-sensitive, no regex); must occur exactly once unless replaceAll. ' +
+        'Give it with newString.',
     ),
   newString: replaceNewString
     .optional()
     .describe(
-      'Single-edit form: replacement text (literal; may be empty to delete oldString). Give it with oldString.',
+      'Single-edit form: replacement text (literal; empty deletes oldString).',
     ),
   replaceAll: z
     .boolean()
     .default(false)
     .describe(
-      'Single-edit form: replace every occurrence instead of requiring exactly one (default false). ' +
-        'With edits, set replaceAll on each edit instead.',
+      'Single-edit form: replace every occurrence instead of requiring exactly one. With edits, set it per edit.',
     ),
   edits: z
     .array(replaceEdit)
@@ -169,10 +165,8 @@ export const replaceInFileSchema = {
     .max(MAX_REPLACE_EDITS)
     .optional()
     .describe(
-      'Multi-edit form, instead of oldString/newString: up to 100 { oldString, newString, replaceAll? } edits, ' +
-        'all or nothing. Every edit is matched against the file as it was before the call (text inserted by one edit ' +
-        'is never matched by another), and the matches of different edits must not overlap. ' +
-        'If any edit fails, nothing is written.',
+      'Multi-edit form, instead of oldString/newString; all or nothing. Every edit is matched against the file as it was ' +
+        'before the call (text one edit inserts is never matched by another); matches of different edits must not overlap.',
     ),
   expectedMtime,
 };
@@ -180,14 +174,14 @@ export const replaceInFileSchema = {
 export const insertSchema = {
   path,
   heading: heading.describe(
-    'Heading of the target section: its text without the # marks (e.g. "Log"), or with them to pin the level (e.g. "## Log"). ' +
+    'Section heading: text without the # marks (e.g. "Log"), or with them to pin the level ("## Log"). ' +
       'Must match exactly one heading; headings in code blocks and frontmatter are ignored.',
   ),
   position: z
     .enum(['start', 'end'])
     .default('end')
     .describe(
-      '"end" (default): after the last non-blank line of the section, nested subsections included. ' +
+      '"end": after the last non-blank line of the section, nested subsections included. ' +
         '"start": before the first non-blank line below the heading (blank lines after the heading stay above the text; ' +
         'in an empty section, right below the heading).',
     ),
@@ -196,7 +190,7 @@ export const insertSchema = {
     .min(1)
     .max(5_000_000)
     .describe(
-      'Text to insert as whole lines; one trailing newline is ignored. Start it with a newline to leave a blank line before it.',
+      'Inserted as whole lines; one trailing newline is ignored. Start it with a newline to leave a blank line before it.',
     ),
   expectedMtime,
 };
@@ -217,7 +211,7 @@ export const renameFileSchema = {
       'newName must not contain path separators or null bytes',
     )
     .describe(
-      'New name for the last path segment, extension included (e.g. "final.md", not "final"); the folder stays the same. No / or \\.',
+      'New name of the last path segment, extension included ("final.md", not "final"); the folder stays the same. No / or \\.',
     ),
 };
 
@@ -240,7 +234,7 @@ export const deleteFolderSchema = {
   recursive: z
     .boolean()
     .default(false)
-    .describe('Also delete everything inside (default false: only an empty folder is deleted).'),
+    .describe('Also delete everything inside; when false, only an empty folder is deleted.'),
 };
 
 export const renameFolderSchema = {
@@ -256,14 +250,14 @@ const listFolderPath = z.string().max(4096);
 
 export const listFolderSchema = {
   path: listFolderPath.describe(
-    'Vault-relative folder path to list (non-recursive), e.g. "projects". Use "" (or "/" or ".") for the vault root.',
+    'Vault-relative folder path, e.g. "projects"; "" (or "/" or ".") for the vault root.',
   ),
   ...responseFormatField,
 };
 
 export const listRecursiveSchema = {
   path: listFolderPath.describe(
-    'Vault-relative folder path to list recursively, e.g. "projects". Use "" (or "/" or ".") for the vault root.',
+    'Vault-relative folder path, e.g. "projects"; "" (or "/" or ".") for the vault root.',
   ),
   ...paginationFields,
   ...responseFormatField,
@@ -279,7 +273,7 @@ export const writeBinarySchema = {
   data: base64Schema
     .refine((val) => val.length > 0, 'Base64 content must not be empty')
     .describe(
-      'Standard base64 (A-Z a-z 0-9 + /, = padding) on one line: no whitespace or line breaks, no data: prefix, no base64url.',
+      'Standard base64 (A-Z a-z 0-9 + /, = padding) on one line: no whitespace, no data: prefix, no base64url.',
     ),
   expectedMtime,
 };
@@ -303,16 +297,16 @@ export const getAspectSchema = {
       'block_references',
     ])
     .describe(
-      'Which metadata aspect to return: frontmatter, headings, outgoing_links ([[...]] and [text](note.md) links), ' +
-        'embeds (![[...]]), backlinks (files linking TO this file) or block_references (^block-ids). ' +
-        'The result carries the matching field (frontmatter, headings, links, embeds, backlinks or blockRefs).',
+      'frontmatter, headings, outgoing_links ([[...]] and [text](note.md) links), embeds (![[...]]), ' +
+        'backlinks (files linking TO this file) or block_references (^block-ids). ' +
+        'The result sets the matching field: frontmatter, headings, links, embeds, backlinks or blockRefs.',
     ),
   includeContext: z
     .boolean()
     .optional()
     .describe(
-      'aspect=backlinks only (default false): also return backlinkContext — for each linking file, ' +
-        'the 1-based line number and text of every line that links here. Ignored for other aspects.',
+      'aspect=backlinks only (default false): also return backlinkContext, the 1-based line number and text ' +
+        'of every line in each linking file that links here.',
     ),
   ...responseFormatField,
 };
@@ -329,13 +323,12 @@ export const dailyNoteSchema = {
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD')
     .optional()
-    .describe('Optional ISO date (YYYY-MM-DD). Omit for today (local time).'),
+    .describe('ISO date (YYYY-MM-DD); omit for today (local time).'),
   create: z
     .boolean()
     .optional()
     .describe(
-      'Create the note from the template when it is missing (default false). ' +
-        'Without create=true the tool only looks the note up: a missing note returns exists=false and nothing is created.',
+      'Create the note from the template if missing (default false). Without it, a missing note returns exists=false.',
     ),
   ...responseFormatField,
 };
@@ -351,13 +344,13 @@ export const setFrontmatterSchema = {
   set: z
     .record(frontmatterKeySchema, z.unknown())
     .describe(
-      'Frontmatter keys to set, mapped to JSON-compatible values (string, number, boolean, null, array or object). ' +
-        'Existing keys are overwritten; keys not listed are left untouched. Pass {} to only remove keys.',
+      'Keys to set, mapped to JSON-compatible values (string, number, boolean, null, array or object). ' +
+        'Existing keys are overwritten, others left untouched. Pass {} to only remove keys.',
     ),
   remove: z
     .array(frontmatterKeySchema)
     .max(1000)
     .optional()
-    .describe('Frontmatter keys to delete. Keys that are not present are ignored.'),
+    .describe('Keys to delete; absent keys are ignored.'),
   expectedMtime,
 };
