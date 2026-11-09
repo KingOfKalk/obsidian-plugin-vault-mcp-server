@@ -1,9 +1,8 @@
 import { CallToolResult } from '@modelcontextprotocol/server';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateToolPath } from '../../utils/path-guard';
-import { truncateText } from '../shared/truncate';
 import { handleToolError } from '../shared/errors';
-import { paginate, readPagination } from '../shared/pagination';
+import { fitPage, pageFooter, paginate, readPagination } from '../shared/pagination';
 import { makeResponse, readResponseFormat } from '../shared/response';
 import type { InferredParams } from '../../registry/types';
 import type { ToolContext } from '../../registry/tool-context';
@@ -117,10 +116,7 @@ function renderPaginatedPaths(
   const noun = page.total === 1 ? 'file' : 'files';
   const header = `**${String(page.total)} ${noun} ${label}**`;
   const body = renderPathList(page.items);
-  const footer = page.hasMore
-    ? `\n\n_Showing ${String(page.count)} of ${String(page.total)} — next offset: ${String(page.nextOffset ?? '')}_`
-    : '';
-  return `${header}\n\n${body}${footer}`;
+  return `${header}\n\n${body}${pageFooter(page)}`;
 }
 
 export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
@@ -174,28 +170,21 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
         }
 
         const page = paginate(matched, readPagination(params));
-        const result = makeResponse(
-          page,
-          (v) => {
-            if (v.items.length === 0) return 'No matches.';
-            const lines = v.items.map((m) =>
-              renderFulltextItem(m, lineNumbers.get(m.path) ?? []),
-            );
-            const pager = v.hasMore
-              ? `\n\n_Showing ${String(v.count)} of ${String(v.total)} — next offset: ${String(v.nextOffset ?? '')}_`
-              : '';
-            return `**${String(v.total)} result${v.total === 1 ? '' : 's'}**\n\n${lines.join('\n')}${pager}`;
-          },
-          readResponseFormat(params),
+        // Fewer files instead of cut text (#464): nextOffset then points
+        // at the first file left out, and the JSON text stays valid.
+        return fitPage(page, (p) =>
+          makeResponse(
+            p,
+            (v) => {
+              if (v.items.length === 0) return 'No matches.';
+              const lines = v.items.map((m) =>
+                renderFulltextItem(m, lineNumbers.get(m.path) ?? []),
+              );
+              return `**${String(v.total)} result${v.total === 1 ? '' : 's'}**\n\n${lines.join('\n')}${pageFooter(v)}`;
+            },
+            readResponseFormat(params),
+          ),
         );
-        const truncated = truncateText(
-          result.content[0].type === 'text' ? result.content[0].text : '',
-          { hint: 'Narrow the query, shrink limit, or advance offset.' },
-        );
-        return {
-          ...result,
-          content: [{ type: 'text' as const, text: truncated.text }],
-        };
       } catch (error) {
         return handleToolError(error);
       }

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { ToolContext } from '../../../src/registry/tool-context';
 import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/server';
+import { CHARACTER_LIMIT } from '../../../src/constants';
 import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
 import { createSearchHandlers, type SearchHandlers } from '../../../src/tools/search/handlers';
 import { createSearchModule } from '../../../src/tools/search/index';
@@ -82,7 +83,7 @@ describe('search handlers', () => {
       expect(result.structuredContent).toMatchObject({ total: 1 });
     });
 
-    it('truncates oversized json responses with a clear footer', async () => {
+    it('returns fewer files instead of cutting the json text (#464)', async () => {
       const bigMatches = Array.from({ length: 200 }, (_, i) => `match ${String(i)}`).join(
         '\n',
       );
@@ -93,7 +94,14 @@ describe('search handlers', () => {
         limit: 100,
         maxMatchesPerFile: 100,
       });
-      expect(getText(result)).toContain('[TRUNCATED:');
+      const text = getText(result);
+      expect(text.length).toBeLessThanOrEqual(CHARACTER_LIMIT);
+      expect(text).not.toContain('[TRUNCATED:');
+      const page = JSON.parse(text) as { count: number; hasMore: boolean; nextOffset: number };
+      expect(page).toEqual(result.structuredContent);
+      expect(page.count).toBeLessThan(50);
+      expect(page.hasMore).toBe(true);
+      expect(page.nextOffset).toBe(page.count);
     });
 
     it('caps matches per file at 5 by default and reports the real matchCount (#388)', async () => {
