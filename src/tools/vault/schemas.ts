@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { base64Schema } from '../../utils/validation';
 import { paginationFields } from '../shared/pagination';
 import { responseFormatField } from '../shared/response';
+import { frontmatterKeySchema } from '../shared/frontmatter';
 
 const path = z
   .string()
@@ -283,7 +284,6 @@ export const dailyNoteSchema = {
   ...responseFormatField,
 };
 
-const frontmatterKey = z.string().min(1).max(1024);
 
 /**
  * Input schema for `vault_set_frontmatter` (#407). `set` values are
@@ -293,13 +293,13 @@ const frontmatterKey = z.string().min(1).max(1024);
 export const setFrontmatterSchema = {
   path,
   set: z
-    .record(frontmatterKey, z.unknown())
+    .record(frontmatterKeySchema, z.unknown())
     .describe(
       'Frontmatter keys to set, mapped to JSON-compatible values (string, number, boolean, null, array or object). ' +
         'Existing keys are overwritten; keys not listed are left untouched. Pass {} to only remove keys.',
     ),
   remove: z
-    .array(frontmatterKey)
+    .array(frontmatterKeySchema)
     .max(1000)
     .optional()
     .describe('Frontmatter keys to delete. Keys that are not present are ignored.'),

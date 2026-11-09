@@ -47,7 +47,7 @@ Response (`structuredContent`):
 
 **Create file from template**
 
-Create a file by expanding {{variable}} placeholders in a template. Missing parent folders are created.
+Create a file by expanding {{variable}} placeholders in a template, optionally setting frontmatter keys on the new note in the same call. Missing parent folders are created.
 
 See also:
   - template_expand — when you want the expanded template content returned inline, not written to a new vault file.
@@ -55,6 +55,7 @@ See also:
 Errors:
   - "File not found" if templatePath is missing.
   - "File already exists" if destPath is taken.
+  - "Frontmatter can only be set on Markdown (.md) files" if frontmatter is given for a non-.md destPath.
 
 #### Input
 
@@ -63,6 +64,7 @@ Errors:
 | `templatePath` | string (1–4096) | yes | Vault-relative path to the template source file |
 | `destPath` | string (1–4096) | yes | Vault-relative path for the new file |
 | `variables` | object | no | Template variables keyed by name (e.g. { title: "Today" }). date, time and title are built in; values given here override them. |
+| `frontmatter` | object | no | Frontmatter keys to set on the new note, mapped to JSON-compatible values (string, number, boolean, null, array or object). Applied after the template is expanded: keys from the template are kept, keys given here overwrite them. Markdown (.md) destinations only. |
 
 #### Output
 
@@ -70,6 +72,7 @@ Errors:
 |---|---|---|
 | `path` | string | Vault-relative path of the new file. |
 | `templatePath` | string | Vault-relative path of the template that was used. |
+| `frontmatter` | object | The new note's whole frontmatter after the frontmatter parameter was applied. Present only when frontmatter was given. |
 
 #### Example
 
@@ -83,6 +86,9 @@ Request (`tools/call` params):
     "destPath": "meetings/m1.md",
     "variables": {
       "title": "Weekly"
+    },
+    "frontmatter": {
+      "status": "draft"
     }
   }
 }
@@ -93,7 +99,10 @@ Response (`structuredContent`):
 ```json
 {
   "path": "meetings/m1.md",
-  "templatePath": "templates/meeting.md"
+  "templatePath": "templates/meeting.md",
+  "frontmatter": {
+    "status": "draft"
+  }
 }
 ```
 

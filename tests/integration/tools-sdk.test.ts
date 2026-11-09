@@ -175,8 +175,12 @@ describe('write tools keep their text and add structuredContent (#388)', () => {
     ['ui_notice', 'Notice shown', { shown: true }],
     [
       'template_create_from',
-      'Created meetings/m1.md from template templates/meeting.md',
-      { path: 'meetings/m1.md', templatePath: 'templates/meeting.md' },
+      'Created meetings/m1.md from template templates/meeting.md (set frontmatter status)',
+      {
+        path: 'meetings/m1.md',
+        templatePath: 'templates/meeting.md',
+        frontmatter: { status: 'draft' },
+      },
     ],
     [
       'plugin_execute_command',
