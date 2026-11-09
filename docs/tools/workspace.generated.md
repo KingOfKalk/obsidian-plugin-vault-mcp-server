@@ -181,7 +181,7 @@ Response (`structuredContent`):
 
 **Get workspace layout**
 
-Get Obsidian's raw workspace layout JSON (opaque, varies by Obsidian version, can be large; not truncated).
+Get Obsidian's raw workspace layout JSON (opaque, varies by Obsidian version). Over the size limit its longest lists are shortened and truncated: true is set.
 
 #### Input
 

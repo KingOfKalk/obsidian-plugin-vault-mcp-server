@@ -18,10 +18,71 @@ import {
   readResponseFormat,
   responseFormatField,
 } from '../shared/response';
+import { resultTextLength } from '../shared/pagination';
+import { CHARACTER_LIMIT } from '../../constants';
 
 function err(m: string): CallToolResult { return handleToolError(new Error(m)); }
 
 const readOnlySchema = { ...responseFormatField };
+
+/** The largest list (by JSON size) with more than one item in `value`, or null. */
+function largestList(value: unknown): unknown[] | null {
+  let best: unknown[] | null = null;
+  let bestSize = 0;
+  const visit = (v: unknown): void => {
+    if (Array.isArray(v)) {
+      if (v.length > 1) {
+        const size = JSON.stringify(v).length;
+        if (size > bestSize) {
+          best = v;
+          bestSize = size;
+        }
+      }
+      v.forEach(visit);
+    } else if (v !== null && typeof v === 'object') {
+      Object.values(v).forEach(visit);
+    }
+  };
+  visit(value);
+  return best;
+}
+
+/**
+ * `workspace_get_layout` over CHARACTER_LIMIT (#464): shorten the largest
+ * list in a copy of the layout until the text fits, so text and
+ * structuredContent stay the same valid JSON, and set `truncated: true`.
+ */
+function layoutResponse(
+  layout: Record<string, unknown>,
+  format: 'markdown' | 'json',
+): CallToolResult {
+  const render = (v: Record<string, unknown>): CallToolResult =>
+    makeResponse(
+      v,
+      (x) => {
+        const json = '```json\n' + JSON.stringify(x, null, 2) + '\n```';
+        return x.truncated === true
+          ? `${json}\n\n[TRUNCATED: The longest lists were shortened to fit. Use workspace_list_leaves for the open files.]`
+          : json;
+      },
+      format,
+    );
+  let result = render(layout);
+  let size = resultTextLength(result);
+  if (size <= CHARACTER_LIMIT) return result;
+  const copy = JSON.parse(JSON.stringify(layout)) as Record<string, unknown>;
+  copy.truncated = true;
+  let list = largestList(copy);
+  while (list !== null && size > CHARACTER_LIMIT) {
+    // Keep the share of the list that would fit, as fitItems does.
+    const keep = Math.floor((list.length * CHARACTER_LIMIT) / size);
+    list.length = Math.max(1, Math.min(list.length - 1, keep));
+    result = render(copy);
+    size = resultTextLength(result);
+    list = largestList(copy);
+  }
+  return result;
+}
 
 const openFileSchema = {
   path: vaultPathField(FILE_PATH_DESC),
@@ -153,13 +214,8 @@ function createHandlers(adapter: ObsidianAdapter): WorkspaceHandlers {
       );
     },
     getLayout: (params): Promise<CallToolResult> => {
-      const layout = adapter.getWorkspaceLayout();
       return Promise.resolve(
-        makeResponse(
-          layout,
-          (v) => '```json\n' + JSON.stringify(v, null, 2) + '\n```',
-          readResponseFormat(params),
-        ),
+        layoutResponse(adapter.getWorkspaceLayout(), readResponseFormat(params)),
       );
     },
   };
@@ -226,7 +282,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
           name: 'workspace_get_layout',
           title: 'Get workspace layout',
           description: describeTool({
-            summary: "Get Obsidian's raw workspace layout JSON (opaque, varies by Obsidian version, can be large; not truncated).",
+            summary: "Get Obsidian's raw workspace layout JSON (opaque, varies by Obsidian version). Over the size limit its longest lists are shortened and truncated: true is set.",
           }),
           schema: readOnlySchema,
           outputSchema: getLayoutOutputSchema,

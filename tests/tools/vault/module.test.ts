@@ -315,7 +315,7 @@ describe('vault read tools — outputSchema declarations', () => {
       },
       {
         aspect: 'backlinks' as const,
-        expected: { aspect: 'backlinks', path: 'a.md', backlinks: ['b.md'] },
+        expected: { aspect: 'backlinks', path: 'a.md', backlinks: ['b.md'], total: 1, hasMore: false },
       },
       {
         aspect: 'block_references' as const,
@@ -356,6 +356,8 @@ describe('vault read tools — outputSchema declarations', () => {
       path: 'a.md',
       backlinks: ['b.md'],
       backlinkContext: [{ path: 'b.md', matches: [{ line: 2, text: 'see [[a]]' }] }],
+      total: 1,
+      hasMore: false,
     });
 
     // includeContext is ignored for other aspects.
@@ -465,6 +467,8 @@ describe('vault_get_aspect dispatcher', () => {
       aspect: 'backlinks',
       path: 'a.md',
       backlinks: ['b.md'],
+      total: 1,
+      hasMore: false,
     });
 
     const blocks = await handlers.getAspect({ path: 'a.md', aspect: 'block_references', responseFormat: 'json' });

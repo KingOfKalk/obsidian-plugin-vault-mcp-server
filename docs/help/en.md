@@ -366,7 +366,7 @@ shows it in two other places:
   `version`, `enabledModules`, `changes`, a short list of agent-relevant
   changes of the three most recent versions that have any, and
   `olderVersionsOmitted`, the number of older versions left out. Pass
-  `allChanges: true` for every version (before 4.0.2 every version was
+  `allChanges: true` for every version (before 4.1.0 every version was
   always returned). A version without an entry had no agent-relevant
   changes; the list is not out of date. It is not the full changelog; see
   `CHANGELOG.md` for that.
@@ -425,7 +425,34 @@ clients and agents commonly trip over:
   `nextOffset` rather than at `offset + length`. The paging fields come
   before `content` in the JSON. Never write a single window back with `vault_update`:
   that replaces the whole file and cuts off the rest. Use `vault_replace`
-  for targeted edits instead.
+  for targeted edits instead. `editor_get_content` pages the active note
+  the same way since 4.1.0 (`offset`, `length`, `totalLength`, `hasMore`,
+  `nextOffset`); before, it returned the whole note.
+- **Large results come in pages.** No tool answer is longer than 25 000
+  characters. Since 4.1.0 these tools page their results with `limit` and
+  `offset` and return `total`, `hasMore` and `nextOffset`; while `hasMore`
+  is `true`, call again with `offset: <nextOffset>`:
+  - `search_resolved_links` and `search_unresolved_links` page over the
+    notes that hold links (default 50 per page, at most 100). Pass `path`
+    to get one note's links. `search_unresolved_links` leaves out notes
+    without broken links. Before 4.1.0 both returned the whole vault in one
+    answer.
+  - `vault_get_aspect` with `aspect: "backlinks"` pages over the linking
+    files (default 50); with `includeContext: true` only the files of the
+    page are read.
+  - `vault_list` pages over the folder's entries, folders first, then
+    files (default 100, so most folders still come back whole).
+  - `vault_list_recursive` pages folders too: each page holds the folders
+    and files from `offset` on, and `folderTotal` counts all folders.
+    Before 4.1.0 every page repeated all folders.
+
+  When a page would be longer than the limit, it holds fewer items than
+  `limit`, never cut text; `nextOffset` then points at the first item left
+  out, and JSON output stays valid. This also applies to `search_fulltext`.
+  `plugin_dataview_query` returns only the first lines of a result that is
+  too long (whole table rows) and sets `truncated: true`; narrow the query
+  with `WHERE` or `LIMIT`. `workspace_get_layout` shortens the longest
+  lists of a very large layout and sets `truncated: true`.
 - **Editing part of a file.** `vault_replace` takes `path`, `oldString`
   and `newString` and swaps that exact passage (literal text, no regex),
   leaving the rest of the file untouched. `oldString` must occur exactly
@@ -480,7 +507,7 @@ clients and agents commonly trip over:
   break and `content` does not start with one, one line break (the file's
   own LF or CRLF) goes in between. So appending `- call Ada` to a list adds
   a new bullet instead of extending the last one. Start `content` with a
-  line break to leave a blank line. Before 4.0.2 the text was joined
+  line break to leave a blank line. Before 4.1.0 the text was joined
   directly onto the last line.
 - **Detecting concurrent edits (`expectedMtime`).** `vault_update`,
   `vault_append`, `vault_replace`, `vault_insert`, `vault_write_binary` and
@@ -503,7 +530,7 @@ clients and agents commonly trip over:
   `offset` page over files, and `total` and `count` count files. The
   default Markdown text shows the matching lines under each file as
   `<line>: <text>` (1-based line number, lines cut at 200 characters) and
-  how many matching lines were left out; before 4.0.2 it listed only the
+  how many matching lines were left out; before 4.1.0 it listed only the
   paths and match counts. `structuredContent` and the text with
   `responseFormat: "json"` carry the full lines without line numbers.
 - **Frontmatter key search.** `search_by_frontmatter` with only `key` finds
@@ -532,10 +559,10 @@ clients and agents commonly trip over:
   agent can tell you the links are now stale. The tools never update links
   against your setting. `vault_rename` and `vault_move` also accept a
   folder; like `vault_rename_folder` they then count the links to every
-  file in it (before 4.0.2 they missed those links and gave no warning).
+  file in it (before 4.1.0 they missed those links and gave no warning).
   Renaming, moving or copying onto a path that already exists fails with
   `Destination already exists: <path>. Choose another path or delete it
-  first; nothing was changed.`; nothing is overwritten. (Before 4.0.2 the
+  first; nothing was changed.`; nothing is overwritten. (Before 4.1.0 the
   error was Obsidian's `Destination file already exists!`, or an `EEXIST`
   error for `vault_copy`.)
 - **Missing folders are created.** `vault_create`, `vault_copy`,
@@ -557,11 +584,11 @@ clients and agents commonly trip over:
 - **Search headers.** `search_by_tag` and `search_by_frontmatter` start
   with a header such as `**4 files tagged #project**` or `**1 file with
   status=active**`; the tag or value is shown exactly as matched (before
-  4.0.2 the plural "s" was appended to the tag or value instead).
+  4.1.0 the plural "s" was appended to the tag or value instead).
 - **Tool annotations.** Only `plugin_execute_command` is marked
   `openWorldHint: true`, because an Obsidian command can reach beyond the
   vault. The other Plugin Interop tools only read local plugin state and
-  the vault and are marked `openWorldHint: false` (before 4.0.2 they were
+  the vault and are marked `openWorldHint: false` (before 4.1.0 they were
   `true`).
 - **Changing frontmatter.** `vault_set_frontmatter` sets and removes
   frontmatter keys of a Markdown note without touching the rest of the file:
@@ -632,18 +659,19 @@ clients and agents commonly trip over:
   the note (wikilinks and embeds, taken from Obsidian's metadata cache).
   Links without a line position, such as links in frontmatter, give an
   empty `matches` list. Without `includeContext` the output is unchanged.
+  Backlinks come in pages of 50 (see "Large results come in pages").
   A path that does not exist fails with `File not found` for every aspect;
-  before 4.0.2 `backlinks` answered "has no backlinks" instead.
+  before 4.1.0 `backlinks` answered "has no backlinks" instead.
 - **Opening a note in a view mode.** `workspace_open_file` opens the file
   in the active tab (a new tab if that tab is pinned) and focuses it. Pass
   `mode` to choose the view of a Markdown note: `"source"` (Source mode),
   `"live"` (Live Preview) or `"preview"` (Reading view); without it,
-  Obsidian's default view applies. Before 4.0.2 `mode` was accepted but
+  Obsidian's default view applies. Before 4.1.0 `mode` was accepted but
   ignored.
 - **Confirmation prompts.** Tools that change or remove existing content
   are marked destructive in their annotations (`destructiveHint`), so
   clients that ask before destructive calls ask for them.
-  `vault_set_frontmatter` is one of them since 4.0.2, because it
+  `vault_set_frontmatter` is one of them since 4.1.0, because it
   overwrites values and removes keys.
 - **Structured output on every tool.** All tools declare an `outputSchema`
   and return `structuredContent`. Write tools keep their plain-text
@@ -868,6 +896,15 @@ The file is longer than one window (24 000 characters). The footer names the
 offset to continue at; call `vault_read` again with that `offset`, or read
 `nextOffset` from `structuredContent`. See
 [Tool behaviour worth knowing](#tool-behaviour-worth-knowing).
+
+### Output ends with "[TRUNCATED: Response exceeded 25000 characters …]"
+
+Tools page their results so that an answer fits in 25 000 characters. If an
+answer is still longer, for example a single Dataview row or one backlink
+line that is longer than that on its own, the server cuts the text, adds this
+footer and logs a warning. Narrow the request:
+a smaller `limit`, a window with `offset`/`length`, or a more specific query.
+If you see it from a tool with normal input, please report it as a bug.
 
 ### A write fails with "File changed since expectedMtime"
 

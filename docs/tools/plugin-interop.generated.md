@@ -114,6 +114,7 @@ Errors:
 |---|---|---|
 | `query` | string | Dataview DQL query that was executed. |
 | `markdown` | string | Markdown rendering produced by Dataview, without HTML: list and object values in TABLE cells are plain text (e.g. "a, b"). |
+| `truncated` | boolean | True when only the first lines fit in the response; narrow the query with WHERE or LIMIT. |
 
 #### Example
 

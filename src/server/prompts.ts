@@ -139,7 +139,7 @@ export function createDailyNoteHandler(): (args: DailyNoteArgs) => Promise<GetPr
 }
 
 function fixBrokenLinksSingleNoteBody(path: string): string {
-  return `Fix broken links in \`${path}\`. First call \`search_unresolved_links\` and pull out the entry whose source matches \`${path}\` — the value is a \`Record<target, count>\` of unresolved targets in this note. If \`${path}\` is not in the result, tell the user the note has no unresolved links and stop. For each broken link, propose **one** fix as a single tool call so the user can confirm before it's applied:
+  return `Fix broken links in \`${path}\`. First call \`search_unresolved_links\` with \`path: "${path}"\` and pull out the entry whose source matches \`${path}\` — the value is a \`Record<target, count>\` of unresolved targets in this note. If \`${path}\` is not in the result, tell the user the note has no unresolved links and stop. For each broken link, propose **one** fix as a single tool call so the user can confirm before it's applied:
 
 - **Retarget** to an existing note: locate the intended target with \`search_fulltext\` or \`vault_list_recursive\`, then rewrite the link in \`${path}\` with \`vault_replace\` (\`oldString\` = the exact \`[[...]]\` text as written).
 - **Create a stub** for the missing note: call \`vault_create\` with a real file path that includes the \`.md\` extension (e.g. \`Missing Note.md\` for \`[[Missing Note]]\`), not the bare link text, with a minimal placeholder body.
@@ -149,7 +149,7 @@ function fixBrokenLinksSingleNoteBody(path: string): string {
 Apply fixes one at a time. Wait for the user to confirm each tool call before moving on.`;
 }
 
-const FIX_BROKEN_LINKS_VAULT_WIDE_BODY = `Fix broken links across the vault. First call \`search_unresolved_links\` to enumerate them — the result is a \`Record<source, Record<target, count>>\` mapping each note containing broken links to its unresolved targets. If more than ~20 source notes are returned, work on the first 20 and report the remaining count so the user can re-run this prompt to continue. For each broken link, propose **one** fix as a single tool call so the user can confirm before it's applied:
+const FIX_BROKEN_LINKS_VAULT_WIDE_BODY = `Fix broken links across the vault. First call \`search_unresolved_links\` with \`limit: 20\` to enumerate them — its \`links\` is a \`Record<source, Record<target, count>>\` mapping each note containing broken links to its unresolved targets, and \`total\` counts all such notes. Work on these ~20 notes and report the remaining count (\`total\` minus the notes shown) so the user can re-run this prompt to continue. For each broken link, propose **one** fix as a single tool call so the user can confirm before it's applied:
 
 - **Retarget** to an existing note: locate the intended target with \`search_fulltext\` or \`vault_list_recursive\`, then rewrite the link in the source note with \`vault_replace\` (\`oldString\` = the exact \`[[...]]\` text as written).
 - **Create a stub** for the missing note: call \`vault_create\` with a real file path that includes the \`.md\` extension (e.g. \`Missing Note.md\` for \`[[Missing Note]]\`), not the bare link text, with a minimal placeholder body.

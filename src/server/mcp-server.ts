@@ -9,6 +9,9 @@ import { Logger } from '../utils/logger';
 import { ModuleRegistry } from '../registry/module-registry';
 import { ToolDefinition } from '../registry/types';
 import { handleToolError } from '../tools/shared/errors';
+import { resultTextLength } from '../tools/shared/pagination';
+import { truncateText } from '../tools/shared/truncate';
+import { CHARACTER_LIMIT } from '../constants';
 import { createToolContext, type SdkExtra } from '../registry/tool-context';
 import { buildInputSchema } from '../registry/input-schema';
 import { withAdvertisedSchema } from '../registry/advertised-schema';
@@ -158,6 +161,37 @@ export function createMcpServer(
  * testing — the SDK's internal registration path is hard to drive from
  * tests, but the validate-then-handle logic is the important part.
  */
+/**
+ * Safety net (#464): tools return fewer items to stay under CHARACTER_LIMIT,
+ * so a text over it is a bug in a tool. Cut it with a footer and log a
+ * warning instead of flooding the agent's context. `structuredContent` is
+ * left as it is.
+ */
+export function capResponse(
+  result: CallToolResult,
+  toolName: string,
+  logger: Logger,
+): CallToolResult {
+  const size = resultTextLength(result);
+  if (size <= CHARACTER_LIMIT) return result;
+  logger.warn(
+    `Tool "${toolName}" returned ${String(size)} characters of text, over CHARACTER_LIMIT (${String(CHARACTER_LIMIT)}); cutting it`,
+  );
+  const text = result.content
+    .map((block) => (block.type === 'text' ? block.text : ''))
+    .join('');
+  const capped = truncateText(text, {
+    hint: 'Narrow the request (paging, offset/length or a smaller query).',
+  });
+  return {
+    ...result,
+    content: [
+      { type: 'text' as const, text: capped.text },
+      ...result.content.filter((block) => block.type !== 'text'),
+    ],
+  };
+}
+
 export function createToolDispatcher(
   tool: ToolDefinition,
   logger: Logger,
@@ -167,7 +201,8 @@ export function createToolDispatcher(
     try {
       const parsed = inputSchema.parse(params ?? {});
       const ctx = createToolContext(extra, tool.name, logger);
-      return await tool.handler(parsed, ctx);
+      const result = await tool.handler(parsed, ctx);
+      return tool.uncapped === true ? result : capResponse(result, tool.name, logger);
     } catch (error) {
       // ZodError keeps the dispatcher's friendlier path-joined format —
       // richer than handleToolError's ZodError branch, and a `warn` not

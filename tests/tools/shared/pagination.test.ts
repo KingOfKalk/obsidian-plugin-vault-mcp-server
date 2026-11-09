@@ -1,5 +1,14 @@
-import { describe, it, expect } from 'vitest';
-import { paginate, readPagination } from '../../../src/tools/shared/pagination';
+import { describe, it, expect, vi } from 'vitest';
+import {
+  fitItems,
+  fitPage,
+  pageFooter,
+  paginate,
+  paginationFieldsWithDefault,
+  readPagination,
+  resultTextLength,
+  shrinkPage,
+} from '../../../src/tools/shared/pagination';
 import { CallToolResult } from '@modelcontextprotocol/server';
 import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
 import { createSearchHandlers } from '../../../src/tools/search/handlers';
@@ -93,5 +102,80 @@ describe('search_fulltext pagination end-to-end', () => {
     expect(p3.count).toBe(5);
     expect(p3.hasMore).toBe(false);
     expect(p3.nextOffset).toBeUndefined();
+  });
+});
+
+describe('fitting a page into CHARACTER_LIMIT (#464)', () => {
+  const textResult = (text: string): CallToolResult => ({
+    content: [{ type: 'text', text }],
+  });
+
+  it('fitItems keeps every item when the text fits', () => {
+    const render = vi.fn((n: number) => textResult('x'.repeat(n)));
+    expect(getText(fitItems(10, render, 100))).toHaveLength(10);
+    expect(render).toHaveBeenCalledTimes(1);
+  });
+
+  it('fitItems renders fewer items until the text fits', () => {
+    const result = fitItems(100, (n) => textResult('x'.repeat(n * 10)), 255);
+    expect(getText(result)).toHaveLength(250);
+  });
+
+  it('fitItems stops at one item even when it is too large', () => {
+    const result = fitItems(5, (n) => textResult('x'.repeat(n * 1000)), 10);
+    expect(getText(result)).toHaveLength(1000);
+  });
+
+  it('shrinkPage points nextOffset at the first item left out', () => {
+    const page = paginate(['a', 'b', 'c', 'd'], { limit: 3, offset: 1 });
+    expect(shrinkPage(page, 1)).toEqual({
+      total: 4,
+      count: 1,
+      offset: 1,
+      items: ['b'],
+      hasMore: true,
+      nextOffset: 2,
+    });
+    expect(shrinkPage(page, 3)).toBe(page);
+  });
+
+  it('fitPage keeps the JSON text valid and in step with the page', () => {
+    const page = paginate(
+      Array.from({ length: 50 }, (_, i) => `item-${String(i)}`.padEnd(100, '.')),
+      { limit: 50, offset: 0 },
+    );
+    const result = fitPage(
+      page,
+      (p) => ({ content: [{ type: 'text', text: JSON.stringify(p) }], structuredContent: { ...p } }),
+      2_000,
+    );
+    const parsed = JSON.parse(getText(result)) as { count: number; nextOffset: number };
+    expect(getText(result).length).toBeLessThanOrEqual(2_000);
+    expect(parsed).toEqual(result.structuredContent);
+    expect(parsed.nextOffset).toBe(parsed.count);
+  });
+
+  it('pageFooter names the next offset only when more items follow', () => {
+    expect(pageFooter({ count: 2, total: 5, hasMore: true, nextOffset: 2 })).toBe(
+      '\n\n_Showing 2 of 5 — next offset: 2_',
+    );
+    expect(pageFooter({ count: 5, total: 5, hasMore: false })).toBe('');
+  });
+
+  it('resultTextLength counts text blocks only', () => {
+    expect(
+      resultTextLength({
+        content: [
+          { type: 'text', text: 'abc' },
+          { type: 'image', data: 'AAAA', mimeType: 'image/png' },
+          { type: 'text', text: 'de' },
+        ],
+      }),
+    ).toBe(5);
+  });
+
+  it('readPagination falls back to the given default limit', () => {
+    expect(readPagination({}, 50)).toEqual({ limit: 50, offset: 0 });
+    expect(paginationFieldsWithDefault(100).limit.parse(undefined)).toBe(100);
   });
 });

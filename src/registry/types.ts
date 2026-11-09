@@ -63,6 +63,13 @@ export interface ToolDefinition<
   outputSchema?: z.ZodRawShape | z.ZodObject;
   handler: TypedHandler<Shape>;
   annotations: ToolAnnotations;
+  /**
+   * Set to `true` only for a tool whose text is meant to exceed
+   * CHARACTER_LIMIT and bounds it itself (`vault_read_binary`, capped by
+   * BINARY_BYTE_LIMIT). Every other tool's text is capped by the
+   * dispatcher's safety net (#464).
+   */
+  uncapped?: boolean;
 }
 
 export type TypedHandler<Shape extends z.ZodRawShape> = (

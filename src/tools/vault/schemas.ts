@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { base64Schema } from '../../utils/validation';
-import { paginationFields } from '../shared/pagination';
+import { paginationFields, paginationFieldsWithDefault } from '../shared/pagination';
+import { LINKS_PAGE_LIMIT } from '../search/schemas';
+import { READ_MAX_LENGTH, windowLengthField, windowOffsetField } from '../shared/window';
 import { responseFormatField } from '../shared/response';
 import { frontmatterKeySchema } from '../shared/frontmatter';
 import {
@@ -46,12 +48,10 @@ export const createFileSchema = {
     .describe('Initial UTF-8 text content.'),
 };
 
-/**
- * Largest window `vault_read` returns in one call, in characters. Kept
- * below CHARACTER_LIMIT so the content plus the "continue at offset=…"
- * footer fits without being cut by the response truncation.
- */
-export const READ_MAX_LENGTH = 24_000;
+export { READ_MAX_LENGTH };
+
+/** Default page size of `vault_list`: whole folders up to 100 entries (#464). */
+export const LIST_PAGE_LIMIT = 100;
 
 /**
  * A heading to address a section by (#428): its text without the `#`
@@ -71,23 +71,8 @@ export const readFileSchema = {
       'Return only this section: the heading line up to the next heading of the same or a higher level. ' +
         'Text without the # marks (e.g. "Log"), or with them to pin the level ("## Log"). offset/length then page within it.',
     ),
-  offset: z
-    .number()
-    .int()
-    .min(0)
-    .default(0)
-    .describe(
-      'Character offset to start at; pass nextOffset from the previous call to continue.',
-    ),
-  length: z
-    .number()
-    .int()
-    .min(1)
-    .max(READ_MAX_LENGTH)
-    .optional()
-    .describe(
-      `Maximum characters to return (default ${String(READ_MAX_LENGTH)}). Files that fit are returned whole.`,
-    ),
+  offset: windowOffsetField,
+  length: windowLengthField('Files'),
   ...responseFormatField,
 };
 
@@ -252,6 +237,7 @@ export const listFolderSchema = {
   path: listFolderPath.describe(
     'Vault-relative folder path, e.g. "projects"; "" (or "/" or ".") for the vault root.',
   ),
+  ...paginationFieldsWithDefault(LIST_PAGE_LIMIT),
   ...responseFormatField,
 };
 
@@ -308,6 +294,10 @@ export const getAspectSchema = {
       'aspect=backlinks only (default false): also return backlinkContext, the 1-based line number and text ' +
         'of every line in each linking file that links here.',
     ),
+  limit: paginationFieldsWithDefault(LINKS_PAGE_LIMIT).limit.describe(
+    'aspect=backlinks only: maximum linking files per page.',
+  ),
+  offset: paginationFields.offset,
   ...responseFormatField,
 };
 

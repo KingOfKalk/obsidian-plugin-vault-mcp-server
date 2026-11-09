@@ -8,7 +8,7 @@ Auto-generated schema reference for the `editor` module. See [../tools.generated
 
 **Get active file content**
 
-Get the full text of the active editor.
+Get the text of the active editor, in windows of up to length characters (offset/nextOffset).
 See also:
 - vault_read — to read any file by path.
 
@@ -16,13 +16,19 @@ See also:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
+| `offset` | number (0–9007199254740991) | no (default `0`) | Character offset to start at; pass nextOffset from the previous call to continue. |
+| `length` | number (1–24000) | no | Maximum characters to return (default 24000). Notes that fit are returned whole. |
 | `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
 | Field | Type | Description |
 |---|---|---|
-| `content` | string | Full text content of the active editor. |
+| `totalLength` | number | Length of the whole editor text in characters. |
+| `offset` | number | Character offset where this window starts. |
+| `hasMore` | boolean | True when the text continues past this window. |
+| `nextOffset` | number | Offset to pass in the next call when hasMore is true. |
+| `content` | string | Text of the active editor in the requested window (the whole text when it fits). |
 
 #### Example
 
@@ -39,6 +45,9 @@ Response (`structuredContent`):
 
 ```json
 {
+  "totalLength": 58,
+  "offset": 0,
+  "hasMore": false,
   "content": "---\nstatus: active\n---\n# Alpha\n\n## Goals\nShip it. ^goal-1\n"
 }
 ```

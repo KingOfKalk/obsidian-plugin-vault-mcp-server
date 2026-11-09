@@ -5,6 +5,7 @@ import { createHandlers, WriteMutex } from './handlers';
 import { createSearchHandlers } from '../search/handlers';
 import { describeTool } from '../shared/describe';
 import { MODIFIED_DESC, NEW_MODIFIED_DESC } from '../shared/descriptions';
+import { pageOutputFields } from '../shared/pagination';
 import {
   createFileSchema,
   readFileSchema,
@@ -74,16 +75,18 @@ const getMetadataOutputSchema = {
 const listFolderOutputSchema = {
   files: z
     .array(z.string())
-    .describe('Vault-relative paths of the files directly in the folder (e.g. `notes/a.md`, not `a.md`).'),
+    .describe('Vault-relative paths of the files directly in the folder (e.g. `notes/a.md`, not `a.md`), in this page.'),
   folders: z
     .array(z.string())
-    .describe('Vault-relative paths of the folders directly in the folder (e.g. `notes/sub`, not `sub`).'),
+    .describe('Vault-relative paths of the folders directly in the folder (e.g. `notes/sub`, not `sub`), in this page.'),
+  ...pageOutputFields,
 };
 
 const listRecursiveOutputSchema = {
   folders: z
     .array(z.string())
-    .describe('All folders found under the listed path (recursive).'),
+    .describe('Folders under the listed path (recursive) in this page, paged with the same offset as the files.'),
+  folderTotal: z.number().describe('Total number of folders before paging.'),
   total: z
     .number()
     .describe('Total number of files matched before pagination.'),
@@ -94,7 +97,7 @@ const listRecursiveOutputSchema = {
     .describe('Files in this page (vault-relative paths).'),
   hasMore: z
     .boolean()
-    .describe('True when there are more files past this page.'),
+    .describe('True when more files or folders follow this page.'),
   nextOffset: z
     .number()
     .optional()
@@ -156,7 +159,7 @@ const getAspectOutputSchema = {
   backlinks: z
     .array(z.string())
     .optional()
-    .describe('aspect=backlinks: paths of files that link TO this file.'),
+    .describe('aspect=backlinks: paths of files that link TO this file, in this page.'),
   backlinkContext: z
     .array(
       z.object({
@@ -173,6 +176,12 @@ const getAspectOutputSchema = {
     )
     .optional()
     .describe('aspect=backlinks with includeContext=true: where each backlink sits, one entry per path in backlinks.'),
+  total: z.number().optional().describe('aspect=backlinks: number of linking files before paging.'),
+  hasMore: z.boolean().optional().describe('aspect=backlinks: true when more linking files follow this page.'),
+  nextOffset: z
+    .number()
+    .optional()
+    .describe('aspect=backlinks: offset to pass in the next call when hasMore is true.'),
   blockRefs: z
     .array(
       z.object({
@@ -616,6 +625,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'List folder',
           description: describeTool({
             summary: 'List files and folders directly under a path (non-recursive), as full vault-relative paths.',
+            returns: 'Folders first, then files, paged together with limit/offset.',
             errors: ['"Folder not found" if path does not exist.'],
             seeAlso: [
               'vault_list_recursive — to include subfolders.',
@@ -631,7 +641,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'List folder (recursive)',
           description: describeTool({
             summary: 'List all files and folders under a path, recursively.',
-            returns: 'Files are paged with limit/offset; folders are always listed in full.',
+            returns: 'Files and folders are paged with the same limit/offset, each list on its own.',
             examples: [
               'Don\'t use when: the folder is very large — list a narrower subfolder.',
             ],
@@ -662,6 +672,8 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           outputSchema: readBinaryOutputSchema,
           handler: handlers.readBinary,
           annotations: annotations.read,
+          // Base64 up to BINARY_BYTE_LIMIT; over CHARACTER_LIMIT on purpose.
+          uncapped: true,
         }),
         defineTool({
           name: 'vault_write_binary',

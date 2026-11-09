@@ -1,4 +1,8 @@
 import { z } from 'zod';
+import type { CallToolResult } from '@modelcontextprotocol/server';
+import { CHARACTER_LIMIT } from '../../constants';
+
+const DEFAULT_LIMIT_VALUE = 20;
 
 /**
  * Shared Zod fragment for `limit`/`offset` pagination inputs.
@@ -7,20 +11,42 @@ import { z } from 'zod';
  * - `offset` starts at 0 and can advance arbitrarily far as long as the
  *   underlying dataset is walkable.
  */
-export const paginationFields = {
-  limit: z
+export function paginationFieldsWithDefault(defaultLimit: number): {
+  limit: z.ZodDefault<z.ZodNumber>;
+  offset: z.ZodDefault<z.ZodNumber>;
+} {
+  return {
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .default(defaultLimit)
+      .describe('Maximum items per page.'),
+    offset: z
+      .number()
+      .int()
+      .min(0)
+      .default(0)
+      .describe('Items to skip; pass nextOffset to get the next page.'),
+  };
+}
+
+export const paginationFields = paginationFieldsWithDefault(DEFAULT_LIMIT_VALUE);
+
+/**
+ * Output-schema fields of a page (#464), for tools whose items sit in a
+ * field of their own (e.g. `links`, `files`) rather than in `items`.
+ */
+export const pageOutputFields = {
+  total: z.number().describe('Total number of items before paging.'),
+  count: z.number().describe('Number of items in this page.'),
+  offset: z.number().describe('Offset of the first item in this page.'),
+  hasMore: z.boolean().describe('True when more items follow this page.'),
+  nextOffset: z
     .number()
-    .int()
-    .min(1)
-    .max(100)
-    .default(20)
-    .describe('Maximum items per page.'),
-  offset: z
-    .number()
-    .int()
-    .min(0)
-    .default(0)
-    .describe('Items to skip; pass nextOffset to get the next page.'),
+    .optional()
+    .describe('Offset to pass in the next call when hasMore is true.'),
 };
 
 export interface PaginationInput {
@@ -71,19 +97,89 @@ export function paginate<T>(
  * argument objects — in that case fall back to the documented defaults so
  * the tests don't all have to carry pagination boilerplate.
  */
-const DEFAULT_LIMIT = 20;
 const DEFAULT_OFFSET = 0;
 
 export function readPagination(
   params: Record<string, unknown>,
+  defaultLimit = DEFAULT_LIMIT_VALUE,
 ): PaginationInput {
   const limit =
     typeof params.limit === 'number' && Number.isFinite(params.limit)
       ? params.limit
-      : DEFAULT_LIMIT;
+      : defaultLimit;
   const offset =
     typeof params.offset === 'number' && Number.isFinite(params.offset)
       ? params.offset
       : DEFAULT_OFFSET;
   return { limit, offset };
+}
+
+/** Markdown footer of a page that has more items, or "" (#464). */
+export function pageFooter(page: {
+  count: number;
+  total: number;
+  hasMore: boolean;
+  nextOffset?: number;
+}): string {
+  return page.hasMore
+    ? `\n\n_Showing ${String(page.count)} of ${String(page.total)} — next offset: ${String(page.nextOffset ?? '')}_`
+    : '';
+}
+
+/** Characters of all text blocks in a tool result. */
+export function resultTextLength(result: CallToolResult): number {
+  let size = 0;
+  for (const block of result.content) {
+    if (block.type === 'text') size += block.text.length;
+  }
+  return size;
+}
+
+/**
+ * Stay under `limit` by returning fewer items, never by cutting text (#464):
+ * `render(n)` builds the whole result (text and structuredContent) for the
+ * first `n` of `count` items, and this re-renders with fewer items until the
+ * text fits. Each round keeps the share of items that would fit at the
+ * current average size, so it ends in a few rounds. One item that is too
+ * large on its own is returned as is; the dispatcher's safety net caps it.
+ */
+export function fitItems(
+  count: number,
+  render: (n: number) => CallToolResult,
+  limit = CHARACTER_LIMIT,
+): CallToolResult {
+  let n = count;
+  let result = render(n);
+  let size = resultTextLength(result);
+  while (size > limit && n > 1) {
+    n = Math.max(1, Math.min(n - 1, Math.floor((n * limit) / size)));
+    result = render(n);
+    size = resultTextLength(result);
+  }
+  return result;
+}
+
+/**
+ * The first `n` items of a page; `hasMore`/`nextOffset` then point at the
+ * first item left out.
+ */
+export function shrinkPage<T>(page: PaginatedResponse<T>, n: number): PaginatedResponse<T> {
+  if (n >= page.items.length) return page;
+  const end = page.offset + n;
+  return {
+    ...page,
+    count: n,
+    items: page.items.slice(0, n),
+    hasMore: true,
+    nextOffset: end,
+  };
+}
+
+/** {@link fitItems} over a page from {@link paginate}. */
+export function fitPage<T>(
+  page: PaginatedResponse<T>,
+  render: (page: PaginatedResponse<T>) => CallToolResult,
+  limit = CHARACTER_LIMIT,
+): CallToolResult {
+  return fitItems(page.items.length, (n) => render(shrinkPage(page, n)), limit);
 }

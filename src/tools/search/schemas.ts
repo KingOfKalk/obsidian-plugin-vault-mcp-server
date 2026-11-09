@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { searchQuerySchema } from '../../utils/validation';
-import { paginationFields } from '../shared/pagination';
+import { paginationFields, paginationFieldsWithDefault } from '../shared/pagination';
 import { responseFormatField } from '../shared/response';
 import { FILE_PATH_DESC, vaultPathField } from '../shared/descriptions';
 
@@ -25,6 +25,18 @@ export const filePathSchema = {
 };
 
 export const readOnlySchema = {
+  ...responseFormatField,
+};
+
+/** Default page size of the link maps and backlinks (#464). */
+export const LINKS_PAGE_LIMIT = 50;
+
+/** `search_resolved_links` / `search_unresolved_links` (#464). */
+export const linksMapSchema = {
+  path: vaultPathField(FILE_PATH_DESC)
+    .optional()
+    .describe('Only this note\'s links. Omit for the whole vault.'),
+  ...paginationFieldsWithDefault(LINKS_PAGE_LIMIT),
   ...responseFormatField,
 };
 

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { z } from 'zod';
-import { createToolDispatcher } from '../../src/server/mcp-server';
+import { capResponse, createToolDispatcher } from '../../src/server/mcp-server';
+import { CHARACTER_LIMIT } from '../../src/constants';
 import { Logger } from '../../src/utils/logger';
 import type { ToolDefinition } from '../../src/registry/types';
 import { annotations } from '../../src/registry/types';
@@ -208,5 +209,54 @@ describe('createToolDispatcher without the response_format alias (#432)', () => 
       { path: 'a.md', responseFormat: 'json' },
       expect.anything(),
     );
+  });
+});
+
+describe('createToolDispatcher safety net (#464)', () => {
+  const huge = 'x'.repeat(CHARACTER_LIMIT + 500);
+  const bigTool = (overrides: Partial<ToolDefinition> = {}): ToolDefinition =>
+    makeTool({
+      handler: vi.fn(async () =>
+        Promise.resolve({
+          content: [{ type: 'text' as const, text: huge }],
+          structuredContent: { value: huge },
+        }),
+      ),
+      ...overrides,
+    });
+
+  it('cuts text over CHARACTER_LIMIT with a footer and logs a warning', async () => {
+    const logger = makeLogger();
+    const warn = vi.spyOn(logger, 'warn');
+    const dispatch = createToolDispatcher(bigTool(), logger);
+    const result = await dispatch({ path: 'a.md' }, makeExtra() as never);
+    const block = result.content[0];
+    const text = block.type === 'text' ? block.text : '';
+    expect(text.length).toBeLessThanOrEqual(CHARACTER_LIMIT);
+    expect(text).toContain('[TRUNCATED: Response exceeded');
+    expect(result.structuredContent).toEqual({ value: huge });
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('"demo_tool" returned'));
+  });
+
+  it('leaves an uncapped tool and a small result alone', async () => {
+    const dispatch = createToolDispatcher(bigTool({ uncapped: true }), makeLogger());
+    const result = await dispatch({ path: 'a.md' }, makeExtra() as never);
+    expect(result.content[0]).toEqual({ type: 'text', text: huge });
+    const small = await createToolDispatcher(makeTool(), makeLogger())(
+      { path: 'a.md' },
+      makeExtra() as never,
+    );
+    expect(small.content[0]).toEqual({ type: 'text', text: '{"path":"a.md","count":0}' });
+  });
+
+  it('keeps non-text blocks after the cut text', () => {
+    const image = { type: 'image' as const, data: 'AAAA', mimeType: 'image/png' };
+    const result = capResponse(
+      { content: [{ type: 'text', text: huge }, image] },
+      'demo_tool',
+      makeLogger(),
+    );
+    expect(result.content).toHaveLength(2);
+    expect(result.content[1]).toEqual(image);
   });
 });
