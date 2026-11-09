@@ -177,6 +177,10 @@ The plugin UI is translated via a tiny in-house i18n helper modelled on the [obs
 - **CR22** — Settings UI exposes a "Diagnostics" section rendered after the Feature Modules / Extras sections. It contains three rows: a Log File row whose description shows the relative path to the persistent debug log (see CR23); a "Copy debug info" row with an extra button that opens a modal preview of the debug bundle (read-only textarea with Copy and Close buttons); and a "Clear log" row with an extra button that empties the log file and shows a confirmation Notice.
 - **CR23** — The plugin persists structured log output to `<vault>/.obsidian/plugins/<plugin-id>/debug.log` via Obsidian's vault adapter (`app.vault.adapter`), not Node `fs`. Level gating mirrors console output: `info` and above always written, `debug` only when Debug Mode (CR4) is on. Writes are serialized through a single in-flight Promise chain so concurrent log calls do not interleave. Single-file rotation: when the file exceeds 1 MiB, the next write trims it to the most recent 512 KiB and prepends a `--- rotated ---` marker on its own line. No multi-file backups (`.1`, `.2`, …) are kept. Errors writing to the log are swallowed so logging never throws.
 
+### About
+
+- **CR34** — Settings UI ends with an "About" section, rendered by `renderAboutSection` in `src/settings/about-section.ts` after the Diagnostics section (CR22). It contains three rows: a "Version" row showing the installed plugin version (`plugin.manifest.version`); a "Repository" row linking to the GitHub repository; and a "Report an issue" row linking to the repository's `/issues/new` page with a URL-encoded `body` query parameter. The body is an English template listing the plugin version and the Obsidian version (Obsidian's `apiVersion`, `unknown` when unavailable) plus a prompt to paste the "Copy debug info" bundle (CR22, NFR33). Links open in the external browser. The repository URL is defined once as `REPOSITORY_URL` in `src/constants.ts`; the issues URL is derived from it. Labels are translated (I1). Added in #418.
+
 ### Settings Persistence
 
 - **CR13** — All settings persisted in Obsidian's plugin data.json

@@ -5,6 +5,7 @@ import { renderMcpConfigSection } from './mcp-config-section';
 import { renderModulesSection } from './modules-section';
 import { renderAllowlistSection } from './allowlist-section';
 import { renderDiagnosticsSection } from './diagnostics-section';
+import { renderAboutSection } from './about-section';
 
 /**
  * Obsidian MCP settings tab — thin composer. Each section lives in its
@@ -34,5 +35,6 @@ export class McpSettingsTab extends PluginSettingTab {
     renderModulesSection(containerEl, this.plugin, refresh);
     renderAllowlistSection(containerEl, this.plugin);
     renderDiagnosticsSection(containerEl, this.plugin);
+    renderAboutSection(containerEl, this.plugin);
   }
 }

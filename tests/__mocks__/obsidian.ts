@@ -79,6 +79,17 @@ function mockEl(): MockElement {
   return el;
 }
 
+/** Exported so section tests can use a child-tracking container element. */
+export function mockElement(): MockElement {
+  return mockEl();
+}
+
+/**
+ * Obsidian's `apiVersion` export. Follows the desktop app's release
+ * cycle, so the plugin reports it as the Obsidian version.
+ */
+export const apiVersion = '1.8.9';
+
 export interface MockManifest {
   id: string;
   version: string;

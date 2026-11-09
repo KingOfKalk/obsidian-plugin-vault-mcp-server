@@ -130,7 +130,7 @@ modules.
 
 ## Settings reference
 
-The settings tab is split into five sections.
+The settings tab is split into six sections.
 
 ### 1. Status
 
@@ -243,6 +243,16 @@ restarting Obsidian (useful when developing modules).
 | **Log file** | Read-only path to the persistent log at `<vault>/.obsidian/plugins/vault-mcp-server/debug.log`. The file rotates in place at 1 MiB (trims to the most recent 512 KiB). |
 | **Copy debug info** | Opens a modal with a copy-pasteable bundle: settings (with the access key replaced by `<set>`/`<empty>` and the cert by `<present>`/`<absent>`), module list, server status, and the most recent log lines. Safe to share when filing a bug. |
 | **Clear log** | Empties `debug.log`. |
+
+### 6. About
+
+The last section of the tab.
+
+| Row | What it shows |
+|---|---|
+| **Version** | The installed plugin version. |
+| **Repository** | Link to the plugin's GitHub repository. Opens in your browser. |
+| **Report an issue** | Link that opens a new GitHub issue in your browser. The issue body is already filled in with your plugin version, your Obsidian version, and a spot to paste the output of **Copy debug info** (see [Diagnostics](#5-diagnostics)). You need a GitHub account to submit it. |
 
 ---
 
@@ -663,8 +673,10 @@ immediately.
 ### How do I report a bug?
 
 1. Reproduce the issue with **Debug Mode** on.
-2. Click **Copy debug info** in **Diagnostics** and paste the bundle into a
-   GitHub issue at
+2. Click **Copy debug info** in **Diagnostics** and copy the bundle.
+3. Click **Report an issue** in **About**. It opens a new GitHub issue with
+   your plugin and Obsidian versions filled in. Paste the bundle into it.
+   You can also open an issue yourself at
    <https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues>. The bundle
    never includes your access key or TLS private key, but always re-read it
    before sharing.
