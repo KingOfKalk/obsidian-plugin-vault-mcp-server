@@ -3,7 +3,7 @@ import { CallToolResult } from '@modelcontextprotocol/server';
 // gives us a properly callable type while still resolving to the same
 // bundled instance Obsidian uses (moment is a direct dependency).
 import moment from 'moment';
-import { ObsidianAdapter } from '../../obsidian/adapter';
+import { ObsidianAdapter, TrashDestination } from '../../obsidian/adapter';
 import { validateFolderListPath, validateVaultPath } from '../../utils/path-guard';
 import { truncateText } from '../shared/truncate';
 import {
@@ -29,6 +29,7 @@ import {
   splitLines,
 } from './sections';
 import { applyReplaceEdits, type ReplaceEdit } from './replace-edits';
+import { describeLinkReport, renameWithLinkReport } from './link-report';
 import type {
   createFileSchema,
   readFileSchema,
@@ -315,6 +316,33 @@ function validateFrontmatterChange(setKeys: string[], removeKeys: string[]): voi
 
 const RENAME_TARGET_PATTERN =/^[^/\\\x00]+$/;
 
+/** Text suffix naming where a deleted file or folder went (#430). */
+function describeTrash(trashedTo: TrashDestination): string {
+  switch (trashedTo) {
+    case 'system':
+      return ' (moved to the system trash)';
+    case 'vault':
+      return " (moved to the vault's .trash folder)";
+    case 'permanent':
+      return ' (deleted permanently)';
+    default:
+      return '';
+  }
+}
+
+/**
+ * Every file inside `path` (recursively), for counting links into a
+ * renamed folder. A path that is not a folder counts as one file; the
+ * rename itself then reports any error.
+ */
+function filesInFolder(adapter: ObsidianAdapter, path: string): string[] {
+  try {
+    return adapter.listRecursive(path).files;
+  } catch {
+    return [path];
+  }
+}
+
 function isValidRenameTarget(value: unknown): value is string {
   return (
     typeof value === 'string' &&
@@ -474,8 +502,13 @@ export function createHandlers(
       try {
         const path = validateVaultPath(params.path, vaultPath);
         return await mutex.acquire(path, async () => {
+          const trashedTo = adapter.getTrashDestination();
           await adapter.deleteFile(path);
-          return confirmWithStructured(`Deleted file: ${path}`, { path, deleted: true });
+          return confirmWithStructured(`Deleted file: ${path}${describeTrash(trashedTo)}`, {
+            path,
+            deleted: true,
+            trashedTo,
+          });
         });
       } catch (error) {
         return handleToolError(error);
@@ -626,8 +659,11 @@ export function createHandlers(
           return errorResult('Invalid rename target');
         }
         return await mutex.acquire(path, async () => {
-          await adapter.renameFile(path, newPath);
-          return confirmWithStructured(`Renamed file: ${path} → ${newPath}`, { from: path, to: newPath });
+          const report = await renameWithLinkReport(adapter, path, newPath, [path]);
+          return confirmWithStructured(
+            `Renamed file: ${path} → ${newPath}${describeLinkReport(report)}`,
+            { from: path, to: newPath, ...report },
+          );
         });
       } catch (error) {
         return handleToolError(error);
@@ -639,8 +675,11 @@ export function createHandlers(
         const path = validateVaultPath(params.path, vaultPath);
         const newPath = validateVaultPath(params.newPath, vaultPath);
         return await mutex.acquire(path, async () => {
-          await adapter.renameFile(path, newPath);
-          return confirmWithStructured(`Moved file: ${path} → ${newPath}`, { from: path, to: newPath });
+          const report = await renameWithLinkReport(adapter, path, newPath, [path]);
+          return confirmWithStructured(
+            `Moved file: ${path} → ${newPath}${describeLinkReport(report)}`,
+            { from: path, to: newPath, ...report },
+          );
         });
       } catch (error) {
         return handleToolError(error);
@@ -674,11 +713,13 @@ export function createHandlers(
     async deleteFolder(params): Promise<CallToolResult> {
       try {
         const path = validateVaultPath(params.path, vaultPath);
+        const trashedTo = adapter.getTrashDestination();
         await adapter.deleteFolder(path, params.recursive ?? false);
-        return confirmWithStructured(`Deleted folder: ${path}`, {
+        return confirmWithStructured(`Deleted folder: ${path}${describeTrash(trashedTo)}`, {
           path,
           deleted: true,
           recursive: params.recursive ?? false,
+          trashedTo,
         });
       } catch (error) {
         return handleToolError(error);
@@ -689,11 +730,11 @@ export function createHandlers(
       try {
         const path = validateVaultPath(params.path, vaultPath);
         const newPath = validateVaultPath(params.newPath, vaultPath);
-        await adapter.renameFile(path, newPath);
-        return confirmWithStructured(`Renamed folder: ${path} → ${newPath}`, {
-          from: path,
-          to: newPath,
-        });
+        const report = await renameWithLinkReport(adapter, path, newPath, filesInFolder(adapter, path));
+        return confirmWithStructured(
+          `Renamed folder: ${path} → ${newPath}${describeLinkReport(report)}`,
+          { from: path, to: newPath, ...report },
+        );
       } catch (error) {
         return handleToolError(error);
       }
