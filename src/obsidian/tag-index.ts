@@ -57,3 +57,56 @@ export function parseFrontmatterTags(
   }
   return tags;
 }
+
+/**
+ * A tag in the form tags are compared in: without leading `#` and trailing
+ * `/`, lowercased. Obsidian matches tags case-insensitively (#470).
+ */
+export function tagKey(tag: string): string {
+  return tag.trim().replace(/^#+/, '').replace(/\/+$/, '').toLowerCase();
+}
+
+/**
+ * Files carrying `tag` or a tag nested under it (`project` also finds
+ * `#project/alpha`), case-insensitively, like Obsidian's `tag:#project`
+ * search (#470). Each file once, sorted by path.
+ */
+export function filesWithTag(index: Record<string, TagUsage>, tag: string): string[] {
+  const wanted = tagKey(tag);
+  if (wanted === '') return [];
+  const files = new Set<string>();
+  for (const [name, usage] of Object.entries(index)) {
+    const key = tagKey(name);
+    if (key !== wanted && !key.startsWith(`${wanted}/`)) continue;
+    for (const file of usage.files) files.add(file);
+  }
+  return [...files].sort();
+}
+
+/**
+ * Merge tags that differ only in case (`#Project`, `#project`) into one
+ * entry, keyed by the most common spelling (most occurrences; the first
+ * seen on a tie). Files are listed once, counts are summed (#470).
+ */
+export function groupTagsByCase(index: Record<string, TagUsage>): Record<string, TagUsage> {
+  const groups = new Map<string, Array<[string, TagUsage]>>();
+  for (const entry of Object.entries(index)) {
+    const key = tagKey(entry[0]);
+    const group = groups.get(key);
+    if (group) group.push(entry);
+    else groups.set(key, [entry]);
+  }
+  const result: Record<string, TagUsage> = {};
+  for (const group of groups.values()) {
+    let [spelling, best] = group[0];
+    const files = new Set<string>();
+    let count = 0;
+    for (const [name, usage] of group) {
+      if (usage.count > best.count) [spelling, best] = [name, usage];
+      for (const file of usage.files) files.add(file);
+      count += usage.count;
+    }
+    result[spelling] = { files: [...files], count };
+  }
+  return result;
+}
