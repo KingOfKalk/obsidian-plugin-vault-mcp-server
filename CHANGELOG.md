@@ -4,6 +4,20 @@
 > were renamed from `vX.Y.Z` (and `obsidian-mcp-v1.1.0`) to `X.Y.Z`; old links
 > containing `v` no longer resolve.
 
+## [3.5.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/3.4.1...3.5.0) (2026-11-09)
+
+
+### Features
+
+* **vault:** add vault_insert and heading on vault_read ([#433](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/433)) ([7f4f7b7](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/7f4f7b78269da0b4be750ba6bfb8a8e3c036dfc7))
+* **vault:** multiple edits per vault_replace call and expectedMtime on vault_set_frontmatter ([#434](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/434)) ([a793f17](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/a793f177e89fa786b5bf441b162b69327c19bf74))
+* **vault:** report link updates on rename/move and delete destination ([#435](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/435)) ([0f6969e](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/0f6969e457788d0534127ed78be9254dfa435dac))
+
+
+### Bug Fixes
+
+* small tool fixes (template frontmatter, vault_move description, server name, search_tags, Dataview HTML) ([#436](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/436)) ([3f473c0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/3f473c07e7c0c3e49e0f58d47c58c98a82b6ba55))
+
 ## [3.4.1](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/3.4.0...3.4.1) (2026-11-09)
 
 
