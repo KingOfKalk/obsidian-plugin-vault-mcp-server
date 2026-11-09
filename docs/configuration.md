@@ -29,7 +29,7 @@ restart button. Not a persisted setting.
 
 ### Server URL
 - **Read-only**. Composed live from `<scheme>://<serverAddress>:<port>/mcp` where `<scheme>` is `https` if `httpsEnabled` is true, else `http`. The settings tab exposes a copy button; not a persisted setting.
-- **Other paths**: the server also answers on `/` for clients set up with the older README example. Any other path gets `404`.
+- **Other paths**: MCP is served only on `/mcp`. Every other path, including the bare root `/` and `/mcp/`, gets `404` with the hint `Not found. The MCP endpoint is /mcp`.
 
 ### Require Bearer authentication (`authEnabled`)
 - **Default**: `true`

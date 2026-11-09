@@ -22,7 +22,7 @@ Any MCP-capable client (Claude Desktop, Claude Code, Codex, custom agents) can
 connect to the server and read or modify your vault programmatically.
 
 - **Desktop only** (Node-only APIs are required)
-- **Default endpoint**: `http://localhost:28741/mcp` (or `http://127.0.0.1:28741/mcp` if `localhost` doesn't resolve in your setup)
+- **Default endpoint**: `http://localhost:28741/mcp` (or `http://127.0.0.1:28741/mcp` if `localhost` doesn't resolve in your setup). `/mcp` is the only path that serves MCP; every other path gets `404`.
 - **Auth**: HTTP Bearer token, on by default
 - **Sessions**: up to 32 at once; a session idle for 10 minutes is closed
 - **Transport**: Streamable HTTP (MCP SDK 1.x)
@@ -740,8 +740,13 @@ protection and isn't configurable.
 The client uses a URL path the server doesn't serve. The MCP endpoint is
 `/mcp`, e.g. `http://127.0.0.1:28741/mcp`. Copy the URL from **Settings →
 MCP Server → Server URL** or the **MCP Client Configuration** snippet.
-The bare `http://127.0.0.1:28741` (path `/`) also still works; any other
-path, such as `/api/mcp` or `/sse`, gets `404`.
+Every other path gets `404`, including the bare root
+(`http://127.0.0.1:28741` or `http://127.0.0.1:28741/`), `/mcp/` with a
+trailing slash, `/api/mcp` and `/sse`.
+
+If you configured the bare root (an older README example did this, and
+older plugin versions accepted any path), add `/mcp` to the URL in your
+client's configuration, e.g. `http://127.0.0.1:28741/mcp`.
 
 ### My client says "Session not found"
 
