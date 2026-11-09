@@ -14,7 +14,8 @@ import { truncateText } from '../shared/truncate';
 import {
   handleToolError,
   BinaryTooLargeError,
-  FileNotFoundError,
+  fileNotFound,
+  withDestinationCheck,
   PluginApiUnavailableError,
   ValidationError,
 } from '../shared/errors';
@@ -113,7 +114,7 @@ async function assertExpectedMtime(
   if (expectedMtime === undefined) return;
   const expectedMs = Math.trunc(parseExpectedMtime(expectedMtime));
   const stat = await adapter.stat(path);
-  if (!stat) throw new FileNotFoundError(path);
+  if (!stat) throw await fileNotFound(adapter, path);
   const currentMs = Math.trunc(stat.mtime);
   if (currentMs !== expectedMs) {
     throw new MtimeConflictError(path, expectedMs, currentMs);
@@ -687,9 +688,7 @@ export function createHandlers(
       try {
         const path = validateToolPath(params.path, vaultPath, configDir);
         const stat = await adapter.stat(path);
-        if (!stat) {
-          return errorResult(`File not found: ${path}`);
-        }
+        if (!stat) throw await fileNotFound(adapter, path);
         const payload = {
           path,
           size: stat.size,
@@ -758,7 +757,7 @@ export function createHandlers(
       try {
         const sourcePath = validateToolPath(params.sourcePath, vaultPath, configDir);
         const destPath = validateToolPath(params.destPath, vaultPath, configDir);
-        await adapter.copyFile(sourcePath, destPath);
+        await withDestinationCheck(destPath, () => adapter.copyFile(sourcePath, destPath));
         return confirmWithStructured(`Copied file: ${sourcePath} → ${destPath}`, {
           from: sourcePath,
           to: destPath,

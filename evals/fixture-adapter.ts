@@ -234,6 +234,9 @@ export class FixtureAdapter extends MockObsidianAdapter {
   }
 
   override getBacklinks(path: string): string[] {
+    // Like the real adapter (#447): a missing path is "File not found",
+    // not "no backlinks" (#463).
+    this.requireFile(path);
     const resolved = this.getResolvedLinks();
     // Same rule as the real adapter: every source whose resolved map has `path`.
     return Object.keys(resolved).filter((source) => path in resolved[source]);

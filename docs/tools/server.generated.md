@@ -8,13 +8,15 @@ Auto-generated schema reference for the `server` module. See [../tools.generated
 
 **Get server info**
 
-Get the vault-mcp-server version (running: v0.0.0-docs), the enabled tool modules and agent-relevant changes per version (renamed parameters or output fields, new tools). Versions without an entry had no agent-relevant changes.
+Get the vault-mcp-server version (running: v0.0.0-docs), the enabled tool modules and agent-relevant changes of the latest versions (renamed parameters or output fields, new tools). Versions without an entry had no agent-relevant changes.
 Examples:
 - Use when: a tool rejects a parameter or returns fields you did not expect, to check what changed.
 
 #### Input
 
-_No input parameters._
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `allChanges` | boolean | no | true: changes of every version. Default: the 3 most recent versions with changes. |
 
 #### Output
 
@@ -24,6 +26,7 @@ _No input parameters._
 | `version` | string | Plugin version, e.g. "3.2.0". |
 | `enabledModules` | string[] | Ids of the tool modules that are enabled, e.g. ["vault", "search"]. |
 | `changes` | object[] | Agent-relevant changes per version, newest first. Versions without an entry had no agent-relevant changes. |
+| `olderVersionsOmitted` | number | Versions with changes left out of changes (0 with allChanges: true). |
 
 #### Example
 
@@ -66,7 +69,7 @@ Response (`structuredContent`):
         "`vault_set_frontmatter` is annotated destructive (`destructiveHint: true`).",
         "The server instructions leave out hints about tools that are switched off.",
         "The tool list can change during a session: when the user switches a module or tool on or off, `tools/list` follows right away and the server sends `notifications/tools/list_changed`. Calls to a tool that was switched off fail with \"Tool <name> disabled\"; re-read `tools/list` after the notification.",
-        "… 4 more items"
+        "… 9 more items"
       ]
     },
     {
@@ -82,63 +85,8 @@ Response (`structuredContent`):
         "Breaking: `vault_daily_note` no longer creates the note by default (`create` now defaults to false). Without `create: true` a missing note is not created and the result is `{ path, created: false, exists: false }` without `content`. Pass `create: true` to create a missing note from the template as b… [truncated, 6 more chars]",
         "Breaking: the deprecated parameter alias `response_format` is removed. Use `responseFormat`; `response_format` now fails with \"Unknown parameter: response_format\" like any other unknown parameter."
       ]
-    },
-    {
-      "version": "3.5.0",
-      "notes": [
-        "New tool `vault_insert`: insert `text` at the `start` or `end` (default) of the section under `heading` (\"Log\", or \"## Log\" to pin the level) without rewriting the file. Takes optional `expectedMtime`; returns `{ path, heading, position, line, modified }`. A missing or ambiguous heading fails with t… [truncated, 80 more chars]",
-        "`vault_read` takes optional `heading`: returns only that section (heading line up to the next heading of the same or a higher level), paged with `offset`/`length` within the section; the result adds `heading` and `line`.",
-        "`vault_replace` takes `edits: [{ oldString, newString, replaceAll? }]` as an alternative to `oldString`/`newString` (exactly one form per call). All edits are matched against the file before the call, must not overlap, and are written together or not at all; an error names the failing edit as `edits… [truncated, 158 more chars]",
-        "`vault_set_frontmatter` takes optional `expectedMtime` (same semantics as the other write tools) and its result adds `modified`.",
-        "`vault_rename`, `vault_move` and `vault_rename_folder` results add `linksUpdated`, `updatedFiles`, `autoUpdateLinks` (the \"Automatically update internal links\" setting, or null if unreadable) and, when other files link to the moved item but were not updated, `warning`.",
-        "`vault_delete` and `vault_delete_folder` results add `trashedTo`: `\"system\"`, `\"vault\"` (the `.trash` folder), `\"permanent\"` or `\"unknown\"`.",
-        "`template_create_from` takes optional `frontmatter` (object of keys to set on the new note, `.md` only); the result then includes the note's whole `frontmatter`.",
-        "`search_tags` lists each file once per tag and adds `counts` (total occurrences per tag). `search_by_tag` lists each file once.",
-        "`plugin_dataview_query`: list values in TABLE cells are plain text (`a, b`) instead of HTML `<ul><li>` markup.",
-        "The MCP handshake `serverInfo.name` is now `vault-mcp-server` (was `obsidian-mcp-server`), matching the instructions and `server_info`."
-      ]
-    },
-    {
-      "version": "3.3.0",
-      "notes": [
-        "`vault_delete` and `vault_delete_folder` follow the user's \"Deleted files\" setting (system trash, `.trash` folder, or permanent) instead of always deleting for good.",
-        "`vault_rename`, `vault_move` and `vault_rename_folder` update links to the moved file when the user enabled \"Automatically update internal links\".",
-        "`vault_create`, `vault_copy`, `vault_move`, `vault_write_binary` and `template_create_from` create missing parent folders instead of failing.",
-        "Error messages no longer contain absolute filesystem paths; vault paths are vault-relative, other paths read `<path>`.",
-        "`search_by_frontmatter`: a list property matches when any element equals `value`.",
-        "New tool `vault_replace`: replace an exact passage in a file (`oldString` must match once unless `replaceAll`); returns `replacements` and the new `modified`.",
-        "`vault_update`, `vault_append`, `vault_replace` and `vault_write_binary` take optional `expectedMtime`; if the file changed since, nothing is written and the error reports the current mtime.",
-        "`vault_read` structured output now includes `modified` (ISO-8601) to pass back as `expectedMtime`.",
-        "New tool `vault_set_frontmatter`: set (`set`) and delete (`remove`) frontmatter keys of a Markdown note via Obsidian, without rewriting the file. Returns `{ path, frontmatter }`.",
-        "`vault_daily_note` takes `create` (default true). With `create: false` a missing note is not created and the result is `{ path, created: false, exists: false }` without `content`. Every result now carries `exists`. The default changed to false in 4.0.0.",
-        "… 1 more items"
-      ]
-    },
-    {
-      "version": "3.2.0",
-      "notes": [
-        "New tool `server_info`: plugin version, enabled modules and this change list. The server instructions now start with the version."
-      ]
-    },
-    {
-      "version": "3.1.4",
-      "notes": [
-        "All tool parameters and output fields are camelCase.",
-        "Parameter `response_format` is now `responseFormat`. `response_format` was accepted as a deprecated alias until 4.0.0.",
-        "Output fields renamed: `has_more` → `hasMore`, `next_offset` → `nextOffset`, `total_length` → `totalLength`, `size_bytes` → `sizeBytes`."
-      ]
-    },
-    {
-      "version": "3.1.3",
-      "notes": [
-        "Unknown arguments are rejected with an error that names them and lists the valid parameters.",
-        "`vault_read` pages large files with `offset`/`length` (characters).",
-        "`vault_list` and `vault_list_recursive` accept \"\", \"/\" and \".\" as the vault root.",
-        "`search_fulltext` takes `maxMatchesPerFile` (default 5, max 100) and reports a per-file `matchCount`.",
-        "`search_by_frontmatter`: `value` is optional; without it every file that has the key matches.",
-        "Write tools return a small `structuredContent` next to their text confirmation."
-      ]
     }
-  ]
+  ],
+  "olderVersionsOmitted": 5
 }
 ```

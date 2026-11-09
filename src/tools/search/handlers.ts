@@ -75,6 +75,32 @@ function renderPathList(items: string[], empty = 'No matches.'): string {
   return items.map((p) => `- ${p}`).join('\n');
 }
 
+/** Longest matching line shown in `search_fulltext`'s markdown text. */
+const MAX_MATCH_LINE_CHARS = 200;
+
+/**
+ * One `search_fulltext` hit in markdown: the path and match count, then
+ * each shown line with its 1-based line number, cut at
+ * MAX_MATCH_LINE_CHARS, and how many matching lines were left out (#463).
+ */
+function renderFulltextItem(
+  item: { path: string; matches: string[]; matchCount: number },
+  lineNumbers: number[],
+): string {
+  const noun = item.matchCount === 1 ? 'match' : 'matches';
+  const out = [`- ${item.path} (${String(item.matchCount)} ${noun})`];
+  item.matches.forEach((raw, i) => {
+    const line = raw.replace(/\r$/, '');
+    const text =
+      line.length > MAX_MATCH_LINE_CHARS ? `${line.slice(0, MAX_MATCH_LINE_CHARS)}…` : line;
+    const number = lineNumbers[i] === undefined ? '' : `${String(lineNumbers[i])}: `;
+    out.push(`  - ${number}${text}`);
+  });
+  const hidden = item.matchCount - item.matches.length;
+  if (hidden > 0) out.push(`  - … ${String(hidden)} more`);
+  return out.join('\n');
+}
+
 function renderPaginatedPaths(
   page: {
     total: number;
@@ -83,9 +109,13 @@ function renderPaginatedPaths(
     hasMore: boolean;
     nextOffset?: number;
   },
+  /** Text after the noun, kept verbatim (e.g. `tagged #project`). */
   label: string,
 ): string {
-  const header = `**${String(page.total)} ${label}${page.total === 1 ? '' : 's'}**`;
+  // Pluralise the noun only, never the label: the label echoes a tag or
+  // value that must stay exact (#463).
+  const noun = page.total === 1 ? 'file' : 'files';
+  const header = `**${String(page.total)} ${noun} ${label}**`;
   const body = renderPathList(page.items);
   const footer = page.hasMore
     ? `\n\n_Showing ${String(page.count)} of ${String(page.total)} — next offset: ${String(page.nextOffset ?? '')}_`
@@ -105,6 +135,9 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
         const total = allFiles.length;
         const maxMatchesPerFile = params.maxMatchesPerFile ?? DEFAULT_MAX_MATCHES_PER_FILE;
         const matched: Array<{ path: string; matches: string[]; matchCount: number }> = [];
+        // 1-based line numbers of `matches`, for the markdown text only:
+        // structuredContent keeps its documented shape (#463).
+        const lineNumbers = new Map<string, number[]>();
 
         let lastPct = -1;
         for (let i = 0; i < total; i++) {
@@ -115,14 +148,17 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
           const content = await adapter.readFile(path);
           if (content.toLowerCase().includes(lowerQuery)) {
             const lines = content.split('\n');
-            const matches = lines.filter((line) =>
-              line.toLowerCase().includes(lowerQuery),
-            );
+            const hits: number[] = [];
+            lines.forEach((line, index) => {
+              if (line.toLowerCase().includes(lowerQuery)) hits.push(index);
+            });
+            const shown = hits.slice(0, maxMatchesPerFile);
             matched.push({
               path,
-              matches: matches.slice(0, maxMatchesPerFile),
-              matchCount: matches.length,
+              matches: shown.map((index) => lines[index]),
+              matchCount: hits.length,
             });
+            lineNumbers.set(path, shown.map((index) => index + 1));
           }
           if (ctx) {
             const pct = Math.floor(((i + 1) / total) * 100);
@@ -142,9 +178,8 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
           page,
           (v) => {
             if (v.items.length === 0) return 'No matches.';
-            const lines = v.items.map(
-              (m) =>
-                `- ${m.path} (${String(m.matchCount)} match${m.matchCount === 1 ? '' : 'es'})`,
+            const lines = v.items.map((m) =>
+              renderFulltextItem(m, lineNumbers.get(m.path) ?? []),
             );
             const pager = v.hasMore
               ? `\n\n_Showing ${String(v.count)} of ${String(v.total)} — next offset: ${String(v.nextOffset ?? '')}_`
@@ -399,7 +434,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
         return Promise.resolve(
           makeResponse(
             page,
-            (v) => renderPaginatedPaths(v, `file tagged ${normalizedTag}`),
+            (v) => renderPaginatedPaths(v, `tagged ${normalizedTag}`),
             readResponseFormat(params),
           ),
         );
@@ -423,7 +458,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
           }
         }
         const page = paginate(matching, readPagination(params));
-        const label = value === undefined ? `file with ${key}` : `file with ${key}=${value}`;
+        const label = value === undefined ? `with ${key}` : `with ${key}=${value}`;
         return Promise.resolve(
           makeResponse(
             page,

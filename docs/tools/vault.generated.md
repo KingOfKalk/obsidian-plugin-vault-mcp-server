@@ -459,7 +459,7 @@ Examples:
 Errors:
 - "newName must not contain path separators" if newName has / or \; "Invalid rename target" if it is blank or invalid.
 - "Path not found" if path does not exist.
-- "Destination file already exists!" if the new path is taken; nothing is moved.
+- "Destination already exists" if the new path is taken; nothing is moved.
 
 #### Input
 
@@ -513,7 +513,7 @@ Move a file or folder to a new path (can change folder and name). Missing parent
 Returns: Links to it (for a folder: to every file in it) are updated only if the user enabled "Automatically update internal links"; no Obsidian prompt appears either way. linksUpdated and updatedFiles report the rewritten links, autoUpdateLinks the setting; warning is set when other files link to it but were not updated.
 Errors:
 - "Path not found" if path does not exist.
-- "Destination file already exists!" if the new path is taken; nothing is moved.
+- "Destination already exists" if the new path is taken; nothing is moved.
 
 #### Input
 
@@ -566,7 +566,7 @@ Response (`structuredContent`):
 Copy a file to a new path, leaving the original in place. Missing parent folders are created.
 Errors:
 - "File not found" if sourcePath does not exist or is a folder.
-- "EEXIST: file already exists" if destPath is taken; nothing is copied.
+- "Destination already exists" if destPath is taken; nothing is copied.
 
 #### Input
 
@@ -706,7 +706,7 @@ Rename or move a folder (a file works too). Missing parent folders of newPath ar
 Returns: Links to it (for a folder: to every file in it) are updated only if the user enabled "Automatically update internal links"; no Obsidian prompt appears either way. linksUpdated and updatedFiles report the rewritten links, autoUpdateLinks the setting; warning is set when other files link to it but were not updated.
 Errors:
 - "Path not found" if path does not exist.
-- "Destination file already exists!" if the new path is taken; nothing is moved.
+- "Destination already exists" if the new path is taken; nothing is moved.
 
 #### Input
 

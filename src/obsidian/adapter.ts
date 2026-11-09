@@ -1,6 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unnecessary-type-assertion */
 import { App, Notice, TFile, TFolder, TAbstractFile, Vault, getAllTags } from 'obsidian';
-import { FolderNotFoundError } from '../tools/shared/errors';
+import {
+  FileNotFoundError,
+  FolderNotFoundError,
+  NotFoundError,
+  markdownCandidate,
+} from '../tools/shared/errors';
 import { buildTagIndex, type TagUsage } from './tag-index';
 
 export type { TagUsage } from './tag-index';
@@ -725,9 +730,16 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   private getFile(path: string): TFile {
     const file = this.app.vault.getAbstractFileByPath(path);
     if (!(file instanceof TFile)) {
-      throw new Error(`File not found: ${path}`);
+      throw new FileNotFoundError(path, this.suggestMarkdownFile(path));
     }
     return file;
+  }
+
+  /** `path + ".md"` when that file exists, for a "Did you mean" hint (#463). */
+  private suggestMarkdownFile(path: string): string | undefined {
+    const candidate = markdownCandidate(path);
+    if (candidate === null) return undefined;
+    return this.app.vault.getAbstractFileByPath(candidate) instanceof TFile ? candidate : undefined;
   }
 
   private getFolder(path: string): TFolder {
@@ -746,7 +758,12 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   private getAbstractFile(path: string): TAbstractFile {
     const file = this.app.vault.getAbstractFileByPath(path);
     if (!file) {
-      throw new Error(`Path not found: ${path}`);
+      const suggestion = this.suggestMarkdownFile(path);
+      throw new NotFoundError(
+        suggestion === undefined
+          ? `Path not found: ${path}`
+          : `Path not found: ${path}. Did you mean ${suggestion}?`,
+      );
     }
     return file;
   }

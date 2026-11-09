@@ -4,24 +4,24 @@
     "toolCount": 54,
     "totals": {
       "instructions": 997,
-      "toolsList": 64334,
-      "modelView": 45710,
-      "toolDescriptions": 17661,
-      "inputSchemas": 24237,
-      "inputSchemaDescriptions": 9483,
-      "outputSchemas": 11371,
+      "toolsList": 64490,
+      "modelView": 45797,
+      "toolDescriptions": 17617,
+      "inputSchemas": 24366,
+      "inputSchemaDescriptions": 9564,
+      "outputSchemas": 11435,
       "promptsList": 1425
     },
     "modules": {
       "server": {
         "tools": 1,
-        "toolsList": 957,
-        "modelView": 456
+        "toolsList": 1161,
+        "modelView": 596
       },
       "vault": {
         "tools": 21,
-        "toolsList": 33271,
-        "modelView": 24712
+        "toolsList": 33252,
+        "modelView": 24693
       },
       "editor": {
         "tools": 10,
@@ -30,8 +30,8 @@
       },
       "search": {
         "tools": 6,
-        "toolsList": 6857,
-        "modelView": 4571
+        "toolsList": 6823,
+        "modelView": 4537
       },
       "workspace": {
         "tools": 5,
@@ -50,7 +50,7 @@
       },
       "plugin-interop": {
         "tools": 6,
-        "toolsList": 5265,
+        "toolsList": 5270,
         "modelView": 3607
       },
       "extras": {
@@ -62,8 +62,8 @@
     "tools": {
       "server_info": {
         "module": "server",
-        "toolsList": 957,
-        "modelView": 456
+        "toolsList": 1161,
+        "modelView": 596
       },
       "vault_create": {
         "module": "vault",
@@ -107,18 +107,18 @@
       },
       "vault_rename": {
         "module": "vault",
-        "toolsList": 1764,
-        "modelView": 1304
+        "toolsList": 1758,
+        "modelView": 1298
       },
       "vault_move": {
         "module": "vault",
-        "toolsList": 1493,
-        "modelView": 1035
+        "toolsList": 1487,
+        "modelView": 1029
       },
       "vault_copy": {
         "module": "vault",
-        "toolsList": 917,
-        "modelView": 671
+        "toolsList": 916,
+        "modelView": 670
       },
       "vault_create_folder": {
         "module": "vault",
@@ -132,8 +132,8 @@
       },
       "vault_rename_folder": {
         "module": "vault",
-        "toolsList": 1419,
-        "modelView": 957
+        "toolsList": 1413,
+        "modelView": 951
       },
       "vault_list": {
         "module": "vault",
@@ -222,8 +222,8 @@
       },
       "search_fulltext": {
         "module": "search",
-        "toolsList": 1781,
-        "modelView": 1214
+        "toolsList": 1747,
+        "modelView": 1180
       },
       "search_tags": {
         "module": "search",
@@ -297,27 +297,27 @@
       },
       "plugin_list": {
         "module": "plugin-interop",
-        "toolsList": 669,
+        "toolsList": 670,
         "modelView": 317
       },
       "plugin_check": {
         "module": "plugin-interop",
-        "toolsList": 737,
+        "toolsList": 738,
         "modelView": 445
       },
       "plugin_dataview_query": {
         "module": "plugin-interop",
-        "toolsList": 1123,
+        "toolsList": 1124,
         "modelView": 881
       },
       "plugin_dataview_describe_js_query": {
         "module": "plugin-interop",
-        "toolsList": 865,
+        "toolsList": 866,
         "modelView": 623
       },
       "plugin_templater_describe_template": {
         "module": "plugin-interop",
-        "toolsList": 863,
+        "toolsList": 864,
         "modelView": 606
       },
       "plugin_execute_command": {
@@ -336,12 +336,12 @@
     "toolCount": 53,
     "totals": {
       "instructions": 997,
-      "toolsList": 63725,
-      "modelView": 45298,
-      "toolDescriptions": 17513,
-      "inputSchemas": 24035,
-      "inputSchemaDescriptions": 9444,
-      "outputSchemas": 11296,
+      "toolsList": 63881,
+      "modelView": 45385,
+      "toolDescriptions": 17469,
+      "inputSchemas": 24164,
+      "inputSchemaDescriptions": 9525,
+      "outputSchemas": 11360,
       "promptsList": 1425
     }
   }

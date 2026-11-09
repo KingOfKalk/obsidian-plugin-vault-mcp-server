@@ -25,6 +25,22 @@ export const SERVER_MODULE_ID = 'server';
 export const CHANGES_COVERAGE_NOTE =
   'Versions without an entry had no agent-relevant changes.';
 
+/**
+ * Versions `server_info` lists by default (#463). The full list grows with
+ * every release, and a fresh agent mostly needs the latest changes;
+ * `allChanges: true` returns every version.
+ */
+export const RECENT_CHANGE_VERSIONS = 3;
+
+const serverInfoSchema = {
+  allChanges: z
+    .boolean()
+    .optional()
+    .describe(
+      `true: changes of every version. Default: the ${String(RECENT_CHANGE_VERSIONS)} most recent versions with changes.`,
+    ),
+};
+
 export interface ServerModuleOptions {
   /** Plugin version shown in the tool description and result. */
   version: string;
@@ -48,6 +64,9 @@ const serverInfoOutputSchema = {
       }),
     )
     .describe(`Agent-relevant changes per version, newest first. ${CHANGES_COVERAGE_NOTE}`),
+  olderVersionsOmitted: z
+    .number()
+    .describe('Versions with changes left out of changes (0 with allChanges: true).'),
 };
 
 interface ServerInfo {
@@ -55,6 +74,7 @@ interface ServerInfo {
   version: string;
   enabledModules: string[];
   changes: AgentChangeEntry[];
+  olderVersionsOmitted: number;
 }
 
 function renderMarkdown(info: ServerInfo): string {
@@ -67,6 +87,13 @@ function renderMarkdown(info: ServerInfo): string {
   for (const entry of info.changes) {
     lines.push('', `## ${entry.version}`);
     for (const note of entry.notes) lines.push(`- ${note}`);
+  }
+  if (info.olderVersionsOmitted > 0) {
+    const noun = info.olderVersionsOmitted === 1 ? 'version' : 'versions';
+    lines.push(
+      '',
+      `${String(info.olderVersionsOmitted)} older ${noun} left out; call with allChanges: true for all.`,
+    );
   }
   return lines.join('\n');
 }
@@ -92,19 +119,22 @@ export function createServerModule(options: ServerModuleOptions): ToolModule {
           name: 'server_info',
           title: 'Get server info',
           description: describeTool({
-            summary: `Get the ${SERVER_DISPLAY_NAME} version (running: v${version}), the enabled tool modules and agent-relevant changes per version (renamed parameters or output fields, new tools). ${CHANGES_COVERAGE_NOTE}`,
+            summary: `Get the ${SERVER_DISPLAY_NAME} version (running: v${version}), the enabled tool modules and agent-relevant changes of the latest versions (renamed parameters or output fields, new tools). ${CHANGES_COVERAGE_NOTE}`,
             examples: [
               'Use when: a tool rejects a parameter or returns fields you did not expect, to check what changed.',
             ],
           }),
-          schema: {},
+          schema: serverInfoSchema,
           outputSchema: serverInfoOutputSchema,
-          handler: (): Promise<CallToolResult> => {
+          handler: (params): Promise<CallToolResult> => {
+            const shown =
+              params.allChanges === true ? changes : changes.slice(0, RECENT_CHANGE_VERSIONS);
             const info: ServerInfo = {
               name: SERVER_DISPLAY_NAME,
               version,
               enabledModules: getEnabledModules(),
-              changes: changes.map((c) => ({ version: c.version, notes: [...c.notes] })),
+              changes: shown.map((c) => ({ version: c.version, notes: [...c.notes] })),
+              olderVersionsOmitted: changes.length - shown.length,
             };
             return Promise.resolve(makeResponse(info, renderMarkdown));
           },

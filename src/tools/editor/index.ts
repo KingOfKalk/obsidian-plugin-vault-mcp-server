@@ -94,6 +94,11 @@ const RANGE_OUT_OF_RANGE_ERROR =
 // "No active editor" is in the server instructions' editor line, sent
 // whenever an editor tool is enabled (#457), so the tools do not repeat it.
 
+/** Error when no Markdown view is focused, with the next step (#463). */
+const NO_EDITOR_HINT =
+  'Open the note in Obsidian (e.g. with workspace_open_file) or use the vault_* tools, which work on any file by path.';
+const NO_ACTIVE_EDITOR = `No active editor. ${NO_EDITOR_HINT}`;
+
 const insertSchema = {
   line: z.number().int().min(0).describe('Line (0-based).'),
   ch: z.number().int().min(0).describe('Column (0-based).'),
@@ -201,7 +206,7 @@ function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
   return {
     getContent: (params): Promise<CallToolResult> => {
       const content = adapter.getActiveFileContent();
-      if (content === null) return Promise.resolve(err('No active editor'));
+      if (content === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
       return Promise.resolve(
         makeResponse(
           { content },
@@ -223,7 +228,7 @@ function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
     },
     insert: (params): Promise<CallToolResult> => {
       const lineCount = adapter.getActiveLineCount();
-      if (lineCount === null) return Promise.resolve(err('No active editor'));
+      if (lineCount === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
       try {
         assertEditorPosition(params.line, params.ch, lineCount, {
           allowEnd: true,
@@ -237,12 +242,12 @@ function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
       return Promise.resolve(
         ok
           ? confirmWithStructured('Text inserted', { line: params.line, ch: params.ch })
-          : err('No active editor'),
+          : err(NO_ACTIVE_EDITOR),
       );
     },
     replace: (params): Promise<CallToolResult> => {
       const lineCount = adapter.getActiveLineCount();
-      if (lineCount === null) return Promise.resolve(err('No active editor'));
+      if (lineCount === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
       try {
         assertEditorPosition(params.fromLine, params.fromCh, lineCount);
         assertEditorPosition(params.toLine, params.toCh, lineCount, {
@@ -261,12 +266,12 @@ function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
         params.text,
       );
       return Promise.resolve(
-        ok ? confirmWithStructured('Text replaced', rangeOf(params)) : err('No active editor'),
+        ok ? confirmWithStructured('Text replaced', rangeOf(params)) : err(NO_ACTIVE_EDITOR),
       );
     },
     deleteRange: (params): Promise<CallToolResult> => {
       const lineCount = adapter.getActiveLineCount();
-      if (lineCount === null) return Promise.resolve(err('No active editor'));
+      if (lineCount === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
       try {
         assertEditorPosition(params.fromLine, params.fromCh, lineCount);
         assertEditorPosition(params.toLine, params.toCh, lineCount, {
@@ -284,12 +289,12 @@ function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
         params.toCh,
       );
       return Promise.resolve(
-        ok ? confirmWithStructured('Text deleted', rangeOf(params)) : err('No active editor'),
+        ok ? confirmWithStructured('Text deleted', rangeOf(params)) : err(NO_ACTIVE_EDITOR),
       );
     },
     getCursor: (params): Promise<CallToolResult> => {
       const pos = adapter.getCursorPosition();
-      if (!pos) return Promise.resolve(err('No active editor'));
+      if (!pos) return Promise.resolve(err(NO_ACTIVE_EDITOR));
       return Promise.resolve(
         makeResponse(
           pos,
@@ -300,7 +305,7 @@ function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
     },
     setCursor: (params): Promise<CallToolResult> => {
       const lineCount = adapter.getActiveLineCount();
-      if (lineCount === null) return Promise.resolve(err('No active editor'));
+      if (lineCount === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
       try {
         assertEditorPosition(params.line, params.ch, lineCount);
       } catch (error) {
@@ -312,12 +317,12 @@ function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
       return Promise.resolve(
         ok
           ? confirmWithStructured('Cursor set', { line: params.line, ch: params.ch })
-          : err('No active editor'),
+          : err(NO_ACTIVE_EDITOR),
       );
     },
     getSelection: (params): Promise<CallToolResult> => {
       const sel = adapter.getSelection();
-      if (!sel) return Promise.resolve(err('No active editor or selection'));
+      if (!sel) return Promise.resolve(err(`No active editor or selection. ${NO_EDITOR_HINT}`));
       return Promise.resolve(
         makeResponse(
           sel,
@@ -329,7 +334,7 @@ function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
     },
     setSelection: (params): Promise<CallToolResult> => {
       const lineCount = adapter.getActiveLineCount();
-      if (lineCount === null) return Promise.resolve(err('No active editor'));
+      if (lineCount === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
       try {
         assertEditorPosition(params.fromLine, params.fromCh, lineCount);
         assertEditorPosition(params.toLine, params.toCh, lineCount, {
@@ -347,12 +352,12 @@ function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
         params.toCh,
       );
       return Promise.resolve(
-        ok ? confirmWithStructured('Selection set', rangeOf(params)) : err('No active editor'),
+        ok ? confirmWithStructured('Selection set', rangeOf(params)) : err(NO_ACTIVE_EDITOR),
       );
     },
     getLineCount: (params): Promise<CallToolResult> => {
       const count = adapter.getActiveLineCount();
-      if (count === null) return Promise.resolve(err('No active editor'));
+      if (count === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
       return Promise.resolve(
         makeResponse(
           { lineCount: count },

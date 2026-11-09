@@ -8,7 +8,12 @@ import {
   TrashDestination,
 } from './adapter';
 import { buildTagIndex, parseFrontmatterTags, type TagUsage } from './tag-index';
-import { FolderNotFoundError } from '../tools/shared/errors';
+import {
+  FileNotFoundError,
+  FolderNotFoundError,
+  NotFoundError,
+  markdownCandidate,
+} from '../tools/shared/errors';
 // Dev-only dependency: the mock adapter is used by tests, scripts and
 // evals, never imported by src/main.ts, so `yaml` stays out of main.js.
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
@@ -67,13 +72,13 @@ export class MockObsidianAdapter implements ObsidianAdapter {
 
   async readFile(path: string): Promise<string> {
     const file = this.files.get(path);
-    if (!file) throw new Error(`File not found: ${path}`);
+    if (!file) throw this.fileNotFound(path);
     return file.content;
   }
 
   async readBinary(path: string): Promise<ArrayBuffer> {
     const file = this.files.get(path);
-    if (!file) throw new Error(`File not found: ${path}`);
+    if (!file) throw this.fileNotFound(path);
     if (!file.binary) {
       const encoder = new TextEncoder();
       return encoder.encode(file.content).buffer;
@@ -95,7 +100,7 @@ export class MockObsidianAdapter implements ObsidianAdapter {
 
   async modifyFile(path: string, content: string): Promise<void> {
     const file = this.files.get(path);
-    if (!file) throw new Error(`File not found: ${path}`);
+    if (!file) throw this.fileNotFound(path);
     file.content = content;
     file.stat.mtime = Date.now();
     file.stat.size = content.length;
@@ -103,7 +108,7 @@ export class MockObsidianAdapter implements ObsidianAdapter {
 
   async processFile(path: string, fn: (content: string) => string): Promise<string> {
     const file = this.files.get(path);
-    if (!file) throw new Error(`File not found: ${path}`);
+    if (!file) throw this.fileNotFound(path);
     // Like app.vault.process: if fn throws, nothing is written.
     const next = fn(file.content);
     file.content = next;
@@ -114,7 +119,7 @@ export class MockObsidianAdapter implements ObsidianAdapter {
 
   async deleteFile(path: string): Promise<void> {
     if (!this.files.has(path)) {
-      throw new Error(`File not found: ${path}`);
+      throw this.fileNotFound(path);
     }
     this.files.delete(path);
     this.trashed.push(path);
@@ -125,7 +130,12 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     const isFolder = this.folders.has(oldPath);
 
     if (!file && !isFolder) {
-      throw new Error(`Path not found: ${oldPath}`);
+      const suggestion = this.suggestMarkdownFile(oldPath);
+      throw new NotFoundError(
+        suggestion === undefined
+          ? `Path not found: ${oldPath}`
+          : `Path not found: ${oldPath}. Did you mean ${suggestion}?`,
+      );
     }
     // Obsidian's vault.rename refuses any existing destination (#447).
     if (this.files.has(newPath) || this.folders.has(newPath)) {
@@ -168,7 +178,7 @@ export class MockObsidianAdapter implements ObsidianAdapter {
 
   async copyFile(sourcePath: string, destPath: string): Promise<void> {
     const file = this.files.get(sourcePath);
-    if (!file) throw new Error(`File not found: ${sourcePath}`);
+    if (!file) throw this.fileNotFound(sourcePath);
     // Obsidian's vault.copy fails with the filesystem's EEXIST (#447).
     if (this.files.has(destPath) || this.folders.has(destPath)) {
       throw new Error(
@@ -302,7 +312,7 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     fn: (frontmatter: Record<string, unknown>) => void,
   ): Promise<void> {
     const file = this.files.get(path);
-    if (!file) throw new Error(`File not found: ${path}`);
+    if (!file) throw this.fileNotFound(path);
     const { yaml, body } = splitFrontmatter(file.content);
     const frontmatter =
       yaml !== null
@@ -530,7 +540,7 @@ export class MockObsidianAdapter implements ObsidianAdapter {
   }
 
   async openFile(path: string, _mode?: OpenFileMode): Promise<void> {
-    if (!this.files.has(path)) throw new Error(`File not found: ${path}`);
+    if (!this.files.has(path)) throw this.fileNotFound(path);
     const leafId = `leaf-${String(this.openLeaves.length)}`;
     this.openLeaves.push({ path, leafId });
     this.activeLeafId = leafId;
@@ -720,10 +730,21 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     }
   }
 
+  /** The real adapter's "File not found" error, with its "Did you mean" hint. */
+  private fileNotFound(path: string): FileNotFoundError {
+    return new FileNotFoundError(path, this.suggestMarkdownFile(path));
+  }
+
+  /** `path + ".md"` when that file exists (#463). */
+  private suggestMarkdownFile(path: string): string | undefined {
+    const candidate = markdownCandidate(path);
+    return candidate !== null && this.files.has(candidate) ? candidate : undefined;
+  }
+
   /** The file at `path`, or the real adapter's "File not found" error. */
-  private requireFile(path: string): MockFile {
+  protected requireFile(path: string): MockFile {
     const file = this.files.get(path);
-    if (!file) throw new Error(`File not found: ${path}`);
+    if (!file) throw this.fileNotFound(path);
     return file;
   }
 
