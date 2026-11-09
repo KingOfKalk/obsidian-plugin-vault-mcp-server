@@ -94,6 +94,7 @@ Errors:
 | `offset` | number | Character offset where this window starts. |
 | `hasMore` | boolean | True when the file continues past this window. |
 | `nextOffset` | number | Offset to pass in the next call when hasMore is true. |
+| `modified` | string | Last-modification timestamp (ISO-8601). Pass it as expectedMtime to a write tool to detect concurrent edits. |
 
 #### Example
 
@@ -116,7 +117,8 @@ Response (`structuredContent`):
   "content": "---\nstatus: active\n---\n# Alpha\n\n## Goals\nShip it. ^goal-1\n",
   "totalLength": 58,
   "offset": 0,
-  "hasMore": false
+  "hasMore": false,
+  "modified": "2026-01-10T08:15:00.000Z"
 }
 ```
 
@@ -128,10 +130,12 @@ Overwrite an existing file with new content.
 
 Examples:
   - Use when: replacing a draft with a final version.
-  - Don't use when: you only need to append (use vault_append).
+  - Don't use when: you only need to append (use vault_append) or change one passage (use vault_replace).
+  - Don't use when: you read only part of a large file — writing that window back truncates the note.
 
 Errors:
   - "File not found" if the path does not exist.
+  - "File changed since expectedMtime" (with the current mtime) if expectedMtime is set and the file was modified since; nothing is written.
 
 #### Input
 
@@ -139,6 +143,7 @@ Errors:
 |---|---|---|---|
 | `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
 | `content` | string (≤5000000) | yes | Replacement content for the file |
+| `expectedMtime` | string (≤64) | no | Optional conflict check: the `modified` value from vault_read or vault_get_metadata (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
 
 #### Output
 
@@ -231,6 +236,7 @@ Examples:
 
 Errors:
   - "File not found" if the path does not exist.
+  - "File changed since expectedMtime" (with the current mtime) if expectedMtime is set and the file was modified since; nothing is written.
 
 #### Input
 
@@ -238,6 +244,7 @@ Errors:
 |---|---|---|---|
 | `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
 | `content` | string (1–5000000) | yes | Content to append to the end of the file |
+| `expectedMtime` | string (≤64) | no | Optional conflict check: the `modified` value from vault_read or vault_get_metadata (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
 
 #### Output
 
@@ -266,6 +273,72 @@ Response (`structuredContent`):
 {
   "path": "README.md",
   "appended": true
+}
+```
+
+### vault_replace
+
+**Replace text in file**
+
+Replace an exact passage in a file without rewriting the rest. oldString must match exactly once unless replaceAll is true.
+
+Returns:
+  Matching and writing happen in one atomic step (app.vault.process).
+
+Examples:
+  - Use when: fixing one line in a large note -> { path: "notes/a.md", oldString: "status: draft", newString: "status: done" }
+  - Use when: renaming a term everywhere in one file -> { ..., replaceAll: true }
+  - Don't use when: editing the open file at a cursor position (use editor_replace).
+
+See also:
+  - vault_update — when replacing the whole file.
+
+Errors:
+  - "File not found" if the path does not exist.
+  - "oldString not found … (0 matches)" or "oldString is ambiguous … (N matches)"; nothing is written.
+  - "File changed since expectedMtime" (with the current mtime) if expectedMtime is set and the file was modified since; nothing is written.
+
+#### Input
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
+| `oldString` | string (1–5000000) | yes | Exact text to find (literal, case-sensitive, no regex). Must occur exactly once unless replaceAll is true. |
+| `newString` | string (≤5000000) | yes | Replacement text (literal; may be empty to delete oldString). |
+| `replaceAll` | boolean | no (default `false`) | Replace every occurrence instead of requiring exactly one (default false). |
+| `expectedMtime` | string (≤64) | no | Optional conflict check: the `modified` value from vault_read or vault_get_metadata (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
+
+#### Output
+
+| Field | Type | Description |
+|---|---|---|
+| `path` | string | Vault-relative path that was written. |
+| `replacements` | number | Number of occurrences replaced. |
+| `modified` | string | New last-modification timestamp (ISO-8601); usable as the next expectedMtime. |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "vault_replace",
+  "arguments": {
+    "path": "projects/alpha.md",
+    "oldString": "Ship it.",
+    "newString": "Ship it this week.",
+    "expectedMtime": "2026-01-10T08:15:00.000Z"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "path": "projects/alpha.md",
+  "replacements": 1,
+  "modified": "2026-01-15T09:30:00.000Z"
 }
 ```
 
@@ -818,6 +891,7 @@ Examples:
 
 Errors:
   - "Invalid base64 string" if data is not valid base64.
+  - "File changed since expectedMtime" (with the current mtime) if expectedMtime is set and the file was modified since; nothing is written.
 
 #### Input
 
@@ -825,6 +899,7 @@ Errors:
 |---|---|---|---|
 | `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
 | `data` | string | yes | Base64-encoded binary content (no leading data: prefix) |
+| `expectedMtime` | string (≤64) | no | Optional conflict check: the `modified` value from vault_read or vault_get_metadata (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
 
 #### Output
 

@@ -61,7 +61,10 @@ Response (`structuredContent`):
         "`vault_rename`, `vault_move` and `vault_rename_folder` update links to the moved file when the user enabled \"Automatically update internal links\".",
         "`vault_create`, `vault_copy`, `vault_move`, `vault_write_binary` and `template_create_from` create missing parent folders instead of failing.",
         "Error messages no longer contain absolute filesystem paths; vault paths are vault-relative, other paths read `<path>`.",
-        "`search_by_frontmatter`: a list property matches when any element equals `value`."
+        "`search_by_frontmatter`: a list property matches when any element equals `value`.",
+        "New tool `vault_replace`: replace an exact passage in a file (`oldString` must match once unless `replaceAll`); returns `replacements` and the new `modified`.",
+        "`vault_update`, `vault_append`, `vault_replace` and `vault_write_binary` take optional `expectedMtime`; if the file changed since, nothing is written and the error reports the current mtime.",
+        "`vault_read` structured output now includes `modified` (ISO-8601) to pass back as `expectedMtime`."
       ]
     },
     {
