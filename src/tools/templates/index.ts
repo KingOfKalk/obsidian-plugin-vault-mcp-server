@@ -162,7 +162,7 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
           name: 'template_create_from',
           title: 'Create file from template',
           description: describeTool({
-            summary: 'Create a file by expanding {{variable}} placeholders in a template.',
+            summary: 'Create a file by expanding {{variable}} placeholders in a template. Missing parent folders are created.',
             errors: [
               '"File not found" if templatePath is missing.',
               '"File already exists" if destPath is taken.',

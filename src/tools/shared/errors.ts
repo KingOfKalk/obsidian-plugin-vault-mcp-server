@@ -137,7 +137,54 @@ export function handleToolError(error: unknown): CallToolResult {
     return errorFrom(error.message);
   }
   const message = error instanceof Error ? error.message : String(error);
-  return errorFrom(message);
+  return errorFrom(redactFilesystemPaths(message));
+}
+
+/**
+ * Absolute vault base paths registered by the plugin at startup. Errors
+ * from the filesystem (e.g. a raw ENOENT) embed them; the generic
+ * fallback of `handleToolError` turns them back into vault-relative
+ * paths so the absolute location of the vault never reaches a client
+ * (#405).
+ */
+const vaultBasePaths = new Set<string>();
+
+export function registerVaultBasePath(basePath: string): void {
+  const trimmed = basePath.replace(/[\\/]+$/, '');
+  if (trimmed.length > 0) vaultBasePaths.add(trimmed);
+}
+
+/** Test hook: forget every registered base path. */
+export function clearVaultBasePaths(): void {
+  vaultBasePaths.clear();
+}
+
+/**
+ * Absolute filesystem path with at least one directory segment, on POSIX
+ * (`/home/x/...`), Windows (`C:\Users\...`, `C:/...`) or UNC
+ * (`\\server\share`). It must start the message or follow whitespace,
+ * a quote, a bracket, `=`, `:` or `,` so vault-relative paths such as
+ * `notes/a.md` are left alone.
+ */
+const ABSOLUTE_PATH_PATTERN =
+  /(?<=^|[\s'"`([{=:,])(?:[A-Za-z]:[\\/]|\\\\|\/)(?:[^\s'"`\\/]+[\\/])+[^\s'"`,)\]}]*/g;
+
+/**
+ * Strip absolute filesystem paths from a message: the registered vault
+ * base path becomes vault-relative, any other absolute path becomes
+ * `<path>`.
+ */
+export function redactFilesystemPaths(message: string): string {
+  let out = message;
+  for (const base of vaultBasePaths) {
+    for (const variant of new Set([base, base.replace(/\\/g, '/')])) {
+      out = out
+        .split(`${variant}/`).join('')
+        .split(`${variant}\\`).join('')
+        .split(variant).join('<vault>');
+    }
+  }
+  return out.replace(ABSOLUTE_PATH_PATTERN, '<path>');
 }
 
 function errorFrom(message: string): CallToolResult {

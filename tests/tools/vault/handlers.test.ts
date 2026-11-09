@@ -557,3 +557,74 @@ describe('vault handlers truncation and size limits', () => {
     expect(getText(result)).toContain('too large');
   });
 });
+
+describe('vault handlers: trash, links and missing folders (#405)', () => {
+  let adapter: MockObsidianAdapter;
+  let handlers: ReturnType<typeof createHandlers>;
+
+  beforeEach(() => {
+    adapter = new MockObsidianAdapter();
+    handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
+  });
+
+  it('vault_delete sends the file to the trash', async () => {
+    adapter.addFile('notes/old.md', 'x');
+    const result = await handlers.deleteFile({ path: 'notes/old.md' });
+    expect(result.isError).toBeUndefined();
+    expect(adapter.getTrashedPaths()).toEqual(['notes/old.md']);
+  });
+
+  it('vault_delete_folder sends the folder to the trash', async () => {
+    adapter.addFile('drafts/a.md', 'x');
+    const result = await handlers.deleteFolder({ path: 'drafts', recursive: true });
+    expect(result.isError).toBeUndefined();
+    expect(adapter.getTrashedPaths()).toEqual(['drafts']);
+    expect(await adapter.exists('drafts/a.md')).toBe(false);
+  });
+
+  it('vault_move updates wikilinks that point at the moved file', async () => {
+    adapter.addFile('notes/target.md', 'target');
+    adapter.addFile('index.md', 'See [[notes/target]], [[notes/target|alias]] and [[notes/target.md#Heading]]. Not [[notes/target-other]].');
+    const result = await handlers.moveFile({ path: 'notes/target.md', newPath: 'archive/2026/target.md' });
+    expect(result.isError).toBeUndefined();
+    expect(await adapter.readFile('index.md')).toBe(
+      'See [[archive/2026/target]], [[archive/2026/target|alias]] and [[archive/2026/target#Heading]]. Not [[notes/target-other]].',
+    );
+  });
+
+  it('vault_rename updates wikilinks that point at the renamed file', async () => {
+    adapter.addFile('a.md', 'a');
+    adapter.addFile('b.md', 'link to [[a]]');
+    await handlers.renameFile({ path: 'a.md', newName: 'c.md' });
+    expect(await adapter.readFile('b.md')).toBe('link to [[c]]');
+  });
+
+  it('vault_create creates missing parent folders', async () => {
+    const result = await handlers.createFile({ path: 'new/deep/note.md', content: 'x' });
+    expect(result.isError).toBeUndefined();
+    expect(adapter.list('new').folders).toEqual(['new/deep']);
+    expect(adapter.list('new/deep').files).toEqual(['new/deep/note.md']);
+  });
+
+  it('vault_copy creates missing parent folders', async () => {
+    adapter.addFile('a.md', 'a');
+    const result = await handlers.copyFile({ sourcePath: 'a.md', destPath: 'copies/x/a.md' });
+    expect(result.isError).toBeUndefined();
+    expect(await adapter.exists('copies/x')).toBe(true);
+  });
+
+  it('vault_move creates missing parent folders', async () => {
+    adapter.addFile('a.md', 'a');
+    const result = await handlers.moveFile({ path: 'a.md', newPath: 'archive/old/a.md' });
+    expect(result.isError).toBeUndefined();
+    expect(await adapter.exists('archive/old')).toBe(true);
+    expect(await adapter.readFile('archive/old/a.md')).toBe('a');
+  });
+
+  it('vault_write_binary creates missing parent folders', async () => {
+    const data = Buffer.from('hi').toString('base64');
+    const result = await handlers.writeBinary({ path: 'assets/img/x.bin', data });
+    expect(result.isError).toBeUndefined();
+    expect(await adapter.exists('assets/img')).toBe(true);
+  });
+});

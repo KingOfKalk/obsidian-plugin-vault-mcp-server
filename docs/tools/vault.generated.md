@@ -8,7 +8,7 @@ Auto-generated schema reference for the `vault` module. See [../tools.generated.
 
 **Create file**
 
-Create a new file at a vault-relative path with text content.
+Create a new file at a vault-relative path with text content. Missing parent folders are created.
 
 Examples:
   - Use when: creating notes/ideas.md with "# Ideas"
@@ -176,6 +176,9 @@ Response (`structuredContent`):
 
 Delete a file by vault-relative path.
 
+Returns:
+  The file goes where the user's "Deleted files" setting says: system trash, the vault's .trash folder, or permanently.
+
 Examples:
   - Use when: removing an outdated note.
 
@@ -327,6 +330,9 @@ Response (`structuredContent`):
 
 Rename a file within its current folder.
 
+Returns:
+  Links to the file are updated if the user enabled "Automatically update internal links".
+
 Examples:
   - Use when: renaming "draft.md" to "final.md" in the same folder.
 
@@ -375,7 +381,10 @@ Response (`structuredContent`):
 
 **Move file**
 
-Move a file to a different path (can change folder and name).
+Move a file to a different path (can change folder and name). Missing parent folders are created.
+
+Returns:
+  Links to the file are updated if the user enabled "Automatically update internal links".
 
 Examples:
   - Use when: archiving a note by moving it to "archive/<name>.md".
@@ -424,7 +433,7 @@ Response (`structuredContent`):
 
 **Copy file**
 
-Copy a file to a new path, leaving the original in place.
+Copy a file to a new path, leaving the original in place. Missing parent folders are created.
 
 Examples:
   - Use when: duplicating a template before editing.
@@ -522,6 +531,9 @@ Response (`structuredContent`):
 
 Delete a folder, optionally recursively.
 
+Returns:
+  The folder goes where the user's "Deleted files" setting says: system trash, the vault's .trash folder, or permanently.
+
 Examples:
   - Use when: removing an empty "old-drafts" folder.
 
@@ -571,6 +583,9 @@ Response (`structuredContent`):
 **Rename folder**
 
 Rename or move a folder.
+
+Returns:
+  Links into the folder are updated if the user enabled "Automatically update internal links".
 
 Examples:
   - Use when: renaming "WIP" to "Archive".
@@ -796,7 +811,7 @@ Response (`structuredContent`):
 
 **Write binary file**
 
-Write binary file contents from a base64 string.
+Write binary file contents from a base64 string. Missing parent folders are created.
 
 Examples:
   - Use when: attaching a downloaded PDF to the vault.
