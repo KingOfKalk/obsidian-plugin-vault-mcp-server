@@ -313,8 +313,14 @@ Desktop, Claude Code, etc.) typically lift this string into the model's
 system prompt for the session, so the hints persist across every turn
 without being repeated in each tool description.
 
-The current text (the first line carries the running plugin version, here
-shown as `<version>`):
+The text is built when a client connects (MCP `initialize`) from the tools
+that are switched on at that moment: a hint about a tool from a module you
+switched off is left out (the `search_fulltext` line without the Search
+module, the `editor_*` line without the Editor module, the
+`workspace_open_file` part without the Workspace module, and the
+`vault_get_aspect` line without the Vault module). A client that is already
+connected keeps the text it got. With every module on, the text is (the
+first line carries the running plugin version, here shown as `<version>`):
 
 ```
 vault-mcp-server v<version>

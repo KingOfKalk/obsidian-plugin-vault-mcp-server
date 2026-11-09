@@ -19,17 +19,49 @@ import { createServerModule, SERVER_DISPLAY_NAME } from '../tools/server';
  * so the string is intentionally short and limited to hints that the per-tool
  * descriptions cannot convey on their own. See
  * docs/superpowers/specs/2026-05-03-mcp-server-instructions-field-design.md.
+ *
+ * `activeTools` are the names of the tools the session offers; a hint about
+ * a tool that is switched off is left out (#447). Omitted, every hint is
+ * included. The text is built once per session, at `initialize`.
  */
-export function buildServerInstructions(version: string): string {
+export function buildServerInstructions(
+  version: string,
+  activeTools?: readonly string[],
+): string {
+  const active = activeTools === undefined ? null : new Set(activeTools);
+  const has = (name: string): boolean => active === null || active.has(name);
+  const hasPrefix = (prefix: string): boolean =>
+    active === null || [...active].some((name) => name.startsWith(prefix));
+
+  const hints: string[] = [];
+  if (has('search_fulltext')) {
+    hints.push(
+      "- Prefer `search_fulltext` (or other `search_*` tools) before `vault_read` when you don't already know the file path.",
+    );
+  }
+  if (hasPrefix('editor_')) {
+    hints.push(
+      '- `editor_*` tools operate on the **active** file only' +
+        (has('workspace_open_file')
+          ? ' — open one with `workspace_open_file` first if needed.'
+          : '.'),
+    );
+  }
+  hints.push(
+    '- Paths are vault-relative with forward slashes (e.g. `notes/foo.md`); never absolute filesystem paths.',
+  );
+  if (has('vault_get_aspect')) {
+    hints.push(
+      "- Frontmatter, headings, links, embeds, backlinks, and block refs are exposed via the `vault_get_aspect` tool (call it with the matching `aspect` enum value) — don't parse them out of `vault_read` output.",
+    );
+  }
+
   return `${SERVER_DISPLAY_NAME} v${version}
 Call \`server_info\` for agent-relevant changes (renamed parameters or fields, new tools).
 
 This server exposes an Obsidian vault as MCP tools.
 
-- Prefer \`search_fulltext\` (or other \`search_*\` tools) before \`vault_read\` when you don't already know the file path.
-- \`editor_*\` tools operate on the **active** file only — open one with \`workspace_open_file\` first if needed.
-- Paths are vault-relative with forward slashes (e.g. \`notes/foo.md\`); never absolute filesystem paths.
-- Frontmatter, headings, links, embeds, backlinks, and block refs are exposed via the \`vault_get_aspect\` tool (call it with the matching \`aspect\` enum value) — don't parse them out of \`vault_read\` output.`;
+${hints.join('\n')}`;
 }
 
 /** Instructions for the running plugin version (from manifest.json). */
@@ -78,7 +110,10 @@ export function createMcpServer(
     },
     {
       capabilities,
-      instructions: buildServerInstructions(version),
+      instructions: buildServerInstructions(
+        version,
+        registry.getActiveTools().map((tool) => tool.name),
+      ),
     },
   );
 
