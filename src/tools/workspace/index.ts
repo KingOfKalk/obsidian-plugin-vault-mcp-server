@@ -8,7 +8,7 @@ import {
   type InferredParams,
 } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
-import { validateVaultPath } from '../../utils/path-guard';
+import { validateToolPath } from '../../utils/path-guard';
 import { handleToolError } from '../shared/errors';
 import { describeTool } from '../shared/describe';
 import { FILE_PATH_DESC, vaultPathField } from '../shared/descriptions';
@@ -102,6 +102,7 @@ interface WorkspaceHandlers {
 
 function createHandlers(adapter: ObsidianAdapter): WorkspaceHandlers {
   const vaultPath = adapter.getVaultPath();
+  const configDir = adapter.getConfigDir();
   return {
     getActiveLeaf: (params): Promise<CallToolResult> => {
       const info = adapter.getActiveLeafInfo();
@@ -120,7 +121,7 @@ function createHandlers(adapter: ObsidianAdapter): WorkspaceHandlers {
     },
     async openFile(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
+        const path = validateToolPath(params.path, vaultPath, configDir);
         await adapter.openFile(path, params.mode);
         return confirmWithStructured(`Opened: ${path}`, {
           path,

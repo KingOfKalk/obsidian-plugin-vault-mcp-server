@@ -51,6 +51,7 @@ function makeApp(
     read: (file: TFile): Promise<string> => Promise.resolve(contents.get(file.path) ?? ''),
     createFolder: vi.fn(() => Promise.resolve()),
     adapter: { basePath: '/abs/vault' },
+    configDir: '.obsidian',
   };
   const trashFile = vi.fn(() => Promise.resolve());
   const managerRename = vi.fn((file: TFile, newPath: string): Promise<void> => {

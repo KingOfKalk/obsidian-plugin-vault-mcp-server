@@ -59,6 +59,7 @@ Response (`structuredContent`):
     {
       "version": "4.0.2",
       "notes": [
+        "Paths inside the vault's config folder (usually `.obsidian`, any case) are rejected by every tool, prompt and resource, also as the destination of rename, move or copy, with \"Path is inside the Obsidian config folder (.obsidian); it cannot be read or written\". `vault_list`, `vault_list_recursive` an… [truncated, 61 more chars]",
         "`workspace_open_file` applies `mode` (\"source\" = Source mode, \"live\" = Live Preview, \"preview\" = Reading view); it used to be ignored. The file opens in the active leaf (a new tab if that leaf is pinned); a missing file fails with \"File not found\".",
         "`vault_append` starts the appended text on a new line: if the file is not empty, does not end with a line break and `content` does not start with one, one line break (the file's LF or CRLF) is added first. Its result adds `modified`.",
         "`vault_create`, `vault_update`, `vault_write_binary` and `template_create_from` results add `modified` (ISO-8601), usable as the next `expectedMtime`.",
@@ -68,8 +69,7 @@ Response (`structuredContent`):
         "`vault_set_frontmatter` is annotated destructive (`destructiveHint: true`).",
         "The server instructions leave out hints about tools that are switched off.",
         "The tool list can change during a session: when the user switches a module or tool on or off, `tools/list` follows right away and the server sends `notifications/tools/list_changed`. Calls to a tool that was switched off fail with \"Tool <name> disabled\"; re-read `tools/list` after the notification.",
-        "Tool descriptions corrected (behaviour unchanged): an editor range ends before (toLine, toCh), so a range within one line has toLine = fromLine; `vault_list` returns full vault-relative paths; `search_fulltext` searches Markdown note text only (not file names); `plugin_execute_command` runs only ids… [truncated, 178 more chars]",
-        "… 8 more items"
+        "… 9 more items"
       ]
     },
     {

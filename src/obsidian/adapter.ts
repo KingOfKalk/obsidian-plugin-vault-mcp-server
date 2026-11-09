@@ -50,6 +50,11 @@ export interface ObsidianAdapter {
 
   // Vault info
   getVaultPath(): string;
+  /**
+   * The vault's config folder, vault-relative (`app.vault.configDir`,
+   * usually `.obsidian`). Tools must not read or write inside it (#462).
+   */
+  getConfigDir(): string;
 
   // Metadata operations
   getFileContent(path: string): Promise<string>;
@@ -331,6 +336,10 @@ export class RealObsidianAdapter implements ObsidianAdapter {
 
   getVaultPath(): string {
     return (this.app.vault.adapter as { basePath?: string }).basePath ?? '';
+  }
+
+  getConfigDir(): string {
+    return this.app.vault.configDir;
   }
 
   async getFileContent(path: string): Promise<string> {

@@ -340,7 +340,7 @@ This server exposes an Obsidian vault as MCP tools.
 
 - Find notes by content with `search_fulltext` (note text, not file names); by name with `vault_list_recursive`.
 - `editor_*` tools work on the **active** file only (open one with `workspace_open_file`); no expectedMtime check; most fail with "No active editor" if no Markdown view is focused.
-- Paths: vault-relative, forward slashes, case-sensitive; files with the extension (e.g. `notes/foo.md`); a leading / is ignored. Never absolute filesystem paths; leaving the vault fails with "Path must not traverse outside the vault".
+- Paths: vault-relative, forward slashes, case-sensitive; files with the extension (e.g. `notes/foo.md`); a leading / is ignored. Never absolute filesystem paths; leaving the vault fails with "Path must not traverse outside the vault". The config folder (usually `.obsidian`) is blocked.
 - To edit a note, prefer `vault_replace` or `vault_insert`; `vault_update` only to rewrite a whole file read in one window.
 - Frontmatter, headings, links, embeds, backlinks, block refs: use `vault_get_aspect`, don't parse `vault_read` output.
 ```
@@ -403,6 +403,16 @@ clients and agents commonly trip over:
   case-sensitive, and a file path includes its extension (`notes/a.md`,
   not `notes/a`). A leading `/` is ignored; a path that would leave the
   vault is rejected.
+- **The config folder is blocked.** No tool, prompt or resource reads or
+  writes inside the vault's config folder (usually `.obsidian`; the plugin
+  uses the folder Obsidian reports, so a renamed config folder is covered
+  too). It holds plugin code, settings and this plugin's `data.json` with
+  the access key. A path in it fails with "Path is inside the Obsidian
+  config folder (.obsidian); it cannot be read or written", also when it
+  is only the destination of `vault_rename`, `vault_move`, `vault_copy`,
+  `vault_rename_folder` or `template_create_from`, and whatever the case
+  (`.Obsidian/…`). `vault_list`, `vault_list_recursive` and the
+  `obsidian://vault/index` resource leave it out.
 - **Reading large files.** `vault_read` returns files of up to 24 000
   characters whole. Longer files come back in windows: the text ends with a
   `[TRUNCATED: …]` footer, and `structuredContent` carries `totalLength`,
@@ -876,6 +886,13 @@ ambiguous" lists the matching headings: if they have different levels, add
 the `#` marks (`"## Log"` instead of `"Log"`); if they are identical, rename
 one of them or use `vault_replace`. `vault_insert` writes nothing when it
 fails.
+
+### A tool call fails with "Path is inside the Obsidian config folder"
+
+The path points into the vault's config folder (usually `.obsidian`), which
+holds plugin code, settings and this plugin's access key. The server never
+reads or writes there, through any tool, prompt or resource. Change those
+settings in Obsidian itself.
 
 ### `vault_get_aspect` fails with "Cannot read properties of undefined (reading '_zod')"
 

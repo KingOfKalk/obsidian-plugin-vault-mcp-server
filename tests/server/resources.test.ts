@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { getMimeType, isTextMime, parseVaultUri, createFileHandler, createIndexHandler, registerResources } from '../../src/server/resources';
 import { CHARACTER_LIMIT } from '../../src/constants';
-import { PathTraversalError } from '../../src/utils/path-guard';
+import { ConfigDirError, PathTraversalError } from '../../src/utils/path-guard';
 import { Logger } from '../../src/utils/logger';
 import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';
 import { BinaryTooLargeError, FileNotFoundError } from '../../src/tools/shared/errors';
@@ -58,48 +58,60 @@ describe('isTextMime', () => {
 });
 
 const VAULT = '/tmp/vault';
+const CONFIG_DIR = '.obsidian';
 
 function uri(s: string): URL { return new URL(s); }
 
 describe('parseVaultUri', () => {
   it('returns the validated relative path for a plain URI', () => {
-    expect(parseVaultUri(uri('obsidian://vault/notes/foo.md'), { path: 'notes/foo.md' }, VAULT))
+    expect(parseVaultUri(uri('obsidian://vault/notes/foo.md'), { path: 'notes/foo.md' }, VAULT, CONFIG_DIR))
       .toBe('notes/foo.md');
   });
 
   it('handles unicode paths', () => {
-    expect(parseVaultUri(uri('obsidian://vault/Notizen/%C3%9Cbersicht.md'), { path: 'Notizen/Übersicht.md' }, VAULT))
+    expect(parseVaultUri(uri('obsidian://vault/Notizen/%C3%9Cbersicht.md'), { path: 'Notizen/Übersicht.md' }, VAULT, CONFIG_DIR))
       .toBe('Notizen/Übersicht.md');
   });
 
   it('rejects traversal', () => {
-    expect(() => parseVaultUri(uri('obsidian://vault/../etc/passwd'), { path: '../etc/passwd' }, VAULT))
+    expect(() => parseVaultUri(uri('obsidian://vault/../etc/passwd'), { path: '../etc/passwd' }, VAULT, CONFIG_DIR))
       .toThrow(PathTraversalError);
   });
 
   it('rejects encoded traversal', () => {
-    expect(() => parseVaultUri(uri('obsidian://vault/..%2F..'), { path: '..%2F..' }, VAULT))
+    expect(() => parseVaultUri(uri('obsidian://vault/..%2F..'), { path: '..%2F..' }, VAULT, CONFIG_DIR))
       .toThrow(PathTraversalError);
   });
 
   it('rejects wrong scheme', () => {
-    expect(() => parseVaultUri(uri('file:///foo.md'), { path: 'foo.md' }, VAULT))
+    expect(() => parseVaultUri(uri('file:///foo.md'), { path: 'foo.md' }, VAULT, CONFIG_DIR))
       .toThrow(PathTraversalError);
   });
 
   it('rejects wrong host', () => {
-    expect(() => parseVaultUri(uri('obsidian://other/foo.md'), { path: 'foo.md' }, VAULT))
+    expect(() => parseVaultUri(uri('obsidian://other/foo.md'), { path: 'foo.md' }, VAULT, CONFIG_DIR))
       .toThrow(PathTraversalError);
   });
 
   it('rejects empty path', () => {
-    expect(() => parseVaultUri(uri('obsidian://vault/'), { path: '' }, VAULT))
+    expect(() => parseVaultUri(uri('obsidian://vault/'), { path: '' }, VAULT, CONFIG_DIR))
       .toThrow(PathTraversalError);
+  });
+
+  it('rejects a path inside the config folder (#462)', () => {
+    expect(() =>
+      parseVaultUri(
+        uri('obsidian://vault/.obsidian/plugins/vault-mcp-server/data.json'),
+        { path: '.obsidian/plugins/vault-mcp-server/data.json' },
+        VAULT,
+        CONFIG_DIR,
+      ),
+    ).toThrow(ConfigDirError);
   });
 
   it('accepts a single-string variable form (some SDK paths pass string[])', () => {
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-    expect(parseVaultUri(uri('obsidian://vault/notes/foo.md'), { path: ['notes', 'foo.md'] as unknown as string }, VAULT))
+    expect(parseVaultUri(uri('obsidian://vault/notes/foo.md'), { path: ['notes', 'foo.md'] as unknown as string }, VAULT, CONFIG_DIR))
       .toBe('notes/foo.md');
   });
 });
@@ -264,6 +276,7 @@ describe('indexHandler', () => {
       // decoding entry.uri's pathname after the host segment.
       { path: decodeURIComponent(new URL(entry.uri).pathname.replace(/^\//, '')) },
       adapter.getVaultPath(),
+      adapter.getConfigDir(),
     );
     expect(parsedPath).toBe('Notizen/Übersicht.md');
   });
@@ -289,6 +302,7 @@ describe('indexHandler', () => {
       url,
       { path: decodeURIComponent(url.pathname.replace(/^\//, '')) },
       adapter.getVaultPath(),
+      adapter.getConfigDir(),
     );
     expect(parsedPath).toBe('weird?name.md');
   });

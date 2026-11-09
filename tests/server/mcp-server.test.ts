@@ -744,7 +744,7 @@ describe('SERVER_INSTRUCTIONS', () => {
       '../../src/server/mcp-server'
     );
     // Hard cap so we notice if the string drifts toward bloat. Current
-    // length is ~940 chars including the version line (#402, #449). It
+    // length is ~995 chars including the version line (#402, #449, #462). It
     // grew when the full path rule moved here from ~30 path parameters
     // (#457), which saved far more in tools/list.
     expect(SERVER_INSTRUCTIONS.length).toBeLessThanOrEqual(1000);

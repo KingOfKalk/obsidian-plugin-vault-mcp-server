@@ -55,20 +55,96 @@ export function validateVaultPath(inputPath: string, vaultRoot: string): string 
 }
 
 /**
+ * Thrown for a path inside the vault's config folder (`app.vault.configDir`,
+ * usually `.obsidian`). That folder holds plugin code, settings and this
+ * plugin's access key, so no tool may read or write it (#462).
+ */
+export class ConfigDirError extends PathTraversalError {
+  constructor(configDir: string) {
+    super(`Path is inside the Obsidian config folder (${configDir}); it cannot be read or written`);
+    this.name = 'ConfigDirError';
+  }
+}
+
+/**
+ * One path segment as a case-insensitive file system sees it: lower case,
+ * and without trailing dots and spaces, which Windows drops (`.obsidian.`
+ * opens `.obsidian`).
+ */
+function foldSegment(segment: string): string {
+  return segment.toLowerCase().replace(/[. ]+$/, '');
+}
+
+function segments(path: string): string[] {
+  return posix
+    .normalize(path)
+    .split('/')
+    .filter((s) => s.length > 0 && s !== '.');
+}
+
+/**
+ * Whether a vault-relative path is the config folder or inside it. Compared
+ * case-insensitively and after normalisation, so `.Obsidian/x` and
+ * `./.obsidian//x` count too. An empty `configDir` matches nothing.
+ */
+export function isInConfigDir(path: string, configDir: string): boolean {
+  const dir = segments(configDir).map(foldSegment);
+  if (dir.length === 0) return false;
+  const parts = segments(path);
+  if (parts.length < dir.length) return false;
+  return dir.every((segment, i) => foldSegment(parts[i]) === segment);
+}
+
+/** Throw {@link ConfigDirError} when `path` is inside the config folder. */
+export function assertOutsideConfigDir(path: string, configDir: string): void {
+  if (isInConfigDir(path, configDir)) {
+    throw new ConfigDirError(configDir);
+  }
+}
+
+/**
+ * Validate a path an agent passed to a tool, prompt or resource:
+ * {@link validateVaultPath} plus the config-folder block. Every agent-facing
+ * entry point uses this one; `validateVaultPath` alone only keeps a path
+ * inside the vault.
+ */
+export function validateToolPath(inputPath: string, vaultRoot: string, configDir: string): string {
+  const path = validateVaultPath(inputPath, vaultRoot);
+  assertOutsideConfigDir(path, configDir);
+  return path;
+}
+
+/** Drop the config folder and everything in it from a listing. */
+export function withoutConfigDir<T extends { files: string[]; folders: string[] }>(
+  list: T,
+  configDir: string,
+): T {
+  return {
+    ...list,
+    files: list.files.filter((p) => !isInConfigDir(p, configDir)),
+    folders: list.folders.filter((p) => !isInConfigDir(p, configDir)),
+  };
+}
+
+/**
  * Inputs that mean "the vault root" for folder-listing tools.
  */
 const VAULT_ROOT_ALIASES = new Set(['', '/', '.', './']);
 
 /**
  * Validate a folder path for the folder-listing tools (`vault_list`,
- * `vault_list_recursive`). Same rules as {@link validateVaultPath}, except
+ * `vault_list_recursive`). Same rules as {@link validateToolPath}, except
  * that `""`, `"/"` and `"."` are accepted and mean the vault root, which is
- * returned as `""`. File tools must keep using `validateVaultPath`, which
+ * returned as `""`. File tools must keep using `validateToolPath`, which
  * rejects an empty path.
  */
-export function validateFolderListPath(inputPath: string, vaultRoot: string): string {
+export function validateFolderListPath(
+  inputPath: string,
+  vaultRoot: string,
+  configDir: string,
+): string {
   if (VAULT_ROOT_ALIASES.has(inputPath.trim())) {
     return '';
   }
-  return validateVaultPath(inputPath, vaultRoot);
+  return validateToolPath(inputPath, vaultRoot, configDir);
 }

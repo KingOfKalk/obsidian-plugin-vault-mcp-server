@@ -4,7 +4,12 @@ import { CallToolResult } from '@modelcontextprotocol/server';
 // bundled instance Obsidian uses (moment is a direct dependency).
 import moment from 'moment';
 import { ObsidianAdapter, TrashDestination } from '../../obsidian/adapter';
-import { validateFolderListPath, validateVaultPath } from '../../utils/path-guard';
+import {
+  ConfigDirError,
+  validateFolderListPath,
+  validateToolPath,
+  withoutConfigDir,
+} from '../../utils/path-guard';
 import { truncateText } from '../shared/truncate';
 import {
   handleToolError,
@@ -431,6 +436,7 @@ export function createHandlers(
   searchHandlers: SearchHandlers,
 ): VaultHandlers {
   const vaultPath = adapter.getVaultPath();
+  const configDir = adapter.getConfigDir();
 
   /**
    * `vault_replace`'s multi-edit form (#429): one mtime check, then every
@@ -469,7 +475,7 @@ export function createHandlers(
   return {
     async createFile(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
+        const path = validateToolPath(params.path, vaultPath, configDir);
         return await mutex.acquire(path, async () => {
           await adapter.createFile(path, params.content);
           const modified = await modifiedIso(adapter, path);
@@ -482,7 +488,7 @@ export function createHandlers(
 
     async readFile(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
+        const path = validateToolPath(params.path, vaultPath, configDir);
         const fileContent = await adapter.readFile(path);
         const modified = await modifiedIso(adapter, path);
         let fullContent = fileContent;
@@ -540,7 +546,7 @@ export function createHandlers(
 
     async updateFile(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
+        const path = validateToolPath(params.path, vaultPath, configDir);
         return await mutex.acquire(path, async () => {
           await assertExpectedMtime(adapter, path, params.expectedMtime);
           await adapter.modifyFile(path, params.content);
@@ -554,7 +560,7 @@ export function createHandlers(
 
     async deleteFile(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
+        const path = validateToolPath(params.path, vaultPath, configDir);
         return await mutex.acquire(path, async () => {
           const trashedTo = adapter.getTrashDestination();
           await adapter.deleteFile(path);
@@ -571,7 +577,7 @@ export function createHandlers(
 
     async appendFile(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
+        const path = validateToolPath(params.path, vaultPath, configDir);
         return await mutex.acquire(path, async () => {
           await assertExpectedMtime(adapter, path, params.expectedMtime);
           await adapter.processFile(path, (existing) => appendText(existing, params.content));
@@ -589,7 +595,7 @@ export function createHandlers(
 
     async replaceInFile(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
+        const path = validateToolPath(params.path, vaultPath, configDir);
         const { oldString, newString, edits } = params;
         const replaceAll = params.replaceAll ?? false;
         if (edits !== undefined) {
@@ -651,7 +657,7 @@ export function createHandlers(
 
     async insert(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
+        const path = validateToolPath(params.path, vaultPath, configDir);
         const position = params.position ?? 'end';
         return await mutex.acquire(path, async () => {
           await assertExpectedMtime(adapter, path, params.expectedMtime);
@@ -680,7 +686,7 @@ export function createHandlers(
 
     async getMetadata(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
+        const path = validateToolPath(params.path, vaultPath, configDir);
         const stat = await adapter.stat(path);
         if (!stat) throw await fileNotFound(adapter, path);
         const payload = {
@@ -702,7 +708,7 @@ export function createHandlers(
 
     async renameFile(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
+        const path = validateToolPath(params.path, vaultPath, configDir);
         if (!isValidRenameTarget(params.newName)) {
           return errorResult('Invalid rename target');
         }
@@ -710,8 +716,9 @@ export function createHandlers(
         parts[parts.length - 1] = params.newName;
         const newPath = parts.join('/');
         try {
-          validateVaultPath(newPath, vaultPath);
-        } catch {
+          validateToolPath(newPath, vaultPath, configDir);
+        } catch (error) {
+          if (error instanceof ConfigDirError) throw error;
           return errorResult('Invalid rename target');
         }
         return await mutex.acquire(path, async () => {
@@ -730,8 +737,8 @@ export function createHandlers(
 
     async moveFile(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
-        const newPath = validateVaultPath(params.newPath, vaultPath);
+        const path = validateToolPath(params.path, vaultPath, configDir);
+        const newPath = validateToolPath(params.newPath, vaultPath, configDir);
         return await mutex.acquire(path, async () => {
           const moved = movedFiles(adapter, path);
           const report = await renameWithLinkReport(adapter, path, newPath, moved.files);
@@ -748,8 +755,8 @@ export function createHandlers(
 
     async copyFile(params): Promise<CallToolResult> {
       try {
-        const sourcePath = validateVaultPath(params.sourcePath, vaultPath);
-        const destPath = validateVaultPath(params.destPath, vaultPath);
+        const sourcePath = validateToolPath(params.sourcePath, vaultPath, configDir);
+        const destPath = validateToolPath(params.destPath, vaultPath, configDir);
         await withDestinationCheck(destPath, () => adapter.copyFile(sourcePath, destPath));
         return confirmWithStructured(`Copied file: ${sourcePath} → ${destPath}`, {
           from: sourcePath,
@@ -762,7 +769,7 @@ export function createHandlers(
 
     async createFolder(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
+        const path = validateToolPath(params.path, vaultPath, configDir);
         await adapter.createFolder(path);
         return confirmWithStructured(`Created folder: ${path}`, { path, created: true });
       } catch (error) {
@@ -772,7 +779,7 @@ export function createHandlers(
 
     async deleteFolder(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
+        const path = validateToolPath(params.path, vaultPath, configDir);
         const trashedTo = adapter.getTrashDestination();
         await adapter.deleteFolder(path, params.recursive ?? false);
         return confirmWithStructured(`Deleted folder: ${path}${describeTrash(trashedTo)}`, {
@@ -788,8 +795,8 @@ export function createHandlers(
 
     async renameFolder(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
-        const newPath = validateVaultPath(params.newPath, vaultPath);
+        const path = validateToolPath(params.path, vaultPath, configDir);
+        const newPath = validateToolPath(params.newPath, vaultPath, configDir);
         const report = await renameWithLinkReport(
           adapter,
           path,
@@ -807,8 +814,8 @@ export function createHandlers(
 
     listFolder(params): Promise<CallToolResult> {
       try {
-        const path = validateFolderListPath(params.path, vaultPath);
-        const result = adapter.list(path);
+        const path = validateFolderListPath(params.path, vaultPath, configDir);
+        const result = withoutConfigDir(adapter.list(path), configDir);
         return Promise.resolve(
           makeResponse(
             result,
@@ -823,8 +830,8 @@ export function createHandlers(
 
     listRecursive(params): Promise<CallToolResult> {
       try {
-        const path = validateFolderListPath(params.path, vaultPath);
-        const result = adapter.listRecursive(path);
+        const path = validateFolderListPath(params.path, vaultPath, configDir);
+        const result = withoutConfigDir(adapter.listRecursive(path), configDir);
         const pagination = readPagination(params);
         const filesPage = paginate(result.files, pagination);
         const payload = {
@@ -860,7 +867,7 @@ export function createHandlers(
 
     async readBinary(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
+        const path = validateToolPath(params.path, vaultPath, configDir);
         const data = await adapter.readBinary(path);
         if (data.byteLength > BINARY_BYTE_LIMIT) {
           throw new BinaryTooLargeError(data.byteLength, BINARY_BYTE_LIMIT);
@@ -883,7 +890,7 @@ export function createHandlers(
 
     async writeBinary(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
+        const path = validateToolPath(params.path, vaultPath, configDir);
         const buffer = Buffer.from(params.data, 'base64');
         return await mutex.acquire(path, async () => {
           await assertExpectedMtime(adapter, path, params.expectedMtime);
@@ -933,7 +940,7 @@ export function createHandlers(
         const rawPath = settings.folder
           ? `${settings.folder.replace(/\/+$/, '')}/${filename}`
           : filename;
-        const path = validateVaultPath(rawPath, vaultPath);
+        const path = validateToolPath(rawPath, vaultPath, configDir);
 
         const exists = await adapter.exists(path);
         if (exists) {
@@ -966,7 +973,7 @@ export function createHandlers(
 
     async setFrontmatter(params): Promise<CallToolResult> {
       try {
-        const path = validateVaultPath(params.path, vaultPath);
+        const path = validateToolPath(params.path, vaultPath, configDir);
         if (!path.toLowerCase().endsWith('.md')) {
           throw new Error('Frontmatter can only be set on Markdown (.md) files');
         }
