@@ -113,7 +113,25 @@ export interface ObsidianAdapter {
    * never have to handle `undefined`.
    */
   getDailyNotesSettings(): DailyNotesSettings | null;
+
+  // Vault settings
+  /**
+   * The user's "Files and links → Automatically update internal links"
+   * setting (Obsidian config key `alwaysUpdateLinks`). `null` when it
+   * cannot be read.
+   */
+  getAutoUpdateLinks(): boolean | null;
+  /**
+   * Where `deleteFile` / `deleteFolder` send things, from the user's
+   * "Files and links → Deleted files" setting (Obsidian config key
+   * `trashOption`): `system` trash, the `vault`'s `.trash` folder, or
+   * `permanent`. `unknown` when it cannot be read.
+   */
+  getTrashDestination(): TrashDestination;
 }
+
+/** Where a deleted file or folder went (see `getTrashDestination`). */
+export type TrashDestination = 'system' | 'vault' | 'permanent' | 'unknown';
 
 /**
  * Minimal, read-only slice of Dataview's runtime API. Intentionally
@@ -141,6 +159,15 @@ export interface DailyNotesSettings {
   format: string;
   folder: string;
   template: string;
+}
+
+/** Narrow guard for the undeclared `Vault.getConfig(key)`. */
+function hasGetConfig(value: unknown): value is { getConfig: (key: string) => unknown } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { getConfig?: unknown }).getConfig === 'function'
+  );
 }
 
 export class RealObsidianAdapter implements ObsidianAdapter {
@@ -552,6 +579,45 @@ export class RealObsidianAdapter implements ObsidianAdapter {
       folder: typeof options.folder === 'string' ? options.folder : '',
       template: typeof options.template === 'string' ? options.template : '',
     };
+  }
+
+  getAutoUpdateLinks(): boolean | null {
+    const value = this.readVaultConfig('alwaysUpdateLinks');
+    return typeof value === 'boolean' ? value : null;
+  }
+
+  getTrashDestination(): TrashDestination {
+    // Without fileManager.trashFile (Obsidian < 1.6.6) `trash()` falls
+    // back to vault.trash(file, true), i.e. the system trash, whatever
+    // the setting says.
+    const fileManager = this.app.fileManager as Partial<App['fileManager']> | undefined;
+    if (typeof fileManager?.trashFile !== 'function') return 'system';
+    switch (this.readVaultConfig('trashOption')) {
+      case 'system':
+        return 'system';
+      case 'local':
+        return 'vault';
+      case 'none':
+        return 'permanent';
+      default:
+        return 'unknown';
+    }
+  }
+
+  /**
+   * Read a value from the vault config (`.obsidian/app.json`) via
+   * `app.vault.getConfig`, which Obsidian has but does not declare in its
+   * public typings. Returns `undefined` when the method is missing or
+   * throws.
+   */
+  private readVaultConfig(key: string): unknown {
+    const vault: unknown = this.app.vault;
+    if (!hasGetConfig(vault)) return undefined;
+    try {
+      return vault.getConfig(key);
+    } catch {
+      return undefined;
+    }
   }
 
   /**

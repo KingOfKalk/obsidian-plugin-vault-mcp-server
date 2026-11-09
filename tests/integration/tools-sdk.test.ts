@@ -133,16 +133,20 @@ describe('write tools keep their text and add structuredContent (#388)', () => {
     ['vault_create', 'Created file: new/one.md', { path: 'new/one.md', created: true }],
     ['vault_update', 'Updated file: README.md', { path: 'README.md', updated: true }],
     ['vault_append', 'Appended to file: README.md', { path: 'README.md', appended: true }],
-    ['vault_delete', 'Deleted file: people/ada.md', { path: 'people/ada.md', deleted: true }],
+    [
+      'vault_delete',
+      'Deleted file: people/ada.md (moved to the system trash)',
+      { path: 'people/ada.md', deleted: true, trashedTo: 'system' },
+    ],
     [
       'vault_rename',
       'Renamed file: people/ada.md → people/ada-lovelace.md',
-      { from: 'people/ada.md', to: 'people/ada-lovelace.md' },
+      { from: 'people/ada.md', to: 'people/ada-lovelace.md', linksUpdated: 0, updatedFiles: [], autoUpdateLinks: true },
     ],
     [
       'vault_move',
       'Moved file: people/ada.md → archive/ada.md',
-      { from: 'people/ada.md', to: 'archive/ada.md' },
+      { from: 'people/ada.md', to: 'archive/ada.md', linksUpdated: 0, updatedFiles: [], autoUpdateLinks: true },
     ],
     [
       'vault_copy',
@@ -152,10 +156,14 @@ describe('write tools keep their text and add structuredContent (#388)', () => {
     ['vault_create_folder', 'Created folder: brand-new', { path: 'brand-new', created: true }],
     [
       'vault_delete_folder',
-      'Deleted folder: empty',
-      { path: 'empty', deleted: true, recursive: false },
+      'Deleted folder: empty (moved to the system trash)',
+      { path: 'empty', deleted: true, recursive: false, trashedTo: 'system' },
     ],
-    ['vault_rename_folder', 'Renamed folder: empty → renamed', { from: 'empty', to: 'renamed' }],
+    [
+      'vault_rename_folder',
+      'Renamed folder: empty → renamed',
+      { from: 'empty', to: 'renamed', linksUpdated: 0, updatedFiles: [], autoUpdateLinks: true },
+    ],
     ['vault_write_binary', 'Wrote binary file: bin/data.bin', { path: 'bin/data.bin', sizeBytes: 3 }],
     ['editor_insert', 'Text inserted', { line: 0, ch: 0 }],
     [
