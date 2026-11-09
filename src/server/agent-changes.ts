@@ -18,6 +18,16 @@ export interface AgentChangeEntry {
 
 export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
   {
+    version: '5.0.0',
+    notes: [
+      'Breaking: `search_by_tag` matches tags case-insensitively and includes nested tags, like Obsidian\'s tag search: "project" finds `#project`, `#Project` and `#project/alpha` (not `#projects`). Results are sorted by path.',
+      'Breaking: `search_tags` merges tags that differ only in case into one entry, keyed by the most common spelling; its files and `counts` are combined. Nested tags keep their own entries.',
+      'Breaking: template placeholders: `{{title}}` is the new file\'s name without `.md` in `template_create_from` (was "Untitled"); `template_expand` leaves `{{title}}` as written unless `variables.title` is given. `{{date}}` is the local date (`YYYY-MM-DD`, was UTC) and `{{time}}` the local time (`HH:mm`, was locale-dependent), the same as in `vault_daily_note`.',
+      'Breaking: `template_list` lists the folder set in Obsidian\'s core Templates plugin (`templates` if none is set), including subfolders, and adds `folder` to its result. Before, it listed only the files directly in `templates`.',
+      '`vault_daily_note` with `create: true` returns `warning` when the template set in the Daily notes plugin does not exist; the note is still created empty. A template set without `.md` is found.',
+    ],
+  },
+  {
     version: '4.1.0',
     notes: [
       '`search_resolved_links` and `search_unresolved_links` are paged: `limit` (default 50, max 100) and `offset` over source notes, with `total`, `count`, `offset`, `hasMore` and `nextOffset`; `path` returns one note\'s links. `search_unresolved_links` leaves out notes without broken links. Before, both returned the whole vault.',

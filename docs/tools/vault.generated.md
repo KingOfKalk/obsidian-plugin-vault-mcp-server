@@ -1069,7 +1069,7 @@ Response (`structuredContent`):
 **Get or create a daily note**
 
 Resolve the daily note's path for today or date from the Daily notes core plugin settings and return the note if it exists. Does not open it in the editor. Creates a missing note (from the configured template) only with create=true.
-Returns: In a new note {{date}} is the note's date (YYYY-MM-DD), {{time}} the local time (HH:mm), {{title}} the file name without .md. Templater syntax (<%) is copied unchanged; a configured template that is missing gives an empty note, without a warning.
+Returns: In a new note {{date}} is the note's date (YYYY-MM-DD), {{time}} the local time (HH:mm), {{title}} the file name without .md. Templater syntax (<%) is copied unchanged; a configured template that is missing gives an empty note and a warning.
 Examples:
 - Use when: you need today's note, creating it if missing → { create: true }
 - Use when: checking whether a past daily note exists → { date: "2026-01-02" }
@@ -1094,6 +1094,7 @@ Errors:
 | `path` | string | Vault-relative path of the daily note. |
 | `created` | boolean | True when the note was just created; false when it already existed or was missing and create was not true. |
 | `exists` | boolean | True when the note exists after the call; false when the note is missing and create was not true. |
+| `warning` | string | Set when the configured template file is missing and the note was created empty. |
 | `content` | string | Full note content (template-expanded body when newly created). Absent when exists=false. |
 
 #### Example
