@@ -4,6 +4,19 @@
 > were renamed from `vX.Y.Z` (and `obsidian-mcp-v1.1.0`) to `X.Y.Z`; old links
 > containing `v` no longer resolve.
 
+## [4.0.1](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/4.0.0...4.0.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **search:** include frontmatter tags in search_by_tag and search_tags ([#442](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/442)) ([2bb672d](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/2bb672d85284644554d54f314f16853a72efcb01)), closes [#440](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/440)
+* **vault:** rename without the Update links prompt when auto-update is off ([#446](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/446)) ([2551425](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/255142514d38fb712a86f9b3dde25b28eb282758))
+
+
+### Tests
+
+* end-to-end tests in real headless Obsidian ([#444](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/444)) ([e7de399](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/e7de399397d1bcce9833623858eef95922636ee9))
+
 ## [4.0.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/3.5.0...4.0.0) (2026-11-09)
 
 
