@@ -130,7 +130,8 @@ the registry; the table below mirrors its module / count rows.
 | Templates                 | 3      |
 | Plugin Interop            | 6      |
 | Extras                    | 1      |
-| **Total**                 | **50** |
+| Server (always on)        | 1      |
+| **Total**                 | **51** |
 
 ### Extras
 

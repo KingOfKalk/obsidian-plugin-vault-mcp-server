@@ -215,6 +215,12 @@ default. Today this contains:
 
 - `extras_get_date` (Get current date) — returns the current local time as ISO-8601 with offset.
 
+One tool is **always on** and has no toggle: `server_info` (Get server
+info). It reports the plugin version, the ids of the enabled modules and a
+short list of agent-relevant changes per version (renamed parameters or
+output fields, new tools). Turning every module off still leaves
+`server_info` in `tools/list`.
+
 ### Execute Command Allowlist
 
 The `plugin_execute_command` (Execute command) tool in Plugin Interop can run any Obsidian
@@ -273,9 +279,13 @@ Desktop, Claude Code, etc.) typically lift this string into the model's
 system prompt for the session, so the hints persist across every turn
 without being repeated in each tool description.
 
-The current text:
+The current text (the first line carries the running plugin version, here
+shown as `<version>`):
 
 ```
+vault-mcp-server v<version>
+Call `server_info` for agent-relevant changes (renamed parameters or fields, new tools).
+
 This server exposes an Obsidian vault as MCP tools.
 
 - Prefer `search_fulltext` (or other `search_*` tools) before `vault_read` when you don't already know the file path.
@@ -287,6 +297,18 @@ This server exposes an Obsidian vault as MCP tools.
 Source of truth: [`src/server/mcp-server.ts`](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/blob/main/src/server/mcp-server.ts)
 (`SERVER_INSTRUCTIONS`). If you suspect drift between the quoted text above
 and the live string, the source file wins.
+
+### Which version is running?
+
+Models usually don't see the version from the MCP handshake, so the server
+shows it in two other places:
+
+- The first line of the `instructions` text above: `vault-mcp-server v<version>`.
+- The description of the `server_info` tool, which every client passes to
+  the model. Calling `server_info` (no arguments) returns `name`,
+  `version`, `enabledModules` and `changes`, a short list of agent-relevant
+  changes per version. It is not the full changelog; see `CHANGELOG.md` for
+  that.
 
 ### Tool behaviour worth knowing
 
