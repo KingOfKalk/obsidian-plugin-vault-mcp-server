@@ -57,7 +57,8 @@ Response (`structuredContent`):
     {
       "version": "4.0.1",
       "notes": [
-        "`search_by_tag` and `search_tags` include tags from the frontmatter (`tags` / `tag`, as a list or a comma/space separated string), not only inline `#tags`. `counts` counts frontmatter and inline occurrences; each file is still listed once per tag."
+        "`search_by_tag` and `search_tags` include tags from the frontmatter (`tags` / `tag`, as a list or a comma/space separated string), not only inline `#tags`. `counts` counts frontmatter and inline occurrences; each file is still listed once per tag.",
+        "`vault_rename`, `vault_move` and `vault_rename_folder` no longer wait for Obsidian's \"Update links\" prompt when \"Automatically update internal links\" is off or unreadable (`autoUpdateLinks` false or null): the call returns right away, links are not updated, and the result carries `linksUpdated: 0` a… [truncated, 87 more chars]"
       ]
     },
     {

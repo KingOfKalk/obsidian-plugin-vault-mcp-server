@@ -515,7 +515,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Rename file',
           description: describeTool({
             summary: 'Rename a file within its current folder.',
-            returns: 'Links to the file are updated if the user enabled "Automatically update internal links". `linksUpdated` and `updatedFiles` report the rewritten links, `autoUpdateLinks` the setting, and `warning` is set when other files link to it but were not updated.',
+            returns: 'Links to the file are updated if the user enabled "Automatically update internal links"; with it off, links are not updated and no Obsidian prompt appears. `linksUpdated` and `updatedFiles` report the rewritten links, `autoUpdateLinks` the setting, and `warning` is set when other files link to it but were not updated.',
             examples: ['Use when: renaming "draft.md" to "final.md" in the same folder.'],
             errors: [
               '"Invalid rename target" if newName contains path separators.',
@@ -532,7 +532,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Move file',
           description: describeTool({
             summary: 'Move a file to a different path (can change folder and name). Missing parent folders are created.',
-            returns: 'Links to the file are updated if the user enabled "Automatically update internal links". `linksUpdated` and `updatedFiles` report the rewritten links, `autoUpdateLinks` the setting, and `warning` is set when other files link to it but were not updated.',
+            returns: 'Links to the file are updated if the user enabled "Automatically update internal links"; with it off, links are not updated and no Obsidian prompt appears. `linksUpdated` and `updatedFiles` report the rewritten links, `autoUpdateLinks` the setting, and `warning` is set when other files link to it but were not updated.',
             examples: ['Use when: archiving a note by moving it to "archive/<name>.md".'],
             errors: ['"File not found" if path does not exist.'],
           }),
@@ -586,7 +586,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Rename folder',
           description: describeTool({
             summary: 'Rename or move a folder.',
-            returns: 'Links into the folder are updated if the user enabled "Automatically update internal links". `linksUpdated` and `updatedFiles` report the rewritten links, `autoUpdateLinks` the setting, and `warning` is set when other files link to it but were not updated.',
+            returns: 'Links into the folder are updated if the user enabled "Automatically update internal links"; with it off, links are not updated and no Obsidian prompt appears. `linksUpdated` and `updatedFiles` report the rewritten links, `autoUpdateLinks` the setting, and `warning` is set when other files link to it but were not updated.',
             examples: ['Use when: renaming "WIP" to "Archive".'],
             errors: ['"Folder not found" if path does not exist.'],
           }),
