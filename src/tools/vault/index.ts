@@ -231,7 +231,12 @@ const alwaysTrue = z.boolean().describe('Always true on success.');
 
 const createdOutputSchema = { path: writePath, created: alwaysTrue };
 const updatedOutputSchema = { path: writePath, updated: alwaysTrue };
-const appendedOutputSchema = { path: writePath, appended: alwaysTrue };
+/** New mtime after a write (#447); feeds the next call's expectedMtime. */
+const newModified = z
+  .string()
+  .describe('New last-modification timestamp (ISO-8601); usable as the next expectedMtime.');
+
+const appendedOutputSchema = { path: writePath, appended: alwaysTrue, modified: newModified };
 /**
  * Where a delete went, read from the user's "Deleted files" setting
  * (#430).
@@ -424,7 +429,11 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Append to file',
           description: describeTool({
             summary: 'Append content to the end of an existing file.',
-            examples: ['Use when: adding a new bullet to a daily note.'],
+            returns:
+              'If the file is not empty and does not end with a line break, and content does not start with one, ' +
+              'one line break (the file\'s own LF or CRLF) is added first, so the content starts on a new line. ' +
+              'Returns the new modified timestamp.',
+            examples: ['Use when: adding a new bullet to a daily note -> { path: "daily/2026-01-02.md", content: "- call Ada" }'],
             errors: ['"File not found" if the path does not exist.', MTIME_CONFLICT_ERROR],
           }),
           schema: appendFileSchema,

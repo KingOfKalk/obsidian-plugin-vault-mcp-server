@@ -132,6 +132,19 @@ async function modifiedIso(adapter: ObsidianAdapter, path: string): Promise<stri
   return new Date(stat.mtime).toISOString();
 }
 
+/**
+ * `vault_append`'s join (#447): when the file is non-empty, does not end
+ * with a line ending and `content` does not start with one, put one line
+ * ending in between — CRLF if the file uses CRLF, else LF — so appended
+ * text starts on a new line instead of being glued onto the last one.
+ */
+export function appendText(existing: string, content: string): string {
+  const needsBreak =
+    existing.length > 0 && !existing.endsWith('\n') && !/^\r?\n/.test(content);
+  if (!needsBreak) return existing + content;
+  return existing + (existing.includes('\r\n') ? '\r\n' : '\n') + content;
+}
+
 function errorResult(message: string): CallToolResult {
   return handleToolError(new Error(message));
 }
@@ -525,9 +538,13 @@ export function createHandlers(
         const path = validateVaultPath(params.path, vaultPath);
         return await mutex.acquire(path, async () => {
           await assertExpectedMtime(adapter, path, params.expectedMtime);
-          const existing = await adapter.readFile(path);
-          await adapter.modifyFile(path, existing + params.content);
-          return confirmWithStructured(`Appended to file: ${path}`, { path, appended: true });
+          await adapter.processFile(path, (existing) => appendText(existing, params.content));
+          const modified = await modifiedIso(adapter, path);
+          return confirmWithStructured(`Appended to file: ${path}`, {
+            path,
+            appended: true,
+            modified,
+          });
         });
       } catch (error) {
         return handleToolError(error);

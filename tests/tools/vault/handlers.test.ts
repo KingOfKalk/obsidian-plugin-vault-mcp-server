@@ -91,12 +91,47 @@ describe('vault handlers', () => {
   });
 
   describe('appendFile', () => {
-    it('should append to a file', async () => {
-      adapter.addFile('test.md', 'Hello');
-      const result = await handlers.appendFile({ path: 'test.md', content: ' World' });
+    it('should append to a file that ends with a newline', async () => {
+      adapter.addFile('test.md', 'Hello\n');
+      const result = await handlers.appendFile({ path: 'test.md', content: 'World' });
       expect(result.isError).toBeUndefined();
       const content = await adapter.readFile('test.md');
-      expect(content).toBe('Hello World');
+      expect(content).toBe('Hello\nWorld');
+    });
+
+    // #447: the tool is line-oriented ("add a bullet"); text used to be
+    // glued onto the last line.
+    it.each([
+      ['starts a new line when the file does not end with one', '- a', '- b', '- a\n- b'],
+      ['uses the file\'s CRLF line ending', '- a\r\n- b', '- c', '- a\r\n- b\r\n- c'],
+      ['adds nothing when content starts with a newline', '- a', '\n- b', '- a\n- b'],
+      ['adds nothing when content starts with CRLF', '- a', '\r\n- b', '- a\r\n- b'],
+      ['adds nothing when the file ends with CRLF', 'x\r\n', 'y', 'x\r\ny'],
+      ['adds nothing to an empty file', '', '- a', '- a'],
+    ])('%s (#447)', async (_name, existing, content, expected) => {
+      adapter.addFile('list.md', existing);
+      const result = await handlers.appendFile({ path: 'list.md', content });
+      expect(result.isError).toBeUndefined();
+      expect(await adapter.readFile('list.md')).toBe(expected);
+    });
+
+    it('returns the new modified timestamp, usable as the next expectedMtime (#447)', async () => {
+      adapter.addFile('test.md', 'a\n', { mtime: 1000 });
+      const result = await handlers.appendFile({ path: 'test.md', content: 'b' });
+      const sc = result.structuredContent as { path: string; appended: boolean; modified: string };
+      const stat = await adapter.stat('test.md');
+      expect(sc).toEqual({
+        path: 'test.md',
+        appended: true,
+        modified: new Date(stat!.mtime).toISOString(),
+      });
+      const next = await handlers.appendFile({
+        path: 'test.md',
+        content: 'c',
+        expectedMtime: sc.modified,
+      });
+      expect(next.isError).toBeUndefined();
+      expect(await adapter.readFile('test.md')).toBe('a\nb\nc');
     });
 
     it('should return error for nonexistent file', async () => {

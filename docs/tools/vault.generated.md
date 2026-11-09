@@ -239,8 +239,11 @@ Response (`structuredContent`):
 
 Append content to the end of an existing file.
 
+Returns:
+  If the file is not empty and does not end with a line break, and content does not start with one, one line break (the file's own LF or CRLF) is added first, so the content starts on a new line. Returns the new modified timestamp.
+
 Examples:
-  - Use when: adding a new bullet to a daily note.
+  - Use when: adding a new bullet to a daily note -> { path: "daily/2026-01-02.md", content: "- call Ada" }
 
 Errors:
   - "File not found" if the path does not exist.
@@ -260,6 +263,7 @@ Errors:
 |---|---|---|
 | `path` | string | Vault-relative path that was written. |
 | `appended` | boolean | Always true on success. |
+| `modified` | string | New last-modification timestamp (ISO-8601); usable as the next expectedMtime. |
 
 #### Example
 
@@ -280,7 +284,8 @@ Response (`structuredContent`):
 ```json
 {
   "path": "README.md",
-  "appended": true
+  "appended": true,
+  "modified": "2026-01-15T09:30:00.000Z"
 }
 ```
 
