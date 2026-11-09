@@ -1,0 +1,41 @@
+# One-off migration of release tags from `vX.Y.Z` to plain `X.Y.Z` (#421).
+#
+# Run it manually from the Actions tab. With `dry_run` (the default) it only
+# prints the plan. With `dry_run` off it creates each `X.Y.Z` tag on the same
+# commit, moves the GitHub release to it, then deletes the old tag. It is
+# idempotent, so a second run changes nothing. See scripts/migrate-tags.sh
+# for details, including how annotated tags are recreated.
+#
+# Remove this workflow and the script once the migration has run.
+name: Migrate tags
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Only print the plan, change nothing
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: migrate-tags
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Migrate tags
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODE: ${{ inputs.dry_run && '--dry-run' || '--apply' }}
+        run: scripts/migrate-tags.sh "$MODE"
