@@ -1,6 +1,7 @@
 import { CallToolResult } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import { PathTraversalError } from '../../utils/path-guard';
+import type { ObsidianAdapter } from '../../obsidian/adapter';
 
 /**
  * Typed error classes the adapter / handlers can throw to signal a particular
@@ -25,10 +26,76 @@ export class FolderNotFoundError extends NotFoundError {
   }
 }
 
+/**
+ * No file at `path`. `suggestion` is an existing path the caller probably
+ * meant (see `markdownCandidate`); it is appended as "Did you mean …?" (#463).
+ */
 export class FileNotFoundError extends NotFoundError {
-  constructor(path: string) {
-    super(`File not found: ${path}`);
+  constructor(path: string, suggestion?: string) {
+    super(
+      suggestion === undefined
+        ? `File not found: ${path}`
+        : `File not found: ${path}. Did you mean ${suggestion}?`,
+    );
     this.name = 'FileNotFoundError';
+  }
+}
+
+/**
+ * The path with `.md` appended, for a "Did you mean" hint: wikilinks drop
+ * the extension, so `projects/Atlas` usually means `projects/Atlas.md`.
+ * `null` when the path already ends in `.md` or is empty (#463).
+ */
+export function markdownCandidate(path: string): string | null {
+  if (path === '' || path.endsWith('/') || /\.md$/i.test(path)) return null;
+  return `${path}.md`;
+}
+
+/**
+ * `FileNotFoundError` for `path`, with a "Did you mean" hint when
+ * `path + ".md"` exists. For callers that found the file missing through
+ * `adapter.stat` rather than an adapter method that throws.
+ */
+export async function fileNotFound(
+  adapter: ObsidianAdapter,
+  path: string,
+): Promise<FileNotFoundError> {
+  const candidate = markdownCandidate(path);
+  const exists = candidate !== null && (await adapter.stat(candidate)) !== null;
+  return new FileNotFoundError(path, exists ? candidate : undefined);
+}
+
+/**
+ * Rename, move or copy onto a path that is taken. Replaces Obsidian's raw
+ * "Destination file already exists!" and the filesystem's "EEXIST: …",
+ * which name neither the path nor a next step (#463).
+ */
+export class DestinationExistsError extends Error {
+  constructor(public readonly path: string) {
+    super(`Destination already exists: ${path}. Choose another path or delete it first; nothing was changed.`);
+    this.name = 'DestinationExistsError';
+  }
+}
+
+/**
+ * Whether `error` is Obsidian's or the filesystem's "destination exists"
+ * failure from `vault.rename`, `fileManager.renameFile` or `vault.copy`.
+ */
+export function isDestinationExistsError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes('Destination file already exists') || /\bEEXIST\b/.test(message);
+}
+
+/**
+ * Run a rename / move / copy and turn a "destination exists" failure into
+ * `DestinationExistsError` for `dest`; other errors pass through.
+ */
+export async function withDestinationCheck<T>(dest: string, run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    if (isDestinationExistsError(error)) throw new DestinationExistsError(dest);
+    throw error;
   }
 }
 
@@ -134,6 +201,9 @@ export function handleToolError(error: unknown): CallToolResult {
     return errorFrom(error.message);
   }
   if (error instanceof BinaryTooLargeError) {
+    return errorFrom(error.message);
+  }
+  if (error instanceof DestinationExistsError) {
     return errorFrom(error.message);
   }
   const message = error instanceof Error ? error.message : String(error);

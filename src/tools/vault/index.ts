@@ -313,7 +313,7 @@ const HEADING_ERRORS =
 /** Errors of the rename/move tools, as the adapter and Obsidian word them (#449). */
 const PATH_NOT_FOUND_ERROR = '"Path not found" if path does not exist.';
 const DESTINATION_EXISTS_ERROR =
-  '"Destination file already exists!" if the new path is taken; nothing is moved.';
+  '"Destination already exists" if the new path is taken; nothing is moved.';
 
 /**
  * Error line of the tools that take a file path. The conflict error of
@@ -562,7 +562,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             summary: 'Copy a file to a new path, leaving the original in place. Missing parent folders are created.',
             errors: [
               '"File not found" if sourcePath does not exist or is a folder.',
-              '"EEXIST: file already exists" if destPath is taken; nothing is copied.',
+              '"Destination already exists" if destPath is taken; nothing is copied.',
             ],
           }),
           schema: copyFileSchema,

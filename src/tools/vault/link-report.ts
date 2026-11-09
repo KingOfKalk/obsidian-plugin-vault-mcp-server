@@ -1,4 +1,5 @@
 import type { ObsidianAdapter } from '../../obsidian/adapter';
+import { withDestinationCheck } from '../shared/errors';
 
 /**
  * What `vault_rename`, `vault_move` and `vault_rename_folder` report about
@@ -65,7 +66,7 @@ export async function renameWithLinkReport(
   }
 
   const autoUpdateLinks = adapter.getAutoUpdateLinks();
-  await adapter.renameFile(from, to);
+  await withDestinationCheck(to, () => adapter.renameFile(from, to));
 
   const updatedFiles: string[] = [];
   let linksUpdated = 0;
