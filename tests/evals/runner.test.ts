@@ -6,11 +6,14 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type Anthropic from '@anthropic-ai/sdk';
+import { BULK_SEED } from '../../evals/fixture-generator';
 import { connectClient, startHarness } from '../../evals/harness';
 import {
   DEFAULT_MODEL,
   MISSING_KEY_MESSAGE,
+  baselineRow,
   main,
+  pluginVersion,
   parseArgs,
   readConfig,
   runQuestion,
@@ -74,6 +77,20 @@ describe('eval harness', () => {
       expect(a.getUnresolvedLinks()['projects/Beacon.md']).toEqual({ 'Quarterly Review': 1 });
       expect((await a.readFile('reference/Station Log.md')).length).toBeGreaterThan(25_000);
       expect((await a.stat('Home.md'))?.mtime).toBe(Date.UTC(2026, 0, 1));
+      expect(harness.fixture.seed).toBe(BULK_SEED);
+      expect(harness.fixture.generated).toBeGreaterThan(400);
+      expect(harness.fixture.files).toBeGreaterThan(harness.fixture.generated);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  it('can load only the hand-written notes', async () => {
+    const harness = await startHarness({ bulkSeed: null });
+    try {
+      expect(harness.fixture.generated).toBe(0);
+      expect(harness.fixture.seed).toBeNull();
+      expect(harness.adapter.getAllFiles()).not.toContain('reference/Calibration Ledger.md');
     } finally {
       await harness.close();
     }
@@ -169,5 +186,21 @@ describe('runner configuration', () => {
     const out = stdout.mock.calls.map((c) => String(c[0])).join('');
     expect(out).toMatch(/\d+ tools converted for Claude/);
     expect(out).toContain('No model calls were made.');
+    expect(out).toMatch(/Fixture: \d+ files \(\d+ from evals\/fixture-vault\/, \d+ generated with seed \d+\)/);
+  });
+
+  it('formats a baseline row for the README table', () => {
+    expect(
+      baselineRow({
+        date: '2026-11-09',
+        version: '4.0.1',
+        model: 'claude-opus-5-5',
+        effort: 'high',
+        passed: 9,
+        total: 10,
+        toolCalls: 123,
+      }),
+    ).toBe(`| 2026-11-09 | 4.0.1 | claude-opus-5-5 | high | ${String(BULK_SEED)} | 9/10 (90%) | 12.3 |`);
+    expect(pluginVersion()).toMatch(/^\d+\.\d+\.\d+/);
   });
 });
