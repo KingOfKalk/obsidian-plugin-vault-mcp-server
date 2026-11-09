@@ -33,6 +33,12 @@ export interface HttpServerOptions {
    * and Host allowlists; pass an explicit object to widen.
    */
   originHost?: OriginHostOptions;
+  /**
+   * Maximum number of concurrent MCP sessions. When a new session would
+   * exceed it, the least recently active session is closed. Defaults to
+   * {@link DEFAULT_MAX_SESSIONS}. Set to 0 to disable the cap.
+   */
+  maxSessions?: number;
 }
 
 const DEFAULT_ORIGIN_HOST_OPTIONS: OriginHostOptions = {
@@ -58,6 +64,28 @@ interface Session {
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
 const DEFAULT_SESSION_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
 const DEFAULT_SESSION_SWEEP_INTERVAL_MS = 60 * 1000;
+export const DEFAULT_MAX_SESSIONS = 32;
+
+/**
+ * URL paths that serve MCP. `/mcp` is the documented endpoint (settings
+ * tab, client config snippet, README, user manual). `/` stays for clients
+ * configured before the endpoint was documented as `/mcp`. A trailing
+ * slash is tolerated. Every other path answers 404.
+ */
+export const MCP_ENDPOINT_PATHS: readonly string[] = ['/mcp', '/mcp/', '/'];
+
+function requestPath(url: string | undefined): string {
+  const raw = url ?? '/';
+  const end = raw.search(/[?#]/);
+  return end === -1 ? raw : raw.slice(0, end);
+}
+
+/** The request's `Origin`, if it is a real origin (not absent or `null`). */
+function requestOrigin(req: IncomingMessage): string | undefined {
+  const header = req.headers.origin;
+  const origin = typeof header === 'string' ? header : undefined;
+  return origin !== undefined && origin.length > 0 && origin !== 'null' ? origin : undefined;
+}
 
 export class HttpMcpServer {
   private httpServer: Server | null = null;
@@ -225,11 +253,23 @@ export class HttpMcpServer {
       return;
     }
 
-    if (handlePreflight(req, res, corsOptions)) {
+    // The Origin passed the allowlist above, so it may be echoed back.
+    const allowedOrigin = requestOrigin(req);
+
+    const path = requestPath(req.url);
+    if (!MCP_ENDPOINT_PATHS.includes(path)) {
+      this.logger.debug(`Request to unknown path rejected: ${req.method ?? 'UNKNOWN'} ${path}`);
+      applyCorsHeaders(res, corsOptions, allowedOrigin);
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Not found. The MCP endpoint is /mcp' }));
       return;
     }
 
-    applyCorsHeaders(res, corsOptions);
+    if (handlePreflight(req, res, corsOptions, allowedOrigin)) {
+      return;
+    }
+
+    applyCorsHeaders(res, corsOptions, allowedOrigin);
 
     if (this.options.authEnabled) {
       const limit = this.rateLimiter.check(clientIp);
@@ -343,6 +383,7 @@ export class HttpMcpServer {
           lastActivity: this.clock(),
         });
         this.logger.debug(`MCP session initialized: ${id} (active: ${String(this.sessions.size)})`);
+        this.enforceSessionCap(id);
       },
       onsessionclosed: (id: string): void => {
         this.removeSession(id);
@@ -357,6 +398,36 @@ export class HttpMcpServer {
 
     await server.connect(transport);
     return { transport, server, lastActivity: this.clock() };
+  }
+
+  /**
+   * Keep at most `maxSessions` sessions. Over the cap, close the least
+   * recently active sessions (never `keepId`, the one just created). The
+   * evicted client gets 404 "Session not found" on its next request, which
+   * tells a spec-compliant client to initialize a new session.
+   */
+  private enforceSessionCap(keepId: string): void {
+    const max = this.options.maxSessions ?? DEFAULT_MAX_SESSIONS;
+    if (max <= 0) {
+      return;
+    }
+    while (this.sessions.size > max) {
+      let oldestId: string | undefined;
+      let oldestActivity = Infinity;
+      for (const [id, session] of this.sessions) {
+        if (id !== keepId && session.lastActivity < oldestActivity) {
+          oldestId = id;
+          oldestActivity = session.lastActivity;
+        }
+      }
+      if (oldestId === undefined) {
+        return;
+      }
+      this.logger.info(
+        `Closing MCP session ${oldestId}: session limit of ${String(max)} reached`,
+      );
+      this.removeSession(oldestId);
+    }
   }
 
   private removeSession(id: string): void {

@@ -293,6 +293,48 @@ describe('live module switches (#448)', () => {
     });
   });
 
+  it('a session evicted by the session cap unsubscribes too (#465)', async () => {
+    let now = 0;
+    await server.stop();
+    const adapter = new MockObsidianAdapter();
+    const logger = new QuietLogger('test', { debugMode: false, accessKey: '' });
+    server = new HttpMcpServer(
+      () => createMcpServer(registry, adapter, DEFAULT_SETTINGS, logger),
+      logger,
+      {
+        host: '127.0.0.1',
+        port: TEST_PORT,
+        authEnabled: false,
+        accessKey: '',
+        sessionSweepIntervalMs: 0,
+        maxSessions: 2,
+      },
+      () => now,
+    );
+    await server.start();
+
+    now = 1;
+    await connect();
+    now = 2;
+    const b = await connect();
+    expect(registry.changeHandlerCount).toBe(2);
+
+    now = 3;
+    const c = await connect();
+    expect(server.activeSessions).toBe(2);
+    await vi.waitFor(() => {
+      expect(registry.changeHandlerCount).toBe(2);
+    });
+
+    // The two remaining sessions still follow the registry.
+    registry.disableModule('vault');
+    expect(await toolNames(b.client)).not.toContain('vault_read');
+    expect(await toolNames(c.client)).not.toContain('vault_read');
+
+    await server.stop();
+    expect(registry.changeHandlerCount).toBe(0);
+  });
+
   it('a rejected initialize leaves no subscription behind', async () => {
     const status = await new Promise<number>((resolve, reject) => {
       const req = http.request(
