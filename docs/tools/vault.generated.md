@@ -182,7 +182,7 @@ Response (`structuredContent`):
 Delete a file by vault-relative path.
 
 Returns:
-  The file goes where the user's "Deleted files" setting says: system trash, the vault's .trash folder, or permanently.
+  The file goes where the user's "Deleted files" setting says: system trash, the vault's .trash folder, or permanently. `trashedTo` reports which ("system", "vault", "permanent", or "unknown" if the setting cannot be read).
 
 Examples:
   - Use when: removing an outdated note.
@@ -202,6 +202,7 @@ Errors:
 |---|---|---|
 | `path` | string | Vault-relative path that was written. |
 | `deleted` | boolean | Always true on success. |
+| `trashedTo` | enum: `system` \| `vault` \| `permanent` \| `unknown` | Where the item went, per the user's "Deleted files" setting: "system" (system trash), "vault" (the vault's .trash folder), "permanent" (deleted for good), or "unknown" if the setting could not be read. |
 
 #### Example
 
@@ -221,7 +222,8 @@ Response (`structuredContent`):
 ```json
 {
   "path": "people/ada.md",
-  "deleted": true
+  "deleted": true,
+  "trashedTo": "system"
 }
 ```
 
@@ -404,7 +406,7 @@ Response (`structuredContent`):
 Rename a file within its current folder.
 
 Returns:
-  Links to the file are updated if the user enabled "Automatically update internal links".
+  Links to the file are updated if the user enabled "Automatically update internal links". `linksUpdated` and `updatedFiles` report the rewritten links, `autoUpdateLinks` the setting, and `warning` is set when other files link to it but were not updated.
 
 Examples:
   - Use when: renaming "draft.md" to "final.md" in the same folder.
@@ -426,6 +428,10 @@ Errors:
 |---|---|---|
 | `from` | string | Vault-relative source path. |
 | `to` | string | Vault-relative destination path. |
+| `linksUpdated` | number | Number of links to the moved file(s) in the files listed in updatedFiles. |
+| `updatedFiles` | string[] | Vault-relative paths (after the rename) whose content changed because links were updated. |
+| `autoUpdateLinks` | unknown | The user's "Automatically update internal links" setting; null if it could not be read. |
+| `warning` | string | Present when other files link to the moved file(s) but their links were not updated. |
 
 #### Example
 
@@ -446,7 +452,10 @@ Response (`structuredContent`):
 ```json
 {
   "from": "people/ada.md",
-  "to": "people/ada-lovelace.md"
+  "to": "people/ada-lovelace.md",
+  "linksUpdated": 0,
+  "updatedFiles": [],
+  "autoUpdateLinks": true
 }
 ```
 
@@ -457,7 +466,7 @@ Response (`structuredContent`):
 Move a file to a different path (can change folder and name). Missing parent folders are created.
 
 Returns:
-  Links to the file are updated if the user enabled "Automatically update internal links".
+  Links to the file are updated if the user enabled "Automatically update internal links". `linksUpdated` and `updatedFiles` report the rewritten links, `autoUpdateLinks` the setting, and `warning` is set when other files link to it but were not updated.
 
 Examples:
   - Use when: archiving a note by moving it to "archive/<name>.md".
@@ -478,6 +487,10 @@ Errors:
 |---|---|---|
 | `from` | string | Vault-relative source path. |
 | `to` | string | Vault-relative destination path. |
+| `linksUpdated` | number | Number of links to the moved file(s) in the files listed in updatedFiles. |
+| `updatedFiles` | string[] | Vault-relative paths (after the rename) whose content changed because links were updated. |
+| `autoUpdateLinks` | unknown | The user's "Automatically update internal links" setting; null if it could not be read. |
+| `warning` | string | Present when other files link to the moved file(s) but their links were not updated. |
 
 #### Example
 
@@ -498,7 +511,10 @@ Response (`structuredContent`):
 ```json
 {
   "from": "people/ada.md",
-  "to": "archive/ada.md"
+  "to": "archive/ada.md",
+  "linksUpdated": 0,
+  "updatedFiles": [],
+  "autoUpdateLinks": true
 }
 ```
 
@@ -605,7 +621,7 @@ Response (`structuredContent`):
 Delete a folder, optionally recursively.
 
 Returns:
-  The folder goes where the user's "Deleted files" setting says: system trash, the vault's .trash folder, or permanently.
+  The folder goes where the user's "Deleted files" setting says: system trash, the vault's .trash folder, or permanently. `trashedTo` reports which ("system", "vault", "permanent", or "unknown" if the setting cannot be read).
 
 Examples:
   - Use when: removing an empty "old-drafts" folder.
@@ -627,6 +643,7 @@ Errors:
 | `path` | string | Vault-relative path that was written. |
 | `deleted` | boolean | Always true on success. |
 | `recursive` | boolean | Whether the delete was recursive. |
+| `trashedTo` | enum: `system` \| `vault` \| `permanent` \| `unknown` | Where the item went, per the user's "Deleted files" setting: "system" (system trash), "vault" (the vault's .trash folder), "permanent" (deleted for good), or "unknown" if the setting could not be read. |
 
 #### Example
 
@@ -647,7 +664,8 @@ Response (`structuredContent`):
 {
   "path": "empty",
   "deleted": true,
-  "recursive": false
+  "recursive": false,
+  "trashedTo": "system"
 }
 ```
 
@@ -658,7 +676,7 @@ Response (`structuredContent`):
 Rename or move a folder.
 
 Returns:
-  Links into the folder are updated if the user enabled "Automatically update internal links".
+  Links into the folder are updated if the user enabled "Automatically update internal links". `linksUpdated` and `updatedFiles` report the rewritten links, `autoUpdateLinks` the setting, and `warning` is set when other files link to it but were not updated.
 
 Examples:
   - Use when: renaming "WIP" to "Archive".
@@ -679,6 +697,10 @@ Errors:
 |---|---|---|
 | `from` | string | Vault-relative source path. |
 | `to` | string | Vault-relative destination path. |
+| `linksUpdated` | number | Number of links to the moved file(s) in the files listed in updatedFiles. |
+| `updatedFiles` | string[] | Vault-relative paths (after the rename) whose content changed because links were updated. |
+| `autoUpdateLinks` | unknown | The user's "Automatically update internal links" setting; null if it could not be read. |
+| `warning` | string | Present when other files link to the moved file(s) but their links were not updated. |
 
 #### Example
 
@@ -699,7 +721,10 @@ Response (`structuredContent`):
 ```json
 {
   "from": "empty",
-  "to": "renamed"
+  "to": "renamed",
+  "linksUpdated": 0,
+  "updatedFiles": [],
+  "autoUpdateLinks": true
 }
 ```
 
