@@ -141,9 +141,9 @@ export function createDailyNoteHandler(): (args: DailyNoteArgs) => Promise<GetPr
 function fixBrokenLinksSingleNoteBody(path: string): string {
   return `Fix broken links in \`${path}\`. First call \`search_unresolved_links\` and pull out the entry whose source matches \`${path}\` — the value is a \`Record<target, count>\` of unresolved targets in this note. If \`${path}\` is not in the result, tell the user the note has no unresolved links and stop. For each broken link, propose **one** fix as a single tool call so the user can confirm before it's applied:
 
-- **Retarget** to an existing note: locate the intended target with \`search_fulltext\` or \`vault_list_recursive\`, then read \`${path}\` with \`vault_read\`, rewrite the link, and write it back with \`vault_update\` (or \`editor_replace\` if \`${path}\` is the active editor and you know the exact range).
-- **Create a stub** for the missing note: call \`vault_create\` at the link's target path with a minimal placeholder body.
-- **Delete the link**: read \`${path}\` with \`vault_read\`, remove just the wikilink (keep surrounding prose), and write back with \`vault_update\`.
+- **Retarget** to an existing note: locate the intended target with \`search_fulltext\` or \`vault_list_recursive\`, then rewrite the link in \`${path}\` with \`vault_replace\` (\`oldString\` = the exact \`[[...]]\` text as written).
+- **Create a stub** for the missing note: call \`vault_create\` with a real file path that includes the \`.md\` extension (e.g. \`Missing Note.md\` for \`[[Missing Note]]\`), not the bare link text, with a minimal placeholder body.
+- **Delete the link**: remove just the wikilink with \`vault_replace\` (keep surrounding prose).
 - **Leave as-is**: skip and explain why.
 
 Apply fixes one at a time. Wait for the user to confirm each tool call before moving on.`;
@@ -151,9 +151,9 @@ Apply fixes one at a time. Wait for the user to confirm each tool call before mo
 
 const FIX_BROKEN_LINKS_VAULT_WIDE_BODY = `Fix broken links across the vault. First call \`search_unresolved_links\` to enumerate them — the result is a \`Record<source, Record<target, count>>\` mapping each note containing broken links to its unresolved targets. If more than ~20 source notes are returned, work on the first 20 and report the remaining count so the user can re-run this prompt to continue. For each broken link, propose **one** fix as a single tool call so the user can confirm before it's applied:
 
-- **Retarget** to an existing note: locate the intended target with \`search_fulltext\` or \`vault_list_recursive\`, then read the source note with \`vault_read\`, rewrite the link, and write it back with \`vault_update\` (or \`editor_replace\` if the source is the active editor and you know the exact range).
-- **Create a stub** for the missing note: call \`vault_create\` at the link's target path with a minimal placeholder body.
-- **Delete the link**: read the source with \`vault_read\`, remove just the wikilink (keep surrounding prose), and write back with \`vault_update\`.
+- **Retarget** to an existing note: locate the intended target with \`search_fulltext\` or \`vault_list_recursive\`, then rewrite the link in the source note with \`vault_replace\` (\`oldString\` = the exact \`[[...]]\` text as written).
+- **Create a stub** for the missing note: call \`vault_create\` with a real file path that includes the \`.md\` extension (e.g. \`Missing Note.md\` for \`[[Missing Note]]\`), not the bare link text, with a minimal placeholder body.
+- **Delete the link**: remove just the wikilink with \`vault_replace\` (keep surrounding prose).
 - **Leave as-is**: skip and explain why (e.g. it's an intentional placeholder).
 
 Apply fixes one at a time. Wait for the user to confirm each tool call before moving on.`;

@@ -260,7 +260,9 @@ describe('fix-broken-links handler', () => {
     expect(text).toContain('Fix broken links across the vault');
     expect(text).toContain('search_unresolved_links');
     expect(text).toContain('vault_create');
-    expect(text).toContain('vault_update');
+    expect(text).toContain('vault_replace');
+    expect(text).not.toContain('vault_update');
+    expect(text).toContain('`Missing Note.md`');
     expect(text).toContain('Retarget');
     expect(text).toContain('Create a stub');
     expect(text).toContain('Delete the link');
@@ -292,6 +294,8 @@ describe('fix-broken-links handler', () => {
     expect(text).toContain('propose **one** fix');
     // Vault-wide opener must NOT appear in the single-note body
     expect(text).not.toContain('Fix broken links across the vault');
+    expect(text).toContain('with `vault_replace`');
+    expect(text).not.toContain('vault_update');
   });
 
   it('throws PathTraversalError on a traversal path', async () => {
