@@ -157,7 +157,7 @@ export const moveFileSchema = {
     .string()
     .min(1)
     .max(4096)
-    .describe('New file path (different folder)'),
+    .describe('New vault-relative path; can change the folder, the file name, or both'),
 };
 
 export const copyFileSchema = {
