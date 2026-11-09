@@ -550,6 +550,12 @@ describe('server_info (#402)', () => {
         expect(entry.version).toMatch(/^\d+\.\d+\.\d+$/);
         expect(entry.notes.length).toBeGreaterThan(0);
       }
+      // #431: a version without an entry is explained, not a gap.
+      expect(listed?.description).toContain(
+        'Versions without an entry had no agent-relevant changes.',
+      );
+      const text = result.content[0].type === 'text' ? result.content[0].text : '';
+      expect(text).toContain('Versions without an entry had no agent-relevant changes.');
     } finally {
       await h.close();
     }

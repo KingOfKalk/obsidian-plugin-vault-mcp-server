@@ -18,6 +18,13 @@ export const SERVER_DISPLAY_NAME = 'vault-mcp-server';
 
 export const SERVER_MODULE_ID = 'server';
 
+/**
+ * Tells the agent that a version missing from `changes` is not a gap in
+ * the list (#431): releases without agent-relevant changes get no entry.
+ */
+export const CHANGES_COVERAGE_NOTE =
+  'Versions without an entry had no agent-relevant changes.';
+
 export interface ServerModuleOptions {
   /** Plugin version shown in the tool description and result. */
   version: string;
@@ -40,7 +47,7 @@ const serverInfoOutputSchema = {
         notes: z.array(z.string()).describe('One line per agent-relevant change.'),
       }),
     )
-    .describe('Agent-relevant changes per version, newest first.'),
+    .describe(`Agent-relevant changes per version, newest first. ${CHANGES_COVERAGE_NOTE}`),
 };
 
 interface ServerInfo {
@@ -56,6 +63,7 @@ function renderMarkdown(info: ServerInfo): string {
     '',
     `Enabled modules: ${info.enabledModules.length > 0 ? info.enabledModules.join(', ') : '(none)'}`,
   ];
+  lines.push('', `Agent-relevant changes, newest first. ${CHANGES_COVERAGE_NOTE}`);
   for (const entry of info.changes) {
     lines.push('', `## ${entry.version}`);
     for (const note of entry.notes) lines.push(`- ${note}`);
@@ -84,7 +92,7 @@ export function createServerModule(options: ServerModuleOptions): ToolModule {
           name: 'server_info',
           title: 'Get server info',
           description: describeTool({
-            summary: `Get the ${SERVER_DISPLAY_NAME} version (running: v${version}), the enabled tool modules and agent-relevant changes per version (renamed parameters or output fields, new tools).`,
+            summary: `Get the ${SERVER_DISPLAY_NAME} version (running: v${version}), the enabled tool modules and agent-relevant changes per version (renamed parameters or output fields, new tools). ${CHANGES_COVERAGE_NOTE}`,
             examples: [
               'Use when: a tool rejects a parameter or returns fields you did not expect, to check what changed.',
             ],
