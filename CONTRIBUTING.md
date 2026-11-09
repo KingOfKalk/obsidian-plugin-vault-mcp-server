@@ -16,11 +16,24 @@
 | `npm run test` | Run tests |
 | `npm run test:watch` | Run tests in watch mode |
 | `npm run test:coverage` | Run tests with coverage |
+| `npm run test:e2e` | Build, then run the E2E tests in headless Obsidian (see [E2E tests](#e2e-tests-headless-obsidian)) |
 | `npm run lint` | Run ESLint |
 | `npm run lint:fix` | Auto-fix lint issues |
 | `npm run format` | Format with Prettier |
-| `npm run typecheck` | TypeScript type checking |
+| `npm run typecheck` | TypeScript type checking (`src/`, `tests/`, `scripts/`, `evals/`, then `e2e/` with `e2e/tsconfig.json`) |
 | `npm run eval` | LLM evaluation of the MCP tools (needs `ANTHROPIC_API_KEY`, costs money; see [`evals/README.md`](evals/README.md)) |
+
+## E2E tests (headless Obsidian)
+
+Unit tests run against `MockObsidianAdapter`. Behaviour that only real Obsidian has (link rewriting on rename, the "Deleted files" setting, the metadata cache) is covered by E2E specs in `e2e/specs/*.e2e.ts`. They use WebdriverIO with [`wdio-obsidian-service`](https://github.com/jesse-r-s-hines/wdio-obsidian-service), configured in `wdio.conf.mts`.
+
+- **Requirements:** Linux with Xvfb and the Electron libraries. On Debian trixie or Ubuntu 24.04+ run `bash scripts/install-e2e-deps.sh` (uses `sudo` unless you are root). Node.js 22.23.4 or newer (WebdriverIO 10).
+- **Run:** `npm run test:e2e`. It builds the plugin, then runs `xvfb-run -a wdio run ./wdio.conf.mts`. One spec file: `npm run build && xvfb-run -a npx wdio run ./wdio.conf.mts --spec ./e2e/specs/smoke.e2e.ts`. It is not part of `npm test`.
+- **What happens:** the service downloads Obsidian into `.obsidian-cache/` (not committed; the first run takes a while) and opens a temporary copy of `tests/vault/` with this checkout as the plugin. Each spec sets the plugin's settings with `browser.executeObsidian` (`127.0.0.1`, port 28749, Bearer auth with a test key), starts the server, and calls tools with the MCP SDK client over HTTP. Set `E2E_MCP_PORT` if 28749 is taken. Helpers are in `e2e/helpers.ts`.
+- **Obsidian version:** pinned so results do not change with an Obsidian update. The default is 1.5.3, the oldest public release at or above the manifest's `minAppVersion` (1.5.0 to 1.5.2 were Insider builds). Pick another one with `OBSIDIAN_VERSION=1.15.0 OBSIDIAN_INSTALLER=1.15.0 npm run test:e2e`. CI runs the default and a pinned current release (the `e2e` job matrix in `.github/workflows/ci.yml`). To change a pinned version, edit `wdio.conf.mts` or the matrix; the CI cache key follows automatically.
+- **Known bugs:** a spec for a bug that is not fixed yet stays in the suite as `it.skip` with a comment naming the issue.
+- **Worktrees:** each checkout has its own `.obsidian-cache/`; symlink it to another checkout's to skip the download.
+- **Download errors:** GitHub sometimes answers with 504 or drops the connection; run it again.
 
 ## Architecture
 
@@ -83,16 +96,17 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/):
 
 1. Create a feature branch from `main`
 2. Implement with tests
-3. Ensure `npm run lint`, `npm run typecheck`, `npm run test`, and `npm run build` all pass
+3. Ensure `npm run lint`, `npm run typecheck`, `npm run test`, and `npm run build` all pass; run `npm run test:e2e` when the change touches Obsidian behaviour (CI runs it too)
 4. Create a PR with a conventional commit title
 5. PR is squash-merged to `main`
 
 ### CI results
 
-The `CI` workflow runs `lint`, `test` and `build` one after another. Open a run (the **Details** link of a check on the PR) and look at its **Summary** page:
+The `CI` workflow runs `lint`, `test` and `build` one after another, and `e2e` after `lint`, in parallel with `test`. Open a run (the **Details** link of a check on the PR) and look at its **Summary** page:
 
 - **lint** lists every ESLint finding, type error and out-of-date generated doc file. ESLint and `tsc` findings also show up as annotations on the affected lines in the PR's **Files changed** tab.
 - **test** shows Vitest's results and a coverage table with the thresholds from `vitest.config.ts`.
+- **e2e** runs `npm run test:e2e` in headless Obsidian, once per pinned Obsidian version (`e2e (minimum)`, `e2e (current)`). It is not a required check yet.
 - **build** shows the size of `main.js` (raw and gzipped) compared with the latest `main` build, and links the artifact `vault-mcp-server-<short-sha>`. It holds `main.js`, `manifest.json` and `styles.css` for 14 days. To try the PR in Obsidian, copy the three files into `<vault>/.obsidian/plugins/vault-mcp-server/` of a test vault and reload the plugin.
 
 The summaries are written by `scripts/ci-summary.ts`. You can run it locally with `npx tsx scripts/ci-summary.ts <command> …`; it prints the Markdown to stdout when `GITHUB_STEP_SUMMARY` is not set.
