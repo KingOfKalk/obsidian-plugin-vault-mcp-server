@@ -3,7 +3,7 @@
   "all": {
     "toolCount": 54,
     "totals": {
-      "instructions": 945,
+      "instructions": 997,
       "toolsList": 64334,
       "modelView": 45710,
       "toolDescriptions": 17661,
@@ -335,7 +335,7 @@
   "defaults": {
     "toolCount": 53,
     "totals": {
-      "instructions": 945,
+      "instructions": 997,
       "toolsList": 63725,
       "modelView": 45298,
       "toolDescriptions": 17513,
