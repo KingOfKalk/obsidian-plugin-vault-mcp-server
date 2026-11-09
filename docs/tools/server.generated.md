@@ -8,7 +8,7 @@ Auto-generated schema reference for the `server` module. See [../tools.generated
 
 **Get server info**
 
-Get the vault-mcp-server version (running: v0.0.0-docs), the enabled tool modules and agent-relevant changes per version (renamed parameters or output fields, new tools).
+Get the vault-mcp-server version (running: v0.0.0-docs), the enabled tool modules and agent-relevant changes per version (renamed parameters or output fields, new tools). Versions without an entry had no agent-relevant changes.
 
 Examples:
   - Use when: a tool rejects a parameter or returns fields you did not expect, to check what changed.
@@ -24,7 +24,7 @@ _No input parameters._
 | `name` | string | Server name, e.g. "vault-mcp-server". |
 | `version` | string | Plugin version, e.g. "3.2.0". |
 | `enabledModules` | string[] | Ids of the tool modules that are enabled, e.g. ["vault", "search"]. |
-| `changes` | object[] | Agent-relevant changes per version, newest first. |
+| `changes` | object[] | Agent-relevant changes per version, newest first. Versions without an entry had no agent-relevant changes. |
 
 #### Example
 
@@ -54,6 +54,15 @@ Response (`structuredContent`):
     "extras"
   ],
   "changes": [
+    {
+      "version": "3.5.0",
+      "notes": [
+        "`template_create_from` takes optional `frontmatter` (object of keys to set on the new note, `.md` only); the result then includes the note's whole `frontmatter`.",
+        "`search_tags` lists each file once per tag and adds `counts` (total occurrences per tag). `search_by_tag` lists each file once.",
+        "`plugin_dataview_query`: list values in TABLE cells are plain text (`a, b`) instead of HTML `<ul><li>` markup.",
+        "The MCP handshake `serverInfo.name` is now `vault-mcp-server` (was `obsidian-mcp-server`), matching the instructions and `server_info`."
+      ]
+    },
     {
       "version": "3.3.0",
       "notes": [

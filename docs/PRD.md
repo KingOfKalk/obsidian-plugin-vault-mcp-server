@@ -23,7 +23,7 @@ Each category is a toggleable module. Modules self-register. The settings UI aut
 - **R4** — Delete a file by path
 - **R5** — Append content to the end of an existing file
 - **R6** — Rename a file (same folder, new name)
-- **R7** — Move a file to a different folder
+- **R7** — Move a file to a different folder — *`vault_move` can change the folder, the file name, or both; its `newPath` description says so (per #431)*
 - **R8** — Copy a file to a new path
 - **R9** — Create a folder
 - **R10** — Delete a folder (with option for recursive)
@@ -50,6 +50,7 @@ Each category is a toggleable module. Modules self-register. The settings UI aut
 - **R17** — Full-text search across vault contents with query string
 - ~~**R18** — Query frontmatter properties for a given file~~
 - **R19** — Query all tags in the vault with file associations
+- **R85** — `search_tags` lists each file once per tag (Obsidian's metadata cache reports one entry per occurrence, so a file using a tag twice used to appear twice) and adds `counts`, a map of tag to its total number of occurrences across the vault (per #431). `search_by_tag` (R27) reads the same index and lists each file once. Refines R19.
 - ~~**R20** — Query headings for a given file~~
 - ~~**R21** — Query all outgoing links for a given file~~
 - ~~**R22** — Query all embeds for a given file~~
@@ -98,6 +99,7 @@ Each category is a toggleable module. Modules self-register. The settings UI aut
 - **R47** — List available templates from the configured templates folder
 - **R48** — Create a new file from a template with variable substitution
 - **R49** — Process and expand template variables in a given string (date, title, etc.)
+- **R84** — `template_create_from` takes an optional `frontmatter` object (keys mapped to JSON-compatible values) so a note created from a template gets its properties in one call (per #431). The template is expanded and the file created first; then the keys are applied through `ObsidianAdapter.processFrontMatter()` (as `vault_set_frontmatter`, R73): template keys are kept, given keys overwrite them. Only `.md` destinations accept it and prototype keys (`__proto__`, `constructor`, `prototype`) are rejected — both checks run before the file is created. With non-empty `frontmatter` the structured payload adds the note's whole `frontmatter`. Refines R48.
 
 ### Plugin Interop
 
@@ -108,6 +110,7 @@ Each category is a toggleable module. Modules self-register. The settings UI aut
 - **R57** — Describe (do not execute) a Templater template via `plugin_templater_describe_template`. The tool echoes the supplied template path with a note explaining that the server intentionally does not execute Templater itself (Templater can run arbitrary user JS, so execution must stay client-side). Replaces ~~R53~~ because the shipped tool is describe-only, not an execution surface.
 - **R54** — Provide a generic plugin command execution interface
 - **R59** — Describe (do not execute) a Dataview-JS query via `plugin_dataview_describe_js_query`. The tool echoes the supplied JS source plus a fixed note explaining that the server intentionally does not evaluate Dataview-JS (running the source would arbitrary-eval user input against the host `app` handle), so execution must stay client-side. Sits next to **R52** (`plugin_dataview_query`, which executes DQL) and is the JS-source counterpart to **R57** (`plugin_templater_describe_template`). Implemented in `src/tools/plugin-interop/index.ts` (per #250 option B).
+- **R87** — `plugin_dataview_query` returns HTML-free Markdown (per #431). Dataview's `queryMarkdown` renders list and object values in TABLE cells as `<ul><li>…</li></ul>` by default (`allowHtml: true` in its export settings); the real adapter passes `{ allowHtml: false }`, which Dataview merges with the user's settings, so those values render as plain text (`a, b`). LIST and TASK output carried no HTML before and is unchanged. Refines R52.
 
 ### Extras
 
@@ -120,6 +123,7 @@ Utility tools that do not mirror an Obsidian API. Modules in this group render u
 Always-on tools that describe the server itself. Not a toggleable module: the tools are registered on every MCP server outside the module registry, and the settings UI shows no toggle for them.
 
 - **R66** — `server_info` tool (per #402). Read-only, idempotent, closed-world, takes no arguments (strict empty input). Returns `structuredContent` with `name` (`vault-mcp-server`), `version` (plugin version), `enabledModules` (ids of the modules that currently contribute at least one tool; an Extras module counts only while one of its tools is on) and `changes`, a short hand-maintained list of agent-relevant changes per version (`src/server/agent-changes.ts`: renamed parameters or output fields, new tools, changed validation — not the full CHANGELOG). The tool description contains the running version, so the model sees it without a call. Always available, even when every module is disabled.
+- **R86** — `server_info` states that a version without an entry in `changes` had no agent-relevant changes (per #431), both in the tool description and in the `changes` field description and the Markdown result, so agents do not take a missing version for an outdated list. Refines R66.
 
 ### Internationalization (I18N)
 
@@ -276,6 +280,7 @@ The plugin UI is translated via a tiny in-house i18n helper modelled on the [obs
 - **TR10** — Input validation on all tool parameters using Zod schemas
 - **TR11** — Standardized error responses following MCP error format
 - **TR12** — MCP capability negotiation on connection handshake
+- **TR57** — The MCP initialize handshake advertises `serverInfo.name = "vault-mcp-server"` (`SERVER_DISPLAY_NAME`), the same name as the first line of the server instructions (TR42) and `server_info` (R66) (per #431). Versions up to 3.4.1 sent `obsidian-mcp-server`.
 - **TR28** — MCP resources surface for vault files (per #303). When `resourcesEnabled` (CR30) is on, `createMcpServer` advertises the `resources` capability on the initialize handshake and registers two resources via `src/server/resources.ts`: a static `obsidian://vault/index` resource that returns a JSON listing of every file and folder in the vault (with ready-to-use `obsidian://vault/{+path}` URIs, mime types, and sizes; truncated past 25 000 characters with a `truncated: true` flag) and a templated `obsidian://vault/{+path}` resource that reads any vault file by path — text mime types (`text/*`, `application/json`, `application/yaml`, `image/svg+xml`) return `TextResourceContents`, and other types up to 1 MiB return base64 `BlobResourceContents`. URIs go through `validateVaultPath` so traversal protection matches the tool surface, and unknown extensions fall back to `application/octet-stream`.
 - **TR29** — MCP prompts (slash-commands) surface (per #306, #313, #314). When `promptsEnabled` (CR31) is on, `createMcpServer` advertises the `prompts` capability and `src/server/prompts.ts` registers five canned prompts: `summarize-note` (read a note and produce a concise summary), `find-related` (cross-reference a note against backlinks and full-text search), `expand-template` (discover `{{placeholders}}` in a template via `extractPlaceholders` and walk the user through filling them, with completion against the configured templates folder), `daily-note` (resolve, create-if-missing, and open today's daily note via `vault_daily_note` + `workspace_open_file`, with optional `date: YYYY-MM-DD`), and `fix-broken-links` (enumerate unresolved wikilinks vault-wide or for one note via `search_unresolved_links` and walk through retarget/stub/delete fixes one tool call at a time, with completion against the unresolved-links sources). Path arguments use the SDK's `completable` wrapper so MCP clients can offer typeahead.
 - ~~TR30~~ — ~~Server-level `instructions` field on the MCP initialize handshake (per #301). `createMcpServer` passes a fixed `SERVER_INSTRUCTIONS` string (`src/server/mcp-server.ts`) into the `McpServer` constructor's options. The string contains short tool-use hints that per-tool descriptions cannot convey on their own — preferring `search_*` over `vault_read` when the path is unknown, scoping `editor_*` tools to the active file, the vault-relative-with-forward-slashes path convention, and the unified `vault_get_aspect` tool for frontmatter/headings/links/embeds/backlinks/block-refs. Intentionally short because the tokens are paid every conversational turn.~~ — *superseded by TR42 (2026-11-09, #402): the instructions now start with the plugin version.*
@@ -298,6 +303,7 @@ The plugin UI is translated via a tiny in-house i18n helper modelled on the [obs
 - **TR26** — Adds a "Copy Debug Info" command palette entry alongside the four listed in TR16. Invoking it opens the same diagnostics modal as the "Copy debug info" button in the settings UI (CR22).
 - **TR44** — `RealObsidianAdapter` deletes with `app.fileManager.trashFile()` and renames/moves with `app.fileManager.renameFile()` instead of `app.vault.delete()` / `app.vault.rename()`, so the user's trash and link-update preferences apply (R67). `trashFile` exists since Obsidian 1.6.6; on older versions (`minAppVersion` is 1.5.0) the adapter falls back to `app.vault.trash(file, true)`. Before creating, copying, moving or writing a binary file the adapter creates missing ancestor folders one level at a time with `app.vault.createFolder()` (R68); the mock adapter mirrors this, records trashed paths (`getTrashedPaths()`) and rewrites plain `[[wikilinks]]` on rename to simulate link updating (per #405).
 - **TR48** — Backlink line positions come from the adapter (per #408). `ObsidianAdapter.getBacklinkLines(path)` returns, for every file in `getBacklinks(path)`, the sorted 0-based line numbers of its links and embeds that resolve to `path`. `RealObsidianAdapter` reads `metadataCache.getFileCache(source)` `links` and `embeds`, resolves each link path (subpath after `#` stripped) with `metadataCache.getFirstLinkpathDest(linkpath, source)` and takes `position.start.line`..`position.end.line`; references without a `position` are skipped. `MockObsidianAdapter` scans the source content for `[[…]]`/`![[…]]` wikilinks matching the target by the same rule as its `getBacklinks`. The search handler reads each linking file once to turn the numbers into 1-based `line` plus `text` (R76), dropping lines past the end of the file (stale cache).
+- **TR58** — `ObsidianAdapter.getAllTags()` returns `Record<tag, { files, count }>` (`TagUsage`, per #431): `files` lists each file once in vault order, `count` sums every occurrence. Real and mock adapters share `buildTagIndex()` (`src/obsidian/tag-index.ts`, free of runtime `obsidian` imports so the scripts can load the mock adapter).
 
 ### Testing
 

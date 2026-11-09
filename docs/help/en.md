@@ -317,8 +317,14 @@ shows it in two other places:
 - The description of the `server_info` tool, which every client passes to
   the model. Calling `server_info` (no arguments) returns `name`,
   `version`, `enabledModules` and `changes`, a short list of agent-relevant
-  changes per version. It is not the full changelog; see `CHANGELOG.md` for
-  that.
+  changes per version. A version without an entry had no agent-relevant
+  changes; the list is not out of date. It is not the full changelog; see
+  `CHANGELOG.md` for that.
+
+The server introduces itself as `vault-mcp-server` everywhere: in the MCP
+handshake (`serverInfo.name`, which clients show as the server's name), in
+the `instructions` text and in `server_info`. Versions up to 3.4.1 sent
+`obsidian-mcp-server` in the handshake.
 
 ### Tool behaviour worth knowing
 
@@ -400,6 +406,23 @@ clients and agents commonly trip over:
   `frontmatter` after the change. The call fails if the file does not
   exist, is not a `.md` file, if a key is in both `set` and `remove`, or if
   there is nothing to change (pass `"set": {}` to only remove keys).
+- **Frontmatter when creating from a template.** `template_create_from`
+  takes an optional `frontmatter` object, so a new note gets its
+  properties in the same call:
+  `{ "templatePath": "templates/person.md", "destPath": "people/ada.md", "frontmatter": { "email": "ada@example.com" } }`.
+  The template is expanded first, then Obsidian sets the keys like
+  `vault_set_frontmatter` does: keys from the template stay, keys you pass
+  overwrite them. The result's `structuredContent` then also carries the
+  note's whole `frontmatter`. Only `.md` destinations accept `frontmatter`;
+  otherwise the call fails before any file is created.
+- **Tag list with counts.** `search_tags` lists each file once per tag,
+  even when the file uses the tag several times. `counts` gives the total
+  number of occurrences of each tag; the number of files is the length of
+  its `tags` entry. `search_by_tag` also lists each file once.
+- **Dataview lists as plain text.** `plugin_dataview_query` asks Dataview
+  for Markdown without HTML, so a list field in a `TABLE` cell comes back
+  as `a, b` instead of `<ul><li>a</li><li>b</li></ul>`. `LIST` and `TASK`
+  results are unchanged.
 - **Daily note without creating it.** `vault_daily_note` creates the note
   from the configured template when it is missing. Pass `create: false` to
   only look it up: a missing note then returns
