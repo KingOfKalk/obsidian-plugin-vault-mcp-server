@@ -323,11 +323,11 @@ system prompt for the session, so the hints persist across every turn
 without being repeated in each tool description.
 
 The text is built when a client connects (MCP `initialize`) from the tools
-that are switched on at that moment: a hint about a tool from a module you
-switched off is left out (the `search_fulltext` line without the Search
-module, the `editor_*` line without the Editor module, the
-`workspace_open_file` part without the Workspace module, and the
-`vault_get_aspect` line without the Vault module). A client that is already
+that are switched on at that moment: a hint about a tool you switched off
+is left out (the `search_fulltext` line without the Search module, the
+`editor_*` line without the Editor module, the `workspace_open_file` and
+`vault_list_recursive` parts without their tools, and the write-tool and
+`vault_get_aspect` lines without the Vault module). A client that is already
 connected keeps the text it got. With every module on, the text is (the
 first line carries the running plugin version, here shown as `<version>`):
 
@@ -337,10 +337,11 @@ Call `server_info` for agent-relevant changes (renamed parameters or fields, new
 
 This server exposes an Obsidian vault as MCP tools.
 
-- Prefer `search_fulltext` (or other `search_*` tools) before `vault_read` when you don't already know the file path.
-- `editor_*` tools operate on the **active** file only — open one with `workspace_open_file` first if needed.
-- Paths are vault-relative with forward slashes (e.g. `notes/foo.md`); never absolute filesystem paths.
-- Frontmatter, headings, links, embeds, backlinks, and block refs are exposed via the `vault_get_aspect` tool (call it with the matching `aspect` enum value) — don't parse them out of `vault_read` output.
+- Find notes by content with `search_fulltext` (note text, not file names); by name with `vault_list_recursive`.
+- `editor_*` tools operate on the **active** file only — open one with `workspace_open_file` first if needed; no expectedMtime check.
+- Paths are vault-relative with forward slashes, files with the extension (e.g. `notes/foo.md`); never absolute filesystem paths.
+- To edit a note, prefer `vault_replace` or `vault_insert`; `vault_update` only to rewrite a whole file read in one window.
+- Frontmatter, headings, links, embeds, backlinks, block refs: use `vault_get_aspect`, don't parse `vault_read` output.
 ```
 
 The text is sent once per session, in the `initialize` response, so it
@@ -386,7 +387,12 @@ clients and agents commonly trip over:
   `tools/list` advertises `additionalProperties: false` for every tool.
 - **Listing the vault root.** `vault_list` and `vault_list_recursive` accept
   `""`, `"/"` or `"."` as `path` for the top level of the vault. Tools that
-  work on a single file still require a real path.
+  work on a single file still require a real path. Both return full
+  vault-relative paths (`notes/a.md`, not `a.md`).
+- **Paths.** Every path is vault-relative with forward slashes and
+  case-sensitive, and a file path includes its extension (`notes/a.md`,
+  not `notes/a`). A leading `/` is ignored; a path that would leave the
+  vault is rejected.
 - **Reading large files.** `vault_read` returns files of up to 24 000
   characters whole. Longer files come back in windows: the text ends with a
   `[TRUNCATED: …]` footer, and `structuredContent` carries `totalLength`,
@@ -405,8 +411,10 @@ clients and agents commonly trip over:
   once; if it occurs 0 times, or more than once, the call fails with the
   match count and nothing is written. Add surrounding text to make it
   unique, or pass `replaceAll: true` to replace every occurrence. The edit
-  runs through Obsidian's atomic `vault.process()`. `structuredContent` is
-  `{ path, replacements, modified }`.
+  runs through Obsidian's atomic `vault.process()`. `oldString` is matched
+  against the raw file text, line endings included, so in a file with
+  CRLF line endings a line break in `oldString` must be `\r\n`.
+  `structuredContent` is `{ path, replacements, modified }`.
 - **Several edits in one call.** Instead of `oldString` and `newString`,
   `vault_replace` also takes `edits`: a list of up to 100
   `{ oldString, newString, replaceAll? }` entries, for example
@@ -438,8 +446,9 @@ clients and agents commonly trip over:
   - `vault_insert` takes `path`, `heading`, `text` and `position` (`"end"`,
     the default, or `"start"`). `end` puts the text right after the
     section's last non-blank line, so blank lines before the next heading
-    stay; `start` puts it right below the heading (after a blank line that
-    follows the heading). The text goes in as whole lines, one trailing
+    stay; `start` puts it before the first non-blank line below the
+    heading, so blank lines right after the heading stay above the text
+    (in an empty section the text goes right below the heading). The text goes in as whole lines, one trailing
     newline is ignored, and the file's line endings are kept; start the
     text with a newline to leave a blank line before it. The edit runs
     through `vault.process()` and accepts `expectedMtime`.
@@ -465,15 +474,21 @@ clients and agents commonly trip over:
   `vault_set_frontmatter`, `vault_write_binary` and `template_create_from`)
   returns the new `modified`, so several edits in a row can chain it. Without `expectedMtime` the tools
   write unconditionally, as before.
-- **Full-text search results per file.** `search_fulltext` returns at most
+- **Full-text search results per file.** `search_fulltext` searches the
+  text of Markdown (`.md`) notes only, not file names or other file types;
+  to find a file by name, use `vault_list_recursive`. It returns at most
   `maxMatchesPerFile` matching lines per file (default 5, maximum 100);
   `matchCount` always reports the real number of matches. `limit` and
-  `offset` page over files.
+  `offset` page over files, and `total` and `count` count files. The
+  default Markdown text lists only the paths and match counts; the
+  matching lines are in `structuredContent` and in the text with
+  `responseFormat: "json"`.
 - **Frontmatter key search.** `search_by_frontmatter` with only `key` finds
   every note that has that frontmatter property; add `value` to match a
   specific value. For a list property such as `tags: [project, idea]`, a
   note matches when any item equals `value`, so `value: "idea"` finds it.
-  Other values are compared as text.
+  Other values are compared as text (the number `5` matches `"5"`, `true`
+  matches `"true"`). The key is a top-level key and case-sensitive.
 - **Where deleted files go.** `vault_delete` and `vault_delete_folder`
   follow Obsidian's **Settings → Files and links → Deleted files** option:
   the system trash, the vault's `.trash` folder, or permanent deletion.
@@ -538,7 +553,9 @@ clients and agents commonly trip over:
   idea]`) or as a comma- or space-separated string (`tags: project, idea`),
   with or without `#`. A note tagged only in its frontmatter is found by
   `search_by_tag`, and `counts` adds up frontmatter and inline occurrences.
-  Before 4.0.1 only inline tags were seen.
+  Before 4.0.1 only inline tags were seen. `search_by_tag` matches the tag
+  exactly and case-sensitively: `project` does not find `#Project` or the
+  nested `#project/alpha`.
 - **Dataview lists as plain text.** `plugin_dataview_query` asks Dataview
   for Markdown without HTML, so a list field in a `TABLE` cell comes back
   as `a, b` instead of `<ul><li>a</li><li>b</li></ul>`. `LIST` and `TASK`
@@ -549,7 +566,23 @@ clients and agents commonly trip over:
   nothing is written. With `create: true` a missing note is created from
   the configured template and the response has `"created": true`. Every
   response carries `exists`. Before 4.0 the default was `create: true`; see
-  [Upgrading to 4.0](#upgrading-to-40).
+  [Upgrading to 4.0](#upgrading-to-40). The tool does not open the note;
+  the `/daily-note` prompt opens it with `workspace_open_file`. In a new
+  note `{{date}}` is the note's date, `{{time}}` the local time (`HH:mm`)
+  and `{{title}}` the file name. If the configured template file is
+  missing, the note is created empty, without a warning.
+- **Template placeholders.** `template_create_from` and `template_expand`
+  fill `{{name}}` placeholders from `variables`. Without a value,
+  `{{date}}` is today's date in UTC (`YYYY-MM-DD`), `{{time}}` the current
+  time in the computer's locale format and `{{title}}` is `Untitled`, not
+  the new note's name; pass `title` to set it. Unknown placeholders and
+  Templater `<% %>` code stay as written. `template_list` lists only the
+  files directly in the top-level folder named `templates`, not the folder
+  set in the Templates or Templater plugin.
+- **Editor positions.** The `editor_*` tools use 0-based lines and
+  columns. A range runs from (`fromLine`, `fromCh`) up to, but not
+  including, (`toLine`, `toCh`): to replace `abc` starting at column 4 of
+  line 3, pass `fromLine: 3, fromCh: 4, toLine: 3, toCh: 7`.
 - **Backlinks with context.** `vault_get_aspect` with
   `aspect: "backlinks"` returns the paths of the linking files. Add
   `includeContext: true` to also get `backlinkContext`: for each linking
@@ -626,7 +659,7 @@ How the prompts appear depends on the host. Claude Code, for example, surfaces t
 - **`find-related`** — argument: `path` (vault-relative). Asks Claude to read the seed note, then cross-reference it with `search_fulltext` and `vault_get_aspect` (with `aspect: "backlinks"`) and report the most relevant connections.
 - **`expand-template`** — argument: `template` (vault-relative path to a template file in the vault's `templates/` folder). Reads the template, surfaces the placeholders that need values, and asks Claude to collect them and call `template_expand` (or `template_create_from` if the user wants a new note written).
 - **`daily-note`** — argument: `date` (optional, ISO `YYYY-MM-DD`; omit for today / local time). Asks Claude to call `vault_daily_note` with `create: true` and then `workspace_open_file` on the resulting path, creating the note from the configured daily-notes template if it does not yet exist. Requires the **Daily notes** core plugin to be enabled in Obsidian (`Settings → Core plugins`); the underlying tool reads the plugin's configured `format`, `folder`, and `template` settings — so a German user with `format = "DD.MM.YYYY"` will get filenames like `27.04.2026.md`, exactly as they configured. The `date` argument itself is **ISO-only** (`YYYY-MM-DD`); date strings in other formats are rejected. When the configured template uses Templater syntax (`<%`), the tool copies the template body **verbatim** — Templater is never executed server-side; running the template stays the host client's responsibility.
-- **`fix-broken-links`** — argument: `path` (optional, vault-relative). Enumerates broken `[[wikilinks]]` via `search_unresolved_links` and walks Claude through fixing them — retarget to an existing note, create a stub, or delete the link. With `path`, scopes to that one source note; without, walks the whole vault (capped at ~20 source notes per run, re-run to continue). Each proposed edit lands as a separate tool call so you confirm or reject one at a time. Autocomplete on `path` lists vault notes that currently contain unresolved links.
+- **`fix-broken-links`** — argument: `path` (optional, vault-relative). Enumerates broken `[[wikilinks]]` via `search_unresolved_links` and walks Claude through fixing them — retarget to an existing note or delete the link (both with `vault_replace`), or create a stub note at a path with `.md`. With `path`, scopes to that one source note; without, walks the whole vault (capped at ~20 source notes per run, re-run to continue). Each proposed edit lands as a separate tool call so you confirm or reject one at a time. Autocomplete on `path` lists vault notes that currently contain unresolved links.
 
 ### Autocomplete
 
