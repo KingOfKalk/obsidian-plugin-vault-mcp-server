@@ -24,8 +24,9 @@ export function authenticateRequest(
     return { authenticated: false, error: 'Missing Authorization header' };
   }
 
+  // RFC 7235 §2.1: the auth scheme is case-insensitive ("bearer", "BEARER").
   const parts = authHeader.split(' ');
-  if (parts.length !== 2 || parts[0] !== 'Bearer') {
+  if (parts.length !== 2 || parts[0].toLowerCase() !== 'bearer') {
     return { authenticated: false, error: 'Invalid Authorization header format. Expected: Bearer <key>' };
   }
 
