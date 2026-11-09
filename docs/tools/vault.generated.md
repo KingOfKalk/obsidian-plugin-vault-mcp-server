@@ -62,11 +62,12 @@ Response (`structuredContent`):
 Read the UTF-8 content of a file by vault-relative path.
 
 Returns:
-  Files over 24 000 characters come in windows: while hasMore is true, call again with offset=nextOffset.
+  Files over 24 000 characters come in windows: while hasMore is true, call again with offset=nextOffset. With heading, only that section is returned (paged the same way).
 
 Examples:
   - Use when: "show me the README" -> { path: "README.md" }
   - Use when: continuing a large file -> { path: "big.md", offset: 24000 }
+  - Use when: reading one section of a long note -> { path: "journal.md", heading: "## Log" }
 
 See also:
   - editor_get_content — when reading the file currently open in the editor (no path needed).
@@ -74,12 +75,15 @@ See also:
 Errors:
   - "File not found" if the path does not exist.
   - "Path must not traverse outside the vault" on traversal attempts.
+  - "Heading not found" (with the available headings and their line numbers) if no heading matches.
+  - "Heading … is ambiguous" (with the matches and their line numbers) if more than one heading matches.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
+| `heading` | string (1–1024) | no | Optional: return only this section — the heading line up to the next heading of the same or a higher level. Heading text without the # marks (e.g. "Log"), or with them to pin the level (e.g. "## Log"). offset/length then page within the section. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Character offset to start reading at (default 0). Use nextOffset from the previous call to continue a large file. |
 | `length` | number (1–24000) | no | Maximum characters to return (1..24000, default 24000). Files that fit are returned whole. |
 | `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
@@ -89,8 +93,10 @@ Errors:
 | Field | Type | Description |
 |---|---|---|
 | `path` | string | Vault-relative path that was read. |
-| `content` | string | File content in the requested window (the whole file when it fits). |
-| `totalLength` | number | Length of the whole file in characters. |
+| `heading` | string | With the heading parameter: the matched heading as written, e.g. "## Log". |
+| `line` | number | With the heading parameter: 1-based line number of the heading in the file. |
+| `content` | string | File content in the requested window (the whole file when it fits). With heading: the section, heading line included. |
+| `totalLength` | number | Length of the whole file (or of the section, with heading) in characters. |
 | `offset` | number | Character offset where this window starts. |
 | `hasMore` | boolean | True when the file continues past this window. |
 | `nextOffset` | number | Offset to pass in the next call when hasMore is true. |
@@ -343,6 +349,77 @@ Response (`structuredContent`):
 {
   "path": "projects/alpha.md",
   "replacements": 1,
+  "modified": "2026-01-15T09:30:00.000Z"
+}
+```
+
+### vault_insert
+
+**Insert into section**
+
+Insert text at the start or end of a Markdown section, addressed by its heading, without rewriting the rest of the file.
+
+Returns:
+  A section runs from its heading to the next heading of the same or a higher level (or the end of the file). Finding the section and writing happen in one atomic step (app.vault.process).
+
+Examples:
+  - Use when: adding a log entry -> { path: "journal.md", heading: "## Log", text: "- 09:30 standup" }
+  - Use when: putting a note at the top of a section -> { path: "a.md", heading: "Notes", position: "start", text: "Important!" }
+  - Don't use when: the edit is not at a section boundary (use vault_replace).
+
+See also:
+  - vault_read — with heading to read just that section first.
+  - vault_append — when adding to the end of the file.
+
+Errors:
+  - "File not found" if the path does not exist.
+  - "Heading not found" (with the available headings and their line numbers) if no heading matches. Nothing is written.
+  - "Heading … is ambiguous" (with the matches and their line numbers) if more than one heading matches. Nothing is written.
+  - "File changed since expectedMtime" (with the current mtime) if expectedMtime is set and the file was modified since; nothing is written.
+
+#### Input
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
+| `heading` | string (1–1024) | yes | Heading of the target section: its text without the # marks (e.g. "Log"), or with them to pin the level (e.g. "## Log"). Must match exactly one heading; headings in code blocks and frontmatter are ignored. |
+| `position` | enum: `start` \| `end` | no (default `end`) | "end" (default): after the last non-blank line of the section, nested subsections included. "start": right below the heading (after a blank line that follows it). |
+| `text` | string (1–5000000) | yes | Text to insert as whole lines; one trailing newline is ignored. Start it with a newline to leave a blank line before it. |
+| `expectedMtime` | string (≤64) | no | Optional conflict check: the `modified` value from vault_read or vault_get_metadata (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
+
+#### Output
+
+| Field | Type | Description |
+|---|---|---|
+| `path` | string | Vault-relative path that was written. |
+| `heading` | string | The matched heading as written, e.g. "## Log". |
+| `position` | enum: `start` \| `end` | Where the text went in the section. |
+| `line` | number | 1-based line number where the inserted text starts. |
+| `modified` | string | New last-modification timestamp (ISO-8601); usable as the next expectedMtime. |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "vault_insert",
+  "arguments": {
+    "path": "projects/alpha.md",
+    "heading": "## Goals",
+    "text": "Write the docs."
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "path": "projects/alpha.md",
+  "heading": "## Goals",
+  "position": "end",
+  "line": 8,
   "modified": "2026-01-15T09:30:00.000Z"
 }
 ```
