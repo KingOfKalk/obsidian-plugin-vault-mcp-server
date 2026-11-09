@@ -165,11 +165,17 @@ export interface ConnectOptions {
   version?: string;
   /** Module state applied after enabling everything, e.g. to switch modules off. */
   moduleStates?: ModuleStateMap;
+  /**
+   * Keep the registry's out-of-the-box module and tool states instead of
+   * enabling everything (extras stay off), as a fresh install would (#450).
+   */
+  defaultStates?: boolean;
 }
 
 /**
  * Start a server over a freshly seeded vault with every module and tool
- * enabled (extras included) and connect a real SDK client to it.
+ * enabled (extras included, unless `defaultStates` is set) and connect a
+ * real SDK client to it.
  */
 export async function connectSeededServer(options: ConnectOptions = {}): Promise<Harness> {
   const adapter = new MockObsidianAdapter();
@@ -188,7 +194,7 @@ export async function connectSeededServer(options: ConnectOptions = {}): Promise
     for (const t of r.module.tools()) toolStates[t.name] = true;
     state[r.module.metadata.id] = { enabled: true, toolStates };
   }
-  registry.applyState(state);
+  if (options.defaultStates !== true) registry.applyState(state);
   if (options.moduleStates) registry.applyState(options.moduleStates);
 
   const server = createMcpServer(registry, adapter, DEFAULT_SETTINGS, logger, {
