@@ -757,6 +757,7 @@ Response (`structuredContent`):
 **List folder**
 
 List files and folders directly under a path (non-recursive), as full vault-relative paths.
+Returns: Folders first, then files, paged together with limit/offset.
 See also:
 - vault_list_recursive — to include subfolders.
 Errors:
@@ -767,14 +768,21 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `path` | string (≤4096) | yes | Vault-relative folder path, e.g. "projects"; "" (or "/" or ".") for the vault root. |
+| `limit` | number (1–100) | no (default `100`) | Maximum items per page. |
+| `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
 | `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
 | Field | Type | Description |
 |---|---|---|
-| `files` | string[] | Vault-relative paths of the files directly in the folder (e.g. `notes/a.md`, not `a.md`). |
-| `folders` | string[] | Vault-relative paths of the folders directly in the folder (e.g. `notes/sub`, not `sub`). |
+| `files` | string[] | Vault-relative paths of the files directly in the folder (e.g. `notes/a.md`, not `a.md`), in this page. |
+| `folders` | string[] | Vault-relative paths of the folders directly in the folder (e.g. `notes/sub`, not `sub`), in this page. |
+| `total` | number | Total number of items before paging. |
+| `count` | number | Number of items in this page. |
+| `offset` | number | Offset of the first item in this page. |
+| `hasMore` | boolean | True when more items follow this page. |
+| `nextOffset` | number | Offset to pass in the next call when hasMore is true. |
 
 #### Example
 
@@ -796,7 +804,11 @@ Response (`structuredContent`):
   "files": [
     "projects/alpha.md"
   ],
-  "folders": []
+  "folders": [],
+  "total": 1,
+  "count": 1,
+  "offset": 0,
+  "hasMore": false
 }
 ```
 
@@ -805,7 +817,7 @@ Response (`structuredContent`):
 **List folder (recursive)**
 
 List all files and folders under a path, recursively.
-Returns: Files are paged with limit/offset; folders are always listed in full.
+Returns: Files and folders are paged with the same limit/offset, each list on its own.
 Examples:
 - Don't use when: the folder is very large — list a narrower subfolder.
 See also:
@@ -826,12 +838,13 @@ Errors:
 
 | Field | Type | Description |
 |---|---|---|
-| `folders` | string[] | All folders found under the listed path (recursive). |
+| `folders` | string[] | Folders under the listed path (recursive) in this page, paged with the same offset as the files. |
+| `folderTotal` | number | Total number of folders before paging. |
 | `total` | number | Total number of files matched before pagination. |
 | `count` | number | Number of files in this page. |
 | `offset` | number | Offset of the first item in this page. |
 | `items` | string[] | Files in this page (vault-relative paths). |
-| `hasMore` | boolean | True when there are more files past this page. |
+| `hasMore` | boolean | True when more files or folders follow this page. |
 | `nextOffset` | number | Offset to use in the next request when hasMore is true. |
 
 #### Example
@@ -852,6 +865,7 @@ Response (`structuredContent`):
 ```json
 {
   "folders": [],
+  "folderTotal": 0,
   "total": 1,
   "count": 1,
   "offset": 0,
@@ -979,6 +993,8 @@ Errors:
 | `path` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. |
 | `aspect` | enum: `frontmatter` \| `headings` \| `outgoing_links` \| `embeds` \| `backlinks` \| `block_references` | yes | frontmatter, headings, outgoing_links ([[...]] and [text](note.md) links), embeds (![[...]]), backlinks (files linking TO this file) or block_references (^block-ids). The result sets the matching field: frontmatter, headings, links, embeds, backlinks or blockRefs. |
 | `includeContext` | boolean | no | aspect=backlinks only (default false): also return backlinkContext, the 1-based line number and text of every line in each linking file that links here. |
+| `limit` | number (1–100) | no (default `50`) | aspect=backlinks only: maximum linking files per page. |
+| `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
 | `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
@@ -991,8 +1007,11 @@ Errors:
 | `headings` | object[] | aspect=headings: headings in document order. |
 | `links` | object[] | aspect=outgoing_links: links from this file, as written. |
 | `embeds` | object[] | aspect=embeds: ![[...]] embeds in this file, as written. |
-| `backlinks` | string[] | aspect=backlinks: paths of files that link TO this file. |
+| `backlinks` | string[] | aspect=backlinks: paths of files that link TO this file, in this page. |
 | `backlinkContext` | object[] | aspect=backlinks with includeContext=true: where each backlink sits, one entry per path in backlinks. |
+| `total` | number | aspect=backlinks: number of linking files before paging. |
+| `hasMore` | boolean | aspect=backlinks: true when more linking files follow this page. |
+| `nextOffset` | number | aspect=backlinks: offset to pass in the next call when hasMore is true. |
 | `blockRefs` | object[] | aspect=block_references: ^block-ids defined in this file. |
 
 #### Example
@@ -1039,7 +1058,9 @@ Response (`structuredContent`):
         }
       ]
     }
-  ]
+  ],
+  "total": 2,
+  "hasMore": false
 }
 ```
 

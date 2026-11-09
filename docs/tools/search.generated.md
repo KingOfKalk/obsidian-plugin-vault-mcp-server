@@ -132,7 +132,7 @@ Response (`structuredContent`):
 
 **Find resolved links**
 
-Get the map of resolved links (targets that exist). Covers the whole vault in one response (no paging), so it can be large.
+Get the map of resolved links (targets that exist). Pages over source notes with limit/offset; pass path to check one note.
 See also:
 - search_unresolved_links — for broken links.
 
@@ -140,13 +140,21 @@ See also:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
+| `path` | string (1–4096) | no | Only this note's links. Omit for the whole vault. |
+| `limit` | number (1–100) | no (default `50`) | Maximum items per page. |
+| `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
 | `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
 | Field | Type | Description |
 |---|---|---|
-| `links` | object | Map of source note path to { target file path: link count }. |
+| `links` | object | Map of source note path to { target file path: link count }, for the sources in this page. |
+| `total` | number | Total number of items before paging. |
+| `count` | number | Number of items in this page. |
+| `offset` | number | Offset of the first item in this page. |
+| `hasMore` | boolean | True when more items follow this page. |
+| `nextOffset` | number | Offset to pass in the next call when hasMore is true. |
 
 #### Example
 
@@ -173,7 +181,11 @@ Response (`structuredContent`):
     "people/ada.md": {
       "projects/alpha.md": 1
     }
-  }
+  },
+  "total": 3,
+  "count": 3,
+  "offset": 0,
+  "hasMore": false
 }
 ```
 
@@ -181,7 +193,7 @@ Response (`structuredContent`):
 
 **Find unresolved links**
 
-Get the map of unresolved links (link text that matches no file). Covers the whole vault in one response (no paging), so it can be large.
+Get the map of unresolved links (link text that matches no file). Pages over source notes with limit/offset; pass path to check one note.
 See also:
 - search_resolved_links — for links that resolve.
 
@@ -189,13 +201,21 @@ See also:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
+| `path` | string (1–4096) | no | Only this note's links. Omit for the whole vault. |
+| `limit` | number (1–100) | no (default `50`) | Maximum items per page. |
+| `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
 | `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
 | Field | Type | Description |
 |---|---|---|
-| `links` | object | Map of source note path to { link text that matches no file, as written (e.g. "Missing Note"): count }. |
+| `links` | object | Map of source note path to { link text that matches no file, as written (e.g. "Missing Note"): count }, for the sources in this page; notes without broken links are left out. |
+| `total` | number | Total number of items before paging. |
+| `count` | number | Number of items in this page. |
+| `offset` | number | Offset of the first item in this page. |
+| `hasMore` | boolean | True when more items follow this page. |
+| `nextOffset` | number | Offset to pass in the next call when hasMore is true. |
 
 #### Example
 
@@ -212,7 +232,11 @@ Response (`structuredContent`):
 
 ```json
 {
-  "links": {}
+  "links": {},
+  "total": 0,
+  "count": 0,
+  "offset": 0,
+  "hasMore": false
 }
 ```
 
