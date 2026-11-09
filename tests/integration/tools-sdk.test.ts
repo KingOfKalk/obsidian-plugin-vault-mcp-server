@@ -472,6 +472,138 @@ describe('unknown arguments through a real SDK client', () => {
   });
 });
 
+/** Every (path, value) pair of a JSON value, keys joined with dots. */
+function entriesOf(value: unknown, path: string, out: Array<[string, unknown]>): void {
+  out.push([path, value]);
+  if (typeof value === 'object' && value !== null) {
+    for (const [key, sub] of Object.entries(value)) entriesOf(sub, `${path}.${key}`, out);
+  }
+}
+
+/** Whether `path` ends in schema keyword `key`, not in a property named `key`. */
+function isKeyword(path: string, key: string): boolean {
+  return path.endsWith(`.${key}`) && !path.endsWith(`.properties.${key}`);
+}
+
+describe('trimmed schemas in tools/list (#451)', () => {
+  it('advertises no $schema, MAX_SAFE_INTEGER bound, string-only propertyNames or annotations.title', async () => {
+    const h = await connect();
+    try {
+      const { tools } = await h.client.listTools();
+      const found: string[] = [];
+      for (const tool of tools) {
+        const entries: Array<[string, unknown]> = [];
+        entriesOf(tool, tool.name, entries);
+        for (const [path, value] of entries) {
+          if (isKeyword(path, '$schema')) found.push(path);
+          if (isKeyword(path, 'maximum') && value === Number.MAX_SAFE_INTEGER) found.push(path);
+          if (isKeyword(path, 'minimum') && value === Number.MIN_SAFE_INTEGER) found.push(path);
+          if (isKeyword(path, 'propertyNames') && JSON.stringify(value) === '{"type":"string"}') {
+            found.push(path);
+          }
+        }
+        expect(tool.title, tool.name).toBeDefined();
+        expect(tool.annotations, tool.name).not.toHaveProperty('title');
+      }
+      expect(found).toEqual([]);
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('advertises output schemas without descriptions or additionalProperties: false', async () => {
+    const h = await connect();
+    try {
+      const { tools } = await h.client.listTools();
+      const found: string[] = [];
+      for (const tool of tools) {
+        const entries: Array<[string, unknown]> = [];
+        entriesOf(tool.outputSchema, `${tool.name}.output`, entries);
+        for (const [path, value] of entries) {
+          if (isKeyword(path, 'description')) found.push(path);
+          if (isKeyword(path, 'additionalProperties') && value === false) found.push(path);
+        }
+      }
+      expect(found).toEqual([]);
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('keeps input descriptions and required lists', async () => {
+    const h = await connect();
+    try {
+      const { tools } = await h.client.listTools();
+      const read = tools.find((t) => t.name === 'vault_read');
+      expect(read?.inputSchema.required).toEqual(['path']);
+      expect(read?.inputSchema.properties?.path).toHaveProperty('description');
+      const withRequiredOutput = tools.filter((t) => {
+        const required: unknown = t.outputSchema?.required;
+        return Array.isArray(required) && required.length > 0;
+      });
+      expect(withRequiredOutput.length).toBeGreaterThan(0);
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('keeps the output schema root type: "object" for every tool', async () => {
+    // The SDK reads the advertised output JSON when it builds a result; a
+    // non-object root would wrap structuredContent as { result: … }.
+    const h = await connect();
+    try {
+      const { tools } = await h.client.listTools();
+      const withOutput = tools.filter((t) => t.outputSchema !== undefined);
+      expect(withOutput.length).toBeGreaterThan(0);
+      for (const tool of withOutput) {
+        expect(tool.outputSchema?.type, tool.name).toBe('object');
+      }
+      const result = await call(h, 'vault_read', SAMPLE_ARGS.vault_read);
+      expect(result.structuredContent).not.toHaveProperty('result');
+      expect(result.structuredContent).toHaveProperty('path', 'projects/alpha.md');
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('still rejects unknown parameters', async () => {
+    const h = await connect();
+    try {
+      const result = await call(h, 'vault_list', { path: '', bogus: true });
+      expect(result.isError).toBe(true);
+      expect(textOf(result)).toContain('Unknown parameter: bogus');
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('lets the SDK client still reject structuredContent that does not match', async () => {
+    const h = await connect();
+    try {
+      // Break structuredContent on its way to the client: the server's own
+      // output check has already passed, so only the client can catch it.
+      const transport = h.client.transport;
+      const deliver = transport?.onmessage;
+      expect(transport).toBeDefined();
+      expect(deliver).toBeDefined();
+      if (transport === undefined || deliver === undefined) return;
+      transport.onmessage = (message, extra): void => {
+        const result = (message as { result?: { structuredContent?: Record<string, unknown> } })
+          .result;
+        if (result?.structuredContent !== undefined) {
+          result.structuredContent = { ...result.structuredContent, path: 42 };
+        }
+        deliver(message, extra);
+      };
+      await expect(call(h, 'vault_read', SAMPLE_ARGS.vault_read)).rejects.toThrow(
+        /structured content/i,
+      );
+    } finally {
+      await h.close();
+    }
+  });
+});
+
 describe('response_format is no longer accepted (#432)', () => {
   it('rejects response_format with the unknown-parameter error', async () => {
     const h = await connect();

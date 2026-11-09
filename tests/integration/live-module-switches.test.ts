@@ -177,6 +177,14 @@ describe('live module switches (#448)', () => {
 
     registry.setToolEnabled('extras', 'extras_get_date', true);
     expect(await toolNames(client)).toContain('extras_get_date');
+    // Registered only now, still with the trimmed schemas (#451).
+    const { tools } = await client.listTools();
+    const listed = tools.find((t) => t.name === 'extras_get_date');
+    expect(JSON.stringify(listed)).not.toContain('$schema');
+    expect(listed?.annotations).not.toHaveProperty('title');
+    expect(listed?.inputSchema.additionalProperties).toBe(false);
+    expect(listed?.outputSchema?.type).toBe('object');
+    expect(listed?.outputSchema).not.toHaveProperty('additionalProperties');
     const result = await client.callTool({ name: 'extras_get_date', arguments: {} });
     expect(result.isError).not.toBe(true);
 
