@@ -331,15 +331,20 @@ function describeTrash(trashedTo: TrashDestination): string {
 }
 
 /**
- * Every file inside `path` (recursively), for counting links into a
- * renamed folder. A path that is not a folder counts as one file; the
- * rename itself then reports any error.
+ * The files a rename of `path` moves, for counting the links to them: every
+ * file inside a folder (recursively), or the file itself. A path that is
+ * not a folder counts as one file; the rename itself then reports any
+ * error. Shared by vault_rename, vault_move and vault_rename_folder, which
+ * all accept files and folders (#447).
  */
-function filesInFolder(adapter: ObsidianAdapter, path: string): string[] {
+function movedFiles(
+  adapter: ObsidianAdapter,
+  path: string,
+): { files: string[]; isFolder: boolean } {
   try {
-    return adapter.listRecursive(path).files;
+    return { files: adapter.listRecursive(path).files, isFolder: true };
   } catch {
-    return [path];
+    return { files: [path], isFolder: false };
   }
 }
 
@@ -659,9 +664,11 @@ export function createHandlers(
           return errorResult('Invalid rename target');
         }
         return await mutex.acquire(path, async () => {
-          const report = await renameWithLinkReport(adapter, path, newPath, [path]);
+          const moved = movedFiles(adapter, path);
+          const report = await renameWithLinkReport(adapter, path, newPath, moved.files);
+          const kind = moved.isFolder ? 'folder' : 'file';
           return confirmWithStructured(
-            `Renamed file: ${path} → ${newPath}${describeLinkReport(report)}`,
+            `Renamed ${kind}: ${path} → ${newPath}${describeLinkReport(report)}`,
             { from: path, to: newPath, ...report },
           );
         });
@@ -675,9 +682,11 @@ export function createHandlers(
         const path = validateVaultPath(params.path, vaultPath);
         const newPath = validateVaultPath(params.newPath, vaultPath);
         return await mutex.acquire(path, async () => {
-          const report = await renameWithLinkReport(adapter, path, newPath, [path]);
+          const moved = movedFiles(adapter, path);
+          const report = await renameWithLinkReport(adapter, path, newPath, moved.files);
+          const kind = moved.isFolder ? 'folder' : 'file';
           return confirmWithStructured(
-            `Moved file: ${path} → ${newPath}${describeLinkReport(report)}`,
+            `Moved ${kind}: ${path} → ${newPath}${describeLinkReport(report)}`,
             { from: path, to: newPath, ...report },
           );
         });
@@ -730,7 +739,12 @@ export function createHandlers(
       try {
         const path = validateVaultPath(params.path, vaultPath);
         const newPath = validateVaultPath(params.newPath, vaultPath);
-        const report = await renameWithLinkReport(adapter, path, newPath, filesInFolder(adapter, path));
+        const report = await renameWithLinkReport(
+          adapter,
+          path,
+          newPath,
+          movedFiles(adapter, path).files,
+        );
         return confirmWithStructured(
           `Renamed folder: ${path} → ${newPath}${describeLinkReport(report)}`,
           { from: path, to: newPath, ...report },
