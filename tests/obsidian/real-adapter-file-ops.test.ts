@@ -6,6 +6,8 @@ type Entry = TFile | TFolder;
 
 interface FakeVault {
   entries: Map<string, Entry>;
+  config: Record<string, unknown>;
+  getConfig: (key: string) => unknown;
   getAbstractFileByPath: (path: string) => Entry | null;
   createFolder: ReturnType<typeof vi.fn>;
   create: ReturnType<typeof vi.fn>;
@@ -40,7 +42,10 @@ function makeFolder(path: string, children: Entry[] = []): TFolder {
  * `createBinary` fail when the parent folder does not exist, which is
  * the raw ENOENT the adapter must now prevent (#405).
  */
-function makeApp(initial: Entry[]): { app: App; vault: FakeVault; fileManager: FakeFileManager } {
+function makeApp(
+  initial: Entry[],
+  config: Record<string, unknown> = { alwaysUpdateLinks: true },
+): { app: App; vault: FakeVault; fileManager: FakeFileManager } {
   const entries = new Map<string, Entry>(initial.map((e) => [e.path, e]));
   const requireParent = (path: string): void => {
     const idx = path.lastIndexOf('/');
@@ -58,6 +63,8 @@ function makeApp(initial: Entry[]): { app: App; vault: FakeVault; fileManager: F
   };
   const vault: FakeVault = {
     entries,
+    config,
+    getConfig: (key) => config[key],
     getAbstractFileByPath: (path) => entries.get(path) ?? null,
     createFolder: vi.fn((path: string) => {
       requireParent(path);
@@ -69,7 +76,10 @@ function makeApp(initial: Entry[]): { app: App; vault: FakeVault; fileManager: F
     createBinary: vi.fn((path: string) => Promise.resolve(addFile(path))),
     modifyBinary: vi.fn(() => Promise.resolve()),
     delete: vi.fn(() => Promise.resolve()),
-    rename: vi.fn(() => Promise.resolve()),
+    rename: vi.fn((_file: Entry, newPath: string) => {
+      requireParent(newPath);
+      return Promise.resolve();
+    }),
     trash: vi.fn(() => Promise.resolve()),
   };
   const fileManager: FakeFileManager = {
@@ -122,7 +132,7 @@ describe('RealObsidianAdapter deletes go through fileManager.trashFile (#405)', 
 });
 
 describe('RealObsidianAdapter renames go through fileManager.renameFile (#405)', () => {
-  it('renameFile uses fileManager.renameFile so links are updated', async () => {
+  it('renameFile uses fileManager.renameFile so links are updated when auto-update is on', async () => {
     const file = makeFile('a.md');
     const { app, vault, fileManager } = makeApp([file]);
     await new RealObsidianAdapter(app).renameFile('a.md', 'b.md');
@@ -150,6 +160,55 @@ describe('RealObsidianAdapter renames go through fileManager.renameFile (#405)',
 
   it('throws "Path not found" for a missing source', async () => {
     const { app } = makeApp([]);
+    await expect(new RealObsidianAdapter(app).renameFile('nope.md', 'x.md')).rejects.toThrow(
+      'Path not found: nope.md',
+    );
+  });
+});
+
+describe('RealObsidianAdapter renames via vault.rename when auto-update is not on (#445)', () => {
+  it.each([
+    ['off', { alwaysUpdateLinks: false }],
+    ['unreadable', {}],
+    ['not a boolean', { alwaysUpdateLinks: 'yes' }],
+  ])('uses vault.rename (no "Update links" prompt) when the setting is %s', async (_label, config) => {
+    const file = makeFile('a.md');
+    const { app, vault, fileManager } = makeApp([file], config);
+    await new RealObsidianAdapter(app).renameFile('a.md', 'b.md');
+    expect(vault.rename).toHaveBeenCalledWith(file, 'b.md');
+    expect(fileManager.renameFile).not.toHaveBeenCalled();
+  });
+
+  it('uses vault.rename when vault.getConfig is missing', async () => {
+    const file = makeFile('a.md');
+    const { app, vault, fileManager } = makeApp([file]);
+    delete (vault as Partial<FakeVault>).getConfig;
+    await new RealObsidianAdapter(app).renameFile('a.md', 'b.md');
+    expect(vault.rename).toHaveBeenCalledWith(file, 'b.md');
+    expect(fileManager.renameFile).not.toHaveBeenCalled();
+  });
+
+  it('renames a folder via vault.rename when the setting is off', async () => {
+    const folder = makeFolder('wip');
+    const { app, vault, fileManager } = makeApp([folder], { alwaysUpdateLinks: false });
+    await new RealObsidianAdapter(app).renameFile('wip', 'archive');
+    expect(vault.rename).toHaveBeenCalledWith(folder, 'archive');
+    expect(fileManager.renameFile).not.toHaveBeenCalled();
+  });
+
+  it('still creates a missing parent folder first when the setting is off', async () => {
+    const file = makeFile('a.md');
+    const { app, vault } = makeApp([file], { alwaysUpdateLinks: false });
+    await new RealObsidianAdapter(app).renameFile('a.md', 'archive/2026/a.md');
+    expect(vault.createFolder.mock.calls.map((c) => c[0] as string)).toEqual([
+      'archive',
+      'archive/2026',
+    ]);
+    expect(vault.rename).toHaveBeenCalledWith(file, 'archive/2026/a.md');
+  });
+
+  it('still throws "Path not found" for a missing source when the setting is off', async () => {
+    const { app } = makeApp([], { alwaysUpdateLinks: false });
     await expect(new RealObsidianAdapter(app).renameFile('nope.md', 'x.md')).rejects.toThrow(
       'Path not found: nope.md',
     );

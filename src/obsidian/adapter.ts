@@ -127,7 +127,9 @@ export interface ObsidianAdapter {
   /**
    * The user's "Files and links → Automatically update internal links"
    * setting (Obsidian config key `alwaysUpdateLinks`). `null` when it
-   * cannot be read.
+   * cannot be read. `renameFile` updates links only when this is `true`;
+   * otherwise it renames without updating links and without Obsidian's
+   * "Update links" prompt (#445).
    */
   getAutoUpdateLinks(): boolean | null;
   /**
@@ -215,10 +217,18 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   async renameFile(oldPath: string, newPath: string): Promise<void> {
     const file = this.getAbstractFile(oldPath);
     await this.ensureParentFolder(newPath);
-    // `fileManager.renameFile` updates links to the moved file according
-    // to the user's "Automatically update internal links" setting;
-    // `vault.rename` would leave them pointing at the old path (#405).
-    await this.app.fileManager.renameFile(file, newPath);
+    // With "Automatically update internal links" on, `fileManager.renameFile`
+    // updates links to the moved file without asking (#405). With it off,
+    // Obsidian opens an "Update links" prompt and the call does not resolve
+    // until someone answers it, so an unattended call would hang (#445).
+    // `vault.rename` renames without the prompt and leaves links alone,
+    // which is what the setting asks for. When the setting cannot be read,
+    // `vault.rename` avoids the possible prompt too.
+    if (this.getAutoUpdateLinks() === true) {
+      await this.app.fileManager.renameFile(file, newPath);
+    } else {
+      await this.app.vault.rename(file, newPath);
+    }
   }
 
   async copyFile(sourcePath: string, destPath: string): Promise<void> {
