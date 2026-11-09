@@ -378,7 +378,11 @@ clients and agents commonly trip over:
   `[TRUNCATED: …]` footer, and `structuredContent` carries `totalLength`,
   `hasMore` and `nextOffset`. Call `vault_read` again with
   `offset: <nextOffset>` to continue. You can also pass `length` (1–24 000)
-  for smaller windows. Never write a single window back with `vault_update`:
+  for smaller windows. With `responseFormat: "json"` the JSON text is always
+  complete and valid: when escaping (line breaks, quotes) would make a full
+  window too long, the window is made shorter, so always continue at
+  `nextOffset` rather than at `offset + length`. The paging fields come
+  before `content` in the JSON. Never write a single window back with `vault_update`:
   that replaces the whole file and cuts off the rest. Use `vault_replace`
   for targeted edits instead.
 - **Editing part of a file.** `vault_replace` takes `path`, `oldString`
@@ -427,15 +431,25 @@ clients and agents commonly trip over:
     through `vault.process()` and accepts `expectedMtime`.
     `structuredContent` is `{ path, heading, position, line, modified }`,
     where `line` is the first inserted line.
+- **Appending to a note.** `vault_append` adds `content` at the end of the
+  file on a new line: if the file is not empty, does not end with a line
+  break and `content` does not start with one, one line break (the file's
+  own LF or CRLF) goes in between. So appending `- call Ada` to a list adds
+  a new bullet instead of extending the last one. Start `content` with a
+  line break to leave a blank line. Before 4.0.2 the text was joined
+  directly onto the last line.
 - **Detecting concurrent edits (`expectedMtime`).** `vault_update`,
   `vault_append`, `vault_replace`, `vault_insert`, `vault_write_binary` and
-  `vault_set_frontmatter` accept an optional `expectedMtime`. Pass the `modified` value from `vault_read` or
-  `vault_get_metadata` (an ISO-8601 timestamp; epoch milliseconds also
+  `vault_set_frontmatter` accept an optional `expectedMtime`. Pass the latest
+  `modified` value you have: from `vault_read` or `vault_get_metadata`, or
+  from the previous write (an ISO-8601 timestamp; epoch milliseconds also
   work). If the file was changed since, for example because you typed in
   it in Obsidian, the call fails with `File changed since expectedMtime`,
   names the file's current modification time, and writes nothing. Re-read
-  the file and retry. `vault_replace`, `vault_insert` and `vault_set_frontmatter`
-  return the new `modified`, so several edits in a row can chain it. Without `expectedMtime` the tools
+  the file and retry. Every tool that writes file content (`vault_create`,
+  `vault_update`, `vault_append`, `vault_replace`, `vault_insert`,
+  `vault_set_frontmatter`, `vault_write_binary` and `template_create_from`)
+  returns the new `modified`, so several edits in a row can chain it. Without `expectedMtime` the tools
   write unconditionally, as before.
 - **Full-text search results per file.** `search_fulltext` returns at most
   `maxMatchesPerFile` matching lines per file (default 5, maximum 100);
@@ -464,7 +478,12 @@ clients and agents commonly trip over:
   `linksUpdated` counts those links. When the setting is off and other notes
   link to the moved file or folder, the result carries a `warning`, so the
   agent can tell you the links are now stale. The tools never update links
-  against your setting.
+  against your setting. `vault_rename` and `vault_move` also accept a
+  folder; like `vault_rename_folder` they then count the links to every
+  file in it (before 4.0.2 they missed those links and gave no warning).
+  Renaming, moving or copying onto a path that already exists fails
+  (`Destination file already exists!`, or an `EEXIST` error for
+  `vault_copy`); nothing is overwritten.
 - **Missing folders are created.** `vault_create`, `vault_copy`,
   `vault_move`, `vault_write_binary` and `template_create_from` create any
   folders in the target path that do not exist yet, so writing
@@ -524,10 +543,23 @@ clients and agents commonly trip over:
   the note (wikilinks and embeds, taken from Obsidian's metadata cache).
   Links without a line position, such as links in frontmatter, give an
   empty `matches` list. Without `includeContext` the output is unchanged.
+  A path that does not exist fails with `File not found` for every aspect;
+  before 4.0.2 `backlinks` answered "has no backlinks" instead.
+- **Opening a note in a view mode.** `workspace_open_file` opens the file
+  in the active tab (a new tab if that tab is pinned) and focuses it. Pass
+  `mode` to choose the view of a Markdown note: `"source"` (Source mode),
+  `"live"` (Live Preview) or `"preview"` (Reading view); without it,
+  Obsidian's default view applies. Before 4.0.2 `mode` was accepted but
+  ignored.
+- **Confirmation prompts.** Tools that change or remove existing content
+  are marked destructive in their annotations (`destructiveHint`), so
+  clients that ask before destructive calls ask for them.
+  `vault_set_frontmatter` is one of them since 4.0.2, because it
+  overwrites values and removes keys.
 - **Structured output on every tool.** All tools declare an `outputSchema`
   and return `structuredContent`. Write tools keep their plain-text
   confirmation (for example `Created file: notes/a.md`) and add a small
-  payload such as `{ "path": "notes/a.md", "created": true }` or
+  payload such as `{ "path": "notes/a.md", "created": true, "modified": "…" }` or
   `{ "from": "a.md", "to": "b.md" }`, so agents can chain calls without
   parsing the text.
 - **One naming convention: camelCase.** Every parameter and every

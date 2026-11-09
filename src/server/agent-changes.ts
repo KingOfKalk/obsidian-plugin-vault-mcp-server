@@ -18,6 +18,19 @@ export interface AgentChangeEntry {
 
 export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
   {
+    version: '4.0.2',
+    notes: [
+      '`workspace_open_file` applies `mode` ("source" = Source mode, "live" = Live Preview, "preview" = Reading view); it used to be ignored. The file opens in the active leaf (a new tab if that leaf is pinned); a missing file fails with "File not found".',
+      '`vault_append` starts the appended text on a new line: if the file is not empty, does not end with a line break and `content` does not start with one, one line break (the file\'s LF or CRLF) is added first. Its result adds `modified`.',
+      '`vault_create`, `vault_update`, `vault_write_binary` and `template_create_from` results add `modified` (ISO-8601), usable as the next `expectedMtime`.',
+      '`vault_read` with `responseFormat: "json"`: the JSON text is always valid and complete; a window can be shorter than `length` so it fits, so continue at `nextOffset`. `content` is the last field.',
+      '`vault_get_aspect` with `aspect: "backlinks"` fails with "File not found" for a missing path instead of returning no backlinks.',
+      '`vault_rename` and `vault_move` on a folder count links to the files inside it in `linksUpdated` / `updatedFiles` and set `warning` like `vault_rename_folder`; the confirmation text says "folder".',
+      '`vault_set_frontmatter` is annotated destructive (`destructiveHint: true`).',
+      'The server instructions leave out hints about tools that are switched off.',
+    ],
+  },
+  {
     version: '4.0.1',
     notes: [
       '`search_by_tag` and `search_tags` include tags from the frontmatter (`tags` / `tag`, as a list or a comma/space separated string), not only inline `#tags`. `counts` counts frontmatter and inline occurrences; each file is still listed once per tag.',
