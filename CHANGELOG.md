@@ -1,5 +1,24 @@
 # Changelog
 
+## [3.3.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v3.2.0...v3.3.0) (2026-11-09)
+
+
+### Features
+
+* **vault:** add daily note create flag and backlinks with context ([#412](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/412)) ([789b05a](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/789b05a55b74417341623733768414829475355d))
+* **vault:** add vault_replace and expectedMtime conflict checks ([#410](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/410)) ([4bfaf60](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/4bfaf60a67f8d43d12f572ecf0ecb759f58b421d))
+* **vault:** add vault_set_frontmatter tool ([#411](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/411)) ([d3810d0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/d3810d03313581a29d5f4551d0113243bce540cb))
+
+
+### Bug Fixes
+
+* **vault:** trash deletes, update links on rename, create missing folders, match frontmatter lists ([#409](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/409)) ([7986ea3](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/7986ea3e41cf9a5bf0f550961f6b424016a96daf))
+
+
+### Continuous Integration
+
+* run lint, test and build jobs sequentially ([#415](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/415)) ([935eef9](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/935eef9a12287a2cb46e0bef79b33f06cb0f1f81))
+
 ## [3.2.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v3.1.5...v3.2.0) (2026-11-09)
 
 
