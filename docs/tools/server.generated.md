@@ -58,7 +58,9 @@ Response (`structuredContent`):
       "version": "3.5.0",
       "notes": [
         "New tool `vault_insert`: insert `text` at the `start` or `end` (default) of the section under `heading` (\"Log\", or \"## Log\" to pin the level) without rewriting the file. Takes optional `expectedMtime`; returns `{ path, heading, position, line, modified }`. A missing or ambiguous heading fails with t… [truncated, 80 more chars]",
-        "`vault_read` takes optional `heading`: returns only that section (heading line up to the next heading of the same or a higher level), paged with `offset`/`length` within the section; the result adds `heading` and `line`."
+        "`vault_read` takes optional `heading`: returns only that section (heading line up to the next heading of the same or a higher level), paged with `offset`/`length` within the section; the result adds `heading` and `line`.",
+        "`vault_replace` takes `edits: [{ oldString, newString, replaceAll? }]` as an alternative to `oldString`/`newString` (exactly one form per call). All edits are matched against the file before the call, must not overlap, and are written together or not at all; an error names the failing edit as `edits… [truncated, 158 more chars]",
+        "`vault_set_frontmatter` takes optional `expectedMtime` (same semantics as the other write tools) and its result adds `modified`."
       ]
     },
     {

@@ -247,7 +247,16 @@ const fromToOutputSchema = {
 
 const replaceOutputSchema = {
   path: writePath,
-  replacements: z.number().describe('Number of occurrences replaced.'),
+  replacements: z.number().describe('Number of occurrences replaced (over all edits).'),
+  edits: z
+    .array(
+      z.object({
+        index: z.number().describe('Position of the edit in the edits array (0-based).'),
+        replacements: z.number().describe('Number of occurrences this edit replaced.'),
+      }),
+    )
+    .optional()
+    .describe('Multi-edit form only: occurrences replaced per edit, in input order.'),
   modified: z
     .string()
     .describe('New last-modification timestamp (ISO-8601); usable as the next expectedMtime.'),
@@ -283,6 +292,9 @@ const setFrontmatterOutputSchema = {
   frontmatter: z
     .record(z.string(), z.unknown())
     .describe('The whole frontmatter after the change ({} when no keys are left).'),
+  modified: z
+    .string()
+    .describe('New last-modification timestamp (ISO-8601); usable as the next expectedMtime.'),
 };
 
 export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
@@ -395,16 +407,22 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Replace text in file',
           description: describeTool({
             summary:
-              'Replace an exact passage in a file without rewriting the rest. oldString must match exactly once unless replaceAll is true.',
-            returns: 'Matching and writing happen in one atomic step (app.vault.process).',
+              'Replace an exact passage in a file without rewriting the rest. oldString must match exactly once unless replaceAll is true. ' +
+              'Pass edits instead of oldString/newString to make several replacements all or nothing.',
+            returns:
+              'Matching and writing happen in one atomic step (app.vault.process). ' +
+              'With edits, every edit is checked against the file as it was before the call, and the result adds edits: [{ index, replacements }].',
             examples: [
               'Use when: fixing one line in a large note -> { path: "notes/a.md", oldString: "status: draft", newString: "status: done" }',
               'Use when: renaming a term everywhere in one file -> { ..., replaceAll: true }',
+              'Use when: changing two sections at once -> { path: "notes/a.md", edits: [{ oldString: "## Agenda\\n- old", newString: "## Agenda\\n- new" }, { oldString: "- [ ] task", newString: "- [x] task" }] }',
               'Don\'t use when: editing the open file at a cursor position (use editor_replace).',
             ],
             errors: [
               '"File not found" if the path does not exist.',
               '"oldString not found … (0 matches)" or "oldString is ambiguous … (N matches)"; nothing is written.',
+              '"edits[i].oldString not found/is ambiguous … (N matches)" or "edits[i] and edits[j] overlap"; nothing is written.',
+              '"Pass either oldString/newString or edits, not both" (or neither); nothing is written.',
               MTIME_CONFLICT_ERROR,
             ],
             seeAlso: [
@@ -661,7 +679,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             summary:
               'Set or remove YAML frontmatter keys of a Markdown note without rewriting the rest of the file.',
             returns:
-              'The resulting frontmatter. Obsidian writes the YAML, keeps key order and creates the block if missing.',
+              'The resulting frontmatter and the new modified timestamp. Obsidian writes the YAML, keeps key order and creates the block if missing.',
             examples: [
               'Use when: marking a note done -> { path: "projects/alpha.md", set: { status: "done" } }',
               'Use when: dropping a key -> { path: "projects/alpha.md", set: {}, remove: ["draft"] }',
@@ -672,6 +690,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
               '"Frontmatter can only be set on Markdown (.md) files" for other file types.',
               '"Keys cannot be both set and removed" if a key appears in set and remove.',
               '"Nothing to change" if set is empty and remove is missing or empty.',
+              MTIME_CONFLICT_ERROR,
             ],
             seeAlso: [
               'vault_get_aspect — with aspect=frontmatter to read frontmatter without changing it.',

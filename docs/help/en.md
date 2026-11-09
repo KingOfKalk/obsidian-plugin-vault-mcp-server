@@ -353,6 +353,22 @@ clients and agents commonly trip over:
   unique, or pass `replaceAll: true` to replace every occurrence. The edit
   runs through Obsidian's atomic `vault.process()`. `structuredContent` is
   `{ path, replacements, modified }`.
+- **Several edits in one call.** Instead of `oldString` and `newString`,
+  `vault_replace` also takes `edits`: a list of up to 100
+  `{ oldString, newString, replaceAll? }` entries, for example
+  `{ "path": "plan.md", "edits": [{ "oldString": "- standup", "newString": "- retro" }, { "oldString": "- [ ] report", "newString": "- [x] report" }] }`.
+  Use one form or the other; sending both, or neither, fails. The edits
+  are all or nothing: each one is checked against the note as it was
+  before the call (each must match exactly once unless that edit sets
+  `replaceAll`, and no two edits may match overlapping text), and only
+  if every edit passes is the note written, in one atomic step. Text
+  inserted by one edit is never matched by another. If an edit fails, the
+  error names it by its position, counting from 0 (for example
+  `edits[1].oldString not found … (0 matches)` or
+  `edits[0] and edits[2] overlap …`), and nothing is written. One
+  `expectedMtime` covers the whole call. `structuredContent` is
+  `{ path, replacements, edits: [{ index, replacements }], modified }`,
+  where `replacements` is the total.
 - **Working with one section (`heading`).** A section runs from its
   heading line to the next heading of the same or a higher level (fewer
   `#`), or to the end of the file, so nested subsections belong to it.
@@ -376,14 +392,14 @@ clients and agents commonly trip over:
     `structuredContent` is `{ path, heading, position, line, modified }`,
     where `line` is the first inserted line.
 - **Detecting concurrent edits (`expectedMtime`).** `vault_update`,
-  `vault_append`, `vault_replace`, `vault_insert` and `vault_write_binary` accept an
-  optional `expectedMtime`. Pass the `modified` value from `vault_read` or
+  `vault_append`, `vault_replace`, `vault_insert`, `vault_write_binary` and
+  `vault_set_frontmatter` accept an optional `expectedMtime`. Pass the `modified` value from `vault_read` or
   `vault_get_metadata` (an ISO-8601 timestamp; epoch milliseconds also
   work). If the file was changed since, for example because you typed in
   it in Obsidian, the call fails with `File changed since expectedMtime`,
   names the file's current modification time, and writes nothing. Re-read
-  the file and retry. `vault_replace` and `vault_insert` return the new `modified`, so
-  several edits in a row can chain it. Without `expectedMtime` the tools
+  the file and retry. `vault_replace`, `vault_insert` and `vault_set_frontmatter`
+  return the new `modified`, so several edits in a row can chain it. Without `expectedMtime` the tools
   write unconditionally, as before.
 - **Full-text search results per file.** `search_fulltext` returns at most
   `maxMatchesPerFile` matching lines per file (default 5, maximum 100);
@@ -418,8 +434,10 @@ clients and agents commonly trip over:
   object). Obsidian writes the YAML itself, so key order and formatting are
   kept, and the frontmatter block is created if the note has none. Keys you
   do not list stay as they are; removing a key that is not there is not an
-  error. The result's `structuredContent` holds the `path` and the whole
-  `frontmatter` after the change. The call fails if the file does not
+  error. The result's `structuredContent` holds the `path`, the whole
+  `frontmatter` after the change and the new `modified` timestamp. Pass
+  `expectedMtime` to refuse the change if the note was edited since you
+  read it. The call fails if the file does not
   exist, is not a `.md` file, if a key is in both `set` and `remove`, or if
   there is nothing to change (pass `"set": {}` to only remove keys).
 - **Daily note without creating it.** `vault_daily_note` creates the note
@@ -654,6 +672,19 @@ breaks included) and occur exactly once. With 0 matches, re-read the file
 and copy the passage verbatim. With more than one match, include more
 surrounding text, or pass `replaceAll: true` if every occurrence should
 change. Nothing is written when the call fails.
+
+With `edits`, the error starts with the failing edit's position, counting
+from 0: `edits[1].oldString not found … (0 matches)` means the second edit.
+Fix that edit and resend the whole list; none of the edits were applied.
+
+### `vault_replace` fails with "edits[0] and edits[1] overlap"
+
+Two edits in one `edits` list match the same text, or text that partly
+overlaps (the message gives the character position and each edit's match
+count). Every edit is matched against the note as it was before the call,
+so one edit cannot change text another edit replaces. Merge the two edits
+into one, or make their `oldString`s cover separate passages. Nothing was
+written.
 
 ### `vault_insert` or `vault_read` fails with "Heading not found" or "is ambiguous"
 

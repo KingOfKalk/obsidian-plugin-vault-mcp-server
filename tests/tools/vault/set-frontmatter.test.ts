@@ -38,6 +38,7 @@ describe('vault_set_frontmatter handler (#407)', () => {
         rating: 4,
         meta: { x: null },
       },
+      modified: expect.any(String) as unknown,
     });
     expect(getText(result)).toBe(
       'Updated frontmatter of note.md (set status, tags, rating, meta)',
@@ -62,7 +63,11 @@ describe('vault_set_frontmatter handler (#407)', () => {
       remove: ['draft', 'missing'],
     });
     expect(result.isError).toBeUndefined();
-    expect(result.structuredContent).toEqual({ path: 'note.md', frontmatter: { title: 'Note' } });
+    expect(result.structuredContent).toEqual({
+      path: 'note.md',
+      frontmatter: { title: 'Note' },
+      modified: expect.any(String) as unknown,
+    });
     expect(getText(result)).toContain('removed draft, missing');
     expect(await adapter.readFile('note.md')).toBe('---\ntitle: Note\n---\nBody');
   });
@@ -71,7 +76,11 @@ describe('vault_set_frontmatter handler (#407)', () => {
     adapter.addFile('plain.md', '# Plain\n');
     const result = await handlers.setFrontmatter({ path: 'plain.md', set: { status: 'new' } });
     expect(result.isError).toBeUndefined();
-    expect(result.structuredContent).toEqual({ path: 'plain.md', frontmatter: { status: 'new' } });
+    expect(result.structuredContent).toEqual({
+      path: 'plain.md',
+      frontmatter: { status: 'new' },
+      modified: expect.any(String) as unknown,
+    });
     expect(await adapter.readFile('plain.md')).toBe('---\nstatus: new\n---\n# Plain\n');
   });
 
@@ -86,7 +95,11 @@ describe('vault_set_frontmatter handler (#407)', () => {
   it('removing the last key drops the block and returns {}', async () => {
     adapter.addFile('note.md', '---\na: 1\n---\nBody');
     const result = await handlers.setFrontmatter({ path: 'note.md', set: {}, remove: ['a'] });
-    expect(result.structuredContent).toEqual({ path: 'note.md', frontmatter: {} });
+    expect(result.structuredContent).toEqual({
+      path: 'note.md',
+      frontmatter: {},
+      modified: expect.any(String) as unknown,
+    });
     expect(await adapter.readFile('note.md')).toBe('Body');
     expect(adapter.getFrontmatter('note.md')).toBeNull();
   });
@@ -95,6 +108,62 @@ describe('vault_set_frontmatter handler (#407)', () => {
     const result = await handlers.setFrontmatter({ path: 'missing.md', set: { a: 1 } });
     expect(result.isError).toBe(true);
     expect(getText(result)).toContain('File not found');
+  });
+
+  describe('expectedMtime (#429)', () => {
+    const MTIME = Date.UTC(2026, 0, 10, 8, 15, 0, 0);
+    const MTIME_ISO = new Date(MTIME).toISOString();
+
+    it('writes when expectedMtime matches and returns the new modified', async () => {
+      adapter.addFile('note.md', '---\na: 1\n---\nBody', { mtime: MTIME });
+      const result = await handlers.setFrontmatter({
+        path: 'note.md',
+        set: { b: 2 },
+        expectedMtime: MTIME_ISO,
+      });
+      expect(result.isError).toBeUndefined();
+      const stat = await adapter.stat('note.md');
+      expect(result.structuredContent).toEqual({
+        path: 'note.md',
+        frontmatter: { a: 1, b: 2 },
+        modified: new Date(stat!.mtime).toISOString(),
+      });
+    });
+
+    it('accepts expectedMtime as epoch milliseconds', async () => {
+      adapter.addFile('note.md', 'Body', { mtime: MTIME });
+      const result = await handlers.setFrontmatter({
+        path: 'note.md',
+        set: { a: 1 },
+        expectedMtime: String(MTIME),
+      });
+      expect(result.isError).toBeUndefined();
+    });
+
+    it('rejects a stale expectedMtime without writing', async () => {
+      const content = '---\na: 1\n---\nBody';
+      adapter.addFile('note.md', content, { mtime: MTIME });
+      const result = await handlers.setFrontmatter({
+        path: 'note.md',
+        set: { a: 2 },
+        expectedMtime: new Date(MTIME - 1000).toISOString(),
+      });
+      expect(result.isError).toBe(true);
+      expect(getText(result)).toContain('changed since');
+      expect(getText(result)).toContain(MTIME_ISO);
+      expect(await adapter.readFile('note.md')).toBe(content);
+      expect((await adapter.stat('note.md'))!.mtime).toBe(MTIME);
+    });
+
+    it('reports File not found when expectedMtime is set on a missing file', async () => {
+      const result = await handlers.setFrontmatter({
+        path: 'missing.md',
+        set: { a: 1 },
+        expectedMtime: MTIME_ISO,
+      });
+      expect(result.isError).toBe(true);
+      expect(getText(result)).toContain('File not found');
+    });
   });
 
   it('rejects non-Markdown files', async () => {
@@ -243,6 +312,7 @@ describe('vault_set_frontmatter registration', () => {
     expect(z.object(shape).strict().parse(result.structuredContent)).toEqual({
       path: 'note.md',
       frontmatter: { a: [1] },
+      modified: expect.any(String) as unknown,
     });
   });
 });
