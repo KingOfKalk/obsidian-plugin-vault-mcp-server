@@ -99,10 +99,9 @@ jobs:
             --baseline docs/surface-baseline.json --main "$RUNNER_TEMP/surface-main.json"
 
   # Headless Obsidian E2E (#441). Runs in parallel with `test` once lint
-  # (which also type-checks e2e/) passes: it needs neither the unit tests
-  # nor the build job (`npm run test:e2e` builds itself), and keeping it out
-  # of the test -> build chain means the slow job does not delay the build
-  # artifact. Not a required check yet; the owner decides after a few runs.
+  # (which also type-checks e2e/) passes: it does not need the unit tests
+  # (`npm run test:e2e` builds itself). `build` waits for both matrix jobs
+  # (#460), so the required `build` check also requires e2e.
   e2e:
     needs: lint
     runs-on: ubuntu-26.04
@@ -153,8 +152,10 @@ jobs:
       - name: E2E tests
         run: npm run test:e2e
 
+  # Runs only when the unit tests and both e2e matrix jobs passed (#460), so
+  # the plugin artifact is only built for code that also works in Obsidian.
   build:
-    needs: test
+    needs: [test, e2e]
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     # actions: read lets `gh run download` fetch the bundle size baseline.
