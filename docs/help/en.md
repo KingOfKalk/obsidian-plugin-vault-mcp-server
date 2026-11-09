@@ -29,6 +29,48 @@ connect to the server and read or modify your vault programmatically.
 
 ---
 
+## Upgrading to 5.0
+
+Version 5.0 changes what the tools return and which parameters they take.
+Nothing changes in the settings or the UI. `server_info` lists every change
+under version `5.0.0`.
+
+- **New result format (text for documents, JSON for data).**
+  - **Document tools return plain text.** `vault_read`,
+    `vault_daily_note`, `editor_get_content`, `template_expand` and
+    `plugin_dataview_query` answer with one text block: a few
+    `key: value` header lines (for `vault_read`: `path`, `modified`,
+    `totalLength`, `offset`, `hasMore`, `nextOffset`, and `heading` and
+    `line` with `heading`), a blank line, then the raw text, never escaped
+    as JSON. They no longer send `structuredContent` or declare an
+    `outputSchema`. `template_expand` and a `plugin_dataview_query` result
+    that fits have no header, only the text.
+  - **Data tools return JSON.** Every other tool returns
+    `structuredContent`, and its text block is the same data as compact
+    JSON. Write tools no longer say `Created file: notes/a.md`: the text
+    is `{"path":"notes/a.md","created":true,"modified":"…"}`. List and
+    search tools no longer render Markdown lists.
+  - **`responseFormat` is gone.** No tool takes it any more; sending it
+    fails with `Unknown parameter: responseFormat`.
+  - **`vault_read_binary` returns real binary content.** An image comes
+    back as an `image` content block the model can see, audio as an
+    `audio` block, and any other file as an embedded `resource` with a
+    base64 `blob` and its `obsidian://vault/…` URI. A short text header
+    names the `path`, `mimeType` and `sizeBytes`. The base64 is no longer
+    sent as text or as `structuredContent` (it used to be sent twice, up to
+    2.8 million characters for a 1 MiB file).
+  - **Smaller changes.** `search_fulltext` items add `lines`, the 1-based
+    line numbers of `matches`, and a line no longer ends with `\r` in a
+    CRLF note. `vault_daily_note` returns at most 24 000 characters of a
+    long note; continue with `vault_read`.
+  - **What to do:** a client or script that read `structuredContent` of a
+    document tool reads the text instead: the header ends at the first
+    blank line, and `modified` and `nextOffset` are header lines. Remove
+    `responseFormat` from every call. A client that matched the old
+    confirmation texts parses the JSON text, or reads
+    `structuredContent`, instead. Agents need no change: the model reads
+    the same information as before, in fewer characters.
+
 ## Upgrading to 4.0
 
 Version 4.0 has two breaking changes for agents and scripts that call the
@@ -414,16 +456,21 @@ clients and agents commonly trip over:
   `vault_rename_folder` or `template_create_from`, and whatever the case
   (`.Obsidian/…`). `vault_list`, `vault_list_recursive` and the
   `obsidian://vault/index` resource leave it out.
+- **Two result formats.** Since 5.0, document tools (`vault_read`,
+  `vault_daily_note`, `editor_get_content`, `template_expand`,
+  `plugin_dataview_query`) return plain text: `key: value` header lines, a
+  blank line, then the raw text. Every other tool returns
+  `structuredContent` with the same data as compact JSON in its text block,
+  and declares an `outputSchema`. `vault_read_binary` returns `image`,
+  `audio` or embedded `resource` content. See
+  [Upgrading to 5.0](#upgrading-to-50).
 - **Reading large files.** `vault_read` returns files of up to 24 000
-  characters whole. Longer files come back in windows: the text ends with a
-  `[TRUNCATED: …]` footer, and `structuredContent` carries `totalLength`,
-  `hasMore` and `nextOffset`. Call `vault_read` again with
+  characters whole. Longer files come back in windows: the header says
+  `hasMore: true` and `nextOffset: <n>`, and the text ends with a
+  `[TRUNCATED: …]` footer. Call `vault_read` again with
   `offset: <nextOffset>` to continue. You can also pass `length` (1–24 000)
-  for smaller windows. With `responseFormat: "json"` the JSON text is always
-  complete and valid: when escaping (line breaks, quotes) would make a full
-  window too long, the window is made shorter, so always continue at
-  `nextOffset` rather than at `offset + length`. The paging fields come
-  before `content` in the JSON. Never write a single window back with `vault_update`:
+  for smaller windows. The header also carries `path`, `modified`,
+  `totalLength` and `offset`. Never write a single window back with `vault_update`:
   that replaces the whole file and cuts off the rest. Use `vault_replace`
   for targeted edits instead. `editor_get_content` pages the active note
   the same way since 4.1.0 (`offset`, `length`, `totalLength`, `hasMore`,
@@ -448,10 +495,11 @@ clients and agents commonly trip over:
 
   When a page would be longer than the limit, it holds fewer items than
   `limit`, never cut text; `nextOffset` then points at the first item left
-  out, and JSON output stays valid. This also applies to `search_fulltext`.
+  out, and the JSON text stays valid. This also applies to `search_fulltext`.
   `plugin_dataview_query` returns only the first lines of a result that is
-  too long (whole table rows) and sets `truncated: true`; narrow the query
-  with `WHERE` or `LIMIT`. `workspace_get_layout` shortens the longest
+  too long (whole table rows), with the header lines `lines: <shown> of
+  <total>` and `truncated: true` and a `[TRUNCATED: …]` footer; narrow the
+  query with `WHERE` or `LIMIT`. `workspace_get_layout` shortens the longest
   lists of a very large layout and sets `truncated: true`.
 - **Editing part of a file.** `vault_replace` takes `path`, `oldString`
   and `newString` and swaps that exact passage (literal text, no regex),
@@ -488,7 +536,7 @@ clients and agents commonly trip over:
   must match exactly one heading: otherwise the call fails, listing the
   available headings (or the matches) with their line numbers.
   - `vault_read` with `heading` returns only that section, heading line
-    included. `structuredContent` adds `heading` (as written, e.g.
+    included. The header adds `heading` (as written, e.g.
     `"## Log"`) and `line` (1-based line of the heading); `offset`,
     `length`, `totalLength` and `nextOffset` then count within the section.
   - `vault_insert` takes `path`, `heading`, `text` and `position` (`"end"`,
@@ -527,12 +575,9 @@ clients and agents commonly trip over:
   to find a file by name, use `vault_list_recursive`. It returns at most
   `maxMatchesPerFile` matching lines per file (default 5, maximum 100);
   `matchCount` always reports the real number of matches. `limit` and
-  `offset` page over files, and `total` and `count` count files. The
-  default Markdown text shows the matching lines under each file as
-  `<line>: <text>` (1-based line number, lines cut at 200 characters) and
-  how many matching lines were left out; before 4.1.0 it listed only the
-  paths and match counts. `structuredContent` and the text with
-  `responseFormat: "json"` carry the full lines without line numbers.
+  `offset` page over files, and `total` and `count` count files. Each item
+  has `matches`, the full matching lines, and `lines`, their 1-based line
+  numbers (since 5.0).
 - **Frontmatter key search.** `search_by_frontmatter` with only `key` finds
   every note that has that frontmatter property; add `value` to match a
   specific value. For a list property such as `tags: [project, idea]`, a
@@ -581,10 +626,6 @@ clients and agents commonly trip over:
   (`workspace_open_file`) or using the `vault_*` tools. Base64 data for
   `vault_write_binary` that contains whitespace, often a trailing newline,
   fails with a message that says so.
-- **Search headers.** `search_by_tag` and `search_by_frontmatter` start
-  with a header such as `**4 files tagged #project**` or `**1 file with
-  status=active**`; the tag or value is shown exactly as matched (before
-  4.1.0 the plural "s" was appended to the tag or value instead).
 - **Tool annotations.** Only `plugin_execute_command` is marked
   `openWorldHint: true`, because an Obsidian command can reach beyond the
   vault. The other Plugin Interop tools only read local plugin state and
@@ -630,11 +671,12 @@ clients and agents commonly trip over:
   as `a, b` instead of `<ul><li>a</li><li>b</li></ul>`. `LIST` and `TASK`
   results are unchanged.
 - **Daily note: lookup by default.** `vault_daily_note` only looks the
-  note up unless you pass `create: true`. A missing note then returns
-  `{ "path": …, "created": false, "exists": false }` with no `content`, and
+  note up unless you pass `create: true`. A missing note then returns the
+  header lines `exists: false` and `created: false` and no note text, and
   nothing is written. With `create: true` a missing note is created from
-  the configured template and the response has `"created": true`. Every
-  response carries `exists`. Before 4.0 the default was `create: true`; see
+  the configured template and the header says `created: true`. Every
+  response has the `path` and `exists` header lines, followed by the note
+  text when the note exists. Before 4.0 the default was `create: true`; see
   [Upgrading to 4.0](#upgrading-to-40). The tool does not open the note;
   the `/daily-note` prompt opens it with `workspace_open_file`. In a new
   note `{{date}}` is the note's date, `{{time}}` the local time (`HH:mm`)
@@ -673,30 +715,27 @@ clients and agents commonly trip over:
   clients that ask before destructive calls ask for them.
   `vault_set_frontmatter` is one of them since 4.1.0, because it
   overwrites values and removes keys.
-- **Structured output on every tool.** All tools declare an `outputSchema`
-  and return `structuredContent`. Write tools keep their plain-text
-  confirmation (for example `Created file: notes/a.md`) and add a small
-  payload such as `{ "path": "notes/a.md", "created": true, "modified": "…" }` or
-  `{ "from": "a.md", "to": "b.md" }`, so agents can chain calls without
-  parsing the text.
-- **One naming convention: camelCase.** Every parameter and every
-  `structuredContent` field uses camelCase (`newName`, `maxMatchesPerFile`,
-  `responseFormat`, `hasMore`, …). Paginated tools return `hasMore` and
-  `nextOffset`; while `hasMore` is `true`, call again with
+- **Write results.** Write tools return a small payload such as
+  `{"path":"notes/a.md","created":true,"modified":"…"}` or
+  `{"from":"a.md","to":"b.md",…}`, as `structuredContent` and as the JSON
+  text, so agents can chain calls. Before 5.0 the text was a sentence such
+  as `Created file: notes/a.md`.
+- **One naming convention: camelCase.** Every parameter, every
+  `structuredContent` field and every header line uses camelCase
+  (`newName`, `maxMatchesPerFile`, `hasMore`, …). Paginated tools return
+  `hasMore` and `nextOffset`; while `hasMore` is `true`, call again with
   `offset: <nextOffset>`.
-- **Choosing text or JSON output.** Most read tools take an optional
-  `responseFormat` parameter: `"markdown"` (default) for readable text, or
-  `"json"` for the same payload as pretty-printed JSON in the text block.
-  `structuredContent` is the same either way.
-- **`response_format` was removed.** Versions before 3.1.4 called this
-  parameter `response_format`, and versions up to 3.5 still accepted it as
-  a deprecated alias. Since 4.0 it is rejected with
-  `Unknown parameter: response_format`; use `responseFormat`.
+- **`responseFormat` and `response_format` were removed.** Versions before
+  3.1.4 called the output-format parameter `response_format`, and versions
+  up to 3.5 still accepted it as a deprecated alias; since 4.0 it is
+  rejected. `responseFormat` itself was removed in 5.0, when every tool got
+  one fixed format. Both now fail with `Unknown parameter: …`.
 - **Renamed output fields.** These `structuredContent` fields were renamed
   with no alias; update clients that read them:
   `has_more` → `hasMore` and `next_offset` → `nextOffset` (all paginated
-  tools), `total_length` → `totalLength` (`vault_read`), `size_bytes` →
-  `sizeBytes` (`vault_read_binary`, `vault_write_binary`).
+  tools), `total_length` → `totalLength` (`vault_read`, a header line since
+  5.0), `size_bytes` → `sizeBytes` (`vault_read_binary` header,
+  `vault_write_binary`).
 
 ---
 
@@ -709,7 +748,7 @@ In addition to tools, the server exposes the vault as **MCP resources** so hosts
 - **`obsidian://vault/index`** — a static JSON listing of every file and folder in the vault. Each file entry carries a ready-to-read URI and mime type. Listings over 25 000 characters are truncated; use the `vault_list_recursive` tool for full enumeration on very large vaults.
 - **`obsidian://vault/{path}`** — read any file by its vault-relative path. Markdown, text, JSON, CSV, YAML, HTML, and SVG files are returned as text; other files (images, PDFs, audio, video) are returned as base64 blobs. The path is percent-decoded, so `obsidian://vault/My%20Notes/%C3%9Cbersicht.md` reads `My Notes/Übersicht.md` (the index already lists encoded URIs); a `?query` or `#fragment` is ignored.
 
-Binary files larger than **1 MiB** are refused. Use the `vault_read_binary` tool if you genuinely need a larger file.
+Binary files larger than **1 MiB** are refused, as by the `vault_read_binary` tool, which returns images and audio as content blocks the model can see or hear.
 
 ### Disabling
 
@@ -887,14 +926,15 @@ The client sent a parameter the tool does not declare, often a typo or the
 wrong case (`new_name` instead of `newName`). The error lists the valid
 parameter names; resend the call with one of them. Earlier versions silently
 dropped unknown parameters, so a call that "worked" before may now be
-rejected. Since 4.0 this includes `response_format`: send `responseFormat`
-instead (see [Upgrading to 4.0](#upgrading-to-40)).
+rejected. Since 4.0 this includes `response_format`, and since 5.0
+`responseFormat`: drop it, every tool has one fixed result format (see
+[Upgrading to 5.0](#upgrading-to-50)).
 
 ### `vault_read` output ends with "[TRUNCATED: …]"
 
 The file is longer than one window (24 000 characters). The footer names the
-offset to continue at; call `vault_read` again with that `offset`, or read
-`nextOffset` from `structuredContent`. See
+offset to continue at; call `vault_read` again with that `offset`, the
+`nextOffset` header line at the top of the text. See
 [Tool behaviour worth knowing](#tool-behaviour-worth-knowing).
 
 ### Output ends with "[TRUNCATED: Response exceeded 25000 characters …]"

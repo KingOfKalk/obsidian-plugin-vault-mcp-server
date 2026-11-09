@@ -16,9 +16,7 @@ Errors:
 
 #### Input
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
+_No input parameters._
 
 #### Output
 
@@ -102,9 +100,7 @@ List the open leaves that show a file, with their leaf ids and file paths.
 
 #### Input
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
+_No input parameters._
 
 #### Output
 
@@ -185,9 +181,7 @@ Get Obsidian's raw workspace layout JSON (opaque, varies by Obsidian version). O
 
 #### Input
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
+_No input parameters._
 
 #### Output
 

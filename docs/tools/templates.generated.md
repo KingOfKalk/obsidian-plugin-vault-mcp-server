@@ -12,9 +12,7 @@ List the files directly inside the top-level folder named exactly "templates" (c
 
 #### Input
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
+_No input parameters._
 
 #### Output
 
@@ -120,13 +118,10 @@ See also:
 |---|---|---|---|
 | `template` | string (≤100000) | yes | Template text with {{variable}} placeholders. |
 | `variables` | object | no | Values for {{name}} placeholders, overriding the built-ins {{date}} (UTC, YYYY-MM-DD), {{time}} (host-locale) and {{title}} ("Untitled"). Unknown placeholders and Templater <% %> stay as written. |
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
-| Field | Type | Description |
-|---|---|---|
-| `expanded` | string | Template text with the known placeholders substituted; unknown ones stay as written. |
+_No `structuredContent` declared — returns plain text or binary._
 
 #### Example
 
@@ -144,10 +139,10 @@ Request (`tools/call` params):
 }
 ```
 
-Response (`structuredContent`):
+Response (`content`):
 
-```json
-{
-  "expanded": "Hi Ada"
-}
+Text block:
+
+```text
+Hi Ada
 ```

@@ -58,7 +58,7 @@ Response (`structuredContent`):
 **Read file**
 
 Read the UTF-8 content of a file.
-Returns: Files over 24 000 characters come in windows: while hasMore is true, call again with offset=nextOffset. With heading, only that section (paged the same way). With responseFormat=json a window can be shorter than length, so the escaped JSON fits the response limit; always continue at nextOffset.
+Returns: Text: "key: value" header lines (path, modified, totalLength, offset, hasMore, nextOffset; heading, line), a blank line, the raw text. Files over 24 000 characters come in windows: while hasMore is true, call again with offset=nextOffset. With heading, only that section (paged the same way).
 Examples:
 - Use when: "show me the README" -> { path: "README.md" }
 - Use when: continuing a large file -> { path: "big.md", offset: 24000 }
@@ -77,21 +77,10 @@ Errors:
 | `heading` | string (1–1024) | no | Return only this section: the heading line up to the next heading of the same or a higher level. Text without the # marks (e.g. "Log"), or with them to pin the level ("## Log"). offset/length then page within it. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Character offset to start at; pass nextOffset from the previous call to continue. |
 | `length` | number (1–24000) | no | Maximum characters to return (default 24000). Files that fit are returned whole. |
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
-| Field | Type | Description |
-|---|---|---|
-| `path` | string | Vault-relative path that was read. |
-| `heading` | string | With the heading parameter: the matched heading as written, e.g. "## Log". |
-| `line` | number | With the heading parameter: 1-based line number of the heading in the file. |
-| `content` | string | File content in the requested window (the whole file when it fits). With heading: the section, heading line included. |
-| `totalLength` | number | Length of the whole file (or of the section, with heading) in characters. |
-| `offset` | number | Character offset where this window starts. |
-| `hasMore` | boolean | True when the file continues past this window. |
-| `nextOffset` | number | Offset to pass in the next call when hasMore is true. |
-| `modified` | string | Last-modification time (ISO-8601); pass it as expectedMtime to a write tool to detect concurrent edits. |
+_No `structuredContent` declared — returns plain text or binary._
 
 #### Example
 
@@ -106,17 +95,25 @@ Request (`tools/call` params):
 }
 ```
 
-Response (`structuredContent`):
+Response (`content`):
 
-```json
-{
-  "path": "projects/alpha.md",
-  "totalLength": 58,
-  "offset": 0,
-  "hasMore": false,
-  "modified": "2026-01-10T08:15:00.000Z",
-  "content": "---\nstatus: active\n---\n# Alpha\n\n## Goals\nShip it. ^goal-1\n"
-}
+Text block:
+
+```text
+path: projects/alpha.md
+modified: 2026-01-10T08:15:00.000Z
+totalLength: 58
+offset: 0
+hasMore: false
+
+---
+status: active
+---
+# Alpha
+
+## Goals
+Ship it. ^goal-1
+
 ```
 
 ### vault_update
@@ -413,7 +410,6 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `path` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. |
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -770,7 +766,6 @@ Errors:
 | `path` | string (≤4096) | yes | Vault-relative folder path, e.g. "projects"; "" (or "/" or ".") for the vault root. |
 | `limit` | number (1–100) | no (default `100`) | Maximum items per page. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -832,7 +827,6 @@ Errors:
 | `path` | string (≤4096) | yes | Vault-relative folder path, e.g. "projects"; "" (or "/" or ".") for the vault root. |
 | `limit` | number (1–100) | no (default `20`) | Maximum items per page. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -880,8 +874,8 @@ Response (`structuredContent`):
 
 **Read binary file**
 
-Read a binary file as base64.
-Returns: The text is the bare base64 string of the whole file, never truncated: up to 1 MiB, about 1.4 million characters. Check the size with vault_get_metadata first.
+Read a binary file (up to 1 MiB).
+Returns: An image block for images, an audio block for audio, else an embedded resource (base64 blob), after a short text header. For text files use vault_read.
 Errors:
 - "File not found" if path does not exist.
 - "Binary file too large" if the file exceeds 1 MiB.
@@ -891,16 +885,10 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `path` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. |
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
-| Field | Type | Description |
-|---|---|---|
-| `path` | string | Vault-relative path that was read. |
-| `data` | string | Base64-encoded file contents (no data: prefix). |
-| `encoding` | literal: `base64` | Encoding of the `data` field — always `"base64"` for this tool. |
-| `sizeBytes` | number | Decoded file size in bytes (length of the underlying binary). |
+_No `structuredContent` declared — returns plain text or binary._
 
 #### Example
 
@@ -910,19 +898,29 @@ Request (`tools/call` params):
 {
   "name": "vault_read_binary",
   "arguments": {
-    "path": "README.md"
+    "path": "img.png"
   }
 }
 ```
 
-Response (`structuredContent`):
+Response (`content`):
+
+Text block:
+
+```text
+path: img.png
+mimeType: image/png
+sizeBytes: 70
+content: image
+```
+
+`image` block:
 
 ```json
 {
-  "path": "README.md",
-  "data": "IyBWYXVsdAoKU2VlIFtbcHJvamVjdHMvYWxwaGFdXS4K",
-  "encoding": "base64",
-  "sizeBytes": 33
+  "type": "image",
+  "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+  "mimeType": "image/png"
 }
 ```
 
@@ -995,7 +993,6 @@ Errors:
 | `includeContext` | boolean | no | aspect=backlinks only (default false): also return backlinkContext, the 1-based line number and text of every line in each linking file that links here. |
 | `limit` | number (1–100) | no (default `50`) | aspect=backlinks only: maximum linking files per page. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -1069,7 +1066,7 @@ Response (`structuredContent`):
 **Get or create a daily note**
 
 Resolve the daily note's path for today or date from the Daily notes core plugin settings and return the note if it exists. Does not open it in the editor. Creates a missing note (from the configured template) only with create=true.
-Returns: In a new note {{date}} is the note's date (YYYY-MM-DD), {{time}} the local time (HH:mm), {{title}} the file name without .md. Templater syntax (<%) is copied unchanged; a configured template that is missing gives an empty note, without a warning.
+Returns: Text: "key: value" header lines (path, exists, created, paging), a blank line, the note (continue a long one with vault_read). In a new note {{date}} is the note's date (YYYY-MM-DD), {{time}} the local time (HH:mm), {{title}} the file name without .md. Templater syntax (<%) is copied unchanged; a configured template that is missing gives an empty note, without a warning.
 Examples:
 - Use when: you need today's note, creating it if missing → { create: true }
 - Use when: checking whether a past daily note exists → { date: "2026-01-02" }
@@ -1084,17 +1081,11 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `date` | string | no | ISO date (YYYY-MM-DD); omit for today (local time). |
-| `create` | boolean | no | Create the note from the template if missing (default false). Without it, a missing note returns exists=false. |
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
+| `create` | boolean | no | Create the note from the template if missing (default false). Without it, a missing note returns exists: false. |
 
 #### Output
 
-| Field | Type | Description |
-|---|---|---|
-| `path` | string | Vault-relative path of the daily note. |
-| `created` | boolean | True when the note was just created; false when it already existed or was missing and create was not true. |
-| `exists` | boolean | True when the note exists after the call; false when the note is missing and create was not true. |
-| `content` | string | Full note content (template-expanded body when newly created). Absent when exists=false. |
+_No `structuredContent` declared — returns plain text or binary._
 
 #### Example
 
@@ -1110,15 +1101,18 @@ Request (`tools/call` params):
 }
 ```
 
-Response (`structuredContent`):
+Response (`content`):
 
-```json
-{
-  "path": "daily/2026-11-08.md",
-  "created": true,
-  "exists": true,
-  "content": ""
-}
+Text block:
+
+```text
+path: daily/2026-11-08.md
+exists: true
+created: true
+totalLength: 0
+offset: 0
+hasMore: false
+
 ```
 
 ### vault_set_frontmatter

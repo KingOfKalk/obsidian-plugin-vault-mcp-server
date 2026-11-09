@@ -57,6 +57,16 @@ Response (`structuredContent`):
   ],
   "changes": [
     {
+      "version": "5.0.0",
+      "notes": [
+        "Breaking: document tools return plain text. `vault_read`, `vault_daily_note`, `editor_get_content`, `template_expand` and `plugin_dataview_query` return one text block: `key: value` header lines (e.g. `path`, `modified`, `totalLength`, `offset`, `hasMore`, `nextOffset`), a blank line, then the raw t… [truncated, 133 more chars]",
+        "Breaking: every other tool returns `structuredContent`, and its text is the same data as compact JSON. Write tools no longer return a sentence such as \"Created file: a.md\", and list and search tools no longer return Markdown lists.",
+        "Breaking: `responseFormat` is removed from every tool; sending it fails with \"Unknown parameter: responseFormat\".",
+        "Breaking: `vault_read_binary` returns an `image` block for images, an `audio` block for audio and an embedded `resource` (base64 `blob`, `obsidian://vault/` URI) for other files, after a short text header (`path`, `mimeType`, `sizeBytes`). The base64 is no longer sent as text or `structuredContent`.",
+        "`search_fulltext` items add `lines` (1-based line numbers of `matches`); a match no longer ends with \"\\r\" in a CRLF note. `vault_daily_note` returns at most 24000 characters of a note; continue with `vault_read`."
+      ]
+    },
+    {
       "version": "4.1.0",
       "notes": [
         "`search_resolved_links` and `search_unresolved_links` are paged: `limit` (default 50, max 100) and `offset` over source notes, with `total`, `count`, `offset`, `hasMore` and `nextOffset`; `path` returns one note's links. `search_unresolved_links` leaves out notes without broken links. Before, both r… [truncated, 24 more chars]",
@@ -78,15 +88,8 @@ Response (`structuredContent`):
         "`search_by_tag` and `search_tags` include tags from the frontmatter (`tags` / `tag`, as a list or a comma/space separated string), not only inline `#tags`. `counts` counts frontmatter and inline occurrences; each file is still listed once per tag.",
         "`vault_rename`, `vault_move` and `vault_rename_folder` no longer wait for Obsidian's \"Update links\" prompt when \"Automatically update internal links\" is off or unreadable (`autoUpdateLinks` false or null): the call returns right away, links are not updated, and the result carries `linksUpdated: 0` a… [truncated, 87 more chars]"
       ]
-    },
-    {
-      "version": "4.0.0",
-      "notes": [
-        "Breaking: `vault_daily_note` no longer creates the note by default (`create` now defaults to false). Without `create: true` a missing note is not created and the result is `{ path, created: false, exists: false }` without `content`. Pass `create: true` to create a missing note from the template as b… [truncated, 6 more chars]",
-        "Breaking: the deprecated parameter alias `response_format` is removed. Use `responseFormat`; `response_format` now fails with \"Unknown parameter: response_format\" like any other unknown parameter."
-      ]
     }
   ],
-  "olderVersionsOmitted": 5
+  "olderVersionsOmitted": 6
 }
 ```
