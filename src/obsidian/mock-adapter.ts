@@ -4,6 +4,7 @@ import {
   FileStat,
   ListResult,
   ObsidianAdapter,
+  TrashDestination,
 } from './adapter';
 import { FolderNotFoundError } from '../tools/shared/errors';
 // Dev-only dependency: the mock adapter is used by tests, scripts and
@@ -56,6 +57,10 @@ export class MockObsidianAdapter implements ObsidianAdapter {
   private vaultPath = '/mock-vault';
   /** Paths moved to the trash, in order (mirrors `fileManager.trashFile`). */
   private trashed: string[] = [];
+  /** Mock "Automatically update internal links"; on by default. */
+  private autoUpdateLinks: boolean | null = true;
+  /** Mock "Deleted files" setting. */
+  private trashDestination: TrashDestination = 'system';
 
   async readFile(path: string): Promise<string> {
     const file = this.files.get(path);
@@ -132,12 +137,17 @@ export class MockObsidianAdapter implements ObsidianAdapter {
       this.folders.add(newPath);
       this.folders.delete(oldPath);
       // Move all children
-      for (const [filePath, fileData] of this.files.entries()) {
+      const moved: Array<[string, string]> = [];
+      for (const [filePath, fileData] of [...this.files.entries()]) {
         if (filePath.startsWith(oldPath + '/')) {
           const newFilePath = newPath + filePath.slice(oldPath.length);
-          this.files.set(newFilePath, fileData);
           this.files.delete(filePath);
+          this.files.set(newFilePath, fileData);
+          moved.push([filePath, newFilePath]);
         }
+      }
+      for (const [from, to] of moved) {
+        this.rewriteLinks(from, to);
       }
       for (const folderPath of this.folders) {
         if (folderPath.startsWith(oldPath + '/')) {
@@ -552,6 +562,23 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     return this.dailyNotesSettings;
   }
 
+  getAutoUpdateLinks(): boolean | null {
+    return this.autoUpdateLinks;
+  }
+
+  /** Test helper: `false` (or `null`) makes renames leave links alone. */
+  setAutoUpdateLinks(value: boolean | null): void {
+    this.autoUpdateLinks = value;
+  }
+
+  getTrashDestination(): TrashDestination {
+    return this.trashDestination;
+  }
+
+  setTrashDestination(value: TrashDestination): void {
+    this.trashDestination = value;
+  }
+
   setDailyNotesSettings(value: DailyNotesSettings | null): void {
     this.dailyNotesSettings = value;
   }
@@ -639,8 +666,12 @@ export class MockObsidianAdapter implements ObsidianAdapter {
    * links": rewrite `[[old]]`, `[[old|alias]]` and `[[old#heading]]`
    * wikilinks (with or without the `.md` extension) in every other file
    * to the new path. The real link format depends on user settings.
+   * Does nothing when `autoUpdateLinks` is not `true`. Metadata links
+   * set with `setMetadata` are rewritten too, so `getResolvedLinks`
+   * stays in step with the content.
    */
   private rewriteLinks(oldPath: string, newPath: string): void {
+    if (this.autoUpdateLinks !== true) return;
     const strip = (p: string): string => p.replace(/\.md$/, '');
     const escaped = strip(oldPath).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const pattern = new RegExp(`\\[\\[${escaped}(\\.md)?(?=[\\]|#])`, 'g');
@@ -648,6 +679,10 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     for (const file of this.files.values()) {
       if (file.binary) continue;
       file.content = file.content.replace(pattern, replacement);
+      for (const link of file.metadata?.links ?? []) {
+        if (link.link === oldPath) link.link = newPath;
+        else if (link.link === strip(oldPath)) link.link = strip(newPath);
+      }
     }
   }
 

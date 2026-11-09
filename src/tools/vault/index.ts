@@ -232,17 +232,47 @@ const alwaysTrue = z.boolean().describe('Always true on success.');
 const createdOutputSchema = { path: writePath, created: alwaysTrue };
 const updatedOutputSchema = { path: writePath, updated: alwaysTrue };
 const appendedOutputSchema = { path: writePath, appended: alwaysTrue };
-const deletedOutputSchema = { path: writePath, deleted: alwaysTrue };
+/**
+ * Where a delete went, read from the user's "Deleted files" setting
+ * (#430).
+ */
+const trashedTo = z
+  .enum(['system', 'vault', 'permanent', 'unknown'])
+  .describe(
+    'Where the item went, per the user\'s "Deleted files" setting: "system" (system trash), "vault" (the vault\'s .trash folder), "permanent" (deleted for good), or "unknown" if the setting could not be read.',
+  );
+
+const deletedOutputSchema = { path: writePath, deleted: alwaysTrue, trashedTo };
 
 const deleteFolderOutputSchema = {
   path: writePath,
   deleted: alwaysTrue,
   recursive: z.boolean().describe('Whether the delete was recursive.'),
+  trashedTo,
 };
 
 const fromToOutputSchema = {
   from: z.string().describe('Vault-relative source path.'),
   to: z.string().describe('Vault-relative destination path.'),
+};
+
+/** Rename/move results with the link-update report (#430). */
+const renameOutputSchema = {
+  ...fromToOutputSchema,
+  linksUpdated: z
+    .number()
+    .describe('Number of links to the moved file(s) in the files listed in updatedFiles.'),
+  updatedFiles: z
+    .array(z.string())
+    .describe('Vault-relative paths (after the rename) whose content changed because links were updated.'),
+  autoUpdateLinks: z
+    .boolean()
+    .nullable()
+    .describe('The user\'s "Automatically update internal links" setting; null if it could not be read.'),
+  warning: z
+    .string()
+    .optional()
+    .describe('Present when other files link to the moved file(s) but their links were not updated.'),
 };
 
 const replaceOutputSchema = {
@@ -380,7 +410,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Delete file',
           description: describeTool({
             summary: 'Delete a file by vault-relative path.',
-            returns: 'The file goes where the user\'s "Deleted files" setting says: system trash, the vault\'s .trash folder, or permanently.',
+            returns: 'The file goes where the user\'s "Deleted files" setting says: system trash, the vault\'s .trash folder, or permanently. `trashedTo` reports which ("system", "vault", "permanent", or "unknown" if the setting cannot be read).',
             examples: ['Use when: removing an outdated note.'],
             errors: ['"File not found" if the path does not exist.'],
           }),
@@ -485,7 +515,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Rename file',
           description: describeTool({
             summary: 'Rename a file within its current folder.',
-            returns: 'Links to the file are updated if the user enabled "Automatically update internal links".',
+            returns: 'Links to the file are updated if the user enabled "Automatically update internal links". `linksUpdated` and `updatedFiles` report the rewritten links, `autoUpdateLinks` the setting, and `warning` is set when other files link to it but were not updated.',
             examples: ['Use when: renaming "draft.md" to "final.md" in the same folder.'],
             errors: [
               '"Invalid rename target" if newName contains path separators.',
@@ -493,7 +523,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             ],
           }),
           schema: renameFileSchema,
-          outputSchema: fromToOutputSchema,
+          outputSchema: renameOutputSchema,
           handler: handlers.renameFile,
           annotations: annotations.destructive,
         }),
@@ -502,12 +532,12 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Move file',
           description: describeTool({
             summary: 'Move a file to a different path (can change folder and name). Missing parent folders are created.',
-            returns: 'Links to the file are updated if the user enabled "Automatically update internal links".',
+            returns: 'Links to the file are updated if the user enabled "Automatically update internal links". `linksUpdated` and `updatedFiles` report the rewritten links, `autoUpdateLinks` the setting, and `warning` is set when other files link to it but were not updated.',
             examples: ['Use when: archiving a note by moving it to "archive/<name>.md".'],
             errors: ['"File not found" if path does not exist.'],
           }),
           schema: moveFileSchema,
-          outputSchema: fromToOutputSchema,
+          outputSchema: renameOutputSchema,
           handler: handlers.moveFile,
           annotations: annotations.destructive,
         }),
@@ -542,7 +572,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Delete folder',
           description: describeTool({
             summary: 'Delete a folder, optionally recursively.',
-            returns: 'The folder goes where the user\'s "Deleted files" setting says: system trash, the vault\'s .trash folder, or permanently.',
+            returns: 'The folder goes where the user\'s "Deleted files" setting says: system trash, the vault\'s .trash folder, or permanently. `trashedTo` reports which ("system", "vault", "permanent", or "unknown" if the setting cannot be read).',
             examples: ['Use when: removing an empty "old-drafts" folder.'],
             errors: ['"Folder not empty" if non-empty and recursive=false.'],
           }),
@@ -556,12 +586,12 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Rename folder',
           description: describeTool({
             summary: 'Rename or move a folder.',
-            returns: 'Links into the folder are updated if the user enabled "Automatically update internal links".',
+            returns: 'Links into the folder are updated if the user enabled "Automatically update internal links". `linksUpdated` and `updatedFiles` report the rewritten links, `autoUpdateLinks` the setting, and `warning` is set when other files link to it but were not updated.',
             examples: ['Use when: renaming "WIP" to "Archive".'],
             errors: ['"Folder not found" if path does not exist.'],
           }),
           schema: renameFolderSchema,
-          outputSchema: fromToOutputSchema,
+          outputSchema: renameOutputSchema,
           handler: handlers.renameFolder,
           annotations: annotations.destructive,
         }),

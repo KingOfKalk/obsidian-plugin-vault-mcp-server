@@ -414,11 +414,19 @@ clients and agents commonly trip over:
   follow Obsidian's **Settings → Files and links → Deleted files** option:
   the system trash, the vault's `.trash` folder, or permanent deletion.
   Choose "Move to Obsidian trash" or "Move to system trash" if you want to
-  be able to restore what an agent deletes.
+  be able to restore what an agent deletes. The result's `trashedTo` says
+  where it went: `system`, `vault` (the `.trash` folder), `permanent`, or
+  `unknown` if the plugin cannot read the setting.
 - **Links follow renamed and moved files.** `vault_rename`, `vault_move` and
   `vault_rename_folder` rename through Obsidian, so links to the file are
   updated when **Settings → Files and links → Automatically update internal
-  links** is on. With it off, links keep pointing at the old path.
+  links** is on. With it off, links keep pointing at the old path. The
+  result reports what happened: `autoUpdateLinks` is the setting,
+  `updatedFiles` lists the notes whose links were rewritten and
+  `linksUpdated` counts those links. When the setting is off and other notes
+  link to the moved file or folder, the result carries a `warning`, so the
+  agent can tell you the links are now stale. The tools never update links
+  against your setting.
 - **Missing folders are created.** `vault_create`, `vault_copy`,
   `vault_move`, `vault_write_binary` and `template_create_from` create any
   folders in the target path that do not exist yet, so writing
