@@ -57,6 +57,13 @@ Response (`structuredContent`):
   ],
   "changes": [
     {
+      "version": "5.0.0",
+      "notes": [
+        "Breaking: the `editor_*`, `workspace_*` and `ui_*` tools are off by default in new installs; existing installs keep their module switches. If they are missing, ask the user to switch on the module in the plugin settings, or use the `vault_*` tools on the file instead.",
+        "Breaking: `plugin_dataview_query` is listed only while the Dataview plugin is enabled, and `plugin_execute_command` only while the user's command allowlist has an entry. Both come and go during a session with `notifications/tools/list_changed`; a call while unlisted fails with \"Tool <name> disabled\"… [truncated, 28 more chars]"
+      ]
+    },
+    {
       "version": "4.1.0",
       "notes": [
         "`search_resolved_links` and `search_unresolved_links` are paged: `limit` (default 50, max 100) and `offset` over source notes, with `total`, `count`, `offset`, `hasMore` and `nextOffset`; `path` returns one note's links. `search_unresolved_links` leaves out notes without broken links. Before, both r… [truncated, 24 more chars]",
@@ -78,15 +85,8 @@ Response (`structuredContent`):
         "`search_by_tag` and `search_tags` include tags from the frontmatter (`tags` / `tag`, as a list or a comma/space separated string), not only inline `#tags`. `counts` counts frontmatter and inline occurrences; each file is still listed once per tag.",
         "`vault_rename`, `vault_move` and `vault_rename_folder` no longer wait for Obsidian's \"Update links\" prompt when \"Automatically update internal links\" is off or unreadable (`autoUpdateLinks` false or null): the call returns right away, links are not updated, and the result carries `linksUpdated: 0` a… [truncated, 87 more chars]"
       ]
-    },
-    {
-      "version": "4.0.0",
-      "notes": [
-        "Breaking: `vault_daily_note` no longer creates the note by default (`create` now defaults to false). Without `create: true` a missing note is not created and the result is `{ path, created: false, exists: false }` without `content`. Pass `create: true` to create a missing note from the template as b… [truncated, 6 more chars]",
-        "Breaking: the deprecated parameter alias `response_format` is removed. Use `responseFormat`; `response_format` now fails with \"Unknown parameter: response_format\" like any other unknown parameter."
-      ]
     }
   ],
-  "olderVersionsOmitted": 5
+  "olderVersionsOmitted": 6
 }
 ```

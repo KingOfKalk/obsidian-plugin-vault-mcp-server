@@ -29,6 +29,42 @@ connect to the server and read or modify your vault programmatically.
 
 ---
 
+## Upgrading to 5.0
+
+Version 5.0 has breaking changes for agents and scripts that call the
+tools. Each item names what changed and what to do.
+
+- **Editor, Workspace and UI modules are off by default.**
+  - **New installs** start with only Vault, Search, Templates and Plugin
+    Interop on. The `editor_*`, `workspace_*` and `ui_*` tools act on the
+    note open in Obsidian, not on files in the vault; most agents work with
+    the `vault_*` tools. Leaving them off saves about 10,000 characters
+    (~2,500 tokens) of tool definitions in every session.
+  - **Existing installs keep their switches.** On the first start of 5.0
+    the plugin writes down the state your Editor, Workspace and UI modules
+    had (on, unless you had switched one off), so nothing disappears on
+    update.
+  - **What to do:** if you want an agent to work with the open note, switch
+    the modules on under [Feature Modules](#4-feature-modules). To get the
+    new lean defaults on an existing install, switch them off there.
+- **Plugin tools are listed only when they can work.**
+  - `plugin_dataview_query` is listed only while the
+    [Dataview](https://github.com/blacksmithgu/obsidian-dataview) plugin is
+    enabled.
+  - `plugin_execute_command` is listed only while the
+    [Execute Command Allowlist](#execute-command-allowlist) has at least one
+    command.
+  - Connected clients get the change while they stay connected (see
+    [Feature Modules](#4-feature-modules)). Saving the allowlist updates the
+    list at once; enabling or disabling Dataview shows up within about 5
+    seconds, or when a client connects.
+  - **What to do:** nothing, unless an agent or script calls these tools
+    without checking `tools/list`. Enable Dataview or add a command to the
+    allowlist first; a call to an unlisted tool fails with "Tool … disabled"
+    or "Tool … not found".
+
+`server_info` lists the changes under version `5.0.0`.
+
 ## Upgrading to 4.0
 
 Version 4.0 has two breaking changes for agents and scripts that call the
@@ -224,6 +260,11 @@ Paste it into:
 Each module is a collapsible card with one enable/disable toggle. Disabled
 modules are hidden from `tools/list`, so the client never sees them.
 
+A note above the toggles says that the Editor, Workspace and UI tools act on
+the note open in Obsidian and are off by default. A new install starts with
+Vault, Search, Templates and Plugin Interop on; an install updated from 4.x
+keeps the switches it had (see [Upgrading to 5.0](#upgrading-to-50)).
+
 Switches take effect right away, also for clients that are already
 connected: a tool you switch off disappears from `tools/list` and calls to it
 fail with "Tool … disabled"; a tool you switch on is listed and callable. The
@@ -233,15 +274,21 @@ see the change after they reconnect. The server instructions (see
 [For developers / MCP client builders](#for-developers--mcp-client-builders))
 are sent once when a client connects and keep the state from that moment.
 
-| Module | Tools | Notes |
-|---|---|---|
-| Vault and File Operations | 21 | Create / read / update / delete files and folders, read one section, replace a passage or insert into a section, rename, move, copy, list, binary I/O, metadata, set frontmatter, daily note. |
-| Search and Metadata | 6 | Full-text search, list tags, find notes by tag / frontmatter, find resolved / unresolved links. |
-| Editor Operations | 10 | Read/insert/replace/delete text in the active editor, cursor and selection management. |
-| Workspace and Navigation | 5 | Inspect / open / focus leaves, read the layout. |
-| UI Interactions | 1 | Show notices. |
-| Templates | 3 | List templates, create from template, expand variables. |
-| Plugin Interop | 6 | List / check plugins, run / describe Dataview queries, describe Templater templates, execute commands. |
+| Module | Default | Tools | Notes |
+|---|---|---|---|
+| Vault and File Operations | on | 21 | Create / read / update / delete files and folders, read one section, replace a passage or insert into a section, rename, move, copy, list, binary I/O, metadata, set frontmatter, daily note. |
+| Search and Metadata | on | 6 | Full-text search, list tags, find notes by tag / frontmatter, find resolved / unresolved links. |
+| Editor Operations | off | 10 | Read/insert/replace/delete text in the active editor, cursor and selection management. |
+| Workspace and Navigation | off | 5 | Inspect / open / focus leaves, read the layout. |
+| UI Interactions | off | 1 | Show notices. |
+| Templates | on | 3 | List templates, create from template, expand variables. |
+| Plugin Interop | on | 6 | List / check plugins, run / describe Dataview queries, describe Templater templates, execute commands. `plugin_dataview_query` is listed only while Dataview is enabled, `plugin_execute_command` only while the allowlist has a command. |
+
+Plugin Interop's two conditional tools follow their plugin while the module
+is on: when Dataview is enabled or disabled, or the allowlist is saved,
+connected clients get `notifications/tools/list_changed` and the tool
+appears or disappears. Obsidian does not announce plugins being enabled, so
+the plugin checks every 5 seconds and whenever a client connects.
 
 There is also an **Extras** group for utility tools that don't mirror an
 Obsidian API. Extras are toggled **per tool**, not per module, and are off by
@@ -260,11 +307,12 @@ every version. Turning every module off still leaves `server_info` in
 
 The `plugin_execute_command` (Execute command) tool in Plugin Interop can run any Obsidian
 command — including destructive ones (e.g. `app:delete-file`). By default
-the allowlist is empty, which means the tool refuses every call with a
-clear error. To enable specific commands, add their ids (one per line) to
-the **Execute Command Allowlist** section in settings. Only commands on the
-allowlist will run; everything else is rejected with the command id echoed
-back. Keep the list short and curated — you're granting MCP clients the
+the allowlist is empty, and while it is empty MCP clients do not see the
+tool at all. To enable specific commands, add their ids (one per line) to
+the **Execute Command Allowlist** section in settings. Saving a non-empty
+list makes the tool appear for connected clients; emptying it hides the tool
+again. Only commands on the allowlist will run; everything else is rejected
+with the command id echoed back. Keep the list short and curated — you're granting MCP clients the
 same power as the Obsidian command palette.
 
 A **Refresh** button at the top of this section re-discovers modules without
@@ -877,6 +925,11 @@ again retries the start.
 - The module that ships the tool is disabled. Enable it under **Feature
   Modules**.
 - For Extras tools (e.g. `extras_get_date` (Get current date)), the per-tool toggle is off by default.
+- Editor, Workspace and UI tools are off by default since 5.0. Switch the
+  module on under **Feature Modules**.
+- `plugin_dataview_query` is listed only while the Dataview plugin is
+  enabled, and `plugin_execute_command` only while the Execute Command
+  Allowlist has a command. After enabling Dataview, allow about 5 seconds.
 - The client cached the previous `tools/list` response. The server announces
   every switch with `notifications/tools/list_changed`, but not every client
   reacts to it. Reconnect.

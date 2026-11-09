@@ -18,6 +18,13 @@ export interface AgentChangeEntry {
 
 export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
   {
+    version: '5.0.0',
+    notes: [
+      'Breaking: the `editor_*`, `workspace_*` and `ui_*` tools are off by default in new installs; existing installs keep their module switches. If they are missing, ask the user to switch on the module in the plugin settings, or use the `vault_*` tools on the file instead.',
+      'Breaking: `plugin_dataview_query` is listed only while the Dataview plugin is enabled, and `plugin_execute_command` only while the user\'s command allowlist has an entry. Both come and go during a session with `notifications/tools/list_changed`; a call while unlisted fails with "Tool <name> disabled" or "Tool <name> not found".',
+    ],
+  },
+  {
     version: '4.1.0',
     notes: [
       '`search_resolved_links` and `search_unresolved_links` are paged: `limit` (default 50, max 100) and `offset` over source notes, with `total`, `count`, `offset`, `hasMore` and `nextOffset`; `path` returns one note\'s links. `search_unresolved_links` leaves out notes without broken links. Before, both returned the whole vault.',

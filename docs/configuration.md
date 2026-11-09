@@ -121,18 +121,40 @@ The per-tool list (names, annotations) lives in
 [`tools.generated.md`](tools.generated.md), which is auto-generated from
 the registry; the table below mirrors its module / count rows.
 
-| Module                    | Tools  |
-| ------------------------- | ------ |
-| Vault and File Operations | 21     |
-| Editor Operations         | 10     |
-| Search and Metadata       | 6      |
-| Workspace and Navigation  | 5      |
-| UI Interactions           | 1      |
-| Templates                 | 3      |
-| Plugin Interop            | 6      |
-| Extras                    | 1      |
-| Server (always on)        | 1      |
-| **Total**                 | **54** |
+| Module                    | Tools  | Default (new install) |
+| ------------------------- | ------ | --------------------- |
+| Vault and File Operations | 21     | on                    |
+| Editor Operations         | 10     | off                   |
+| Search and Metadata       | 6      | on                    |
+| Workspace and Navigation  | 5      | off                   |
+| UI Interactions           | 1      | off                   |
+| Templates                 | 3      | on                    |
+| Plugin Interop            | 6      | on                    |
+| Extras                    | 1      | off (per tool)        |
+| Server (always on)        | 1      | on                    |
+| **Total**                 | **54** |                       |
+
+Editor, Workspace and UI act on the note open in Obsidian and are off by
+default since 5.0. The state lives in `moduleStates[<moduleId>].enabled` in
+`data.json`; a module without an entry uses its default. The settings
+migration to schema version 13 writes `{ "enabled": true }` for any of the
+three that an existing install has no entry for, so a 4.x install keeps the
+modules it had on. New installs have no `data.json` to migrate and get the
+new defaults.
+
+### Conditional plugin tools
+
+Two Plugin Interop tools are listed only while they can work, independent of
+the module switch:
+
+- `plugin_dataview_query`: while the Dataview plugin is enabled
+  (`app.plugins.enabledPlugins` contains `dataview`).
+- `plugin_execute_command`: while `executeCommandAllowlist` is non-empty.
+
+Obsidian has no public event for a plugin being enabled or disabled, so the
+plugin re-checks every 5 seconds, once the workspace layout is ready, when
+a client connects, and when the allowlist is saved. A change sends
+`notifications/tools/list_changed` to every open session.
 
 ### Extras
 
@@ -145,7 +167,7 @@ the only Extras module ships `extras_get_date`.
 ## Execute Command Allowlist (`executeCommandAllowlist`)
 
 - **Default**: `[]`
-- **Description**: Allowlist of Obsidian command ids that `plugin_execute_command` is permitted to run. Empty (the default) means command execution is disabled and the tool refuses every call with a clear error. Listed one per line; example:
+- **Description**: Allowlist of Obsidian command ids that `plugin_execute_command` is permitted to run. Empty (the default) means command execution is disabled and the tool is not listed in `tools/list`; a non-empty list makes it appear for connected clients. Listed one per line; example:
   ```
   app:reload
   editor:save-file
