@@ -9,6 +9,7 @@ import { generateSelfSignedCert } from './server/tls';
 import { CustomTlsError, loadAndValidateCustomTls } from './server/custom-tls';
 import { RealObsidianAdapter, ObsidianAdapter } from './obsidian/adapter';
 import { discoverModules } from './tools';
+import { registerVaultBasePath } from './tools/shared/errors';
 import { McpSettingsTab, migrateSettings } from './settings';
 import { t } from './lang/helpers';
 import { createLogFileSink } from './utils/log-file';
@@ -40,6 +41,8 @@ export default class McpPlugin extends Plugin {
     });
 
     this.adapter = new RealObsidianAdapter(this.app);
+    // Keep the vault's absolute location out of error messages (#405).
+    registerVaultBasePath(this.adapter.getVaultPath());
     this.registry = new ModuleRegistry(this.logger);
 
     this.registerDiscoveredModules();
