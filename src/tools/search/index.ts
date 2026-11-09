@@ -8,7 +8,9 @@ import {
   searchByTagSchema,
   searchByFrontmatterSchema,
   readOnlySchema,
+  linksMapSchema,
 } from './schemas';
+import { pageOutputFields } from '../shared/pagination';
 
 /**
  * Output schemas for the search tools that emit `structuredContent`. Each
@@ -54,19 +56,22 @@ const searchTagsOutputSchema = {
 const resolvedLinksOutputSchema = {
   links: z
     .record(z.string(), z.record(z.string(), z.number()))
-    .describe('Map of source note path to { target file path: link count }.'),
+    .describe('Map of source note path to { target file path: link count }, for the sources in this page.'),
+  ...pageOutputFields,
 };
 
 const unresolvedLinksOutputSchema = {
   links: z
     .record(z.string(), z.record(z.string(), z.number()))
     .describe(
-      'Map of source note path to { link text that matches no file, as written (e.g. "Missing Note"): count }.',
+      'Map of source note path to { link text that matches no file, as written (e.g. "Missing Note"): count }, ' +
+        'for the sources in this page; notes without broken links are left out.',
     ),
+  ...pageOutputFields,
 };
 
-/** The link maps cover the whole vault in one response (#449). */
-const WHOLE_VAULT = 'Covers the whole vault in one response (no paging), so it can be large.';
+/** The link maps page over source notes (#464). */
+const LINK_PAGES = 'Pages over source notes with limit/offset; pass path to check one note.';
 
 const paginatedPathPageOutputSchema = {
   total: z
@@ -130,10 +135,10 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           name: 'search_resolved_links',
           title: 'Find resolved links',
           description: describeTool({
-            summary: `Get the map of resolved links (targets that exist). ${WHOLE_VAULT}`,
+            summary: `Get the map of resolved links (targets that exist). ${LINK_PAGES}`,
             seeAlso: ['search_unresolved_links — for broken links.'],
           }),
-          schema: readOnlySchema,
+          schema: linksMapSchema,
           outputSchema: resolvedLinksOutputSchema,
           handler: handlers.searchResolvedLinks,
           annotations: annotations.read,
@@ -142,10 +147,10 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           name: 'search_unresolved_links',
           title: 'Find unresolved links',
           description: describeTool({
-            summary: `Get the map of unresolved links (link text that matches no file). ${WHOLE_VAULT}`,
+            summary: `Get the map of unresolved links (link text that matches no file). ${LINK_PAGES}`,
             seeAlso: ['search_resolved_links — for links that resolve.'],
           }),
-          schema: readOnlySchema,
+          schema: linksMapSchema,
           outputSchema: unresolvedLinksOutputSchema,
           handler: handlers.searchUnresolvedLinks,
           annotations: annotations.read,

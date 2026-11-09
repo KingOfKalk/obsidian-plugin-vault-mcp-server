@@ -20,6 +20,7 @@ import {
   readResponseFormat,
   responseFormatField,
 } from '../shared/response';
+import { fitItems } from '../shared/pagination';
 import type { ModuleOptions } from '../index';
 
 function err(m: string): CallToolResult { return handleToolError(new Error(m)); }
@@ -96,6 +97,10 @@ const pluginCheckOutputSchema = {
 const pluginDataviewQueryOutputSchema = {
   query: z.string().describe('Dataview DQL query that was executed.'),
   markdown: z.string().describe('Markdown rendering produced by Dataview, without HTML: list and object values in TABLE cells are plain text (e.g. "a, b").'),
+  truncated: z
+    .boolean()
+    .optional()
+    .describe('True when only the first lines fit in the response; narrow the query with WHERE or LIMIT.'),
 };
 
 const pluginDescribeOutputSchema = {
@@ -178,11 +183,25 @@ function createHandlers(
         if (!result.successful) {
           return err(`Dataview query failed: ${result.error}`);
         }
-        return makeResponse(
-          { query: params.query, markdown: result.value },
-          (v) => v.markdown,
-          readResponseFormat(params),
-        );
+        // Over CHARACTER_LIMIT: fewer whole lines (table rows), never a cut
+        // line, so the table header and every row shown stay intact (#464).
+        const lines = result.value.split('\n');
+        const format = readResponseFormat(params);
+        return fitItems(lines.length, (n) => {
+          const truncated = n < lines.length;
+          return makeResponse(
+            {
+              query: params.query,
+              markdown: truncated ? lines.slice(0, n).join('\n') : result.value,
+              ...(truncated ? { truncated } : {}),
+            },
+            (v) =>
+              truncated
+                ? `${v.markdown}\n\n[TRUNCATED: Showing ${String(n)} of ${String(lines.length)} lines. Narrow the query with WHERE or LIMIT.]`
+                : v.markdown,
+            format,
+          );
+        });
       } catch (error) {
         return handleToolError(error);
       }

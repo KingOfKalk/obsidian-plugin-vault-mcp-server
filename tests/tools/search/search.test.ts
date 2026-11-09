@@ -415,7 +415,12 @@ describe('search handlers', () => {
       adapter.setMetadata('source.md', { links: [{ link: 'target' }] });
       adapter.addFile('target.md', 'x');
       const result = await handlers.searchBacklinks({ path: 'target.md' });
-      expect(result.structuredContent).toEqual({ path: 'target.md', backlinks: ['source.md'] });
+      expect(result.structuredContent).toEqual({
+        path: 'target.md',
+        backlinks: ['source.md'],
+        total: 1,
+        hasMore: false,
+      });
     });
 
     it('adds line numbers and line text with includeContext (#408)', async () => {
@@ -446,6 +451,8 @@ describe('search handlers', () => {
           },
           { path: 'other.md', matches: [{ line: 1, text: 'Only [[target.md|t]]' }] },
         ],
+        total: 2,
+        hasMore: false,
       });
     });
 
@@ -715,14 +722,13 @@ describe('search tools document shared args in inputSchema', () => {
     }
   });
 
-  it('map-style search tools expose only responseFormat', () => {
-    for (const name of [
-      'search_tags',
-      'search_resolved_links',
-      'search_unresolved_links',
-    ]) {
-      const schema = schemaFor(name);
-      expect(Object.keys(schema)).toEqual(['responseFormat']);
+  it('search_tags exposes only responseFormat', () => {
+    expect(Object.keys(schemaFor('search_tags'))).toEqual(['responseFormat']);
+  });
+
+  it('link maps take path, limit and offset (#464)', () => {
+    for (const name of ['search_resolved_links', 'search_unresolved_links']) {
+      expect(Object.keys(schemaFor(name))).toEqual(['path', 'limit', 'offset', 'responseFormat']);
     }
   });
 });
@@ -908,5 +914,78 @@ describe('search read tools — outputSchema declarations', () => {
     expect(parsed.total).toBe(1);
     expect(parsed.hasMore).toBe(false);
     expect(parsed.items).toEqual(['a.md']);
+  });
+});
+
+describe('link maps: paging and path (#464)', () => {
+  let adapter: MockObsidianAdapter;
+  let handlers: SearchHandlers;
+
+  beforeEach(() => {
+    adapter = new MockObsidianAdapter();
+    handlers = createSearchHandlers(adapter);
+    adapter.addFile('target.md', 'x');
+    for (const name of ['a', 'b', 'c']) {
+      adapter.addFile(`${name}.md`, `[[target]] [[gone-${name}]]`);
+      adapter.setMetadata(`${name}.md`, {
+        links: [{ link: 'target' }, { link: `gone-${name}` }],
+      });
+    }
+    adapter.addFile('clean.md', '[[target]]');
+    adapter.setMetadata('clean.md', { links: [{ link: 'target' }] });
+  });
+
+  it('pages over sources with limit/offset and a markdown footer', async () => {
+    const first = await handlers.searchResolvedLinks({ limit: 2, offset: 0 });
+    expect(first.structuredContent).toEqual({
+      links: { 'a.md': { 'target.md': 1 }, 'b.md': { 'target.md': 1 } },
+      total: 4,
+      count: 2,
+      offset: 0,
+      hasMore: true,
+      nextOffset: 2,
+    });
+    expect(getText(first)).toContain('_Showing 2 of 4 — next offset: 2_');
+    const last = await handlers.searchResolvedLinks({ limit: 2, offset: 2 });
+    expect(Object.keys((last.structuredContent as { links: object }).links)).toEqual([
+      'c.md',
+      'clean.md',
+    ]);
+    expect((last.structuredContent as { hasMore: boolean }).hasMore).toBe(false);
+  });
+
+  it('leaves out sources without unresolved links', async () => {
+    adapter.setMetadata('clean.md', { links: [] });
+    const result = await handlers.searchUnresolvedLinks({});
+    const page = result.structuredContent as { links: Record<string, unknown>; total: number };
+    expect(Object.keys(page.links)).toEqual(['a.md', 'b.md', 'c.md']);
+    expect(page.total).toBe(3);
+  });
+
+  it('narrows to one note with path', async () => {
+    const result = await handlers.searchUnresolvedLinks({ path: 'b.md' });
+    expect((result.structuredContent as { links: object }).links).toEqual({
+      'b.md': { 'gone-b': 1 },
+    });
+    const clean = await handlers.searchUnresolvedLinks({ path: 'clean.md' });
+    expect((clean.structuredContent as { total: number }).total).toBe(0);
+    expect(getText(clean)).toBe('No unresolved links in this vault.');
+  });
+
+  it('reports a missing path as "File not found"', async () => {
+    const result = await handlers.searchResolvedLinks({ path: 'nope.md' });
+    expect(result.isError).toBe(true);
+    expect(getText(result)).toContain('File not found: nope.md');
+  });
+
+  it('says so when the offset is past the last source', async () => {
+    const result = await handlers.searchResolvedLinks({ offset: 10 });
+    expect(getText(result)).toBe('No sources past this offset.');
+  });
+
+  it('shows a source without resolved targets as a header only', async () => {
+    adapter.setMetadata('clean.md', { links: [{ link: 'missing' }] });
+    const result = await handlers.searchResolvedLinks({ path: 'clean.md' });
+    expect(getText(result)).toBe('- **clean.md**');
   });
 });

@@ -268,6 +268,7 @@ describe('fix-broken-links handler', () => {
     expect(text).toContain('Delete the link');
     expect(text).toContain('Leave as-is');
     expect(text).toContain('~20');
+    expect(text).toContain('`search_unresolved_links` with `limit: 20`');
     expect(text).toContain('one at a time');
     expect(text).toContain('propose **one** fix');
     // Single-note opener must NOT appear in the vault-wide body
@@ -285,6 +286,7 @@ describe('fix-broken-links handler', () => {
     expect(text).toContain('Fix broken links in `notes/foo.md`');
     expect(text).toContain('search_unresolved_links');
     expect(text).toContain('pull out the entry whose source matches');
+    expect(text).toContain('`search_unresolved_links` with `path: "notes/foo.md"`');
     expect(text).toContain('tell the user the note has no unresolved links and stop');
     expect(text).toContain('Retarget');
     expect(text).toContain('Create a stub');

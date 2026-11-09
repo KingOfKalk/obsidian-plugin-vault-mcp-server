@@ -16,6 +16,14 @@ import {
   readResponseFormat,
   responseFormatField,
 } from '../shared/response';
+import {
+  READ_MAX_LENGTH,
+  fitJsonWindow,
+  sliceTextWindow,
+  windowFooter,
+  windowLengthField,
+  windowOffsetField,
+} from '../shared/window';
 
 function err(m: string): CallToolResult { return handleToolError(new Error(m)); }
 
@@ -58,6 +66,13 @@ function assertEditorPosition(
 // `InferredParams<Shape>`.
 
 const readOnlySchema = { ...responseFormatField };
+
+/** `editor_get_content`: a character window like `vault_read` (#464). */
+const getContentSchema = {
+  offset: windowOffsetField,
+  length: windowLengthField('Notes'),
+  ...responseFormatField,
+};
 
 /**
  * Range parameters shared by replace, delete and set_selection (#449).
@@ -131,8 +146,26 @@ const setSelectionSchema = { ...rangeFields };
  * this file puts on `result.structuredContent`.
  */
 const getContentOutputSchema = {
-  content: z.string().describe('Full text content of the active editor.'),
+  totalLength: z.number().describe('Length of the whole editor text in characters.'),
+  offset: z.number().describe('Character offset where this window starts.'),
+  hasMore: z.boolean().describe('True when the text continues past this window.'),
+  nextOffset: z
+    .number()
+    .optional()
+    .describe('Offset to pass in the next call when hasMore is true.'),
+  content: z
+    .string()
+    .describe('Text of the active editor in the requested window (the whole text when it fits).'),
 };
+
+/** `editor_get_content`'s structured result; `content` is serialised last. */
+interface ContentPayload {
+  totalLength: number;
+  offset: number;
+  hasMore: boolean;
+  nextOffset?: number;
+  content: string;
+}
 
 const getActiveFileOutputSchema = {
   path: z.string().describe('Vault-relative path of the active file.'),
@@ -190,7 +223,7 @@ function rangeOf(params: {
 }
 
 interface EditorHandlers {
-  getContent: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
+  getContent: (params: InferredParams<typeof getContentSchema>) => Promise<CallToolResult>;
   getActivePath: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
   insert: (params: InferredParams<typeof insertSchema>) => Promise<CallToolResult>;
   replace: (params: InferredParams<typeof replaceSchema>) => Promise<CallToolResult>;
@@ -205,13 +238,30 @@ interface EditorHandlers {
 function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
   return {
     getContent: (params): Promise<CallToolResult> => {
-      const content = adapter.getActiveFileContent();
-      if (content === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
+      const text = adapter.getActiveFileContent();
+      if (text === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
+      const format = readResponseFormat(params);
+      const build = (length: number): ContentPayload => {
+        const w = sliceTextWindow(text, params.offset ?? 0, length);
+        return {
+          totalLength: text.length,
+          offset: w.offset,
+          hasMore: w.hasMore,
+          ...(w.hasMore ? { nextOffset: w.end } : {}),
+          content: w.content,
+        };
+      };
+      let payload = build(params.length ?? READ_MAX_LENGTH);
+      if (format === 'json') payload = fitJsonWindow(payload, build);
+      const end = payload.offset + payload.content.length;
       return Promise.resolve(
         makeResponse(
-          { content },
-          (v) => v.content,
-          readResponseFormat(params),
+          payload,
+          (v) =>
+            v.hasMore
+              ? `${v.content}${windowFooter('editor_get_content', v.offset, end, v.totalLength)}`
+              : v.content,
+          format,
         ),
       );
     },
@@ -379,10 +429,10 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           name: 'editor_get_content',
           title: 'Get active file content',
           description: describeTool({
-            summary: 'Get the full text of the active editor.',
+            summary: 'Get the text of the active editor, in windows of up to length characters (offset/nextOffset).',
             seeAlso: ['vault_read — to read any file by path.'],
           }),
-          schema: readOnlySchema,
+          schema: getContentSchema,
           outputSchema: getContentOutputSchema,
           handler: h.getContent,
           annotations: annotations.read,

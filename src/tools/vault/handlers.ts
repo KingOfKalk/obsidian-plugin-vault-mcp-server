@@ -10,7 +10,7 @@ import {
   validateToolPath,
   withoutConfigDir,
 } from '../../utils/path-guard';
-import { truncateText } from '../shared/truncate';
+import { fitJsonWindow, sliceTextWindow, windowFooter } from '../shared/window';
 import {
   handleToolError,
   BinaryTooLargeError,
@@ -19,15 +19,15 @@ import {
   PluginApiUnavailableError,
   ValidationError,
 } from '../shared/errors';
-import { paginate, readPagination } from '../shared/pagination';
+import { fitItems, fitPage, pageFooter, paginate, readPagination } from '../shared/pagination';
 import { confirmWithStructured, makeResponse, readResponseFormat } from '../shared/response';
 import { expandPlaceholders } from '../shared/placeholders';
 import { assertSafeFrontmatterKeys } from '../shared/frontmatter';
 import { modifiedIso } from '../shared/modified';
-import { BINARY_BYTE_LIMIT, CHARACTER_LIMIT } from '../../constants';
+import { BINARY_BYTE_LIMIT } from '../../constants';
 import type { InferredParams } from '../../registry/types';
 import type { SearchHandlers } from '../search/handlers';
-import { READ_MAX_LENGTH, parseExpectedMtime } from './schemas';
+import { LIST_PAGE_LIMIT, READ_MAX_LENGTH, parseExpectedMtime } from './schemas';
 import {
   findSection,
   formatHeading,
@@ -158,7 +158,13 @@ async function dispatchAspect(
     | 'embeds'
     | 'backlinks'
     | 'block_references',
-  params: { path: string; includeContext?: boolean; responseFormat?: 'markdown' | 'json' },
+  params: {
+    path: string;
+    includeContext?: boolean;
+    limit?: number;
+    offset?: number;
+    responseFormat?: 'markdown' | 'json';
+  },
 ): Promise<CallToolResult> {
   switch (aspect) {
     case 'frontmatter':
@@ -233,24 +239,25 @@ function renderFolderListing(
 
 function renderRecursiveListing(
   path: string,
-  folders: string[],
-  files: string[],
-  total: number,
-  hasMore: boolean,
-  nextOffset: number | undefined,
+  v: {
+    folders: string[];
+    folderTotal: number;
+    items: string[];
+    total: number;
+    hasMore: boolean;
+    nextOffset?: number;
+  },
 ): string {
-  const folderLine = folders.length > 0 ? `${String(folders.length)} folders` : '0 folders';
-  const fileLine = `${String(files.length)} of ${String(total)} files`;
-  const header = `**${path}** — ${folderLine}, ${fileLine}`;
+  const header = `**${path}** — ${String(v.folders.length)} of ${String(v.folderTotal)} folders, ${String(v.items.length)} of ${String(v.total)} files`;
   const lines: string[] = [header];
-  if (folders.length > 0) {
-    lines.push('', 'Folders:', ...folders.map((f) => `- ${f}/`));
+  if (v.folders.length > 0) {
+    lines.push('', 'Folders:', ...v.folders.map((f) => `- ${f}/`));
   }
-  if (files.length > 0) {
-    lines.push('', 'Files:', ...files.map((f) => `- ${f}`));
+  if (v.items.length > 0) {
+    lines.push('', 'Files:', ...v.items.map((f) => `- ${f}`));
   }
-  if (hasMore) {
-    lines.push('', `_More files available — next offset: ${String(nextOffset ?? '')}_`);
+  if (v.hasMore) {
+    lines.push('', `_More files or folders — next offset: ${String(v.nextOffset ?? '')}_`);
   }
   return lines.join('\n');
 }
@@ -288,30 +295,6 @@ async function resolveInitialBody(
   );
 }
 
-/**
- * Cut the [offset, offset + length) window out of a file for vault_read
- * paging. Never ends a window between the two halves of a surrogate pair,
- * so a multi-chunk read reassembles to the exact original text.
- */
-function sliceReadWindow(
-  content: string,
-  offset: number,
-  length: number,
-): { content: string; offset: number; end: number; hasMore: boolean } {
-  const start = Math.min(Math.max(0, offset), content.length);
-  let end = Math.min(start + Math.max(1, length), content.length);
-  if (end < content.length && end > start + 1) {
-    const code = content.charCodeAt(end - 1);
-    if (code >= 0xd800 && code <= 0xdbff) end -= 1;
-  }
-  return {
-    content: content.slice(start, end),
-    offset: start,
-    end,
-    hasMore: end < content.length,
-  };
-}
-
 /** `vault_read`'s structured result; `content` is serialised last. */
 interface ReadPayload {
   path: string;
@@ -323,28 +306,6 @@ interface ReadPayload {
   nextOffset?: number;
   modified: string;
   content: string;
-}
-
-/**
- * Shrink a `vault_read` window until its pretty-printed JSON fits in
- * CHARACTER_LIMIT (#447). Escaping (`\n` -> `\\n`, `"` -> `\\"`, control
- * characters -> `\\u00XX`) can make a full window's JSON larger than the
- * limit; cutting the text afterwards left invalid JSON without the paging
- * fields. Each round drops at least as many characters as the JSON is
- * over, since every character serialises to one or more.
- */
-function fitJsonWindow(
-  payload: ReadPayload,
-  build: (length: number) => ReadPayload,
-): ReadPayload {
-  let current = payload;
-  let size = JSON.stringify(current, null, 2).length;
-  while (size > CHARACTER_LIMIT && current.content.length > 1) {
-    const length = Math.max(1, current.content.length - (size - CHARACTER_LIMIT));
-    current = build(length);
-    size = JSON.stringify(current, null, 2).length;
-  }
-  return current;
 }
 
 /**
@@ -503,7 +464,7 @@ export function createHandlers(
         }
         const format = readResponseFormat(params);
         const buildPayload = (length: number): ReadPayload => {
-          const w = sliceReadWindow(fullContent, params.offset ?? 0, length);
+          const w = sliceTextWindow(fullContent, params.offset ?? 0, length);
           // Metadata first, content last (#447): whatever happens to the
           // text, the paging fields are never behind the long content.
           return {
@@ -520,25 +481,16 @@ export function createHandlers(
         let payload = buildPayload(params.length ?? READ_MAX_LENGTH);
         if (format === 'json') payload = fitJsonWindow(payload, buildPayload);
         const windowEnd = payload.offset + payload.content.length;
-        const result = makeResponse(
+        // The markdown window plus its footer fits, and fitJsonWindow sizes
+        // the JSON window to fit; the dispatcher's cap is only a safety net.
+        return makeResponse(
           payload,
           (v) =>
             v.hasMore
-              ? `${v.content}\n\n[TRUNCATED: Showing characters ${String(v.offset)}-${String(windowEnd)} of ${String(v.totalLength)}. Call vault_read again with offset=${String(windowEnd)} to continue.]`
+              ? `${v.content}${windowFooter('vault_read', v.offset, windowEnd, v.totalLength)}`
               : v.content,
           format,
         );
-        const firstBlock = result.content[0];
-        const text = firstBlock.type === 'text' ? firstBlock.text : '';
-        // Safety net only: the markdown window plus its footer fits, and
-        // fitJsonWindow sizes the JSON window to fit.
-        const truncated = truncateText(text, {
-          hint: 'Call vault_read with a smaller length, or continue with offset.',
-        });
-        return {
-          ...result,
-          content: [{ type: 'text' as const, text: truncated.text }],
-        };
       } catch (error) {
         return handleToolError(error);
       }
@@ -815,13 +767,30 @@ export function createHandlers(
     listFolder(params): Promise<CallToolResult> {
       try {
         const path = validateFolderListPath(params.path, vaultPath, configDir);
-        const result = withoutConfigDir(adapter.list(path), configDir);
+        const listing = withoutConfigDir(adapter.list(path), configDir);
+        // Folders first, then files, paged as one list (#464).
+        const entries = [
+          ...listing.folders.map((p) => ({ path: p, folder: true })),
+          ...listing.files.map((p) => ({ path: p, folder: false })),
+        ];
+        const page = paginate(entries, readPagination(params, LIST_PAGE_LIMIT));
         return Promise.resolve(
-          makeResponse(
-            result,
-            (v) => renderFolderListing(displayFolder(path), v.folders, v.files),
-            readResponseFormat(params),
-          ),
+          fitPage(page, (p) => {
+            const { items, ...paging } = p;
+            const payload = {
+              files: items.filter((e) => !e.folder).map((e) => e.path),
+              folders: items.filter((e) => e.folder).map((e) => e.path),
+              ...paging,
+            };
+            return makeResponse(
+              payload,
+              (v) =>
+                v.total === 0
+                  ? `\`${displayFolder(path)}\` is empty.`
+                  : renderFolderListing(displayFolder(path), v.folders, v.files) + pageFooter(v),
+              readResponseFormat(params),
+            );
+          }),
         );
       } catch (error) {
         return Promise.resolve(handleToolError(error));
@@ -832,34 +801,33 @@ export function createHandlers(
       try {
         const path = validateFolderListPath(params.path, vaultPath, configDir);
         const result = withoutConfigDir(adapter.listRecursive(path), configDir);
-        const pagination = readPagination(params);
-        const filesPage = paginate(result.files, pagination);
-        const payload = {
-          folders: result.folders,
-          ...filesPage,
-        };
-        const wrapped = makeResponse(
-          payload,
-          (v) =>
-            renderRecursiveListing(
-              displayFolder(path),
-              v.folders,
-              v.items,
-              v.total,
-              v.hasMore,
-              v.nextOffset,
-            ),
-          readResponseFormat(params),
+        const { limit, offset } = readPagination(params);
+        // Files and folders share one window (#464): the page holds
+        // files[offset, offset + n) and folders[offset, offset + n).
+        const longest = Math.max(result.files.length, result.folders.length);
+        const window = Math.max(0, Math.min(limit, longest - offset));
+        return Promise.resolve(
+          fitItems(window, (n) => {
+            const end = offset + n;
+            const items = result.files.slice(offset, end);
+            const hasMore = end < longest;
+            const payload = {
+              folders: result.folders.slice(offset, end),
+              folderTotal: result.folders.length,
+              total: result.files.length,
+              count: items.length,
+              offset,
+              items,
+              hasMore,
+              ...(hasMore ? { nextOffset: end } : {}),
+            };
+            return makeResponse(
+              payload,
+              (v) => renderRecursiveListing(displayFolder(path), v),
+              readResponseFormat(params),
+            );
+          }),
         );
-        const firstBlock = wrapped.content[0];
-        const text = firstBlock.type === 'text' ? firstBlock.text : '';
-        const truncated = truncateText(text, {
-          hint: 'Shrink limit, advance offset, or list a narrower subfolder.',
-        });
-        return Promise.resolve({
-          ...wrapped,
-          content: [{ type: 'text' as const, text: truncated.text }],
-        });
       } catch (error) {
         return Promise.resolve(handleToolError(error));
       }

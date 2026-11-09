@@ -1,17 +1,26 @@
 import { CallToolResult } from '@modelcontextprotocol/server';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateToolPath } from '../../utils/path-guard';
-import { handleToolError } from '../shared/errors';
-import { fitPage, pageFooter, paginate, readPagination } from '../shared/pagination';
+import { CHARACTER_LIMIT } from '../../constants';
+import { FileNotFoundError, handleToolError } from '../shared/errors';
+import {
+  fitPage,
+  pageFooter,
+  paginate,
+  readPagination,
+  type PaginatedResponse,
+} from '../shared/pagination';
 import { makeResponse, readResponseFormat } from '../shared/response';
 import type { InferredParams } from '../../registry/types';
 import type { ToolContext } from '../../registry/tool-context';
+import { LINKS_PAGE_LIMIT } from './schemas';
 import type {
   searchFulltextSchema,
   filePathSchema,
   searchByTagSchema,
   searchByFrontmatterSchema,
   readOnlySchema,
+  linksMapSchema,
 } from './schemas';
 
 export interface SearchHandlers {
@@ -25,10 +34,14 @@ export interface SearchHandlers {
   searchOutgoingLinks: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
   searchEmbeds: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
   searchBacklinks: (
-    params: InferredParams<typeof filePathSchema> & { includeContext?: boolean },
+    params: InferredParams<typeof filePathSchema> & {
+      includeContext?: boolean;
+      limit?: number;
+      offset?: number;
+    },
   ) => Promise<CallToolResult>;
-  searchResolvedLinks: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
-  searchUnresolvedLinks: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
+  searchResolvedLinks: (params: InferredParams<typeof linksMapSchema>) => Promise<CallToolResult>;
+  searchUnresolvedLinks: (params: InferredParams<typeof linksMapSchema>) => Promise<CallToolResult>;
   searchBlockReferences: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
   searchByTag: (params: InferredParams<typeof searchByTagSchema>) => Promise<CallToolResult>;
   searchByFrontmatter: (params: InferredParams<typeof searchByFrontmatterSchema>) => Promise<CallToolResult>;
@@ -54,10 +67,10 @@ interface BacklinkContext {
  */
 async function readBacklinkContext(
   adapter: ObsidianAdapter,
-  path: string,
+  entries: ReadonlyArray<{ path: string; lines: number[] }>,
 ): Promise<BacklinkContext[]> {
   const result: BacklinkContext[] = [];
-  for (const entry of adapter.getBacklinkLines(path)) {
+  for (const entry of entries) {
     const fileLines = entry.lines.length > 0
       ? (await adapter.readFile(entry.path)).split('\n')
       : [];
@@ -119,9 +132,98 @@ function renderPaginatedPaths(
   return `${header}\n\n${body}${pageFooter(page)}`;
 }
 
+type LinkMap = Record<string, Record<string, number>>;
+type LinkMapEntry = [string, Record<string, number>];
+
+/** One page of a link map: `links` holds the page's sources (#464). */
+interface LinkMapPage {
+  links: LinkMap;
+  total: number;
+  count: number;
+  offset: number;
+  hasMore: boolean;
+  nextOffset?: number;
+}
+
+function toLinkMapPage(page: PaginatedResponse<LinkMapEntry>): LinkMapPage {
+  return {
+    links: Object.fromEntries(page.items),
+    total: page.total,
+    count: page.count,
+    offset: page.offset,
+    hasMore: page.hasMore,
+    ...(page.hasMore ? { nextOffset: page.nextOffset } : {}),
+  };
+}
+
+function renderLinkMap(v: LinkMapPage, empty: string): string {
+  const entries = Object.entries(v.links);
+  if (entries.length === 0) return v.total === 0 ? empty : 'No sources past this offset.';
+  const body = entries
+    .map(([src, targets]) => {
+      const targetLines = Object.entries(targets).map(
+        ([tgt, count]) => `  - ${tgt} (×${String(count)})`,
+      );
+      return [`- **${src}**`, ...targetLines].join('\n');
+    })
+    .join('\n');
+  return `${body}${pageFooter(v)}`;
+}
+
+/** Room for the `aspect` field vault_get_aspect adds to the JSON text. */
+const ASPECT_HEADROOM = 64;
+
+/** Paging fields of a backlinks page, next to `backlinks` (#464). */
+function backlinkPageFields(page: {
+  total: number;
+  hasMore: boolean;
+  nextOffset?: number;
+}): { total: number; hasMore: boolean; nextOffset?: number } {
+  return {
+    total: page.total,
+    hasMore: page.hasMore,
+    ...(page.hasMore ? { nextOffset: page.nextOffset } : {}),
+  };
+}
+
 export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
   const vaultPath = adapter.getVaultPath();
   const configDir = adapter.getConfigDir();
+
+  /**
+   * The sources of a link map, narrowed to one note when `path` is given
+   * (the note must exist), without empty sources when `skipEmpty` (#464).
+   */
+  async function linkMapEntries(
+    map: LinkMap,
+    params: { path?: string },
+    skipEmpty: boolean,
+  ): Promise<LinkMapEntry[]> {
+    let entries = Object.entries(map);
+    if (params.path !== undefined) {
+      const path = validateToolPath(params.path, vaultPath, configDir);
+      if ((await adapter.stat(path)) === null) throw new FileNotFoundError(path);
+      entries = entries.filter(([src]) => src === path);
+    }
+    return skipEmpty
+      ? entries.filter(([, targets]) => Object.keys(targets).length > 0)
+      : entries;
+  }
+
+  function fitLinkMap(
+    entries: LinkMapEntry[],
+    params: { limit?: number; offset?: number; responseFormat?: 'markdown' | 'json' },
+    empty: string,
+  ): CallToolResult {
+    const page = paginate(entries, readPagination(params, LINKS_PAGE_LIMIT));
+    return fitPage(page, (p) =>
+      makeResponse(
+        toLinkMapPage(p),
+        (v) => renderLinkMap(v, empty),
+        readResponseFormat(params),
+      ),
+    );
+  }
 
   return {
     async searchFulltext(params, ctx): Promise<CallToolResult> {
@@ -303,86 +405,70 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
     async searchBacklinks(params): Promise<CallToolResult> {
       try {
         const path = validateToolPath(params.path, vaultPath, configDir);
+        const format = readResponseFormat(params);
+        const pagination = readPagination(params, LINKS_PAGE_LIMIT);
+        // vault_get_aspect adds `"aspect": …` to the JSON text afterwards.
+        const limit = CHARACTER_LIMIT - ASPECT_HEADROOM;
         if (params.includeContext === true) {
-          const backlinkContext = await readBacklinkContext(adapter, path);
-          return makeResponse(
-            { path, backlinks: backlinkContext.map((b) => b.path), backlinkContext },
-            (v) => {
-              if (v.backlinkContext.length === 0) return `**${v.path}** has no backlinks.`;
-              const blocks = v.backlinkContext.map((b) =>
-                [
-                  `- ${b.path}`,
-                  ...b.matches.map((m) => `  - L${String(m.line)}: ${m.text}`),
-                ].join('\n'),
-              );
-              return `**${v.path}** is linked from:\n${blocks.join('\n')}`;
-            },
-            readResponseFormat(params),
+          // Read only the linking files of this page (#464).
+          const page = paginate(adapter.getBacklinkLines(path), pagination);
+          const context = await readBacklinkContext(adapter, page.items);
+          return fitPage({ ...page, items: context }, (p) =>
+            makeResponse(
+              {
+                path,
+                backlinks: p.items.map((b) => b.path),
+                backlinkContext: p.items,
+                ...backlinkPageFields(p),
+              },
+              (v) => {
+                if (v.total === 0) return `**${v.path}** has no backlinks.`;
+                const blocks = v.backlinkContext.map((b) =>
+                  [
+                    `- ${b.path}`,
+                    ...b.matches.map((m) => `  - L${String(m.line)}: ${m.text}`),
+                  ].join('\n'),
+                );
+                return `**${v.path}** is linked from:\n${blocks.join('\n')}${pageFooter(p)}`;
+              },
+              format,
+            ),
+            limit,
           );
         }
-        const backlinks = adapter.getBacklinks(path);
-        return makeResponse(
-          { path, backlinks },
-          (v) =>
-            v.backlinks.length === 0
-              ? `**${v.path}** has no backlinks.`
-              : `**${v.path}** is linked from:\n${renderPathList(v.backlinks)}`,
-          readResponseFormat(params),
+        const page = paginate(adapter.getBacklinks(path), pagination);
+        return fitPage(page, (p) =>
+          makeResponse(
+            { path, backlinks: p.items, ...backlinkPageFields(p) },
+            (v) =>
+              v.total === 0
+                ? `**${v.path}** has no backlinks.`
+                : `**${v.path}** is linked from:\n${renderPathList(v.backlinks)}${pageFooter(p)}`,
+            format,
+          ),
+          limit,
         );
       } catch (error) {
         return handleToolError(error);
       }
     },
 
-    searchResolvedLinks(params): Promise<CallToolResult> {
+    async searchResolvedLinks(params): Promise<CallToolResult> {
       try {
-        const links = adapter.getResolvedLinks();
-        return Promise.resolve(
-          makeResponse(
-            { links },
-            (v) => {
-              const entries = Object.entries(v.links);
-              if (entries.length === 0) return 'No resolved links in this vault.';
-              return entries
-                .map(([src, targets]) => {
-                  const targetLines = Object.entries(targets)
-                    .map(([tgt, count]) => `  - ${tgt} (×${String(count)})`)
-                    .join('\n');
-                  return `- **${src}**\n${targetLines}`;
-                })
-                .join('\n');
-            },
-            readResponseFormat(params),
-          ),
-        );
+        const entries = await linkMapEntries(adapter.getResolvedLinks(), params, false);
+        return fitLinkMap(entries, params, 'No resolved links in this vault.');
       } catch (error) {
-        return Promise.resolve(handleToolError(error));
+        return handleToolError(error);
       }
     },
 
-    searchUnresolvedLinks(params): Promise<CallToolResult> {
+    async searchUnresolvedLinks(params): Promise<CallToolResult> {
       try {
-        const links = adapter.getUnresolvedLinks();
-        return Promise.resolve(
-          makeResponse(
-            { links },
-            (v) => {
-              const entries = Object.entries(v.links);
-              if (entries.length === 0) return 'No unresolved links in this vault.';
-              return entries
-                .map(([src, targets]) => {
-                  const targetLines = Object.entries(targets)
-                    .map(([tgt, count]) => `  - ${tgt} (×${String(count)})`)
-                    .join('\n');
-                  return `- **${src}**\n${targetLines}`;
-                })
-                .join('\n');
-            },
-            readResponseFormat(params),
-          ),
-        );
+        // A source without broken links carries no information (#464).
+        const entries = await linkMapEntries(adapter.getUnresolvedLinks(), params, true);
+        return fitLinkMap(entries, params, 'No unresolved links in this vault.');
       } catch (error) {
-        return Promise.resolve(handleToolError(error));
+        return handleToolError(error);
       }
     },
 
