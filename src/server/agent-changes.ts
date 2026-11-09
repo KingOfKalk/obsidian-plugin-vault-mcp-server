@@ -18,6 +18,13 @@ export interface AgentChangeEntry {
 
 export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
   {
+    version: '4.0.0',
+    notes: [
+      'Breaking: `vault_daily_note` no longer creates the note by default (`create` now defaults to false). Without `create: true` a missing note is not created and the result is `{ path, created: false, exists: false }` without `content`. Pass `create: true` to create a missing note from the template as before.',
+      'Breaking: the deprecated parameter alias `response_format` is removed. Use `responseFormat`; `response_format` now fails with "Unknown parameter: response_format" like any other unknown parameter.',
+    ],
+  },
+  {
     version: '3.5.0',
     notes: [
       'New tool `vault_insert`: insert `text` at the `start` or `end` (default) of the section under `heading` ("Log", or "## Log" to pin the level) without rewriting the file. Takes optional `expectedMtime`; returns `{ path, heading, position, line, modified }`. A missing or ambiguous heading fails with the available headings or the matches and their line numbers; nothing is written.',
@@ -44,7 +51,7 @@ export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
       '`vault_update`, `vault_append`, `vault_replace` and `vault_write_binary` take optional `expectedMtime`; if the file changed since, nothing is written and the error reports the current mtime.',
       '`vault_read` structured output now includes `modified` (ISO-8601) to pass back as `expectedMtime`.',
       'New tool `vault_set_frontmatter`: set (`set`) and delete (`remove`) frontmatter keys of a Markdown note via Obsidian, without rewriting the file. Returns `{ path, frontmatter }`.',
-      '`vault_daily_note` takes `create` (default true). With `create: false` a missing note is not created and the result is `{ path, created: false, exists: false }` without `content`. Every result now carries `exists`. The default may change to false in the next major release.',
+      '`vault_daily_note` takes `create` (default true). With `create: false` a missing note is not created and the result is `{ path, created: false, exists: false }` without `content`. Every result now carries `exists`. The default changed to false in 4.0.0.',
       '`vault_get_aspect` with `aspect: "backlinks"` takes `includeContext` (default false). When true the result adds `backlinkContext`: per linking file, the 1-based `line` and `text` of each line that links to the note.',
     ],
   },
@@ -58,7 +65,7 @@ export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
     version: '3.1.4',
     notes: [
       'All tool parameters and output fields are camelCase.',
-      'Parameter `response_format` is now `responseFormat`. `response_format` is still accepted as a deprecated alias until the next major release.',
+      'Parameter `response_format` is now `responseFormat`. `response_format` was accepted as a deprecated alias until 4.0.0.',
       'Output fields renamed: `has_more` → `hasMore`, `next_offset` → `nextOffset`, `total_length` → `totalLength`, `size_bytes` → `sizeBytes`.',
     ],
   },

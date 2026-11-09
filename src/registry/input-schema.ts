@@ -15,53 +15,6 @@ export function formatUnknownKeysMessage(
 }
 
 /**
- * Deprecated parameter names that are still accepted at call time and
- * renamed to their current name before strict validation (#392).
- *
- * The old names are not part of any tool's schema, so they never appear in
- * `tools/list`. An alias is applied only when the tool declares the current
- * name. Remove these aliases in the next major release.
- */
-export const DEPRECATED_PARAM_ALIASES: Readonly<Record<string, string>> = {
-  response_format: 'responseFormat',
-};
-
-/** Called each time a call uses a deprecated alias. */
-export type DeprecatedAliasHandler = (alias: string, replacement: string) => void;
-
-export interface BuildInputSchemaOptions {
-  onDeprecatedAlias?: DeprecatedAliasHandler;
-}
-
-/**
- * Rename deprecated aliases in a raw argument object to their current name.
- * When both the alias and the current name are given, the current name wins
- * and the alias is dropped. Non-object input passes through untouched so the
- * strict schema can report it.
- */
-export function applyDeprecatedAliases(
-  input: unknown,
-  validKeys: readonly string[],
-  onDeprecatedAlias?: DeprecatedAliasHandler,
-): unknown {
-  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
-    return input;
-  }
-  let result: Record<string, unknown> | undefined;
-  for (const [alias, replacement] of Object.entries(DEPRECATED_PARAM_ALIASES)) {
-    if (!validKeys.includes(replacement) || !Object.hasOwn(input, alias)) continue;
-    result ??= { ...(input as Record<string, unknown>) };
-    const value = result[alias];
-    delete result[alias];
-    if (!Object.hasOwn(result, replacement)) {
-      result[replacement] = value;
-    }
-    onDeprecatedAlias?.(alias, replacement);
-  }
-  return result ?? input;
-}
-
-/**
  * Build the strict object schema a tool's input is validated against.
  *
  * The same schema is handed to the MCP SDK (so it is the one advertised in
@@ -70,24 +23,18 @@ export function applyDeprecatedAliases(
  * `z.object()`, which silently stripped unknown keys before the dispatcher's
  * own `.strict()` check could see them (#388).
  *
- * The strict object is wrapped in a preprocess step that renames deprecated
- * aliases (see `DEPRECATED_PARAM_ALIASES`). Zod renders a preprocess pipe's
- * JSON Schema from its output side, so `tools/list` still shows only the
- * strict object with the current names.
+ * There are no parameter aliases: the deprecated `response_format` alias
+ * (#392) was removed in 4.0.0 (#432), so it is rejected like any other
+ * unknown parameter.
  */
 export function buildInputSchema<Shape extends z.ZodRawShape>(
   shape: Shape,
-  options: BuildInputSchemaOptions = {},
-): z.ZodPreprocess<z.ZodObject<Shape, z.core.$strict>> {
+): z.ZodObject<Shape, z.core.$strict> {
   const validKeys = Object.keys(shape);
-  const strict = z.strictObject(shape, {
+  return z.strictObject(shape, {
     error: (issue) =>
       issue.code === 'unrecognized_keys'
         ? formatUnknownKeysMessage(issue.keys, validKeys)
         : undefined,
   });
-  return z.preprocess(
-    (input) => applyDeprecatedAliases(input, validKeys, options.onDeprecatedAlias),
-    strict,
-  );
 }

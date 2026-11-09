@@ -208,11 +208,11 @@ const dailyNoteOutputSchema = {
   created: z
     .boolean()
     .describe(
-      'True when the note was just created; false when it already existed or create=false left it missing.',
+      'True when the note was just created; false when it already existed or was missing and create was not true.',
     ),
   exists: z
     .boolean()
-    .describe('True when the note exists after the call; false only when create=false and the note is missing.'),
+    .describe('True when the note exists after the call; false when the note is missing and create was not true.'),
   content: z
     .string()
     .optional()
@@ -685,10 +685,10 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Open or create the daily note',
           description: describeTool({
             summary:
-              "Resolve today's daily-note path from the daily-notes core plugin's settings, creating the note from the configured template if it does not yet exist. Pass create=false to look the note up without creating it.",
+              "Resolve today's daily-note path from the daily-notes core plugin's settings and return the note if it exists. Nothing is created by default; pass create=true to create a missing note from the configured template.",
             examples: [
-              "Use when: starting a daily review and you need today's note as context.",
-              'Use when: checking whether a past daily note exists → { date: "2026-01-02", create: false }.',
+              "Use when: starting a daily review and you need today's note, creating it if missing → { create: true }.",
+              'Use when: checking whether a past daily note exists → { date: "2026-01-02" }.',
               "Don't use when: you want a weekly/monthly note (not supported by this tool).",
             ],
             errors: [

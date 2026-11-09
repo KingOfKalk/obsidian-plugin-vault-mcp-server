@@ -28,7 +28,31 @@ connect to the server and read or modify your vault programmatically.
 
 ---
 
-## Breaking changes in this release
+## Upgrading to 4.0
+
+Version 4.0 has two breaking changes for agents and scripts that call the
+tools. Nothing changes in the settings or the UI.
+
+- **`vault_daily_note` no longer creates the note by default.** The
+  `create` parameter now defaults to `false`: a call without it only looks
+  the note up, and a missing note returns
+  `{ "path": …, "created": false, "exists": false }` without `content`.
+  **What to do:** pass `create: true` wherever you relied on the note being
+  created (for example `{ "create": true }` or
+  `{ "date": "2026-01-02", "create": true }`). Calls that already passed
+  `create` explicitly behave as before. The `/daily-note` prompt already
+  asks for `create: true`, so it still creates a missing note.
+- **The `response_format` alias is gone.** Since 3.1.4 the parameter has
+  been called `responseFormat`; the old name `response_format` was still
+  accepted with a deprecation warning. It now fails like any other unknown
+  parameter: `Unknown parameter: response_format. Valid parameters: …`.
+  **What to do:** send `responseFormat` instead. If your server log showed
+  the warning `called with deprecated parameter "response_format"`, that
+  client needs the change.
+
+`server_info` lists both changes under version `4.0.0`.
+
+## Breaking changes in 3.0
 
 The six single-aspect getters have been collapsed into one tool. If your
 LLM client or scripts hard-code the old names, update calls as follows:
@@ -471,13 +495,13 @@ clients and agents commonly trip over:
   for Markdown without HTML, so a list field in a `TABLE` cell comes back
   as `a, b` instead of `<ul><li>a</li><li>b</li></ul>`. `LIST` and `TASK`
   results are unchanged.
-- **Daily note without creating it.** `vault_daily_note` creates the note
-  from the configured template when it is missing. Pass `create: false` to
-  only look it up: a missing note then returns
+- **Daily note: lookup by default.** `vault_daily_note` only looks the
+  note up unless you pass `create: true`. A missing note then returns
   `{ "path": …, "created": false, "exists": false }` with no `content`, and
-  nothing is written. Every response carries `exists`. The default is
-  `create: true` for now; it may change to `false` in the next major
-  release, so pass `create` explicitly if you rely on either behaviour.
+  nothing is written. With `create: true` a missing note is created from
+  the configured template and the response has `"created": true`. Every
+  response carries `exists`. Before 4.0 the default was `create: true`; see
+  [Upgrading to 4.0](#upgrading-to-40).
 - **Backlinks with context.** `vault_get_aspect` with
   `aspect: "backlinks"` returns the paths of the linking files. Add
   `includeContext: true` to also get `backlinkContext`: for each linking
@@ -500,12 +524,10 @@ clients and agents commonly trip over:
   `responseFormat` parameter: `"markdown"` (default) for readable text, or
   `"json"` for the same payload as pretty-printed JSON in the text block.
   `structuredContent` is the same either way.
-- **Deprecated `response_format`.** Earlier versions called this parameter
-  `response_format`. The old name still works for now: it is mapped to
-  `responseFormat`, the server log shows a deprecation warning, and if a
-  call sends both names, `responseFormat` wins. `response_format` is not
-  listed in `tools/list` and will be removed in the next major release, so
-  switch to `responseFormat`.
+- **`response_format` was removed.** Versions before 3.1.4 called this
+  parameter `response_format`, and versions up to 3.5 still accepted it as
+  a deprecated alias. Since 4.0 it is rejected with
+  `Unknown parameter: response_format`; use `responseFormat`.
 - **Renamed output fields.** These `structuredContent` fields were renamed
   with no alias; update clients that read them:
   `has_more` → `hasMore` and `next_offset` → `nextOffset` (all paginated
@@ -542,7 +564,7 @@ How the prompts appear depends on the host. Claude Code, for example, surfaces t
 - **`summarize-note`** — argument: `path` (vault-relative). Asks Claude to read the note with `vault_read` and produce a concise summary.
 - **`find-related`** — argument: `path` (vault-relative). Asks Claude to read the seed note, then cross-reference it with `search_fulltext` and `vault_get_aspect` (with `aspect: "backlinks"`) and report the most relevant connections.
 - **`expand-template`** — argument: `template` (vault-relative path to a template file in the vault's `templates/` folder). Reads the template, surfaces the placeholders that need values, and asks Claude to collect them and call `template_expand` (or `template_create_from` if the user wants a new note written).
-- **`daily-note`** — argument: `date` (optional, ISO `YYYY-MM-DD`; omit for today / local time). Asks Claude to call `vault_daily_note` and then `workspace_open_file` on the resulting path, creating the note from the configured daily-notes template if it does not yet exist. Requires the **Daily notes** core plugin to be enabled in Obsidian (`Settings → Core plugins`); the underlying tool reads the plugin's configured `format`, `folder`, and `template` settings — so a German user with `format = "DD.MM.YYYY"` will get filenames like `27.04.2026.md`, exactly as they configured. The `date` argument itself is **ISO-only** (`YYYY-MM-DD`); date strings in other formats are rejected. When the configured template uses Templater syntax (`<%`), the tool copies the template body **verbatim** — Templater is never executed server-side; running the template stays the host client's responsibility.
+- **`daily-note`** — argument: `date` (optional, ISO `YYYY-MM-DD`; omit for today / local time). Asks Claude to call `vault_daily_note` with `create: true` and then `workspace_open_file` on the resulting path, creating the note from the configured daily-notes template if it does not yet exist. Requires the **Daily notes** core plugin to be enabled in Obsidian (`Settings → Core plugins`); the underlying tool reads the plugin's configured `format`, `folder`, and `template` settings — so a German user with `format = "DD.MM.YYYY"` will get filenames like `27.04.2026.md`, exactly as they configured. The `date` argument itself is **ISO-only** (`YYYY-MM-DD`); date strings in other formats are rejected. When the configured template uses Templater syntax (`<%`), the tool copies the template body **verbatim** — Templater is never executed server-side; running the template stays the host client's responsibility.
 - **`fix-broken-links`** — argument: `path` (optional, vault-relative). Enumerates broken `[[wikilinks]]` via `search_unresolved_links` and walks Claude through fixing them — retarget to an existing note, create a stub, or delete the link. With `path`, scopes to that one source note; without, walks the whole vault (capped at ~20 source notes per run, re-run to continue). Each proposed edit lands as a separate tool call so you confirm or reject one at a time. Autocomplete on `path` lists vault notes that currently contain unresolved links.
 
 ### Autocomplete
@@ -678,7 +700,8 @@ The client sent a parameter the tool does not declare, often a typo or the
 wrong case (`new_name` instead of `newName`). The error lists the valid
 parameter names; resend the call with one of them. Earlier versions silently
 dropped unknown parameters, so a call that "worked" before may now be
-rejected.
+rejected. Since 4.0 this includes `response_format`: send `responseFormat`
+instead (see [Upgrading to 4.0](#upgrading-to-40)).
 
 ### `vault_read` output ends with "[TRUNCATED: …]"
 

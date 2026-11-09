@@ -373,15 +373,15 @@ describe('vault read tools — outputSchema declarations', () => {
     adapter.setDailyNotesSettings({ format: 'YYYY-MM-DD', folder: '', template: '' });
     const handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
 
-    const missing = await handlers.dailyNote({ date: '2026-02-03', create: false });
+    const missing = await handlers.dailyNote({ date: '2026-02-03' });
     expect(schema.parse(missing.structuredContent)).toEqual({
       path: '2026-02-03.md',
       created: false,
       exists: false,
     });
-    const created = await handlers.dailyNote({ date: '2026-02-03' });
+    const created = await handlers.dailyNote({ date: '2026-02-03', create: true });
     expect(schema.parse(created.structuredContent)).toMatchObject({ created: true, exists: true });
-    const existing = await handlers.dailyNote({ date: '2026-02-03', create: false });
+    const existing = await handlers.dailyNote({ date: '2026-02-03' });
     expect(schema.parse(existing.structuredContent)).toMatchObject({
       created: false,
       exists: true,

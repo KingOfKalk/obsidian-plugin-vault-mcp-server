@@ -5,10 +5,7 @@ import { ModuleRegistry } from '../registry/module-registry';
 import { ToolDefinition } from '../registry/types';
 import { handleToolError } from '../tools/shared/errors';
 import { createToolContext, type SdkExtra } from '../registry/tool-context';
-import {
-  buildInputSchema,
-  type DeprecatedAliasHandler,
-} from '../registry/input-schema';
+import { buildInputSchema } from '../registry/input-schema';
 import { registerResources } from './resources';
 import { registerPrompts } from './prompts';
 import type { ObsidianAdapter } from '../obsidian/adapter';
@@ -97,26 +94,6 @@ export function createMcpServer(
 }
 
 /**
- * Build the handler that logs a deprecation warning when a caller uses a
- * deprecated parameter alias (e.g. `response_format`, #392). Warns once per
- * alias per tool for the lifetime of the returned handler, so a chatty
- * client does not flood the log.
- */
-export function createDeprecationWarner(
-  toolName: string,
-  logger: Logger,
-): DeprecatedAliasHandler {
-  const warned = new Set<string>();
-  return (alias: string, replacement: string): void => {
-    if (warned.has(alias)) return;
-    warned.add(alias);
-    logger.warn(
-      `Tool "${toolName}" called with deprecated parameter "${alias}"; use "${replacement}" instead. "${alias}" will be removed in the next major release.`,
-    );
-  };
-}
-
-/**
  * Build the dispatch closure for a single tool. Exposed for direct unit
  * testing — the SDK's internal registration path is hard to drive from
  * tests, but the validate-then-handle logic is the important part.
@@ -124,9 +101,8 @@ export function createDeprecationWarner(
 export function createToolDispatcher(
   tool: ToolDefinition,
   logger: Logger,
-  onDeprecatedAlias: DeprecatedAliasHandler = createDeprecationWarner(tool.name, logger),
 ): (params: unknown, extra: SdkExtra) => Promise<CallToolResult> {
-  const inputSchema = buildInputSchema(tool.schema, { onDeprecatedAlias });
+  const inputSchema = buildInputSchema(tool.schema);
   return async (params: unknown, extra: SdkExtra): Promise<CallToolResult> => {
     try {
       const parsed = inputSchema.parse(params ?? {});
@@ -197,9 +173,6 @@ function registerTools(
   const tools = [...serverModule.tools(), ...registry.getActiveTools()];
   for (const tool of tools) {
     logger.debug(`Registering tool: ${tool.name}`);
-    // One warner shared by the SDK's validation and the dispatcher: the SDK
-    // usually renames the alias first, but either path may see it.
-    const onDeprecatedAlias = createDeprecationWarner(tool.name, logger);
     server.registerTool(
       tool.name,
       {
@@ -207,13 +180,13 @@ function registerTools(
         description: tool.description,
         // Strict object (not the raw shape): the SDK validates before our
         // dispatcher runs, and a raw shape would make it strip unknown keys.
-        inputSchema: buildInputSchema(tool.schema, { onDeprecatedAlias }),
+        inputSchema: buildInputSchema(tool.schema),
         outputSchema: toOutputSchema(tool.outputSchema),
         annotations: tool.title
           ? { ...tool.annotations, title: tool.title }
           : tool.annotations,
       },
-      createToolDispatcher(tool, logger, onDeprecatedAlias),
+      createToolDispatcher(tool, logger),
     );
   }
   logger.info(`Registered ${String(tools.length)} tools from ${String(registry.getModules().filter((m) => m.enabled).length)} modules`);

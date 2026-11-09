@@ -312,6 +312,38 @@ describe('vault_daily_note through a real SDK client (#408)', () => {
     }
   });
 
+  it('omitting create looks the note up without creating it (#432)', async () => {
+    const h = await connect();
+    try {
+      const result = await call(h, 'vault_daily_note', { date: '2030-01-02' });
+      expect(result.isError, textOf(result)).not.toBe(true);
+      expect(result.structuredContent).toEqual({
+        path: 'daily/2030-01-02.md',
+        created: false,
+        exists: false,
+      });
+      expect(await h.adapter.exists('daily/2030-01-02.md')).toBe(false);
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('create:true creates the missing note (#432)', async () => {
+    const h = await connect();
+    try {
+      const result = await call(h, 'vault_daily_note', { date: '2030-01-03', create: true });
+      expect(result.isError, textOf(result)).not.toBe(true);
+      expect(result.structuredContent).toMatchObject({
+        path: 'daily/2030-01-03.md',
+        created: true,
+        exists: true,
+      });
+      expect(await h.adapter.exists('daily/2030-01-03.md')).toBe(true);
+    } finally {
+      await h.close();
+    }
+  });
+
   it('returns outgoing links, embeds and block references', async () => {
     const h = await connect();
     try {
@@ -423,41 +455,33 @@ describe('unknown arguments through a real SDK client', () => {
   });
 });
 
-describe('deprecated response_format alias through a real SDK client (#392)', () => {
-  it('accepts response_format and behaves like responseFormat', async () => {
+describe('response_format is no longer accepted (#432)', () => {
+  it('rejects response_format with the unknown-parameter error', async () => {
     const h = await connect();
     try {
-      const viaAlias = await call(h, 'vault_get_aspect', {
+      const result = await call(h, 'vault_get_aspect', {
         path: 'projects/alpha.md',
         aspect: 'headings',
         response_format: 'json',
       });
-      const viaNew = await call(h, 'vault_get_aspect', {
-        path: 'projects/alpha.md',
-        aspect: 'headings',
-        responseFormat: 'json',
-      });
-      expect(viaAlias.isError, textOf(viaAlias)).not.toBe(true);
-      expect(textOf(viaAlias)).toBe(textOf(viaNew));
-      expect(viaAlias.structuredContent).toEqual(viaNew.structuredContent);
-      // json format: the text block is the pretty-printed payload.
-      expect(JSON.parse(textOf(viaAlias))).toMatchObject({ aspect: 'headings' });
+      expect(result.isError).toBe(true);
+      expect(textOf(result)).toContain('Unknown parameter: response_format');
+      expect(textOf(result)).toContain('responseFormat');
     } finally {
       await h.close();
     }
   });
 
-  it('lets responseFormat win when both names are given', async () => {
+  it('still accepts responseFormat', async () => {
     const h = await connect();
     try {
-      const both = await call(h, 'vault_get_aspect', {
+      const result = await call(h, 'vault_get_aspect', {
         path: 'projects/alpha.md',
         aspect: 'headings',
-        response_format: 'json',
-        responseFormat: 'markdown',
+        responseFormat: 'json',
       });
-      expect(both.isError, textOf(both)).not.toBe(true);
-      expect(() => JSON.parse(textOf(both)) as unknown).toThrow();
+      expect(result.isError, textOf(result)).not.toBe(true);
+      expect(JSON.parse(textOf(result))).toMatchObject({ aspect: 'headings' });
     } finally {
       await h.close();
     }
