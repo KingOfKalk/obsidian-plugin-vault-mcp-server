@@ -1,0 +1,67 @@
+[
+  {
+    "filePath": "/home/runner/work/repo/repo/src/main.ts",
+    "messages": [
+      {
+        "ruleId": "@typescript-eslint/no-unused-vars",
+        "severity": 2,
+        "message": "'unused' is assigned a value but never used.",
+        "line": 12,
+        "column": 7,
+        "nodeType": "Identifier",
+        "messageId": "unusedVar",
+        "endLine": 12,
+        "endColumn": 13
+      },
+      {
+        "ruleId": "no-console",
+        "severity": 1,
+        "message": "Unexpected console statement.",
+        "line": 30,
+        "column": 3,
+        "nodeType": "MemberExpression",
+        "messageId": "unexpected",
+        "endLine": 30,
+        "endColumn": 14
+      }
+    ],
+    "suppressedMessages": [],
+    "errorCount": 1,
+    "fatalErrorCount": 0,
+    "warningCount": 1,
+    "fixableErrorCount": 0,
+    "fixableWarningCount": 0,
+    "usedDeprecatedRules": []
+  },
+  {
+    "filePath": "/home/runner/work/repo/repo/src/clean.ts",
+    "messages": [],
+    "suppressedMessages": [],
+    "errorCount": 0,
+    "fatalErrorCount": 0,
+    "warningCount": 0,
+    "fixableErrorCount": 0,
+    "fixableWarningCount": 0,
+    "usedDeprecatedRules": []
+  },
+  {
+    "filePath": "/home/runner/work/repo/repo/tests/broken.test.ts",
+    "messages": [
+      {
+        "ruleId": null,
+        "fatal": true,
+        "severity": 2,
+        "message": "Parsing error: ',' expected.",
+        "line": 4,
+        "column": 18
+      }
+    ],
+    "suppressedMessages": [],
+    "errorCount": 1,
+    "fatalErrorCount": 1,
+    "warningCount": 0,
+    "fixableErrorCount": 0,
+    "fixableWarningCount": 0,
+    "usedDeprecatedRules": []
+  }
+]

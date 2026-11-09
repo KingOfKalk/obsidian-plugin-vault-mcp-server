@@ -86,3 +86,13 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/):
 3. Ensure `npm run lint`, `npm run typecheck`, `npm run test`, and `npm run build` all pass
 4. Create a PR with a conventional commit title
 5. PR is squash-merged to `main`
+
+### CI results
+
+The `CI` workflow runs `lint`, `test` and `build` one after another. Open a run (the **Details** link of a check on the PR) and look at its **Summary** page:
+
+- **lint** lists every ESLint finding, type error and out-of-date generated doc file. ESLint and `tsc` findings also show up as annotations on the affected lines in the PR's **Files changed** tab.
+- **test** shows Vitest's results and a coverage table with the thresholds from `vitest.config.ts`.
+- **build** shows the size of `main.js` (raw and gzipped) compared with the latest `main` build, and links the artifact `vault-mcp-server-<short-sha>`. It holds `main.js`, `manifest.json` and `styles.css` for 14 days. To try the PR in Obsidian, copy the three files into `<vault>/.obsidian/plugins/vault-mcp-server/` of a test vault and reload the plugin.
+
+The summaries are written by `scripts/ci-summary.ts`. You can run it locally with `npx tsx scripts/ci-summary.ts <command> …`; it prints the Markdown to stdout when `GITHUB_STEP_SUMMARY` is not set.

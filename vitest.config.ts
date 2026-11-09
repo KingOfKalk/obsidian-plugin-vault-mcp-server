@@ -13,6 +13,10 @@ export default defineConfig({
       // Obsidian's runtime and require a real app. Leaving it out until we
       // can drive Obsidian headlessly; everything else is in scope.
       exclude: ['src/obsidian/adapter.ts'],
+      // Vitest's default reporters plus `json-summary`, which CI turns into
+      // the coverage table of the `test` job summary (#416,
+      // scripts/ci-summary.ts). That table reads the thresholds below.
+      reporter: ['text', 'html', 'clover', 'json', 'json-summary'],
       // Thresholds ratchet upward as coverage grows. The aim is to catch
       // meaningful regressions (~1-2%) without flapping on small changes,
       // and to close the gap with the aspirational 75/85/85/85 target over

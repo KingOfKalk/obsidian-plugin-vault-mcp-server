@@ -1,0 +1,4 @@
+src/main.ts(12,7): error TS2322: Type 'string' is not assignable to type 'number'.
+src/tools/vault/handlers.ts(88,15): error TS2345: Argument of type '{ path: string; }' is not assignable to parameter of type 'ReadOptions'.
+  Object literal may only specify known properties, and 'path' does not exist in type 'ReadOptions'.
+error TS5083: Cannot read file '/home/runner/work/repo/repo/tsconfig.base.json'.
