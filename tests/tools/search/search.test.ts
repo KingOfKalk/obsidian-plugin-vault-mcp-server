@@ -284,6 +284,27 @@ describe('search handlers', () => {
       expect(data.items).toEqual(['a.md']);
       expect(data.total).toBe(1);
     });
+
+    it('includes frontmatter tags and counts every occurrence (#440)', async () => {
+      adapter.addFile('fm.md', 'content');
+      adapter.setMetadata('fm.md', { frontmatter: { tags: ['Project', 'area/work'] } });
+      adapter.addFile('mixed.md', 'content');
+      adapter.setMetadata('mixed.md', {
+        frontmatter: { tag: '#Project' },
+        tags: ['#Project', '#inline'],
+      });
+      const result = await handlers.searchTags({ responseFormat: 'json' });
+      const data = JSON.parse(getText(result)) as {
+        tags: Record<string, string[]>;
+        counts: Record<string, number>;
+      };
+      expect(data.tags).toEqual({
+        '#Project': ['fm.md', 'mixed.md'],
+        '#area/work': ['fm.md'],
+        '#inline': ['mixed.md'],
+      });
+      expect(data.counts).toEqual({ '#Project': 3, '#area/work': 1, '#inline': 1 });
+    });
   });
 
   describe('searchHeadings', () => {
@@ -426,6 +447,24 @@ describe('search handlers', () => {
       });
       const page = JSON.parse(getText(result)) as { items: string[] };
       expect(page.items).toEqual(['a.md']);
+    });
+
+    it('finds notes tagged only in frontmatter (#440)', async () => {
+      adapter.addFile('list.md', 'content');
+      adapter.setMetadata('list.md', { frontmatter: { tags: ['Project'] } });
+      adapter.addFile('string.md', 'content');
+      adapter.setMetadata('string.md', { frontmatter: { tags: 'other, #Project' } });
+      adapter.addFile('both.md', 'content');
+      adapter.setMetadata('both.md', {
+        frontmatter: { tags: ['Project'] },
+        tags: ['#Project'],
+      });
+      adapter.addFile('none.md', 'content');
+      adapter.setMetadata('none.md', { frontmatter: { title: 'Project' } });
+      const result = await handlers.searchByTag({ tag: 'Project', responseFormat: 'json' });
+      const page = JSON.parse(getText(result)) as { items: string[]; total: number };
+      expect(page.items).toEqual(['list.md', 'string.md', 'both.md']);
+      expect(page.total).toBe(3);
     });
   });
 

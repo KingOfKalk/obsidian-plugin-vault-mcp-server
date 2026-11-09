@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unnecessary-type-assertion */
-import { App, Notice, TFile, TFolder, TAbstractFile, Vault } from 'obsidian';
+import { App, Notice, TFile, TFolder, TAbstractFile, Vault, getAllTags } from 'obsidian';
 import { FolderNotFoundError } from '../tools/shared/errors';
 import { buildTagIndex, type TagUsage } from './tag-index';
 
@@ -316,8 +316,10 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   getTags(path: string): string[] {
     const file = this.getFile(path);
     const cache = this.app.metadataCache.getFileCache(file);
-    if (!cache?.tags) return [];
-    return cache.tags.map((t: { tag: string }) => t.tag);
+    if (!cache) return [];
+    // Frontmatter `tags`/`tag` plus inline tags in `#tag` form, one entry
+    // per occurrence (#440); `cache.tags` alone misses frontmatter tags.
+    return getAllTags(cache) ?? [];
   }
 
   getAllTags(): Record<string, TagUsage> {

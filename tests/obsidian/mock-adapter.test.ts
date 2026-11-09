@@ -186,6 +186,42 @@ describe('MockObsidianAdapter', () => {
     });
   });
 
+  describe('tags (#440)', () => {
+    it('returns frontmatter-only tags in #tag form', () => {
+      adapter.addFile('a.md', 'x');
+      adapter.setMetadata('a.md', { frontmatter: { tags: ['Project', '#nested/child'] } });
+      expect(adapter.getTags('a.md')).toEqual(['#Project', '#nested/child']);
+    });
+
+    it('reads tags as a string and the singular tag key', () => {
+      adapter.addFile('a.md', 'x');
+      adapter.setMetadata('a.md', { frontmatter: { tags: 'a, #b c', tag: 'd' } });
+      expect(adapter.getTags('a.md')).toEqual(['#a', '#b', '#c', '#d']);
+    });
+
+    it('lists frontmatter tags before inline tags, keeping duplicates', () => {
+      adapter.addFile('a.md', 'x');
+      adapter.setMetadata('a.md', { frontmatter: { tags: ['p'] }, tags: ['#p', '#q'] });
+      expect(adapter.getTags('a.md')).toEqual(['#p', '#p', '#q']);
+      expect(adapter.getAllTags()).toEqual({
+        '#p': { files: ['a.md'], count: 2 },
+        '#q': { files: ['a.md'], count: 1 },
+      });
+    });
+
+    it('picks up tags written through processFrontMatter', async () => {
+      adapter.addFile('a.md', 'Body');
+      await adapter.processFrontMatter('a.md', (fm) => {
+        fm.tags = ['new'];
+      });
+      expect(adapter.getTags('a.md')).toEqual(['#new']);
+    });
+
+    it('returns no tags for a missing file', () => {
+      expect(adapter.getTags('missing.md')).toEqual([]);
+    });
+  });
+
   describe('vault info', () => {
     it('should return the vault path', () => {
       expect(adapter.getVaultPath()).toBe('/mock-vault');

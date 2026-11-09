@@ -491,6 +491,13 @@ clients and agents commonly trip over:
   even when the file uses the tag several times. `counts` gives the total
   number of occurrences of each tag; the number of files is the length of
   its `tags` entry. `search_by_tag` also lists each file once.
+- **Frontmatter tags count.** `search_tags` and `search_by_tag` see the
+  same tags as Obsidian's tag pane: inline `#tags` in the note body and
+  the frontmatter `tags` (or `tag`) property, as a list (`tags: [project,
+  idea]`) or as a comma- or space-separated string (`tags: project, idea`),
+  with or without `#`. A note tagged only in its frontmatter is found by
+  `search_by_tag`, and `counts` adds up frontmatter and inline occurrences.
+  Before 4.0.1 only inline tags were seen.
 - **Dataview lists as plain text.** `plugin_dataview_query` asks Dataview
   for Markdown without HTML, so a list field in a `TABLE` cell comes back
   as `a, b` instead of `<ul><li>a</li><li>b</li></ul>`. `LIST` and `TASK`
