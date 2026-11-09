@@ -91,12 +91,47 @@ describe('vault handlers', () => {
   });
 
   describe('appendFile', () => {
-    it('should append to a file', async () => {
-      adapter.addFile('test.md', 'Hello');
-      const result = await handlers.appendFile({ path: 'test.md', content: ' World' });
+    it('should append to a file that ends with a newline', async () => {
+      adapter.addFile('test.md', 'Hello\n');
+      const result = await handlers.appendFile({ path: 'test.md', content: 'World' });
       expect(result.isError).toBeUndefined();
       const content = await adapter.readFile('test.md');
-      expect(content).toBe('Hello World');
+      expect(content).toBe('Hello\nWorld');
+    });
+
+    // #447: the tool is line-oriented ("add a bullet"); text used to be
+    // glued onto the last line.
+    it.each([
+      ['starts a new line when the file does not end with one', '- a', '- b', '- a\n- b'],
+      ['uses the file\'s CRLF line ending', '- a\r\n- b', '- c', '- a\r\n- b\r\n- c'],
+      ['adds nothing when content starts with a newline', '- a', '\n- b', '- a\n- b'],
+      ['adds nothing when content starts with CRLF', '- a', '\r\n- b', '- a\r\n- b'],
+      ['adds nothing when the file ends with CRLF', 'x\r\n', 'y', 'x\r\ny'],
+      ['adds nothing to an empty file', '', '- a', '- a'],
+    ])('%s (#447)', async (_name, existing, content, expected) => {
+      adapter.addFile('list.md', existing);
+      const result = await handlers.appendFile({ path: 'list.md', content });
+      expect(result.isError).toBeUndefined();
+      expect(await adapter.readFile('list.md')).toBe(expected);
+    });
+
+    it('returns the new modified timestamp, usable as the next expectedMtime (#447)', async () => {
+      adapter.addFile('test.md', 'a\n', { mtime: 1000 });
+      const result = await handlers.appendFile({ path: 'test.md', content: 'b' });
+      const sc = result.structuredContent as { path: string; appended: boolean; modified: string };
+      const stat = await adapter.stat('test.md');
+      expect(sc).toEqual({
+        path: 'test.md',
+        appended: true,
+        modified: new Date(stat!.mtime).toISOString(),
+      });
+      const next = await handlers.appendFile({
+        path: 'test.md',
+        content: 'c',
+        expectedMtime: sc.modified,
+      });
+      expect(next.isError).toBeUndefined();
+      expect(await adapter.readFile('test.md')).toBe('a\nb\nc');
     });
 
     it('should return error for nonexistent file', async () => {
@@ -537,6 +572,78 @@ describe('vault handlers truncation and size limits', () => {
         content: '',
         totalLength: 3,
         hasMore: false,
+      });
+    });
+
+    // #447: JSON escaping (\n -> \\n, \" , \u0001 -> \\u0001) can grow a
+    // full window past the response limit. The JSON text used to be cut,
+    // losing hasMore/nextOffset/modified and leaving invalid JSON.
+    describe('responseFormat json (#447)', () => {
+      interface ReadPayload {
+        path: string;
+        content: string;
+        totalLength: number;
+        offset: number;
+        hasMore: boolean;
+        nextOffset?: number;
+        modified: string;
+      }
+
+      it.each([
+        ['newlines', 'a\n'.repeat(15_000)],
+        ['quotes', '"'.repeat(30_000)],
+        ['control characters', '\u0001'.repeat(30_000)],
+      ])('keeps the JSON text valid and complete for content full of %s', async (_name, big) => {
+        adapter.addFile('big.md', big);
+        const result = await handlers.readFile({ path: 'big.md', responseFormat: 'json' });
+        const text = getText(result);
+        expect(text.length).toBeLessThanOrEqual(25_000);
+        expect(text).not.toContain('[TRUNCATED');
+        const parsed = JSON.parse(text) as ReadPayload;
+        expect(parsed).toEqual(result.structuredContent);
+        expect(parsed.hasMore).toBe(true);
+        expect(parsed.nextOffset).toBe(parsed.content.length);
+        expect(parsed.modified).toEqual(expect.any(String));
+        expect(parsed.totalLength).toBe(big.length);
+      });
+
+      it('puts content last so the metadata comes first', async () => {
+        adapter.addFile('a.md', 'body');
+        const result = await handlers.readFile({ path: 'a.md', responseFormat: 'json' });
+        expect(Object.keys(JSON.parse(getText(result)) as object)).toEqual([
+          'path',
+          'totalLength',
+          'offset',
+          'hasMore',
+          'modified',
+          'content',
+        ]);
+      });
+
+      it('can read a whole escape-heavy file chunk by chunk', async () => {
+        const big = 'x\n"\t'.repeat(20_000);
+        adapter.addFile('big.md', big);
+        let offset = 0;
+        let collected = '';
+        for (let guard = 0; guard < 50; guard++) {
+          const result = await handlers.readFile({ path: 'big.md', offset, responseFormat: 'json' });
+          const parsed = JSON.parse(getText(result)) as ReadPayload;
+          collected += parsed.content;
+          if (!parsed.hasMore) break;
+          offset = parsed.nextOffset ?? 0;
+        }
+        expect(collected).toBe(big);
+      });
+
+      it('leaves a window that fits unchanged', async () => {
+        adapter.addFile('abc.md', 'abcdefghij');
+        const result = await handlers.readFile({
+          path: 'abc.md',
+          offset: 2,
+          length: 3,
+          responseFormat: 'json',
+        });
+        expect(JSON.parse(getText(result))).toMatchObject({ content: 'cde', nextOffset: 5 });
       });
     });
 

@@ -9,6 +9,10 @@ import { PermissionError } from '../../src/tools/shared/errors';
 import type { ToolContext } from '../../src/registry/tool-context';
 import { DEFAULT_SETTINGS } from '../../src/types';
 import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';
+import { createVaultModule } from '../../src/tools/vault';
+import { createSearchModule } from '../../src/tools/search';
+import { createEditorModule } from '../../src/tools/editor';
+import { createWorkspaceModule } from '../../src/tools/workspace';
 
 interface CapturedServerInfo {
   name: string;
@@ -150,12 +154,17 @@ describe('createMcpServer', () => {
     expect(capturedConstructorArgs[0].options.capabilities?.logging).toBeDefined();
   });
 
-  it('forwards SERVER_INSTRUCTIONS to the McpServer constructor as the instructions option', async () => {
+  it('forwards SERVER_INSTRUCTIONS when every module that the instructions mention is enabled', async () => {
     const mod = await import('../../src/server/mcp-server');
     const { createMcpServer, SERVER_INSTRUCTIONS } = mod;
+    const adapter = new MockObsidianAdapter();
     const registry = new ModuleRegistry(makeLogger());
+    registry.registerModule(createVaultModule(adapter));
+    registry.registerModule(createSearchModule(adapter));
+    registry.registerModule(createEditorModule(adapter));
+    registry.registerModule(createWorkspaceModule(adapter));
 
-    createMcpServer(registry, new MockObsidianAdapter(), DEFAULT_SETTINGS, makeLogger());
+    createMcpServer(registry, adapter, DEFAULT_SETTINGS, makeLogger());
 
     expect(capturedConstructorArgs).toHaveLength(1);
     // Guard against a destructured-undefined trivial pass where both
@@ -165,6 +174,68 @@ describe('createMcpServer', () => {
     expect(capturedConstructorArgs[0].options.instructions).toBe(
       SERVER_INSTRUCTIONS,
     );
+  });
+
+  describe('instructions follow the enabled tools (#447)', () => {
+    function build(disable: string[] = []): string {
+      const adapter = new MockObsidianAdapter();
+      const registry = new ModuleRegistry(makeLogger());
+      registry.registerModule(createVaultModule(adapter));
+      registry.registerModule(createSearchModule(adapter));
+      registry.registerModule(createEditorModule(adapter));
+      registry.registerModule(createWorkspaceModule(adapter));
+      for (const id of disable) registry.disableModule(id);
+      capturedConstructorArgs.length = 0;
+      createMcpServer(registry, adapter, DEFAULT_SETTINGS, makeLogger());
+      return capturedConstructorArgs[0].options.instructions ?? '';
+    }
+    let createMcpServer: typeof import('../../src/server/mcp-server').createMcpServer;
+
+    beforeEach(async () => {
+      ({ createMcpServer } = await import('../../src/server/mcp-server'));
+    });
+
+    it('leaves out the editor line when the editor module is off', () => {
+      const text = build(['editor']);
+      expect(text).not.toContain('editor_');
+      expect(text).toContain('search_fulltext');
+      expect(text).toContain('vault_get_aspect');
+    });
+
+    it('drops the workspace_open_file hint when the workspace module is off', () => {
+      const text = build(['workspace']);
+      expect(text).toContain('`editor_*` tools operate on the **active** file only');
+      expect(text).not.toContain('workspace_open_file');
+    });
+
+    it('leaves out the search line when the search module is off', () => {
+      const text = build(['search']);
+      expect(text).not.toContain('search_');
+    });
+
+    it('leaves out the vault_get_aspect line when the vault module is off', () => {
+      const text = build(['vault']);
+      expect(text).not.toContain('vault_get_aspect');
+    });
+
+    it('keeps the version, server_info and path lines with every module off', () => {
+      const text = build(['vault', 'search', 'editor', 'workspace']);
+      expect(text.split('\n')[0]).toBe(`vault-mcp-server v${manifest.version}`);
+      expect(text).toContain('server_info');
+      expect(text).toContain('Paths are vault-relative');
+      expect(text).not.toMatch(/editor_|search_|vault_get_aspect|workspace_open_file/);
+    });
+
+    it('drops a line when its tool is switched off on its own', async () => {
+      const { buildServerInstructions } = await import('../../src/server/mcp-server');
+      const all = buildServerInstructions('1.0.0');
+      const without = buildServerInstructions('1.0.0', ['search_fulltext', 'vault_read', 'editor_insert']);
+      expect(all).toContain('vault_get_aspect');
+      expect(without).not.toContain('vault_get_aspect');
+      expect(without).toContain('search_fulltext');
+      expect(without).toContain('`editor_*`');
+      expect(without).not.toContain('workspace_open_file');
+    });
   });
 
   it('wraps raw-shape inputSchema/outputSchema in z.object for SDK v2, and leaves outputSchema undefined when absent', async () => {

@@ -68,6 +68,7 @@ export interface ObsidianAdapter {
   getHeadings(path: string): Array<{ heading: string; level: number }>;
   getLinks(path: string): Array<{ link: string; displayText?: string }>;
   getEmbeds(path: string): Array<{ link: string; displayText?: string }>;
+  /** Files that link to `path`. Throws "File not found" if it does not exist. */
   getBacklinks(path: string): string[];
   /**
    * For every file that links to `path` (same set and order as
@@ -94,7 +95,12 @@ export interface ObsidianAdapter {
 
   // Workspace operations
   getActiveLeafInfo(): Record<string, unknown> | null;
-  openFile(path: string, mode?: string): Promise<void>;
+  /**
+   * Open a file in the active leaf (a new tab if that one is pinned) and
+   * focus it. `mode` sets the Markdown view mode; without it Obsidian's
+   * default applies. Throws "File not found" if the file does not exist.
+   */
+  openFile(path: string, mode?: OpenFileMode): Promise<void>;
   getOpenFiles(): Array<{ path: string; leafId: string }>;
   setActiveLeaf(leafId: string): boolean;
   getWorkspaceLayout(): Record<string, unknown>;
@@ -140,6 +146,23 @@ export interface ObsidianAdapter {
    */
   getTrashDestination(): TrashDestination;
 }
+
+/**
+ * View mode for `openFile`: Source mode, Live Preview or the Reading view
+ * (`preview`).
+ */
+export type OpenFileMode = 'source' | 'live' | 'preview';
+
+/**
+ * Obsidian's Markdown view state for each mode: `mode` is `source` (an
+ * editor) or `preview` (Reading view); for the editor, `source: true` is
+ * Source mode and `source: false` Live Preview.
+ */
+const MARKDOWN_VIEW_STATE: Record<OpenFileMode, Record<string, unknown>> = {
+  source: { mode: 'source', source: true },
+  live: { mode: 'source', source: false },
+  preview: { mode: 'preview' },
+};
 
 /** Where a deleted file or folder went (see `getTrashDestination`). */
 export type TrashDestination = 'system' | 'vault' | 'permanent' | 'unknown';
@@ -372,6 +395,9 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   }
 
   getBacklinks(path: string): string[] {
+    // Like the other metadata getters: a mistyped path is "File not found",
+    // not "no backlinks" (#447).
+    this.getFile(path);
     const resolved = this.getResolvedLinks();
     const backlinks: string[] = [];
     for (const [sourcePath, links] of Object.entries(resolved)) {
@@ -497,9 +523,16 @@ export class RealObsidianAdapter implements ObsidianAdapter {
     };
   }
 
-  async openFile(path: string, _mode?: string): Promise<void> {
+  async openFile(path: string, mode?: OpenFileMode): Promise<void> {
     const file = this.getFile(path);
-    await this.app.workspace.openLinkText(file.path, '', false);
+    // getLeaf(false) is the leaf openLinkText(path, '', false) used: the
+    // active one, or a new tab if that one is pinned. leaf.openFile takes
+    // the Markdown view state, which openLinkText cannot (#447).
+    const leaf = this.app.workspace.getLeaf(false);
+    await leaf.openFile(
+      file,
+      mode === undefined ? { active: true } : { active: true, state: MARKDOWN_VIEW_STATE[mode] },
+    );
   }
 
   getOpenFiles(): Array<{ path: string; leafId: string }> {

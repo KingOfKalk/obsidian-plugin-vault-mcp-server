@@ -43,6 +43,23 @@ function makeApp(caches: Record<string, { links?: CacheRef[]; embeds?: CacheRef[
   return app;
 }
 
+describe('RealObsidianAdapter backlinks of a missing file (#447)', () => {
+  it('getBacklinks throws "File not found" instead of returning no backlinks', () => {
+    const adapter = new RealObsidianAdapter(makeApp({}));
+    expect(() => adapter.getBacklinks('missing.md')).toThrow('File not found: missing.md');
+  });
+
+  it('getBacklinkLines throws "File not found" too', () => {
+    const adapter = new RealObsidianAdapter(makeApp({}));
+    expect(() => adapter.getBacklinkLines('missing.md')).toThrow('File not found: missing.md');
+  });
+
+  it('getBacklinks still lists the backlinks of an existing file', () => {
+    const adapter = new RealObsidianAdapter(makeApp({}));
+    expect(adapter.getBacklinks('target.md')).toEqual(['a.md', 'b.md']);
+  });
+});
+
 describe('RealObsidianAdapter.getBacklinkLines (#408)', () => {
   it('uses metadata-cache link and embed positions that resolve to the target', () => {
     const app = makeApp({

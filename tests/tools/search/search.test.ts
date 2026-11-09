@@ -361,6 +361,17 @@ describe('search handlers', () => {
       expect(data.backlinks).toContain('source.md');
     });
 
+    it.each([false, true])(
+      'reports "File not found" for a missing path, includeContext=%s (#447)',
+      async (includeContext) => {
+        adapter.addFile('source.md', 'See [[target]].');
+        adapter.setMetadata('source.md', { links: [{ link: 'target' }] });
+        const result = await handlers.searchBacklinks({ path: 'target.md', includeContext });
+        expect(result.isError).toBe(true);
+        expect(getText(result)).toContain('File not found: target.md');
+      },
+    );
+
     it('leaves the payload unchanged without includeContext (#408)', async () => {
       adapter.addFile('source.md', 'See [[target]].');
       adapter.setMetadata('source.md', { links: [{ link: 'target' }] });

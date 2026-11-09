@@ -186,4 +186,62 @@ describe('rename and move: link report vs real link rewriting', function () {
     expect(await readFromDisk('folder-off/wip/Inside.md')).toBeNull();
     await expectNoModal();
   });
+
+  /**
+   * vault_move and vault_rename accept folders too; their link report must
+   * count links to every file in the folder, like vault_rename_folder
+   * (#447). It used to look only for links to the folder path itself.
+   */
+  it('vault_move on a folder reports the links Obsidian rewrote into it', async function () {
+    await setVaultConfig('alwaysUpdateLinks', true);
+    await writeNotes({
+      'fmove-on/wip/One.md': 'One\n',
+      'fmove-on/wip/Two.md': 'Two\n',
+      'fmove-on/Index.md': 'See [[fmove-on/wip/One]] and [[fmove-on/wip/Two]].\n',
+    });
+    await waitForLinks({
+      'fmove-on/Index.md': { 'fmove-on/wip/One.md': 1, 'fmove-on/wip/Two.md': 1 },
+    });
+
+    const report = await callTool<LinkReport>(client, 'vault_move', {
+      path: 'fmove-on/wip',
+      newPath: 'fmove-on/archive/wip',
+    });
+
+    expect(report).toMatchObject({
+      to: 'fmove-on/archive/wip',
+      autoUpdateLinks: true,
+      linksUpdated: 2,
+      updatedFiles: ['fmove-on/Index.md'],
+    });
+    expect(report.warning).toBeUndefined();
+    const index = await readFromDisk('fmove-on/Index.md');
+    expect(index).not.toContain('[[fmove-on/wip/');
+    expect(await readFromDisk('fmove-on/archive/wip/One.md')).toBe('One\n');
+  });
+
+  it('vault_rename on a folder warns when auto-update is off', async function () {
+    await setVaultConfig('alwaysUpdateLinks', false);
+    await writeNotes({
+      'frename-off/wip/Inside.md': 'Inside\n',
+      'frename-off/Outside.md': 'Link: [[frename-off/wip/Inside]]\n',
+    });
+    await waitForLinks({ 'frename-off/Outside.md': { 'frename-off/wip/Inside.md': 1 } });
+
+    const report = await callTool<LinkReport>(client, 'vault_rename', {
+      path: 'frename-off/wip',
+      newName: 'done',
+    });
+
+    expect(report).toMatchObject({
+      to: 'frename-off/done',
+      autoUpdateLinks: false,
+      linksUpdated: 0,
+      updatedFiles: [],
+    });
+    expect(report.warning).toContain('1 file links to frename-off/wip');
+    expect(await readFromDisk('frename-off/Outside.md')).toBe('Link: [[frename-off/wip/Inside]]\n');
+    expect(await readFromDisk('frename-off/done/Inside.md')).toBe('Inside\n');
+    await expectNoModal();
+  });
 });

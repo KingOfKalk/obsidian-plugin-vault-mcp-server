@@ -125,6 +125,63 @@ describe('rename/move link report and delete destination (#430)', () => {
     });
   });
 
+  describe('vault_rename and vault_move on a folder (#447)', () => {
+    it('vault_move counts links into every file of the folder', async () => {
+      addNote('wip/one.md', 'one, see [[wip/two]]', ['wip/two']);
+      addNote('wip/two.md', 'two');
+      addNote('index.md', '[[wip/one]] [[wip/two]]', ['wip/one', 'wip/two']);
+
+      const result = await handlers.moveFile({ path: 'wip', newPath: 'archive/wip' });
+
+      expect(result.isError).toBeUndefined();
+      expect(result.structuredContent).toEqual({
+        from: 'wip',
+        to: 'archive/wip',
+        linksUpdated: 3,
+        updatedFiles: ['archive/wip/one.md', 'index.md'],
+        autoUpdateLinks: true,
+      });
+      expect(getText(result)).toContain('Moved folder: wip → archive/wip');
+      expect(await adapter.readFile('index.md')).toBe('[[archive/wip/one]] [[archive/wip/two]]');
+    });
+
+    it('vault_rename counts links into every file of the folder', async () => {
+      addNote('wip/one.md', 'one');
+      addNote('index.md', '[[wip/one]]', ['wip/one']);
+
+      const result = await handlers.renameFile({ path: 'wip', newName: 'done' });
+
+      expect(result.structuredContent).toEqual({
+        from: 'wip',
+        to: 'done',
+        linksUpdated: 1,
+        updatedFiles: ['index.md'],
+        autoUpdateLinks: true,
+      });
+      expect(getText(result)).toContain('Renamed folder: wip → done');
+    });
+
+    it.each(['move', 'rename'] as const)(
+      'vault_%s warns when the setting is off and outside files link into the folder',
+      async (tool) => {
+        adapter.setAutoUpdateLinks(false);
+        addNote('wip/one.md', 'one');
+        addNote('index.md', '[[wip/one]]', ['wip/one']);
+
+        const result =
+          tool === 'move'
+            ? await handlers.moveFile({ path: 'wip', newPath: 'done' })
+            : await handlers.renameFile({ path: 'wip', newName: 'done' });
+
+        expect(result.structuredContent).toMatchObject({ linksUpdated: 0, updatedFiles: [] });
+        expect((result.structuredContent as { warning?: string }).warning).toContain(
+          '1 file links to wip',
+        );
+        expect(await adapter.readFile('index.md')).toBe('[[wip/one]]');
+      },
+    );
+  });
+
   describe('vault_rename_folder', () => {
     it('counts links into every file of the folder and remaps moved sources', async () => {
       addNote('wip/one.md', 'one, see [[wip/two]]', ['wip/two']);

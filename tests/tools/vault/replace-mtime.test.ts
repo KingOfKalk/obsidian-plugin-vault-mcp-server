@@ -211,22 +211,22 @@ describe('vault_replace and expectedMtime (#406)', () => {
     });
 
     it('vault_append rejects a stale expectedMtime without writing', async () => {
-      adapter.addFile('a.md', 'Hello', { mtime: MTIME });
+      adapter.addFile('a.md', 'Hello\n', { mtime: MTIME });
       const stale = await handlers.appendFile({
         path: 'a.md',
-        content: ' World',
+        content: 'World',
         expectedMtime: STALE_ISO,
       });
       expect(stale.isError).toBe(true);
-      expect(await adapter.readFile('a.md')).toBe('Hello');
+      expect(await adapter.readFile('a.md')).toBe('Hello\n');
 
       const ok = await handlers.appendFile({
         path: 'a.md',
-        content: ' World',
+        content: 'World',
         expectedMtime: MTIME_ISO,
       });
       expect(ok.isError).toBeUndefined();
-      expect(await adapter.readFile('a.md')).toBe('Hello World');
+      expect(await adapter.readFile('a.md')).toBe('Hello\nWorld');
     });
 
     it('vault_write_binary rejects a stale expectedMtime without writing', async () => {

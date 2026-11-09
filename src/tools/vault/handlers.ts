@@ -17,7 +17,8 @@ import { paginate, readPagination } from '../shared/pagination';
 import { confirmWithStructured, makeResponse, readResponseFormat } from '../shared/response';
 import { expandPlaceholders } from '../shared/placeholders';
 import { assertSafeFrontmatterKeys } from '../shared/frontmatter';
-import { BINARY_BYTE_LIMIT } from '../../constants';
+import { modifiedIso } from '../shared/modified';
+import { BINARY_BYTE_LIMIT, CHARACTER_LIMIT } from '../../constants';
 import type { InferredParams } from '../../registry/types';
 import type { SearchHandlers } from '../search/handlers';
 import { READ_MAX_LENGTH, parseExpectedMtime } from './schemas';
@@ -125,11 +126,17 @@ function countOccurrences(haystack: string, needle: string): number {
   return count;
 }
 
-/** The file's mtime as an ISO-8601 string, or throw when it is gone. */
-async function modifiedIso(adapter: ObsidianAdapter, path: string): Promise<string> {
-  const stat = await adapter.stat(path);
-  if (!stat) throw new FileNotFoundError(path);
-  return new Date(stat.mtime).toISOString();
+/**
+ * `vault_append`'s join (#447): when the file is non-empty, does not end
+ * with a line ending and `content` does not start with one, put one line
+ * ending in between — CRLF if the file uses CRLF, else LF — so appended
+ * text starts on a new line instead of being glued onto the last one.
+ */
+export function appendText(existing: string, content: string): string {
+  const needsBreak =
+    existing.length > 0 && !existing.endsWith('\n') && !/^\r?\n/.test(content);
+  if (!needsBreak) return existing + content;
+  return existing + (existing.includes('\r\n') ? '\r\n' : '\n') + content;
 }
 
 function errorResult(message: string): CallToolResult {
@@ -299,6 +306,41 @@ function sliceReadWindow(
   };
 }
 
+/** `vault_read`'s structured result; `content` is serialised last. */
+interface ReadPayload {
+  path: string;
+  heading?: string;
+  line?: number;
+  totalLength: number;
+  offset: number;
+  hasMore: boolean;
+  nextOffset?: number;
+  modified: string;
+  content: string;
+}
+
+/**
+ * Shrink a `vault_read` window until its pretty-printed JSON fits in
+ * CHARACTER_LIMIT (#447). Escaping (`\n` -> `\\n`, `"` -> `\\"`, control
+ * characters -> `\\u00XX`) can make a full window's JSON larger than the
+ * limit; cutting the text afterwards left invalid JSON without the paging
+ * fields. Each round drops at least as many characters as the JSON is
+ * over, since every character serialises to one or more.
+ */
+function fitJsonWindow(
+  payload: ReadPayload,
+  build: (length: number) => ReadPayload,
+): ReadPayload {
+  let current = payload;
+  let size = JSON.stringify(current, null, 2).length;
+  while (size > CHARACTER_LIMIT && current.content.length > 1) {
+    const length = Math.max(1, current.content.length - (size - CHARACTER_LIMIT));
+    current = build(length);
+    size = JSON.stringify(current, null, 2).length;
+  }
+  return current;
+}
+
 /**
  * Check a vault_set_frontmatter request before touching the file: at least
  * one key to change, no key both set and removed, no prototype keys.
@@ -331,15 +373,20 @@ function describeTrash(trashedTo: TrashDestination): string {
 }
 
 /**
- * Every file inside `path` (recursively), for counting links into a
- * renamed folder. A path that is not a folder counts as one file; the
- * rename itself then reports any error.
+ * The files a rename of `path` moves, for counting the links to them: every
+ * file inside a folder (recursively), or the file itself. A path that is
+ * not a folder counts as one file; the rename itself then reports any
+ * error. Shared by vault_rename, vault_move and vault_rename_folder, which
+ * all accept files and folders (#447).
  */
-function filesInFolder(adapter: ObsidianAdapter, path: string): string[] {
+function movedFiles(
+  adapter: ObsidianAdapter,
+  path: string,
+): { files: string[]; isFolder: boolean } {
   try {
-    return adapter.listRecursive(path).files;
+    return { files: adapter.listRecursive(path).files, isFolder: true };
   } catch {
-    return [path];
+    return { files: [path], isFolder: false };
   }
 }
 
@@ -424,7 +471,8 @@ export function createHandlers(
         const path = validateVaultPath(params.path, vaultPath);
         return await mutex.acquire(path, async () => {
           await adapter.createFile(path, params.content);
-          return confirmWithStructured(`Created file: ${path}`, { path, created: true });
+          const modified = await modifiedIso(adapter, path);
+          return confirmWithStructured(`Created file: ${path}`, { path, created: true, modified });
         });
       } catch (error) {
         return handleToolError(error);
@@ -446,33 +494,37 @@ export function createHandlers(
             line: section.start + 1,
           };
         }
-        const window = sliceReadWindow(
-          fullContent,
-          params.offset ?? 0,
-          params.length ?? READ_MAX_LENGTH,
-        );
-        const payload = {
-          path,
-          ...sectionFields,
-          content: window.content,
-          totalLength: fullContent.length,
-          offset: window.offset,
-          hasMore: window.hasMore,
-          ...(window.hasMore ? { nextOffset: window.end } : {}),
-          modified,
+        const format = readResponseFormat(params);
+        const buildPayload = (length: number): ReadPayload => {
+          const w = sliceReadWindow(fullContent, params.offset ?? 0, length);
+          // Metadata first, content last (#447): whatever happens to the
+          // text, the paging fields are never behind the long content.
+          return {
+            path,
+            ...sectionFields,
+            totalLength: fullContent.length,
+            offset: w.offset,
+            hasMore: w.hasMore,
+            ...(w.hasMore ? { nextOffset: w.end } : {}),
+            modified,
+            content: w.content,
+          };
         };
+        let payload = buildPayload(params.length ?? READ_MAX_LENGTH);
+        if (format === 'json') payload = fitJsonWindow(payload, buildPayload);
+        const windowEnd = payload.offset + payload.content.length;
         const result = makeResponse(
           payload,
           (v) =>
             v.hasMore
-              ? `${v.content}\n\n[TRUNCATED: Showing characters ${String(v.offset)}-${String(window.end)} of ${String(v.totalLength)}. Call vault_read again with offset=${String(window.end)} to continue.]`
+              ? `${v.content}\n\n[TRUNCATED: Showing characters ${String(v.offset)}-${String(windowEnd)} of ${String(v.totalLength)}. Call vault_read again with offset=${String(windowEnd)} to continue.]`
               : v.content,
-          readResponseFormat(params),
+          format,
         );
         const firstBlock = result.content[0];
         const text = firstBlock.type === 'text' ? firstBlock.text : '';
-        // Safety net for the JSON rendering, whose escaping can push a
-        // full-size window past the limit.
+        // Safety net only: the markdown window plus its footer fits, and
+        // fitJsonWindow sizes the JSON window to fit.
         const truncated = truncateText(text, {
           hint: 'Call vault_read with a smaller length, or continue with offset.',
         });
@@ -491,7 +543,8 @@ export function createHandlers(
         return await mutex.acquire(path, async () => {
           await assertExpectedMtime(adapter, path, params.expectedMtime);
           await adapter.modifyFile(path, params.content);
-          return confirmWithStructured(`Updated file: ${path}`, { path, updated: true });
+          const modified = await modifiedIso(adapter, path);
+          return confirmWithStructured(`Updated file: ${path}`, { path, updated: true, modified });
         });
       } catch (error) {
         return handleToolError(error);
@@ -520,9 +573,13 @@ export function createHandlers(
         const path = validateVaultPath(params.path, vaultPath);
         return await mutex.acquire(path, async () => {
           await assertExpectedMtime(adapter, path, params.expectedMtime);
-          const existing = await adapter.readFile(path);
-          await adapter.modifyFile(path, existing + params.content);
-          return confirmWithStructured(`Appended to file: ${path}`, { path, appended: true });
+          await adapter.processFile(path, (existing) => appendText(existing, params.content));
+          const modified = await modifiedIso(adapter, path);
+          return confirmWithStructured(`Appended to file: ${path}`, {
+            path,
+            appended: true,
+            modified,
+          });
         });
       } catch (error) {
         return handleToolError(error);
@@ -659,9 +716,11 @@ export function createHandlers(
           return errorResult('Invalid rename target');
         }
         return await mutex.acquire(path, async () => {
-          const report = await renameWithLinkReport(adapter, path, newPath, [path]);
+          const moved = movedFiles(adapter, path);
+          const report = await renameWithLinkReport(adapter, path, newPath, moved.files);
+          const kind = moved.isFolder ? 'folder' : 'file';
           return confirmWithStructured(
-            `Renamed file: ${path} → ${newPath}${describeLinkReport(report)}`,
+            `Renamed ${kind}: ${path} → ${newPath}${describeLinkReport(report)}`,
             { from: path, to: newPath, ...report },
           );
         });
@@ -675,9 +734,11 @@ export function createHandlers(
         const path = validateVaultPath(params.path, vaultPath);
         const newPath = validateVaultPath(params.newPath, vaultPath);
         return await mutex.acquire(path, async () => {
-          const report = await renameWithLinkReport(adapter, path, newPath, [path]);
+          const moved = movedFiles(adapter, path);
+          const report = await renameWithLinkReport(adapter, path, newPath, moved.files);
+          const kind = moved.isFolder ? 'folder' : 'file';
           return confirmWithStructured(
-            `Moved file: ${path} → ${newPath}${describeLinkReport(report)}`,
+            `Moved ${kind}: ${path} → ${newPath}${describeLinkReport(report)}`,
             { from: path, to: newPath, ...report },
           );
         });
@@ -730,7 +791,12 @@ export function createHandlers(
       try {
         const path = validateVaultPath(params.path, vaultPath);
         const newPath = validateVaultPath(params.newPath, vaultPath);
-        const report = await renameWithLinkReport(adapter, path, newPath, filesInFolder(adapter, path));
+        const report = await renameWithLinkReport(
+          adapter,
+          path,
+          newPath,
+          movedFiles(adapter, path).files,
+        );
         return confirmWithStructured(
           `Renamed folder: ${path} → ${newPath}${describeLinkReport(report)}`,
           { from: path, to: newPath, ...report },
@@ -826,9 +892,11 @@ export function createHandlers(
             path,
             buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
           );
+          const modified = await modifiedIso(adapter, path);
           return confirmWithStructured(`Wrote binary file: ${path}`, {
             path,
             sizeBytes: buffer.byteLength,
+            modified,
           });
         });
       } catch (error) {

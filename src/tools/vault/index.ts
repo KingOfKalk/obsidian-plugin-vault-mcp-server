@@ -229,9 +229,16 @@ const dailyNoteOutputSchema = {
 const writePath = z.string().describe('Vault-relative path that was written.');
 const alwaysTrue = z.boolean().describe('Always true on success.');
 
-const createdOutputSchema = { path: writePath, created: alwaysTrue };
-const updatedOutputSchema = { path: writePath, updated: alwaysTrue };
-const appendedOutputSchema = { path: writePath, appended: alwaysTrue };
+/** New mtime after a write (#447); feeds the next call's expectedMtime. */
+const newModified = z
+  .string()
+  .describe('New last-modification timestamp (ISO-8601); usable as the next expectedMtime.');
+
+const createdOutputSchema = { path: writePath, created: alwaysTrue, modified: newModified };
+const createdFolderOutputSchema = { path: writePath, created: alwaysTrue };
+const updatedOutputSchema = { path: writePath, updated: alwaysTrue, modified: newModified };
+
+const appendedOutputSchema = { path: writePath, appended: alwaysTrue, modified: newModified };
 /**
  * Where a delete went, read from the user's "Deleted files" setting
  * (#430).
@@ -315,6 +322,7 @@ const MTIME_CONFLICT_ERROR =
 const writeBinaryOutputSchema = {
   path: writePath,
   sizeBytes: z.number().describe('Number of bytes written.'),
+  modified: newModified,
 };
 
 const setFrontmatterOutputSchema = {
@@ -367,7 +375,8 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             summary: 'Read the UTF-8 content of a file by vault-relative path.',
             returns:
               'Files over 24 000 characters come in windows: while hasMore is true, call again with offset=nextOffset. ' +
-              'With heading, only that section is returned (paged the same way).',
+              'With heading, only that section is returned (paged the same way). ' +
+              'With responseFormat=json a window can be shorter than length, so the escaped JSON still fits the response limit; always continue at nextOffset.',
             examples: [
               'Use when: "show me the README" -> { path: "README.md" }',
               'Use when: continuing a large file -> { path: "big.md", offset: 24000 }',
@@ -424,7 +433,11 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Append to file',
           description: describeTool({
             summary: 'Append content to the end of an existing file.',
-            examples: ['Use when: adding a new bullet to a daily note.'],
+            returns:
+              'If the file is not empty and does not end with a line break, and content does not start with one, ' +
+              'one line break (the file\'s own LF or CRLF) is added first, so the content starts on a new line. ' +
+              'Returns the new modified timestamp.',
+            examples: ['Use when: adding a new bullet to a daily note -> { path: "daily/2026-01-02.md", content: "- call Ada" }'],
             errors: ['"File not found" if the path does not exist.', MTIME_CONFLICT_ERROR],
           }),
           schema: appendFileSchema,
@@ -515,7 +528,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Rename file',
           description: describeTool({
             summary: 'Rename a file within its current folder.',
-            returns: 'Links to the file are updated if the user enabled "Automatically update internal links"; with it off, links are not updated and no Obsidian prompt appears. `linksUpdated` and `updatedFiles` report the rewritten links, `autoUpdateLinks` the setting, and `warning` is set when other files link to it but were not updated.',
+            returns: 'Works on a folder too. Links to the file (for a folder: to every file in it) are updated if the user enabled "Automatically update internal links"; with it off, links are not updated and no Obsidian prompt appears. `linksUpdated` and `updatedFiles` report the rewritten links, `autoUpdateLinks` the setting, and `warning` is set when other files link to it but were not updated.',
             examples: ['Use when: renaming "draft.md" to "final.md" in the same folder.'],
             errors: [
               '"Invalid rename target" if newName contains path separators.',
@@ -532,7 +545,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Move file',
           description: describeTool({
             summary: 'Move a file to a different path (can change folder and name). Missing parent folders are created.',
-            returns: 'Links to the file are updated if the user enabled "Automatically update internal links"; with it off, links are not updated and no Obsidian prompt appears. `linksUpdated` and `updatedFiles` report the rewritten links, `autoUpdateLinks` the setting, and `warning` is set when other files link to it but were not updated.',
+            returns: 'Works on a folder too. Links to the file (for a folder: to every file in it) are updated if the user enabled "Automatically update internal links"; with it off, links are not updated and no Obsidian prompt appears. `linksUpdated` and `updatedFiles` report the rewritten links, `autoUpdateLinks` the setting, and `warning` is set when other files link to it but were not updated.',
             examples: ['Use when: archiving a note by moving it to "archive/<name>.md".'],
             errors: ['"File not found" if path does not exist.'],
           }),
@@ -563,7 +576,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             errors: ['"Folder already exists" if the path is taken.'],
           }),
           schema: createFolderSchema,
-          outputSchema: createdOutputSchema,
+          outputSchema: createdFolderOutputSchema,
           handler: handlers.createFolder,
           annotations: annotations.additive,
         }),
@@ -729,7 +742,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           schema: setFrontmatterSchema,
           outputSchema: setFrontmatterOutputSchema,
           handler: handlers.setFrontmatter,
-          annotations: annotations.additiveIdempotent,
+          annotations: annotations.destructiveIdempotent,
         }),
       ];
     },

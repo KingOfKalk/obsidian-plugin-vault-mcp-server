@@ -2,6 +2,7 @@ import {
   DailyNotesSettings,
   DataviewApi,
   FileStat,
+  OpenFileMode,
   ListResult,
   ObsidianAdapter,
   TrashDestination,
@@ -125,6 +126,10 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     if (!file && !isFolder) {
       throw new Error(`Path not found: ${oldPath}`);
     }
+    // Obsidian's vault.rename refuses any existing destination (#447).
+    if (this.files.has(newPath) || this.folders.has(newPath)) {
+      throw new Error('Destination file already exists!');
+    }
 
     if (file) {
       this.ensureParentFolder(newPath);
@@ -163,6 +168,12 @@ export class MockObsidianAdapter implements ObsidianAdapter {
   async copyFile(sourcePath: string, destPath: string): Promise<void> {
     const file = this.files.get(sourcePath);
     if (!file) throw new Error(`File not found: ${sourcePath}`);
+    // Obsidian's vault.copy fails with the filesystem's EEXIST (#447).
+    if (this.files.has(destPath) || this.folders.has(destPath)) {
+      throw new Error(
+        `EEXIST: file already exists, copyfile '${sourcePath}' -> '${destPath}'`,
+      );
+    }
     this.ensureParentFolder(destPath);
     const now = Date.now();
     this.files.set(destPath, {
@@ -270,8 +281,7 @@ export class MockObsidianAdapter implements ObsidianAdapter {
   }
 
   getFrontmatter(path: string): Record<string, unknown> | null {
-    const file = this.files.get(path);
-    if (!file) return null;
+    const file = this.requireFile(path);
     return file.metadata?.frontmatter ?? null;
   }
 
@@ -310,8 +320,7 @@ export class MockObsidianAdapter implements ObsidianAdapter {
    * per occurrence, like Obsidian's `getAllTags(cache)` (#440).
    */
   getTags(path: string): string[] {
-    const file = this.files.get(path);
-    if (!file) return [];
+    const file = this.requireFile(path);
     return [
       ...parseFrontmatterTags(file.metadata?.frontmatter),
       ...(file.metadata?.tags ?? []),
@@ -325,24 +334,22 @@ export class MockObsidianAdapter implements ObsidianAdapter {
   }
 
   getHeadings(path: string): Array<{ heading: string; level: number }> {
-    const file = this.files.get(path);
-    if (!file) return [];
+    const file = this.requireFile(path);
     return file.metadata?.headings ?? [];
   }
 
   getLinks(path: string): Array<{ link: string; displayText?: string }> {
-    const file = this.files.get(path);
-    if (!file) return [];
+    const file = this.requireFile(path);
     return file.metadata?.links ?? [];
   }
 
   getEmbeds(path: string): Array<{ link: string; displayText?: string }> {
-    const file = this.files.get(path);
-    if (!file) return [];
+    const file = this.requireFile(path);
     return file.metadata?.embeds ?? [];
   }
 
   getBacklinks(path: string): string[] {
+    this.requireFile(path);
     const backlinks: string[] = [];
     for (const [filePath, file] of this.files.entries()) {
       const links = file.metadata?.links ?? [];
@@ -440,22 +447,35 @@ export class MockObsidianAdapter implements ObsidianAdapter {
   }
 
   insertTextAt(line: number, ch: number, text: string): boolean {
+    return this.replaceRange(line, ch, line, ch, text);
+  }
+
+  /**
+   * Like Obsidian's `editor.replaceRange` (#447): a line past the last one
+   * means the end of the document, and `ch` is added to the start of the
+   * line, so a `ch` past the line end runs into the next line. A range
+   * past the end of the document throws CodeMirror's error.
+   */
+  replaceRange(fromLine: number, fromCh: number, toLine: number, toCh: number, text: string): boolean {
     if (this.editorContent === null) return false;
-    const lines = this.editorContent.split('\n');
-    if (line >= lines.length) return false;
-    const lineStr = lines[line];
-    lines[line] = lineStr.slice(0, ch) + text + lineStr.slice(ch);
-    this.editorContent = lines.join('\n');
+    const content = this.editorContent;
+    const from = this.posToOffset(content, fromLine, fromCh);
+    const to = this.posToOffset(content, toLine, toCh);
+    if (from > content.length || to > content.length || from > to) {
+      throw new RangeError(
+        `Invalid change range ${String(from)} to ${String(to)} (in doc of length ${String(content.length)})`,
+      );
+    }
+    this.editorContent = content.slice(0, from) + text + content.slice(to);
     return true;
   }
 
-  replaceRange(fromLine: number, fromCh: number, toLine: number, toCh: number, text: string): boolean {
-    if (this.editorContent === null) return false;
-    const lines = this.editorContent.split('\n');
-    const before = lines.slice(0, fromLine).join('\n') + (fromLine > 0 ? '\n' : '') + lines[fromLine].slice(0, fromCh);
-    const after = lines[toLine].slice(toCh) + (toLine < lines.length - 1 ? '\n' : '') + lines.slice(toLine + 1).join('\n');
-    this.editorContent = before + text + after;
-    return true;
+  private posToOffset(content: string, line: number, ch: number): number {
+    const lines = content.split('\n');
+    if (line >= lines.length) return content.length;
+    let offset = 0;
+    for (let i = 0; i < line; i++) offset += lines[i].length + 1;
+    return offset + ch;
   }
 
   deleteRange(fromLine: number, fromCh: number, toLine: number, toCh: number): boolean {
@@ -504,7 +524,7 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     return { id: leaf.leafId, type: 'markdown', filePath: leaf.path };
   }
 
-  async openFile(path: string, _mode?: string): Promise<void> {
+  async openFile(path: string, _mode?: OpenFileMode): Promise<void> {
     if (!this.files.has(path)) throw new Error(`File not found: ${path}`);
     const leafId = `leaf-${String(this.openLeaves.length)}`;
     this.openLeaves.push({ path, leafId });
@@ -689,6 +709,13 @@ export class MockObsidianAdapter implements ObsidianAdapter {
         else if (link.link === strip(oldPath)) link.link = strip(newPath);
       }
     }
+  }
+
+  /** The file at `path`, or the real adapter's "File not found" error. */
+  private requireFile(path: string): MockFile {
+    const file = this.files.get(path);
+    if (!file) throw new Error(`File not found: ${path}`);
+    return file;
   }
 
   private ensureParentFolder(path: string): void {

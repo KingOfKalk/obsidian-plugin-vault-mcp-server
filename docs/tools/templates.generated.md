@@ -73,6 +73,7 @@ Errors:
 | `path` | string | Vault-relative path of the new file. |
 | `templatePath` | string | Vault-relative path of the template that was used. |
 | `frontmatter` | object | The new note's whole frontmatter after the frontmatter parameter was applied. Present only when frontmatter was given. |
+| `modified` | string | Last-modification timestamp of the new file (ISO-8601); usable as the next expectedMtime. |
 
 #### Example
 
@@ -102,7 +103,8 @@ Response (`structuredContent`):
   "templatePath": "templates/meeting.md",
   "frontmatter": {
     "status": "draft"
-  }
+  },
+  "modified": "2026-01-15T09:30:00.000Z"
 }
 ```
 

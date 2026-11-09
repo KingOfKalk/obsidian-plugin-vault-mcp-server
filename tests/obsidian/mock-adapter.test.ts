@@ -217,8 +217,8 @@ describe('MockObsidianAdapter', () => {
       expect(adapter.getTags('a.md')).toEqual(['#new']);
     });
 
-    it('returns no tags for a missing file', () => {
-      expect(adapter.getTags('missing.md')).toEqual([]);
+    it('throws "File not found" for a missing file, like the real adapter (#447)', () => {
+      expect(() => adapter.getTags('missing.md')).toThrow('File not found: missing.md');
     });
   });
 
@@ -263,6 +263,100 @@ describe('MockObsidianAdapter', () => {
       expect(await adapter.exists('old')).toBe(false);
       expect(await adapter.readFile('new/test.md')).toBe('content');
       await expect(adapter.readFile('old/test.md')).rejects.toThrow('File not found');
+    });
+  });
+});
+
+/**
+ * The mock must fail where the real adapter (and Obsidian) fails, or unit
+ * tests cannot catch handlers that rely on the mock's leniency (#447).
+ * The Obsidian error texts are the ones the E2E specs observe.
+ */
+describe('MockObsidianAdapter matches the real adapter (#447)', () => {
+  let adapter: MockObsidianAdapter;
+
+  beforeEach(() => {
+    adapter = new MockObsidianAdapter();
+  });
+
+  it.each([
+    ['getFrontmatter', (a: MockObsidianAdapter): unknown => a.getFrontmatter('missing.md')],
+    ['getHeadings', (a: MockObsidianAdapter): unknown => a.getHeadings('missing.md')],
+    ['getLinks', (a: MockObsidianAdapter): unknown => a.getLinks('missing.md')],
+    ['getEmbeds', (a: MockObsidianAdapter): unknown => a.getEmbeds('missing.md')],
+    ['getTags', (a: MockObsidianAdapter): unknown => a.getTags('missing.md')],
+  ])('%s throws "File not found" for a missing file', (_name, call) => {
+    expect(() => call(adapter)).toThrow('File not found: missing.md');
+  });
+
+  it('renameFile refuses an existing destination file and changes nothing', async () => {
+    adapter.addFile('a.md', 'A');
+    adapter.addFile('b.md', 'B');
+    await expect(adapter.renameFile('a.md', 'b.md')).rejects.toThrow(
+      'Destination file already exists!',
+    );
+    expect(await adapter.readFile('a.md')).toBe('A');
+    expect(await adapter.readFile('b.md')).toBe('B');
+  });
+
+  it('renameFile refuses an existing destination folder', async () => {
+    adapter.addFile('a.md', 'A');
+    adapter.addFolder('taken');
+    await expect(adapter.renameFile('a.md', 'taken')).rejects.toThrow(
+      'Destination file already exists!',
+    );
+    expect(await adapter.readFile('a.md')).toBe('A');
+  });
+
+  it('renameFile refuses to move a folder onto an existing folder', async () => {
+    adapter.addFile('f1/x.md', 'x');
+    adapter.addFile('f2/y.md', 'y');
+    await expect(adapter.renameFile('f1', 'f2')).rejects.toThrow(
+      'Destination file already exists!',
+    );
+    expect(await adapter.readFile('f1/x.md')).toBe('x');
+    expect(await adapter.exists('f2/x.md')).toBe(false);
+  });
+
+  it('copyFile refuses an existing destination and changes nothing', async () => {
+    adapter.addFile('a.md', 'A');
+    adapter.addFile('b.md', 'B');
+    await expect(adapter.copyFile('a.md', 'b.md')).rejects.toThrow('EEXIST: file already exists');
+    expect(await adapter.readFile('b.md')).toBe('B');
+  });
+
+  describe('editor positions (CodeMirror semantics)', () => {
+    it('replaceRange accepts toLine == lineCount as the end of the document', () => {
+      adapter.setActiveEditor('a.md', 'A\nline2');
+      expect(adapter.replaceRange(1, 0, 2, 0, 'Z')).toBe(true);
+      expect(adapter.getActiveFileContent()).toBe('A\nZ');
+    });
+
+    it('insertTextAt at line == lineCount appends at the end of the document', () => {
+      adapter.setActiveEditor('a.md', 'A\nZ');
+      expect(adapter.insertTextAt(2, 0, 'Q')).toBe(true);
+      expect(adapter.getActiveFileContent()).toBe('A\nZQ');
+    });
+
+    it('deleteRange to the end of the document removes the trailing lines', () => {
+      adapter.setActiveEditor('a.md', 'one\ntwo\nthree');
+      expect(adapter.deleteRange(0, 3, 3, 0)).toBe(true);
+      expect(adapter.getActiveFileContent()).toBe('one');
+    });
+
+    it('replaceRange counts ch past the line end into the next line, like CodeMirror', () => {
+      adapter.setActiveEditor('a.md', 'ab\ncd');
+      // (0, 4) is offset 4: past "ab\n", one character into "cd".
+      expect(adapter.replaceRange(0, 1, 0, 4, '-')).toBe(true);
+      expect(adapter.getActiveFileContent()).toBe('a-d');
+    });
+
+    it('replaceRange throws for a range past the end of the document', () => {
+      adapter.setActiveEditor('a.md', 'A\nZQ');
+      expect(() => adapter.replaceRange(0, 50, 1, 99, 'W')).toThrow(
+        'Invalid change range 50 to 101 (in doc of length 4)',
+      );
+      expect(adapter.getActiveFileContent()).toBe('A\nZQ');
     });
   });
 });

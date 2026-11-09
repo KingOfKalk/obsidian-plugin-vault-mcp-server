@@ -475,26 +475,25 @@ describe('vault_get_aspect dispatcher', () => {
     });
   });
 
-  it('propagates underlying handler errors unchanged (block_references on missing file)', async () => {
-    // Of the six underlying searchHandlers methods, only
-    // `searchBlockReferences` actually errors on a missing file (it reads
-    // the body via `getFileContent`). The other five degrade silently to
-    // empty/default payloads — that's the existing contract this PR is
-    // explicitly not changing. So this test pins the dispatcher's
-    // "errors flow through unchanged" property using the only aspect
-    // that produces an error in the first place.
+  it.each([
+    'frontmatter',
+    'headings',
+    'outgoing_links',
+    'embeds',
+    'backlinks',
+    'block_references',
+  ] as const)('reports "File not found" for a missing path with aspect=%s (#447)', async (aspect) => {
+    // Every aspect fails the same way on a mistyped path; backlinks used to
+    // answer "no backlinks" instead (#447).
     const adapter = new MockObsidianAdapter();
+    adapter.addFile('b.md', 'See [[missing]].');
+    adapter.setMetadata('b.md', { links: [{ link: 'missing' }] });
     const searchHandlers = createSearchHandlers(adapter);
     const handlers = createHandlers(adapter, new WriteMutex(), searchHandlers);
 
-    const result = await handlers.getAspect({
-      path: 'missing.md',
-      aspect: 'block_references',
-    });
+    const result = await handlers.getAspect({ path: 'missing.md', aspect });
     expect(result.isError).toBe(true);
     const block = result.content[0];
-    if (block.type === 'text') {
-      expect(block.text.toLowerCase()).toMatch(/not found|does not exist/);
-    }
+    expect(block.type === 'text' ? block.text : '').toContain('File not found: missing.md');
   });
 });

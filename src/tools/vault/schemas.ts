@@ -18,7 +18,7 @@ const folderPath = z
 
 /**
  * Parse an `expectedMtime` value into epoch milliseconds: an ISO-8601
- * timestamp (the `modified` field of vault_read / vault_get_metadata) or a
+ * timestamp (the `modified` field of a read or write result) or a
  * string of digits (epoch milliseconds). Returns NaN when it is neither.
  */
 export function parseExpectedMtime(value: string): number {
@@ -40,7 +40,8 @@ const expectedMtime = z
   )
   .optional()
   .describe(
-    'Optional conflict check: the `modified` value from vault_read or vault_get_metadata ' +
+    'Optional conflict check: the latest `modified` value you got for this file, from a read ' +
+      '(vault_read, vault_get_metadata) or a write (every vault write tool returns it) ' +
       '(ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written ' +
       'and the error reports the current mtime.',
   );
