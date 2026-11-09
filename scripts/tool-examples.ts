@@ -100,7 +100,7 @@ export const SAMPLE_ARGS: Record<string, Record<string, unknown>> = {
   vault_list_recursive: { path: 'projects' },
   vault_read_binary: { path: 'README.md' },
   vault_write_binary: { path: 'bin/data.bin', data: 'AAEC' },
-  vault_get_aspect: { path: 'projects/alpha.md', aspect: 'headings' },
+  vault_get_aspect: { path: 'projects/alpha.md', aspect: 'backlinks', includeContext: true },
   vault_daily_note: { date: '2026-11-08' },
   vault_set_frontmatter: { path: 'projects/alpha.md', set: { status: 'done', reviewed: true } },
   editor_get_content: {},

@@ -336,6 +336,57 @@ describe('vault read tools — outputSchema declarations', () => {
       expect(parsed).toEqual(expected);
     }
   });
+
+  it('vault_get_aspect outputSchema parses backlinks with includeContext (#408)', async () => {
+    const schema = getStructured(findTool('vault_get_aspect'));
+    const adapter = new MockObsidianAdapter();
+    adapter.addFile('a.md', 'x');
+    adapter.addFile('b.md', 'top\nsee [[a]]');
+    adapter.setMetadata('b.md', { links: [{ link: 'a' }] });
+    const handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
+
+    const result = await handlers.getAspect({
+      path: 'a.md',
+      aspect: 'backlinks',
+      includeContext: true,
+    });
+    expect(schema.parse(result.structuredContent)).toEqual({
+      aspect: 'backlinks',
+      path: 'a.md',
+      backlinks: ['b.md'],
+      backlinkContext: [{ path: 'b.md', matches: [{ line: 2, text: 'see [[a]]' }] }],
+    });
+
+    // includeContext is ignored for other aspects.
+    const headings = await handlers.getAspect({
+      path: 'a.md',
+      aspect: 'headings',
+      includeContext: true,
+    });
+    expect(headings.structuredContent).toEqual({ aspect: 'headings', path: 'a.md', headings: [] });
+  });
+
+  it('vault_daily_note outputSchema parses existing, created and missing variants (#408)', async () => {
+    const schema = getStructured(findTool('vault_daily_note'));
+    const adapter = new MockObsidianAdapter();
+    adapter.setDailyNotesSettings({ format: 'YYYY-MM-DD', folder: '', template: '' });
+    const handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
+
+    const missing = await handlers.dailyNote({ date: '2026-02-03', create: false });
+    expect(schema.parse(missing.structuredContent)).toEqual({
+      path: '2026-02-03.md',
+      created: false,
+      exists: false,
+    });
+    const created = await handlers.dailyNote({ date: '2026-02-03' });
+    expect(schema.parse(created.structuredContent)).toMatchObject({ created: true, exists: true });
+    const existing = await handlers.dailyNote({ date: '2026-02-03', create: false });
+    expect(schema.parse(existing.structuredContent)).toMatchObject({
+      created: false,
+      exists: true,
+      content: '',
+    });
+  });
 });
 
 describe('vault tools document shared args in inputSchema', () => {

@@ -250,6 +250,13 @@ export const getAspectSchema = {
         'embeds (![[...]]), backlinks (files linking TO this file) or block_references (^block-ids). ' +
         'The result carries the matching field (frontmatter, headings, links, embeds, backlinks or blockRefs).',
     ),
+  includeContext: z
+    .boolean()
+    .optional()
+    .describe(
+      'aspect=backlinks only (default false): also return backlinkContext — for each linking file, ' +
+        'the 1-based line number and text of every line that links here. Ignored for other aspects.',
+    ),
   ...responseFormatField,
 };
 
@@ -266,6 +273,13 @@ export const dailyNoteSchema = {
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD')
     .optional()
     .describe('Optional ISO date (YYYY-MM-DD). Omit for today (local time).'),
+  create: z
+    .boolean()
+    .optional()
+    .describe(
+      'Create the note from the template when it is missing (default true). ' +
+        'Set false to only look the note up: a missing note then returns exists=false and nothing is created.',
+    ),
   ...responseFormatField,
 };
 

@@ -390,6 +390,20 @@ clients and agents commonly trip over:
   `frontmatter` after the change. The call fails if the file does not
   exist, is not a `.md` file, if a key is in both `set` and `remove`, or if
   there is nothing to change (pass `"set": {}` to only remove keys).
+- **Daily note without creating it.** `vault_daily_note` creates the note
+  from the configured template when it is missing. Pass `create: false` to
+  only look it up: a missing note then returns
+  `{ "path": …, "created": false, "exists": false }` with no `content`, and
+  nothing is written. Every response carries `exists`. The default is
+  `create: true` for now; it may change to `false` in the next major
+  release, so pass `create` explicitly if you rely on either behaviour.
+- **Backlinks with context.** `vault_get_aspect` with
+  `aspect: "backlinks"` returns the paths of the linking files. Add
+  `includeContext: true` to also get `backlinkContext`: for each linking
+  file, the 1-based line number and the text of every line that links to
+  the note (wikilinks and embeds, taken from Obsidian's metadata cache).
+  Links without a line position, such as links in frontmatter, give an
+  empty `matches` list. Without `includeContext` the output is unchanged.
 - **Structured output on every tool.** All tools declare an `outputSchema`
   and return `structuredContent`. Write tools keep their plain-text
   confirmation (for example `Created file: notes/a.md`) and add a small

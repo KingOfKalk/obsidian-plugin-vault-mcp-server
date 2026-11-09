@@ -940,6 +940,7 @@ Get one metadata aspect of a file: frontmatter, headings, outgoing links, embeds
 Examples:
   - Use when: "list the headings in README.md" → { path: "README.md", aspect: "headings" }.
   - Use when: "what links to this note?" → { path: "ideas.md", aspect: "backlinks" }.
+  - Use when: "how is this note referenced?" → { path: "ideas.md", aspect: "backlinks", includeContext: true }.
 
 Errors:
   - "File not found" if the path does not exist.
@@ -950,6 +951,7 @@ Errors:
 |---|---|---|---|
 | `path` | string (1–4096) | yes | Vault-relative path to the file. |
 | `aspect` | enum: `frontmatter` \| `headings` \| `outgoing_links` \| `embeds` \| `backlinks` \| `block_references` | yes | Which metadata aspect to return: frontmatter, headings, outgoing_links ([[...]] links), embeds (![[...]]), backlinks (files linking TO this file) or block_references (^block-ids). The result carries the matching field (frontmatter, headings, links, embeds, backlinks or blockRefs). |
+| `includeContext` | boolean | no | aspect=backlinks only (default false): also return backlinkContext — for each linking file, the 1-based line number and text of every line that links here. Ignored for other aspects. |
 | `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
@@ -963,6 +965,7 @@ Errors:
 | `links` | object[] | aspect=outgoing_links: [[...]] links from this file. |
 | `embeds` | object[] | aspect=embeds: ![[...]] embeds in this file. |
 | `backlinks` | string[] | aspect=backlinks: paths of files that link TO this file. |
+| `backlinkContext` | object[] | aspect=backlinks with includeContext=true: where each backlink sits, one entry per path in backlinks. |
 | `blockRefs` | object[] | aspect=block_references: ^block-ids defined in this file. |
 
 #### Example
@@ -974,7 +977,8 @@ Request (`tools/call` params):
   "name": "vault_get_aspect",
   "arguments": {
     "path": "projects/alpha.md",
-    "aspect": "headings"
+    "aspect": "backlinks",
+    "includeContext": true
   }
 }
 ```
@@ -983,16 +987,30 @@ Response (`structuredContent`):
 
 ```json
 {
-  "aspect": "headings",
+  "aspect": "backlinks",
   "path": "projects/alpha.md",
-  "headings": [
+  "backlinks": [
+    "README.md",
+    "people/ada.md"
+  ],
+  "backlinkContext": [
     {
-      "heading": "Alpha",
-      "level": 1
+      "path": "README.md",
+      "matches": [
+        {
+          "line": 3,
+          "text": "See [[projects/alpha]]."
+        }
+      ]
     },
     {
-      "heading": "Goals",
-      "level": 2
+      "path": "people/ada.md",
+      "matches": [
+        {
+          "line": 3,
+          "text": "Works on [[projects/alpha]]."
+        }
+      ]
     }
   ]
 }
@@ -1002,10 +1020,11 @@ Response (`structuredContent`):
 
 **Open or create the daily note**
 
-Resolve today's daily-note path from the daily-notes core plugin's settings, creating the note from the configured template if it does not yet exist.
+Resolve today's daily-note path from the daily-notes core plugin's settings, creating the note from the configured template if it does not yet exist. Pass create=false to look the note up without creating it.
 
 Examples:
   - Use when: starting a daily review and you need today's note as context.
+  - Use when: checking whether a past daily note exists → { date: "2026-01-02", create: false }.
   - Don't use when: you want a weekly/monthly note (not supported by this tool).
 
 Errors:
@@ -1018,6 +1037,7 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `date` | string | no | Optional ISO date (YYYY-MM-DD). Omit for today (local time). |
+| `create` | boolean | no | Create the note from the template when it is missing (default true). Set false to only look the note up: a missing note then returns exists=false and nothing is created. |
 | `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
@@ -1025,8 +1045,9 @@ Errors:
 | Field | Type | Description |
 |---|---|---|
 | `path` | string | Vault-relative path of the daily note. |
-| `created` | boolean | True when the note was just created; false when it already existed. |
-| `content` | string | Full note content (template-expanded body when newly created). |
+| `created` | boolean | True when the note was just created; false when it already existed or create=false left it missing. |
+| `exists` | boolean | True when the note exists after the call; false only when create=false and the note is missing. |
+| `content` | string | Full note content (template-expanded body when newly created). Absent when exists=false. |
 
 #### Example
 
@@ -1047,6 +1068,7 @@ Response (`structuredContent`):
 {
   "path": "daily/2026-11-08.md",
   "created": true,
+  "exists": true,
   "content": ""
 }
 ```

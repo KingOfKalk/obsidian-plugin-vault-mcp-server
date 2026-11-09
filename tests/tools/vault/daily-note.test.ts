@@ -193,4 +193,71 @@ describe('vault_daily_note handler', () => {
       expect(structured.path).toBe('Daily-2026-05-05.md');
     });
   });
+
+  describe('create flag (#408)', () => {
+    beforeEach(() => {
+      adapter.setDailyNotesSettings({ format: 'YYYY-MM-DD', folder: 'daily', template: '' });
+    });
+
+    it('create:false on a missing note returns exists:false and creates nothing', async () => {
+      const result = await handlers.dailyNote({ date: '2026-03-04', create: false });
+      expect(result.isError).toBeUndefined();
+      expect(result.structuredContent).toEqual({
+        path: 'daily/2026-03-04.md',
+        created: false,
+        exists: false,
+      });
+      expect(await adapter.exists('daily/2026-03-04.md')).toBe(false);
+      expect(getText(result)).toContain('does not exist');
+    });
+
+    it('create:false on a missing note renders JSON without content', async () => {
+      const result = await handlers.dailyNote({
+        date: '2026-03-04',
+        create: false,
+        responseFormat: 'json',
+      });
+      expect(JSON.parse(getText(result))).toEqual({
+        path: 'daily/2026-03-04.md',
+        created: false,
+        exists: false,
+      });
+    });
+
+    it('create:false on an existing note reads it like the default', async () => {
+      adapter.addFile('daily/2026-03-04.md', 'body');
+      const result = await handlers.dailyNote({ date: '2026-03-04', create: false });
+      expect(result.structuredContent).toEqual({
+        path: 'daily/2026-03-04.md',
+        created: false,
+        exists: true,
+        content: 'body',
+      });
+    });
+
+    it('create:true (explicit) creates the note and reports exists:true', async () => {
+      const result = await handlers.dailyNote({ date: '2026-03-04', create: true });
+      expect(result.structuredContent).toEqual({
+        path: 'daily/2026-03-04.md',
+        created: true,
+        exists: true,
+        content: '',
+      });
+      expect(await adapter.exists('daily/2026-03-04.md')).toBe(true);
+    });
+
+    it('omitting create keeps the old behaviour (creates the note)', async () => {
+      const result = await handlers.dailyNote({ date: '2026-03-04' });
+      const structured = result.structuredContent as { created: boolean; exists: boolean };
+      expect(structured.created).toBe(true);
+      expect(structured.exists).toBe(true);
+      expect(await adapter.exists('daily/2026-03-04.md')).toBe(true);
+    });
+
+    it('an existing note reports exists:true without create', async () => {
+      adapter.addFile('daily/2026-03-04.md', 'x');
+      const result = await handlers.dailyNote({ date: '2026-03-04' });
+      expect(result.structuredContent).toMatchObject({ created: false, exists: true });
+    });
+  });
 });

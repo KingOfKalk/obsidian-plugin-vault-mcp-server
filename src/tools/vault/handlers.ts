@@ -134,7 +134,7 @@ async function dispatchAspect(
     | 'embeds'
     | 'backlinks'
     | 'block_references',
-  params: { path: string; responseFormat?: 'markdown' | 'json' },
+  params: { path: string; includeContext?: boolean; responseFormat?: 'markdown' | 'json' },
 ): Promise<CallToolResult> {
   switch (aspect) {
     case 'frontmatter':
@@ -732,15 +732,22 @@ export function createHandlers(
         if (exists) {
           const content = await adapter.readFile(path);
           return makeResponse(
-            { path, created: false, content },
+            { path, created: false, exists: true, content },
             (v) => `${v.path} (existing)\n\n${v.content}`,
+            readResponseFormat(params),
+          );
+        }
+        if (params.create === false) {
+          return makeResponse(
+            { path, created: false, exists: false },
+            (v) => `${v.path} does not exist (not created because create=false).`,
             readResponseFormat(params),
           );
         }
         const body = await resolveInitialBody(adapter, settings.template, targetMoment, filename);
         await adapter.createFile(path, body);
         return makeResponse(
-          { path, created: true, content: body },
+          { path, created: true, exists: true, content: body },
           (v) => `${v.path} (created)\n\n${v.content}`,
           readResponseFormat(params),
         );
