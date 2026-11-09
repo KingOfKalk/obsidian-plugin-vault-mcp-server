@@ -133,7 +133,27 @@ describe('tool examples (#324)', () => {
     const md = renderModulePage(withExample);
     const section = md.slice(md.indexOf('### sample_write'));
     expect(section).toContain('Response (`content`):');
-    expect(section).toContain('````json\n[');
+    // A text block is shown as the text the model reads (#467).
+    expect(section).toContain('Text block:\n\n````text\n```js\nx\n```\n````');
+  });
+
+  it('shows a non-text block as JSON', () => {
+    const md = renderModulePage({
+      ...withExample,
+      tools: [
+        {
+          ...withExample.tools[1],
+          example: {
+            arguments: { path: 'a.png' },
+            response: {
+              kind: 'content',
+              value: [{ type: 'image', data: 'AAAA', mimeType: 'image/png' }],
+            },
+          },
+        },
+      ],
+    });
+    expect(md).toContain('`image` block:\n\n```json\n{\n  "type": "image",');
   });
 
   it('omits the Example heading for tools without an example', () => {

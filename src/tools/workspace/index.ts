@@ -12,18 +12,13 @@ import { validateToolPath } from '../../utils/path-guard';
 import { handleToolError } from '../shared/errors';
 import { describeTool } from '../shared/describe';
 import { FILE_PATH_DESC, vaultPathField } from '../shared/descriptions';
-import {
-  confirmWithStructured,
-  makeResponse,
-  readResponseFormat,
-  responseFormatField,
-} from '../shared/response';
+import { dataResponse } from '../shared/response';
 import { resultTextLength } from '../shared/pagination';
 import { CHARACTER_LIMIT } from '../../constants';
 
 function err(m: string): CallToolResult { return handleToolError(new Error(m)); }
 
-const readOnlySchema = { ...responseFormatField };
+const readOnlySchema = {};
 
 /** The largest list (by JSON size) with more than one item in `value`, or null. */
 function largestList(value: unknown): unknown[] | null {
@@ -52,21 +47,8 @@ function largestList(value: unknown): unknown[] | null {
  * list in a copy of the layout until the text fits, so text and
  * structuredContent stay the same valid JSON, and set `truncated: true`.
  */
-function layoutResponse(
-  layout: Record<string, unknown>,
-  format: 'markdown' | 'json',
-): CallToolResult {
-  const render = (v: Record<string, unknown>): CallToolResult =>
-    makeResponse(
-      v,
-      (x) => {
-        const json = '```json\n' + JSON.stringify(x, null, 2) + '\n```';
-        return x.truncated === true
-          ? `${json}\n\n[TRUNCATED: The longest lists were shortened to fit. Use workspace_list_leaves for the open files.]`
-          : json;
-      },
-      format,
-    );
+function layoutResponse(layout: Record<string, unknown>): CallToolResult {
+  const render = (v: Record<string, unknown>): CallToolResult => dataResponse(v);
   let result = render(layout);
   let size = resultTextLength(result);
   if (size <= CHARACTER_LIMIT) return result;
@@ -165,26 +147,18 @@ function createHandlers(adapter: ObsidianAdapter): WorkspaceHandlers {
   const vaultPath = adapter.getVaultPath();
   const configDir = adapter.getConfigDir();
   return {
-    getActiveLeaf: (params): Promise<CallToolResult> => {
+    getActiveLeaf: (): Promise<CallToolResult> => {
       const info = adapter.getActiveLeafInfo();
       if (!info) return Promise.resolve(err('No active leaf'));
       return Promise.resolve(
-        makeResponse(
-          info,
-          (v) => {
-            const id = typeof v.id === 'string' ? v.id : 'unknown';
-            const type = typeof v.type === 'string' ? v.type : 'unknown';
-            return `Active leaf: ${id} (${type})`;
-          },
-          readResponseFormat(params),
-        ),
+        dataResponse(info),
       );
     },
     async openFile(params): Promise<CallToolResult> {
       try {
         const path = validateToolPath(params.path, vaultPath, configDir);
         await adapter.openFile(path, params.mode);
-        return confirmWithStructured(`Opened: ${path}`, {
+        return dataResponse({
           path,
           ...(params.mode !== undefined ? { mode: params.mode } : {}),
         });
@@ -192,30 +166,23 @@ function createHandlers(adapter: ObsidianAdapter): WorkspaceHandlers {
         return err(error instanceof Error ? error.message : String(error));
       }
     },
-    listLeaves: (params): Promise<CallToolResult> => {
+    listLeaves: (): Promise<CallToolResult> => {
       const files = adapter.getOpenFiles();
       return Promise.resolve(
-        makeResponse(
-          { leaves: files },
-          (v) =>
-            v.leaves.length === 0
-              ? 'No open leaves.'
-              : v.leaves.map((f) => `- [${f.leafId}] ${f.path}`).join('\n'),
-          readResponseFormat(params),
-        ),
+        dataResponse({ leaves: files }),
       );
     },
     setActiveLeaf: (params): Promise<CallToolResult> => {
       const ok = adapter.setActiveLeaf(params.leafId);
       return Promise.resolve(
         ok
-          ? confirmWithStructured('Active leaf set', { leafId: params.leafId })
+          ? dataResponse({ leafId: params.leafId })
           : err('Leaf not found'),
       );
     },
-    getLayout: (params): Promise<CallToolResult> => {
+    getLayout: (): Promise<CallToolResult> => {
       return Promise.resolve(
-        layoutResponse(adapter.getWorkspaceLayout(), readResponseFormat(params)),
+        layoutResponse(adapter.getWorkspaceLayout()),
       );
     },
   };

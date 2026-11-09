@@ -114,18 +114,6 @@ export function readPagination(
   return { limit, offset };
 }
 
-/** Markdown footer of a page that has more items, or "" (#464). */
-export function pageFooter(page: {
-  count: number;
-  total: number;
-  hasMore: boolean;
-  nextOffset?: number;
-}): string {
-  return page.hasMore
-    ? `\n\n_Showing ${String(page.count)} of ${String(page.total)} — next offset: ${String(page.nextOffset ?? '')}_`
-    : '';
-}
-
 /** Characters of all text blocks in a tool result. */
 export function resultTextLength(result: CallToolResult): number {
   let size = 0;

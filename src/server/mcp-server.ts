@@ -164,8 +164,8 @@ export function createMcpServer(
 /**
  * Safety net (#464): tools return fewer items to stay under CHARACTER_LIMIT,
  * so a text over it is a bug in a tool. Cut it with a footer and log a
- * warning instead of flooding the agent's context. `structuredContent` is
- * left as it is.
+ * warning instead of flooding the agent's context. `structuredContent` and
+ * non-text blocks (images, audio, resources) are left as they are.
  */
 export function capResponse(
   result: CallToolResult,
@@ -202,7 +202,7 @@ export function createToolDispatcher(
       const parsed = inputSchema.parse(params ?? {});
       const ctx = createToolContext(extra, tool.name, logger);
       const result = await tool.handler(parsed, ctx);
-      return tool.uncapped === true ? result : capResponse(result, tool.name, logger);
+      return capResponse(result, tool.name, logger);
     } catch (error) {
       // ZodError keeps the dispatcher's friendlier path-joined format —
       // richer than handleToolError's ZodError branch, and a `warn` not

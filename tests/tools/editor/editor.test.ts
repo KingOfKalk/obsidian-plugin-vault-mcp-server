@@ -38,7 +38,8 @@ describe('editor module', () => {
       const module = createEditorModule(adapter);
       const tool = module.tools().find((t) => t.name === 'editor_get_content')!;
       const result = await tool.handler({});
-      expect(getText(result)).toBe('# Hello\nWorld');
+      expect(getText(result)).toBe('totalLength: 13\noffset: 0\nhasMore: false\n\n# Hello\nWorld');
+      expect(result.structuredContent).toBeUndefined();
     });
 
     it('should get active file path', async () => {
@@ -46,7 +47,7 @@ describe('editor module', () => {
       const module = createEditorModule(adapter);
       const tool = module.tools().find((t) => t.name === 'editor_get_active_file')!;
       const result = await tool.handler({});
-      expect(getText(result)).toBe('notes/test.md');
+      expect(getText(result)).toBe('{"path":"notes/test.md"}');
     });
 
     it('should get line count', async () => {
@@ -54,7 +55,7 @@ describe('editor module', () => {
       const module = createEditorModule(adapter);
       const tool = module.tools().find((t) => t.name === 'editor_get_line_count')!;
       const result = await tool.handler({});
-      expect(getText(result)).toBe('3');
+      expect(getText(result)).toBe('{"lineCount":3}');
     });
 
     it('should insert text', async () => {
@@ -71,7 +72,7 @@ describe('editor module', () => {
       const setCursor = module.tools().find((t) => t.name === 'editor_set_cursor')!;
       await setCursor.handler({ line: 0, ch: 3 });
       const getCursor = module.tools().find((t) => t.name === 'editor_get_cursor')!;
-      const result = await getCursor.handler({ responseFormat: 'json' });
+      const result = await getCursor.handler({});
       const pos = JSON.parse(getText(result)) as { line: number; ch: number };
       expect(pos).toEqual({ line: 0, ch: 3 });
     });
@@ -162,15 +163,12 @@ describe('editor read tools — outputSchema declarations', () => {
     return z.object(tool.outputSchema).strict();
   }
 
-  it('editor_get_content declares outputSchema and parses against handler output', async () => {
-    const adapter = new MockObsidianAdapter();
-    adapter.setActiveEditor('note.md', '# Hello\nWorld');
-    const tool = createEditorModule(adapter).tools().find((t) => t.name === 'editor_get_content')!;
-    const schema = getStructured(tool);
-
-    const result = await tool.handler({ responseFormat: 'json' });
-    const parsed = schema.parse(result.structuredContent);
-    expect(parsed.content).toBe('# Hello\nWorld');
+  it('editor_get_content is a document tool without outputSchema (#467)', () => {
+    const tools = createEditorModule(new MockObsidianAdapter()).tools();
+    for (const tool of tools) {
+      if (tool.name === 'editor_get_content') expect(tool.outputSchema).toBeUndefined();
+      else expect(tool.outputSchema, tool.name).toBeDefined();
+    }
   });
 
   it('editor_get_active_file declares outputSchema and parses against handler output', async () => {
@@ -179,7 +177,7 @@ describe('editor read tools — outputSchema declarations', () => {
     const tool = createEditorModule(adapter).tools().find((t) => t.name === 'editor_get_active_file')!;
     const schema = getStructured(tool);
 
-    const result = await tool.handler({ responseFormat: 'json' });
+    const result = await tool.handler({});
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.path).toBe('notes/today.md');
   });
@@ -191,7 +189,7 @@ describe('editor read tools — outputSchema declarations', () => {
     const tool = createEditorModule(adapter).tools().find((t) => t.name === 'editor_get_cursor')!;
     const schema = getStructured(tool);
 
-    const result = await tool.handler({ responseFormat: 'json' });
+    const result = await tool.handler({});
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.line).toBe(1);
     expect(parsed.ch).toBe(2);
@@ -204,7 +202,7 @@ describe('editor read tools — outputSchema declarations', () => {
     const tool = createEditorModule(adapter).tools().find((t) => t.name === 'editor_get_selection')!;
     const schema = getStructured(tool);
 
-    const result = await tool.handler({ responseFormat: 'json' });
+    const result = await tool.handler({});
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.from).toEqual({ line: 0, ch: 0 });
     expect(parsed.to).toEqual({ line: 0, ch: 3 });
@@ -217,7 +215,7 @@ describe('editor read tools — outputSchema declarations', () => {
     const tool = createEditorModule(adapter).tools().find((t) => t.name === 'editor_get_line_count')!;
     const schema = getStructured(tool);
 
-    const result = await tool.handler({ responseFormat: 'json' });
+    const result = await tool.handler({});
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.lineCount).toBe(3);
   });

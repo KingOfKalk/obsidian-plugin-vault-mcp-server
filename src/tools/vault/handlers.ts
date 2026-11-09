@@ -3,14 +3,14 @@ import { CallToolResult } from '@modelcontextprotocol/server';
 // gives us a properly callable type while still resolving to the same
 // bundled instance Obsidian uses (moment is a direct dependency).
 import moment from 'moment';
-import { ObsidianAdapter, TrashDestination } from '../../obsidian/adapter';
+import { ObsidianAdapter } from '../../obsidian/adapter';
 import {
   ConfigDirError,
   validateFolderListPath,
   validateToolPath,
   withoutConfigDir,
 } from '../../utils/path-guard';
-import { fitJsonWindow, sliceTextWindow, windowFooter } from '../shared/window';
+import { sliceTextWindow, windowBody, windowMeta } from '../shared/window';
 import {
   handleToolError,
   BinaryTooLargeError,
@@ -19,12 +19,13 @@ import {
   PluginApiUnavailableError,
   ValidationError,
 } from '../shared/errors';
-import { fitItems, fitPage, pageFooter, paginate, readPagination } from '../shared/pagination';
-import { confirmWithStructured, makeResponse, readResponseFormat } from '../shared/response';
+import { fitItems, fitPage, paginate, readPagination } from '../shared/pagination';
+import { dataResponse, documentResponse, documentText } from '../shared/response';
 import { expandPlaceholders } from '../shared/placeholders';
 import { assertSafeFrontmatterKeys } from '../shared/frontmatter';
 import { modifiedIso } from '../shared/modified';
 import { BINARY_BYTE_LIMIT } from '../../constants';
+import { getMimeType, isTextMime, vaultUri } from '../../server/resources';
 import type { InferredParams } from '../../registry/types';
 import type { SearchHandlers } from '../search/handlers';
 import { LIST_PAGE_LIMIT, READ_MAX_LENGTH, parseExpectedMtime } from './schemas';
@@ -36,7 +37,7 @@ import {
   splitLines,
 } from './sections';
 import { applyReplaceEdits, type ReplaceEdit } from './replace-edits';
-import { describeLinkReport, renameWithLinkReport } from './link-report';
+import { renameWithLinkReport } from './link-report';
 import type {
   createFileSchema,
   readFileSchema,
@@ -163,7 +164,6 @@ async function dispatchAspect(
     includeContext?: boolean;
     limit?: number;
     offset?: number;
-    responseFormat?: 'markdown' | 'json';
   },
 ): Promise<CallToolResult> {
   switch (aspect) {
@@ -182,84 +182,60 @@ async function dispatchAspect(
   }
 }
 
-function decorateAspect(
-  inner: CallToolResult,
-  aspect: string,
-  path: string,
-  format: 'markdown' | 'json',
-): CallToolResult {
+function decorateAspect(inner: CallToolResult, aspect: string, path: string): CallToolResult {
   // Pass error results through unchanged so the underlying handler's
   // message format (`isError: true`, content[0].text="…not found") is
   // preserved exactly. The dispatcher only decorates success payloads.
   if (inner.isError === true) return inner;
+  return dataResponse({ aspect, path, ...(inner.structuredContent ?? {}) });
+}
 
-  const decoratedStructured = {
-    aspect,
-    path,
-    ...(inner.structuredContent ?? {}),
+/**
+ * `vault_daily_note` result for a note that exists (#467): the note text,
+ * windowed like `vault_read` so a long note stays under CHARACTER_LIMIT.
+ */
+function dailyNoteResponse(path: string, created: boolean, content: string): CallToolResult {
+  const w = sliceTextWindow(content, 0, READ_MAX_LENGTH);
+  return documentResponse(
+    { path, exists: true, created, ...windowMeta(w, content.length) },
+    windowBody('vault_read', w, content.length),
+  );
+}
+
+/**
+ * `vault_read_binary` result (#467): an `image` or `audio` content block
+ * for those MIME types, so the model can see or hear the file, else the
+ * file as an embedded `resource` with a base64 `blob` and its
+ * `obsidian://vault/` URI. A short text block names the file; the data is
+ * never repeated as text or `structuredContent`.
+ */
+function binaryResponse(path: string, base64: string, sizeBytes: number): CallToolResult {
+  const mimeType = getMimeType(path);
+  const kind = binaryContentKind(mimeType);
+  const header = {
+    type: 'text' as const,
+    text: documentText({ path, mimeType, sizeBytes, content: kind }, '').trimEnd(),
   };
-
-  // For JSON output the rendered text mirrors the structured payload;
-  // re-stringify so `aspect` shows up there too.
-  // For markdown output, leave the rendered text as the underlying
-  // handler produced it — the discriminator is implicit in the heading
-  // each renderer already emits (e.g. "**path** frontmatter:").
-  if (format === 'json') {
-    return {
-      ...inner,
-      content: [{ type: 'text' as const, text: JSON.stringify(decoratedStructured, null, 2) }],
-      structuredContent: decoratedStructured,
-    };
+  if (kind === 'image' || kind === 'audio') {
+    return { content: [header, { type: kind, data: base64, mimeType }] };
   }
-  return { ...inner, structuredContent: decoratedStructured };
+  return {
+    content: [
+      header,
+      { type: 'resource', resource: { uri: vaultUri(path), mimeType, blob: base64 } },
+    ],
+  };
 }
 
-/** Label used in rendered listings; the vault root ("") shows as "/". */
-function displayFolder(path: string): string {
-  return path === '' ? '/' : path;
-}
-
-function renderFolderListing(
-  path: string,
-  folders: string[],
-  files: string[],
-): string {
-  if (folders.length === 0 && files.length === 0) {
-    return `\`${path}\` is empty.`;
-  }
-  const lines: string[] = [`**${path}**`];
-  if (folders.length > 0) {
-    lines.push('', 'Folders:', ...folders.map((f) => `- ${f}/`));
-  }
-  if (files.length > 0) {
-    lines.push('', 'Files:', ...files.map((f) => `- ${f}`));
-  }
-  return lines.join('\n');
-}
-
-function renderRecursiveListing(
-  path: string,
-  v: {
-    folders: string[];
-    folderTotal: number;
-    items: string[];
-    total: number;
-    hasMore: boolean;
-    nextOffset?: number;
-  },
-): string {
-  const header = `**${path}** — ${String(v.folders.length)} of ${String(v.folderTotal)} folders, ${String(v.items.length)} of ${String(v.total)} files`;
-  const lines: string[] = [header];
-  if (v.folders.length > 0) {
-    lines.push('', 'Folders:', ...v.folders.map((f) => `- ${f}/`));
-  }
-  if (v.items.length > 0) {
-    lines.push('', 'Files:', ...v.items.map((f) => `- ${f}`));
-  }
-  if (v.hasMore) {
-    lines.push('', `_More files or folders — next offset: ${String(v.nextOffset ?? '')}_`);
-  }
-  return lines.join('\n');
+/**
+ * Content block type for a MIME type: `image` for raster images, `audio`
+ * for audio, else `resource`. SVG is text, so it is a resource.
+ */
+function binaryContentKind(mimeType: string): 'image' | 'audio' | 'resource' {
+  if (isTextMime(mimeType)) return 'resource';
+  if (mimeType.startsWith('image/')) return 'image';
+  if (mimeType.startsWith('audio/')) return 'audio';
+  return 'resource';
 }
 
 async function resolveInitialBody(
@@ -295,19 +271,6 @@ async function resolveInitialBody(
   );
 }
 
-/** `vault_read`'s structured result; `content` is serialised last. */
-interface ReadPayload {
-  path: string;
-  heading?: string;
-  line?: number;
-  totalLength: number;
-  offset: number;
-  hasMore: boolean;
-  nextOffset?: number;
-  modified: string;
-  content: string;
-}
-
 /**
  * Check a vault_set_frontmatter request before touching the file: at least
  * one key to change, no key both set and removed, no prototype keys.
@@ -325,20 +288,6 @@ function validateFrontmatterChange(setKeys: string[], removeKeys: string[]): voi
 
 const RENAME_TARGET_PATTERN =/^[^/\\\x00]+$/;
 
-/** Text suffix naming where a deleted file or folder went (#430). */
-function describeTrash(trashedTo: TrashDestination): string {
-  switch (trashedTo) {
-    case 'system':
-      return ' (moved to the system trash)';
-    case 'vault':
-      return " (moved to the vault's .trash folder)";
-    case 'permanent':
-      return ' (deleted permanently)';
-    default:
-      return '';
-  }
-}
-
 /**
  * The files a rename of `path` moves, for counting the links to them: every
  * file inside a folder (recursively), or the file itself. A path that is
@@ -346,14 +295,11 @@ function describeTrash(trashedTo: TrashDestination): string {
  * error. Shared by vault_rename, vault_move and vault_rename_folder, which
  * all accept files and folders (#447).
  */
-function movedFiles(
-  adapter: ObsidianAdapter,
-  path: string,
-): { files: string[]; isFolder: boolean } {
+function movedFiles(adapter: ObsidianAdapter, path: string): string[] {
   try {
-    return { files: adapter.listRecursive(path).files, isFolder: true };
+    return adapter.listRecursive(path).files;
   } catch {
-    return { files: [path], isFolder: false };
+    return [path];
   }
 }
 
@@ -419,17 +365,12 @@ export function createHandlers(
       });
       const modified = await modifiedIso(adapter, path);
       const replacements = perEdit.reduce((sum, count) => sum + count, 0);
-      const noun = replacements === 1 ? 'occurrence' : 'occurrences';
-      const editNoun = edits.length === 1 ? 'edit' : 'edits';
-      return confirmWithStructured(
-        `Replaced ${String(replacements)} ${noun} in ${path} (${String(edits.length)} ${editNoun})`,
-        {
-          path,
-          replacements,
-          edits: perEdit.map((count, index) => ({ index, replacements: count })),
-          modified,
-        },
-      );
+      return dataResponse({
+        path,
+        replacements,
+        edits: perEdit.map((count, index) => ({ index, replacements: count })),
+        modified,
+      });
     });
   }
 
@@ -440,7 +381,7 @@ export function createHandlers(
         return await mutex.acquire(path, async () => {
           await adapter.createFile(path, params.content);
           const modified = await modifiedIso(adapter, path);
-          return confirmWithStructured(`Created file: ${path}`, { path, created: true, modified });
+          return dataResponse({ path, created: true, modified });
         });
       } catch (error) {
         return handleToolError(error);
@@ -462,34 +403,12 @@ export function createHandlers(
             line: section.start + 1,
           };
         }
-        const format = readResponseFormat(params);
-        const buildPayload = (length: number): ReadPayload => {
-          const w = sliceTextWindow(fullContent, params.offset ?? 0, length);
-          // Metadata first, content last (#447): whatever happens to the
-          // text, the paging fields are never behind the long content.
-          return {
-            path,
-            ...sectionFields,
-            totalLength: fullContent.length,
-            offset: w.offset,
-            hasMore: w.hasMore,
-            ...(w.hasMore ? { nextOffset: w.end } : {}),
-            modified,
-            content: w.content,
-          };
-        };
-        let payload = buildPayload(params.length ?? READ_MAX_LENGTH);
-        if (format === 'json') payload = fitJsonWindow(payload, buildPayload);
-        const windowEnd = payload.offset + payload.content.length;
-        // The markdown window plus its footer fits, and fitJsonWindow sizes
-        // the JSON window to fit; the dispatcher's cap is only a safety net.
-        return makeResponse(
-          payload,
-          (v) =>
-            v.hasMore
-              ? `${v.content}${windowFooter('vault_read', v.offset, windowEnd, v.totalLength)}`
-              : v.content,
-          format,
+        const w = sliceTextWindow(fullContent, params.offset ?? 0, params.length ?? READ_MAX_LENGTH);
+        // The window plus header and footer fits in CHARACTER_LIMIT; the
+        // dispatcher's cap is only a safety net.
+        return documentResponse(
+          { path, ...sectionFields, modified, ...windowMeta(w, fullContent.length) },
+          windowBody('vault_read', w, fullContent.length),
         );
       } catch (error) {
         return handleToolError(error);
@@ -503,7 +422,7 @@ export function createHandlers(
           await assertExpectedMtime(adapter, path, params.expectedMtime);
           await adapter.modifyFile(path, params.content);
           const modified = await modifiedIso(adapter, path);
-          return confirmWithStructured(`Updated file: ${path}`, { path, updated: true, modified });
+          return dataResponse({ path, updated: true, modified });
         });
       } catch (error) {
         return handleToolError(error);
@@ -516,7 +435,7 @@ export function createHandlers(
         return await mutex.acquire(path, async () => {
           const trashedTo = adapter.getTrashDestination();
           await adapter.deleteFile(path);
-          return confirmWithStructured(`Deleted file: ${path}${describeTrash(trashedTo)}`, {
+          return dataResponse({
             path,
             deleted: true,
             trashedTo,
@@ -534,7 +453,7 @@ export function createHandlers(
           await assertExpectedMtime(adapter, path, params.expectedMtime);
           await adapter.processFile(path, (existing) => appendText(existing, params.content));
           const modified = await modifiedIso(adapter, path);
-          return confirmWithStructured(`Appended to file: ${path}`, {
+          return dataResponse({
             path,
             appended: true,
             modified,
@@ -596,11 +515,7 @@ export function createHandlers(
               : content.replace(oldString, () => newString);
           });
           const modified = await modifiedIso(adapter, path);
-          const noun = replacements === 1 ? 'occurrence' : 'occurrences';
-          return confirmWithStructured(
-            `Replaced ${String(replacements)} ${noun} in ${path}`,
-            { path, replacements, modified },
-          );
+          return dataResponse({ path, replacements, modified });
         });
       } catch (error) {
         return handleToolError(error);
@@ -626,10 +541,7 @@ export function createHandlers(
             return result.content;
           });
           const modified = await modifiedIso(adapter, path);
-          return confirmWithStructured(
-            `Inserted into "${heading}" (${position}) in ${path} at line ${String(line)}`,
-            { path, heading, position, line, modified },
-          );
+          return dataResponse({ path, heading, position, line, modified });
         });
       } catch (error) {
         return handleToolError(error);
@@ -641,18 +553,12 @@ export function createHandlers(
         const path = validateToolPath(params.path, vaultPath, configDir);
         const stat = await adapter.stat(path);
         if (!stat) throw await fileNotFound(adapter, path);
-        const payload = {
+        return dataResponse({
           path,
           size: stat.size,
           created: new Date(stat.ctime).toISOString(),
           modified: new Date(stat.mtime).toISOString(),
-        };
-        return makeResponse(
-          payload,
-          (v) =>
-            `**${v.path}**\n- size: ${String(v.size)} bytes\n- created: ${v.created}\n- modified: ${v.modified}`,
-          readResponseFormat(params),
-        );
+        });
       } catch (error) {
         return handleToolError(error);
       }
@@ -674,13 +580,8 @@ export function createHandlers(
           return errorResult('Invalid rename target');
         }
         return await mutex.acquire(path, async () => {
-          const moved = movedFiles(adapter, path);
-          const report = await renameWithLinkReport(adapter, path, newPath, moved.files);
-          const kind = moved.isFolder ? 'folder' : 'file';
-          return confirmWithStructured(
-            `Renamed ${kind}: ${path} → ${newPath}${describeLinkReport(report)}`,
-            { from: path, to: newPath, ...report },
-          );
+          const report = await renameWithLinkReport(adapter, path, newPath, movedFiles(adapter, path));
+          return dataResponse({ from: path, to: newPath, ...report });
         });
       } catch (error) {
         return handleToolError(error);
@@ -692,13 +593,8 @@ export function createHandlers(
         const path = validateToolPath(params.path, vaultPath, configDir);
         const newPath = validateToolPath(params.newPath, vaultPath, configDir);
         return await mutex.acquire(path, async () => {
-          const moved = movedFiles(adapter, path);
-          const report = await renameWithLinkReport(adapter, path, newPath, moved.files);
-          const kind = moved.isFolder ? 'folder' : 'file';
-          return confirmWithStructured(
-            `Moved ${kind}: ${path} → ${newPath}${describeLinkReport(report)}`,
-            { from: path, to: newPath, ...report },
-          );
+          const report = await renameWithLinkReport(adapter, path, newPath, movedFiles(adapter, path));
+          return dataResponse({ from: path, to: newPath, ...report });
         });
       } catch (error) {
         return handleToolError(error);
@@ -710,7 +606,7 @@ export function createHandlers(
         const sourcePath = validateToolPath(params.sourcePath, vaultPath, configDir);
         const destPath = validateToolPath(params.destPath, vaultPath, configDir);
         await withDestinationCheck(destPath, () => adapter.copyFile(sourcePath, destPath));
-        return confirmWithStructured(`Copied file: ${sourcePath} → ${destPath}`, {
+        return dataResponse({
           from: sourcePath,
           to: destPath,
         });
@@ -723,7 +619,7 @@ export function createHandlers(
       try {
         const path = validateToolPath(params.path, vaultPath, configDir);
         await adapter.createFolder(path);
-        return confirmWithStructured(`Created folder: ${path}`, { path, created: true });
+        return dataResponse({ path, created: true });
       } catch (error) {
         return handleToolError(error);
       }
@@ -734,7 +630,7 @@ export function createHandlers(
         const path = validateToolPath(params.path, vaultPath, configDir);
         const trashedTo = adapter.getTrashDestination();
         await adapter.deleteFolder(path, params.recursive ?? false);
-        return confirmWithStructured(`Deleted folder: ${path}${describeTrash(trashedTo)}`, {
+        return dataResponse({
           path,
           deleted: true,
           recursive: params.recursive ?? false,
@@ -753,12 +649,9 @@ export function createHandlers(
           adapter,
           path,
           newPath,
-          movedFiles(adapter, path).files,
+          movedFiles(adapter, path),
         );
-        return confirmWithStructured(
-          `Renamed folder: ${path} → ${newPath}${describeLinkReport(report)}`,
-          { from: path, to: newPath, ...report },
-        );
+        return dataResponse({ from: path, to: newPath, ...report });
       } catch (error) {
         return handleToolError(error);
       }
@@ -777,19 +670,11 @@ export function createHandlers(
         return Promise.resolve(
           fitPage(page, (p) => {
             const { items, ...paging } = p;
-            const payload = {
+            return dataResponse({
               files: items.filter((e) => !e.folder).map((e) => e.path),
               folders: items.filter((e) => e.folder).map((e) => e.path),
               ...paging,
-            };
-            return makeResponse(
-              payload,
-              (v) =>
-                v.total === 0
-                  ? `\`${displayFolder(path)}\` is empty.`
-                  : renderFolderListing(displayFolder(path), v.folders, v.files) + pageFooter(v),
-              readResponseFormat(params),
-            );
+            });
           }),
         );
       } catch (error) {
@@ -811,7 +696,7 @@ export function createHandlers(
             const end = offset + n;
             const items = result.files.slice(offset, end);
             const hasMore = end < longest;
-            const payload = {
+            return dataResponse({
               folders: result.folders.slice(offset, end),
               folderTotal: result.folders.length,
               total: result.files.length,
@@ -820,12 +705,7 @@ export function createHandlers(
               items,
               hasMore,
               ...(hasMore ? { nextOffset: end } : {}),
-            };
-            return makeResponse(
-              payload,
-              (v) => renderRecursiveListing(displayFolder(path), v),
-              readResponseFormat(params),
-            );
+            });
           }),
         );
       } catch (error) {
@@ -840,17 +720,7 @@ export function createHandlers(
         if (data.byteLength > BINARY_BYTE_LIMIT) {
           throw new BinaryTooLargeError(data.byteLength, BINARY_BYTE_LIMIT);
         }
-        const base64 = Buffer.from(data).toString('base64');
-        return makeResponse(
-          {
-            path,
-            data: base64,
-            encoding: 'base64' as const,
-            sizeBytes: data.byteLength,
-          },
-          (v) => v.data,
-          readResponseFormat(params),
-        );
+        return binaryResponse(path, Buffer.from(data).toString('base64'), data.byteLength);
       } catch (error) {
         return handleToolError(error);
       }
@@ -867,7 +737,7 @@ export function createHandlers(
             buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
           );
           const modified = await modifiedIso(adapter, path);
-          return confirmWithStructured(`Wrote binary file: ${path}`, {
+          return dataResponse({
             path,
             sizeBytes: buffer.byteLength,
             modified,
@@ -882,7 +752,7 @@ export function createHandlers(
       try {
         const { aspect, path } = params;
         const inner = await dispatchAspect(searchHandlers, aspect, params);
-        return decorateAspect(inner, aspect, path, readResponseFormat(params));
+        return decorateAspect(inner, aspect, path);
       } catch (error) {
         return handleToolError(error);
       }
@@ -913,27 +783,18 @@ export function createHandlers(
         const exists = await adapter.exists(path);
         if (exists) {
           const content = await adapter.readFile(path);
-          return makeResponse(
-            { path, created: false, exists: true, content },
-            (v) => `${v.path} (existing)\n\n${v.content}`,
-            readResponseFormat(params),
-          );
+          return dailyNoteResponse(path, false, content);
         }
         // Lookup by default (#432): only create when explicitly asked.
         if (params.create !== true) {
-          return makeResponse(
-            { path, created: false, exists: false },
-            (v) => `${v.path} does not exist (pass create=true to create it).`,
-            readResponseFormat(params),
+          return documentResponse(
+            { path, exists: false, created: false },
+            'The daily note does not exist. Call again with create=true to create it.',
           );
         }
         const body = await resolveInitialBody(adapter, settings.template, targetMoment, filename);
         await adapter.createFile(path, body);
-        return makeResponse(
-          { path, created: true, exists: true, content: body },
-          (v) => `${v.path} (created)\n\n${v.content}`,
-          readResponseFormat(params),
-        );
+        return dailyNoteResponse(path, true, body);
       } catch (error) {
         return handleToolError(error);
       }
@@ -967,10 +828,7 @@ export function createHandlers(
           if (setKeys.length > 0) parts.push(`set ${setKeys.join(', ')}`);
           if (remove.length > 0) parts.push(`removed ${remove.join(', ')}`);
           const modified = await modifiedIso(adapter, path);
-          return confirmWithStructured(
-            `Updated frontmatter of ${path} (${parts.join('; ')})`,
-            { path, frontmatter, modified },
-          );
+          return dataResponse({ path, frontmatter, modified });
         });
       } catch (error) {
         return handleToolError(error);

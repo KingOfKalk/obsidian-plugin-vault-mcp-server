@@ -38,8 +38,8 @@ describe('templates module', () => {
     const module = createTemplatesModule(adapter);
     const tool = module.tools().find((t) => t.name === 'template_list')!;
     const result = await tool.handler({});
-    const data = JSON.parse(getText(result)) as string[];
-    expect(data).toHaveLength(2);
+    const data = JSON.parse(getText(result)) as { files: string[] };
+    expect(data.files).toHaveLength(2);
   });
 
   describe('template_list error handling', () => {
@@ -49,7 +49,7 @@ describe('templates module', () => {
       const tool = module.tools().find((t) => t.name === 'template_list')!;
       const result = await tool.handler({});
       expect(result.isError).toBeUndefined();
-      expect(getText(result)).toBe('[]');
+      expect(getText(result)).toBe('{"files":[]}');
     });
 
     // (b) Folder present + empty → handler returns [].
@@ -59,7 +59,7 @@ describe('templates module', () => {
       const tool = module.tools().find((t) => t.name === 'template_list')!;
       const result = await tool.handler({});
       expect(result.isError).toBeUndefined();
-      expect(getText(result)).toBe(JSON.stringify([]));
+      expect(getText(result)).toBe('{"files":[]}');
     });
 
     // (c) Folder present + populated → returns the file list as JSON.
@@ -71,8 +71,8 @@ describe('templates module', () => {
       const tool = module.tools().find((t) => t.name === 'template_list')!;
       const result = await tool.handler({});
       expect(result.isError).toBeUndefined();
-      const data = JSON.parse(getText(result)) as string[];
-      expect(data).toEqual(['templates/a.md', 'templates/b.md']);
+      const data = JSON.parse(getText(result)) as { files: string[] };
+      expect(data.files).toEqual(['templates/a.md', 'templates/b.md']);
     });
 
     // (d) Permission denied → handleToolError envelope.
@@ -130,7 +130,7 @@ describe('templates module', () => {
         frontmatter: { eid: 42, email: 'ada@example.com', tags: ['team'] },
       });
       expect(result.isError).toBeUndefined();
-      expect(getText(result)).toContain('set frontmatter eid, email, tags');
+      expect(JSON.parse(getText(result))).toEqual(result.structuredContent);
       expect(result.structuredContent).toEqual({
         path: 'people/ada.md',
         templatePath: 'templates/person.md',
@@ -229,70 +229,23 @@ describe('templates module', () => {
     expect(text).not.toContain('{{date}}');
   });
 
-  describe('responseFormat support', () => {
-    it('documents responseFormat on template_list and template_expand', () => {
-      const module = createTemplatesModule(adapter);
-      const tools = module.tools();
-      for (const name of ['template_list', 'template_expand']) {
-        const tool = tools.find((t) => t.name === name)!;
-        expect((tool.schema.responseFormat as z.ZodType).description).toContain('json');
+  describe('result formats (#467)', () => {
+    it('takes no responseFormat', () => {
+      for (const tool of createTemplatesModule(adapter).tools()) {
+        expect(Object.keys(tool.schema), tool.name).not.toContain('responseFormat');
       }
     });
 
-    it('template_list returns structuredContent with files when responseFormat=json', async () => {
-      adapter.addFolder('templates');
-      adapter.addFile('templates/a.md', 'a');
-      adapter.addFile('templates/b.md', 'b');
-      const module = createTemplatesModule(adapter);
-      const tool = module.tools().find((t) => t.name === 'template_list')!;
-      const result = await tool.handler({ responseFormat: 'json' });
-      expect(result.structuredContent).toEqual({
-        files: ['templates/a.md', 'templates/b.md'],
-      });
-      const data = JSON.parse(getText(result)) as { files: string[] };
-      expect(data.files).toEqual(['templates/a.md', 'templates/b.md']);
-    });
-
-    it('template_list markdown path stays a JSON array string for back-compat', async () => {
-      adapter.addFolder('templates');
-      adapter.addFile('templates/a.md', 'a');
-      const module = createTemplatesModule(adapter);
-      const tool = module.tools().find((t) => t.name === 'template_list')!;
-      const result = await tool.handler({});
-      const data = JSON.parse(getText(result)) as string[];
-      expect(data).toEqual(['templates/a.md']);
-      expect(result.structuredContent).toEqual({ files: ['templates/a.md'] });
-    });
-
-    it('template_list returns empty list with structuredContent when folder missing and json', async () => {
-      const module = createTemplatesModule(adapter);
-      const tool = module.tools().find((t) => t.name === 'template_list')!;
-      const result = await tool.handler({ responseFormat: 'json' });
-      expect(result.structuredContent).toEqual({ files: [] });
-    });
-
-    it('template_expand returns structuredContent.expanded when responseFormat=json', async () => {
+    it('template_expand returns only the expanded text, without structuredContent', async () => {
       const module = createTemplatesModule(adapter);
       const tool = module.tools().find((t) => t.name === 'template_expand')!;
+      expect(tool.outputSchema).toBeUndefined();
       const result = await tool.handler({
-        template: 'Hello {{name}}',
-        variables: { name: 'World' },
-        responseFormat: 'json',
-      });
-      expect(result.structuredContent).toEqual({ expanded: 'Hello World' });
-      const data = JSON.parse(getText(result)) as { expanded: string };
-      expect(data.expanded).toBe('Hello World');
-    });
-
-    it('template_expand markdown path still returns the raw expanded string', async () => {
-      const module = createTemplatesModule(adapter);
-      const tool = module.tools().find((t) => t.name === 'template_expand')!;
-      const result = await tool.handler({
-        template: 'Hello {{name}}',
+        template: 'Hello {{name}}\n"quoted"',
         variables: { name: 'World' },
       });
-      expect(getText(result)).toBe('Hello World');
-      expect(result.structuredContent).toEqual({ expanded: 'Hello World' });
+      expect(result.content).toEqual([{ type: 'text', text: 'Hello World\n"quoted"' }]);
+      expect(result.structuredContent).toBeUndefined();
     });
   });
 });
@@ -323,7 +276,7 @@ describe('templates read tools — outputSchema declarations', () => {
     const tool = createTemplatesModule(adapter).tools().find((t) => t.name === 'template_list')!;
     const schema = getStructured(tool);
 
-    const result = await tool.handler({ responseFormat: 'json' });
+    const result = await tool.handler({});
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.files).toEqual(
       expect.arrayContaining(['templates/daily.md', 'templates/meeting.md']),
@@ -335,22 +288,10 @@ describe('templates read tools — outputSchema declarations', () => {
     const tool = createTemplatesModule(adapter).tools().find((t) => t.name === 'template_list')!;
     const schema = getStructured(tool);
 
-    const result = await tool.handler({ responseFormat: 'json' });
+    const result = await tool.handler({});
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.files).toEqual([]);
   });
 
-  it('template_expand declares outputSchema and parses against handler output', async () => {
-    const adapter = new MockObsidianAdapter();
-    const tool = createTemplatesModule(adapter).tools().find((t) => t.name === 'template_expand')!;
-    const schema = getStructured(tool);
 
-    const result = await tool.handler({
-      template: 'Hello, {{name}}!',
-      variables: { name: 'World' },
-      responseFormat: 'json',
-    });
-    const parsed = schema.parse(result.structuredContent);
-    expect(parsed.expanded).toBe('Hello, World!');
-  });
 });

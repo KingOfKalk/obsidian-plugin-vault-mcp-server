@@ -101,12 +101,12 @@ describe('config folder block (#462)', () => {
   });
 
   it('vault_list and vault_list_recursive of the root leave the config folder out', async () => {
-    const list = await tool(vault, 'vault_list')({ path: '/', responseFormat: 'json' });
+    const list = await tool(vault, 'vault_list')({ path: '/' });
     const flat = JSON.parse(getText(list)) as { files: string[]; folders: string[] };
     expect(flat.folders).toEqual(['notes']);
     expect(flat.files).toEqual([]);
 
-    const recursive = await tool(vault, 'vault_list_recursive')({ path: '', responseFormat: 'json' });
+    const recursive = await tool(vault, 'vault_list_recursive')({ path: '' });
     const deep = JSON.parse(getText(recursive)) as { folders: string[]; items: string[] };
     expect(deep.folders).toEqual(['notes']);
     expect(deep.items).toEqual(['notes/a.md']);

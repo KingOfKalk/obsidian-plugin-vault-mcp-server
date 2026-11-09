@@ -5,6 +5,7 @@ import { createHandlers, WriteMutex } from '../../../src/tools/vault/handlers';
 import { createSearchHandlers } from '../../../src/tools/search/handlers';
 import { buildInputSchema } from '../../../src/registry/input-schema';
 import { replaceInFileSchema, updateFileSchema } from '../../../src/tools/vault/schemas';
+import { parseDocument } from '../../helpers/result';
 
 function getText(result: CallToolResult): string {
   const item = result.content[0];
@@ -264,12 +265,12 @@ describe('vault_replace and expectedMtime (#406)', () => {
   });
 
   describe('vault_read exposes modified', () => {
-    it('includes the file mtime as an ISO string in structuredContent', async () => {
+    it('includes the file mtime as an ISO string in the header', async () => {
       adapter.addFile('a.md', 'body', { mtime: MTIME });
       const result = await handlers.readFile({ path: 'a.md' });
-      expect(result.structuredContent).toMatchObject({ modified: MTIME_ISO });
-      // The markdown text stays the bare content.
-      expect(getText(result)).toBe('body');
+      const doc = parseDocument(result);
+      expect(doc.meta.modified).toBe(MTIME_ISO);
+      expect(doc.body).toBe('body');
     });
   });
 

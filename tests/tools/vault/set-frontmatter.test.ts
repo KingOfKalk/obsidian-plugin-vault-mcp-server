@@ -40,9 +40,7 @@ describe('vault_set_frontmatter handler (#407)', () => {
       },
       modified: expect.any(String) as unknown,
     });
-    expect(getText(result)).toBe(
-      'Updated frontmatter of note.md (set status, tags, rating, meta)',
-    );
+    expect(JSON.parse(getText(result))).toEqual(result.structuredContent);
     const content = await adapter.readFile('note.md');
     expect(content.startsWith('---\ntitle: Note\nstatus: done\n')).toBe(true);
     expect(content.endsWith('---\n# Body\n')).toBe(true);
@@ -68,7 +66,7 @@ describe('vault_set_frontmatter handler (#407)', () => {
       frontmatter: { title: 'Note' },
       modified: expect.any(String) as unknown,
     });
-    expect(getText(result)).toContain('removed draft, missing');
+    expect(JSON.parse(getText(result))).toEqual(result.structuredContent);
     expect(await adapter.readFile('note.md')).toBe('---\ntitle: Note\n---\nBody');
   });
 

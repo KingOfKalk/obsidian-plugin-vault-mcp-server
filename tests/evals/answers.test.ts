@@ -16,6 +16,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Client, CallToolResult } from '@modelcontextprotocol/client';
 import { connectClient, startHarness, type Harness } from '../../evals/harness';
 import { answersMatch, parseEvaluationXml } from '../../evals/lib';
+import { jsonOf, windowOf, type ParsedWindow } from '../helpers/result';
 
 const pairs = parseEvaluationXml(
   readFileSync(resolve(process.cwd(), 'evals', 'vault.xml'), 'utf8'),
@@ -41,14 +42,24 @@ afterAll(async () => {
 
 async function call(name: string, args: Record<string, unknown> = {}): Promise<CallToolResult> {
   used.add(name);
-  const result = await client.callTool({ name, arguments: { ...args, responseFormat: 'json' } });
+  const result = await client.callTool({ name, arguments: args });
   expect(result.isError, `${name} failed: ${JSON.stringify(result.content)}`).not.toBe(true);
   return result;
 }
 
+/** A data tool's result, read from the JSON text the model sees (#467). */
 async function data<T>(name: string, args: Record<string, unknown> = {}): Promise<T> {
   const result = await call(name, args);
-  return result.structuredContent as T;
+  const parsed = jsonOf<T>(result);
+  expect(parsed).toEqual(result.structuredContent);
+  return parsed;
+}
+
+/** One vault_read window, read from the plain-text result (#467). */
+async function read(path: string, offset = 0): Promise<ParsedWindow> {
+  const result = await call('vault_read', { path, offset });
+  expect(result.structuredContent).toBeUndefined();
+  return windowOf(result);
 }
 
 interface PageInfo {
@@ -267,10 +278,7 @@ const solutions: Array<() => Promise<string>> = [
     let offset = 0;
     let readPages = 0;
     for (;;) {
-      const r = await data<{ content: string; hasMore: boolean; nextOffset?: number }>('vault_read', {
-        path: ledger,
-        offset,
-      });
+      const r = await read(ledger, offset);
       content += r.content;
       readPages++;
       if (!r.hasMore) break;
@@ -293,7 +301,7 @@ const solutions: Array<() => Promise<string>> = [
       .sort();
     expect(blocked.length).toBeGreaterThan(1);
     expect(nameOf(blocked[0]).slice(0, 10)).not.toBe(nameOf(blocked[1]).slice(0, 10));
-    const { content } = await data<{ content: string }>('vault_read', { path: blocked[0] });
+    const { content } = await read(blocked[0]);
     const technician = /^Technician: \[\[([^\]|]+)/m.exec(content)?.[1] ?? '';
     return String((await frontmatter(await notePath(technician))).team);
   },

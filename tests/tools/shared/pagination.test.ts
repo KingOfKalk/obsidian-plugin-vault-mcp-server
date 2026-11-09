@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   fitItems,
   fitPage,
-  pageFooter,
   paginate,
   paginationFieldsWithDefault,
   readPagination,
@@ -67,7 +66,6 @@ describe('search_fulltext pagination end-to-end', () => {
       query: 'match',
       limit: 10,
       offset: 0,
-      responseFormat: 'json',
     });
     const p1 = JSON.parse(getText(r1)) as {
       total: number;
@@ -85,7 +83,6 @@ describe('search_fulltext pagination end-to-end', () => {
       query: 'match',
       limit: 10,
       offset: p1.nextOffset,
-      responseFormat: 'json',
     });
     const p2 = JSON.parse(getText(r2)) as typeof p1;
     expect(p2.count).toBe(10);
@@ -96,7 +93,6 @@ describe('search_fulltext pagination end-to-end', () => {
       query: 'match',
       limit: 10,
       offset: p2.nextOffset,
-      responseFormat: 'json',
     });
     const p3 = JSON.parse(getText(r3)) as typeof p1;
     expect(p3.count).toBe(5);
@@ -153,13 +149,6 @@ describe('fitting a page into CHARACTER_LIMIT (#464)', () => {
     expect(getText(result).length).toBeLessThanOrEqual(2_000);
     expect(parsed).toEqual(result.structuredContent);
     expect(parsed.nextOffset).toBe(parsed.count);
-  });
-
-  it('pageFooter names the next offset only when more items follow', () => {
-    expect(pageFooter({ count: 2, total: 5, hasMore: true, nextOffset: 2 })).toBe(
-      '\n\n_Showing 2 of 5 — next offset: 2_',
-    );
-    expect(pageFooter({ count: 5, total: 5, hasMore: false })).toBe('');
   });
 
   it('resultTextLength counts text blocks only', () => {

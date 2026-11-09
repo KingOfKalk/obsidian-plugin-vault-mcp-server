@@ -20,18 +20,11 @@ import {
 import { expandPlaceholders } from '../shared/placeholders';
 import { modifiedIso } from '../shared/modified';
 import { assertSafeFrontmatterKeys, frontmatterKeySchema } from '../shared/frontmatter';
-import {
-  confirmWithStructured,
-  makeResponse,
-  readResponseFormat,
-  responseFormatField,
-} from '../shared/response';
+import { dataResponse, documentResponse } from '../shared/response';
 
 function err(m: string): CallToolResult { return handleToolError(new Error(m)); }
 
-const listTemplatesSchema = {
-  ...responseFormatField,
-};
+const listTemplatesSchema = {};
 
 const createFromTemplateSchema = {
   templatePath: vaultPathField(FILE_PATH_DESC),
@@ -58,23 +51,16 @@ const expandVariablesSchema = {
     .record(z.string(), z.string())
     .optional()
     .describe(TEMPLATE_VARIABLES_DESC),
-  ...responseFormatField,
 };
 
 /**
- * Output schemas for the templates read tools that emit `structuredContent`
- * (Batch D of #248).
+ * Output schemas of the templates data tools (#467). template_expand is a
+ * document tool and has none.
  */
 const templateListOutputSchema = {
   files: z
     .array(z.string())
     .describe('Vault-relative paths of the files directly in the top-level "templates" folder; empty when that folder is missing.'),
-};
-
-const templateExpandOutputSchema = {
-  expanded: z
-    .string()
-    .describe('Template text with the known placeholders substituted; unknown ones stay as written.'),
 };
 
 const createFromTemplateOutputSchema = {
@@ -99,26 +85,13 @@ function createHandlers(adapter: ObsidianAdapter): TemplatesHandlers {
   const templatesFolder = 'templates';
 
   return {
-    listTemplates: (params): Promise<CallToolResult> => {
-      const format = readResponseFormat(params);
+    listTemplates: (): Promise<CallToolResult> => {
       try {
         const result = adapter.list(templatesFolder);
-        return Promise.resolve(
-          makeResponse(
-            { files: result.files },
-            (v) => JSON.stringify(v.files),
-            format,
-          ),
-        );
+        return Promise.resolve(dataResponse({ files: result.files }));
       } catch (error) {
         if (error instanceof FolderNotFoundError) {
-          return Promise.resolve(
-            makeResponse(
-              { files: [] as string[] },
-              (v) => JSON.stringify(v.files),
-              format,
-            ),
-          );
+          return Promise.resolve(dataResponse({ files: [] as string[] }));
         }
         return Promise.resolve(handleToolError(error));
       }
@@ -140,7 +113,7 @@ function createHandlers(adapter: ObsidianAdapter): TemplatesHandlers {
         const expanded = expandPlaceholders(templateContent, variables);
         await adapter.createFile(destPath, expanded);
         if (setKeys.length === 0) {
-          return confirmWithStructured(`Created ${destPath} from template ${templatePath}`, {
+          return dataResponse({
             path: destPath,
             templatePath,
             modified: await modifiedIso(adapter, destPath),
@@ -155,22 +128,21 @@ function createHandlers(adapter: ObsidianAdapter): TemplatesHandlers {
           // Obsidian hands back richer YAML values.
           frontmatter = JSON.parse(JSON.stringify(fm)) as Record<string, unknown>;
         });
-        return confirmWithStructured(
-          `Created ${destPath} from template ${templatePath} (set frontmatter ${setKeys.join(', ')})`,
-          { path: destPath, templatePath, frontmatter, modified: await modifiedIso(adapter, destPath) },
-        );
+        return dataResponse({
+          path: destPath,
+          templatePath,
+          frontmatter,
+          modified: await modifiedIso(adapter, destPath),
+        });
       } catch (error) {
         return err(error instanceof Error ? error.message : String(error));
       }
     },
     expandVariables: (params): Promise<CallToolResult> => {
-      const format = readResponseFormat(params);
       try {
         const variables = params.variables ?? {};
         const expanded = expandPlaceholders(params.template, variables);
-        return Promise.resolve(
-          makeResponse({ expanded }, (v) => v.expanded, format),
-        );
+        return Promise.resolve(documentResponse({}, expanded));
       } catch (error) {
         return Promise.resolve(err(error instanceof Error ? error.message : String(error)));
       }
@@ -222,7 +194,6 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
             seeAlso: ['template_create_from — to write the expanded template to a new file.'],
           }),
           schema: expandVariablesSchema,
-          outputSchema: templateExpandOutputSchema,
           handler: h.expandVariables,
           annotations: annotations.read,
         }),

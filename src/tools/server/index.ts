@@ -7,7 +7,7 @@ import {
   defineTool,
 } from '../../registry/types';
 import { describeTool } from '../shared/describe';
-import { makeResponse } from '../shared/response';
+import { dataResponse } from '../shared/response';
 import { AGENT_CHANGES, type AgentChangeEntry } from '../../server/agent-changes';
 
 /**
@@ -77,27 +77,6 @@ interface ServerInfo {
   olderVersionsOmitted: number;
 }
 
-function renderMarkdown(info: ServerInfo): string {
-  const lines = [
-    `${info.name} v${info.version}`,
-    '',
-    `Enabled modules: ${info.enabledModules.length > 0 ? info.enabledModules.join(', ') : '(none)'}`,
-  ];
-  lines.push('', `Agent-relevant changes, newest first. ${CHANGES_COVERAGE_NOTE}`);
-  for (const entry of info.changes) {
-    lines.push('', `## ${entry.version}`);
-    for (const note of entry.notes) lines.push(`- ${note}`);
-  }
-  if (info.olderVersionsOmitted > 0) {
-    const noun = info.olderVersionsOmitted === 1 ? 'version' : 'versions';
-    lines.push(
-      '',
-      `${String(info.olderVersionsOmitted)} older ${noun} left out; call with allChanges: true for all.`,
-    );
-  }
-  return lines.join('\n');
-}
-
 /**
  * The always-on `server` module holding `server_info` (#402). It is not in
  * `MODULE_FACTORIES` and never enters the `ModuleRegistry`, so it has no
@@ -136,7 +115,7 @@ export function createServerModule(options: ServerModuleOptions): ToolModule {
               changes: shown.map((c) => ({ version: c.version, notes: [...c.notes] })),
               olderVersionsOmitted: changes.length - shown.length,
             };
-            return Promise.resolve(makeResponse(info, renderMarkdown));
+            return Promise.resolve(dataResponse(info));
           },
           annotations: annotations.read,
         }),

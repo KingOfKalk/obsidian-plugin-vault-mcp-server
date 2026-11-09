@@ -673,6 +673,18 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     });
   }
 
+  /** Add a binary file (e.g. an image) synchronously, for seeding a vault. */
+  addBinaryFile(path: string, data: Uint8Array, stat?: Partial<FileStat>): void {
+    this.ensureParentFolder(path);
+    const now = Date.now();
+    const binary = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+    this.files.set(path, {
+      content: '',
+      binary: binary as ArrayBuffer,
+      stat: { size: data.byteLength, ctime: stat?.ctime ?? now, mtime: stat?.mtime ?? now },
+    });
+  }
+
   /** Paths deleted via `deleteFile` / `deleteFolder`, i.e. sent to the trash. */
   getTrashedPaths(): string[] {
     return [...this.trashed];

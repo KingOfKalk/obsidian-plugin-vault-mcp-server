@@ -4,11 +4,27 @@ import { CallToolResult } from '@modelcontextprotocol/server';
 import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
 import { createHandlers, WriteMutex } from '../../../src/tools/vault/handlers';
 import { createSearchHandlers } from '../../../src/tools/search/handlers';
+import { windowOf } from '../../helpers/result';
 
 function getText(result: CallToolResult): string {
   const item = result.content[0];
   if (item.type === 'text') return item.text;
   return '';
+}
+
+/**
+ * The fields of a vault_daily_note document result (#467): header values
+ * as booleans, and the note text when the note exists.
+ */
+function daily(result: CallToolResult): Record<string, unknown> {
+  expect(result.structuredContent).toBeUndefined();
+  const w = windowOf(result);
+  return {
+    path: w.meta.path,
+    created: w.meta.created === 'true',
+    exists: w.meta.exists === 'true',
+    ...(w.meta.exists === 'true' ? { content: w.content } : {}),
+  };
 }
 
 describe('vault_daily_note handler', () => {
@@ -38,7 +54,7 @@ describe('vault_daily_note handler', () => {
 
       const result = await handlers.dailyNote({});
       expect(result.isError).toBeUndefined();
-      const structured = result.structuredContent as { path: string; created: boolean; content: string };
+      const structured = daily(result) as { path: string; created: boolean; content: string };
       expect(structured.path).toBe(path);
       expect(structured.created).toBe(false);
       expect(structured.content).toBe('today body');
@@ -51,7 +67,7 @@ describe('vault_daily_note handler', () => {
 
       const result = await handlers.dailyNote({ date: '2026-01-02' });
       expect(result.isError).toBeUndefined();
-      const structured = result.structuredContent as { path: string; created: boolean; content: string };
+      const structured = daily(result) as { path: string; created: boolean; content: string };
       expect(structured.path).toBe('Daily/2026-01-02.md');
       expect(structured.created).toBe(false);
       expect(structured.content).toBe('specific body');
@@ -66,7 +82,7 @@ describe('vault_daily_note handler', () => {
 
       const result = await handlers.dailyNote({ create: true });
       expect(result.isError).toBeUndefined();
-      const structured = result.structuredContent as { path: string; created: boolean; content: string };
+      const structured = daily(result) as { path: string; created: boolean; content: string };
       expect(structured.path).toBe(path);
       expect(structured.created).toBe(true);
       expect(structured.content).toBe('');
@@ -78,7 +94,7 @@ describe('vault_daily_note handler', () => {
       adapter.setDailyNotesSettings({ format: 'YYYY-MM-DD', folder: '', template: '' });
       await handlers.dailyNote({ create: true });
       const result = await handlers.dailyNote({ create: true });
-      const structured = result.structuredContent as { created: boolean };
+      const structured = daily(result) as { created: boolean };
       expect(structured.created).toBe(false);
     });
   });
@@ -98,7 +114,7 @@ describe('vault_daily_note handler', () => {
 
       const result = await handlers.dailyNote({ date: '2026-05-05', create: true });
       expect(result.isError).toBeUndefined();
-      const structured = result.structuredContent as { content: string };
+      const structured = daily(result) as { content: string };
       expect(structured.content).toContain('Date: 2026-05-05');
       expect(structured.content).toContain('# 2026-05-05');
       expect(structured.content).toContain('## Notes');
@@ -116,7 +132,7 @@ describe('vault_daily_note handler', () => {
       adapter.addFile('templates/templater-daily.md', tpBody);
 
       const result = await handlers.dailyNote({ date: '2026-05-05', create: true });
-      const structured = result.structuredContent as { content: string };
+      const structured = daily(result) as { content: string };
       expect(structured.content).toBe(tpBody);
     });
 
@@ -127,7 +143,7 @@ describe('vault_daily_note handler', () => {
         template: 'templates/missing.md',
       });
       const result = await handlers.dailyNote({ date: '2026-05-05', create: true });
-      const structured = result.structuredContent as { created: boolean; content: string };
+      const structured = daily(result) as { created: boolean; content: string };
       expect(structured.created).toBe(true);
       expect(structured.content).toBe('');
     });
@@ -174,7 +190,7 @@ describe('vault_daily_note handler', () => {
 
       const result = await handlers.dailyNote({ date: '2026-05-05', create: true });
       expect(result.isError).toBeUndefined();
-      const structured = result.structuredContent as { path: string; created: boolean };
+      const structured = daily(result) as { path: string; created: boolean };
       // moment formats forward-slashes literally → 'Daily/2026/05/05.md'
       expect(structured.path).toBe('Daily/2026/05/05.md');
       expect(structured.created).toBe(true);
@@ -189,7 +205,7 @@ describe('vault_daily_note handler', () => {
 
       const result = await handlers.dailyNote({ date: '2026-05-05', create: true });
       expect(result.isError).toBeUndefined();
-      const structured = result.structuredContent as { path: string };
+      const structured = daily(result) as { path: string };
       expect(structured.path).toBe('Daily-2026-05-05.md');
     });
   });
@@ -202,7 +218,7 @@ describe('vault_daily_note handler', () => {
     it('create:false on a missing note returns exists:false and creates nothing', async () => {
       const result = await handlers.dailyNote({ date: '2026-03-04', create: false });
       expect(result.isError).toBeUndefined();
-      expect(result.structuredContent).toEqual({
+      expect(daily(result)).toEqual({
         path: 'daily/2026-03-04.md',
         created: false,
         exists: false,
@@ -211,23 +227,21 @@ describe('vault_daily_note handler', () => {
       expect(getText(result)).toContain('does not exist');
     });
 
-    it('create:false on a missing note renders JSON without content', async () => {
+    it('create:false on a missing note has a header and no note text', async () => {
       const result = await handlers.dailyNote({
         date: '2026-03-04',
         create: false,
-        responseFormat: 'json',
       });
-      expect(JSON.parse(getText(result))).toEqual({
-        path: 'daily/2026-03-04.md',
-        created: false,
-        exists: false,
-      });
+      expect(getText(result)).toBe(
+        'path: daily/2026-03-04.md\nexists: false\ncreated: false\n\n' +
+          'The daily note does not exist. Call again with create=true to create it.',
+      );
     });
 
     it('create:false on an existing note reads it like the default', async () => {
       adapter.addFile('daily/2026-03-04.md', 'body');
       const result = await handlers.dailyNote({ date: '2026-03-04', create: false });
-      expect(result.structuredContent).toEqual({
+      expect(daily(result)).toEqual({
         path: 'daily/2026-03-04.md',
         created: false,
         exists: true,
@@ -237,7 +251,7 @@ describe('vault_daily_note handler', () => {
 
     it('create:true (explicit) creates the note and reports exists:true', async () => {
       const result = await handlers.dailyNote({ date: '2026-03-04', create: true });
-      expect(result.structuredContent).toEqual({
+      expect(daily(result)).toEqual({
         path: 'daily/2026-03-04.md',
         created: true,
         exists: true,
@@ -249,19 +263,19 @@ describe('vault_daily_note handler', () => {
     it('omitting create only looks the note up and creates nothing (#432)', async () => {
       const result = await handlers.dailyNote({ date: '2026-03-04' });
       expect(result.isError).toBeUndefined();
-      expect(result.structuredContent).toEqual({
+      expect(daily(result)).toEqual({
         path: 'daily/2026-03-04.md',
         created: false,
         exists: false,
       });
       expect(await adapter.exists('daily/2026-03-04.md')).toBe(false);
-      expect(getText(result)).toContain('pass create=true');
+      expect(getText(result)).toContain('create=true');
     });
 
     it('omitting create for today does not create today\'s note (#432)', async () => {
       const today = moment().format('YYYY-MM-DD');
       const result = await handlers.dailyNote({});
-      expect(result.structuredContent).toEqual({
+      expect(daily(result)).toEqual({
         path: `daily/${today}.md`,
         created: false,
         exists: false,
@@ -272,7 +286,7 @@ describe('vault_daily_note handler', () => {
     it('an existing note reports exists:true without create', async () => {
       adapter.addFile('daily/2026-03-04.md', 'x');
       const result = await handlers.dailyNote({ date: '2026-03-04' });
-      expect(result.structuredContent).toMatchObject({ created: false, exists: true });
+      expect(daily(result)).toMatchObject({ created: false, exists: true });
     });
   });
 });

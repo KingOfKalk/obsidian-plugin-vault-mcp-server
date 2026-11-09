@@ -14,18 +14,13 @@ import {
   handleToolError,
 } from '../shared/errors';
 import { describeTool } from '../shared/describe';
-import {
-  confirmWithStructured,
-  makeResponse,
-  readResponseFormat,
-  responseFormatField,
-} from '../shared/response';
+import { dataResponse, documentResponse } from '../shared/response';
 import { fitItems } from '../shared/pagination';
 import type { ModuleOptions } from '../index';
 
 function err(m: string): CallToolResult { return handleToolError(new Error(m)); }
 
-const listSchema = { ...responseFormatField };
+const listSchema = {};
 
 const checkSchema = {
   pluginId: z
@@ -33,7 +28,6 @@ const checkSchema = {
     .min(1)
     .max(200)
     .describe('Community plugin id (e.g. "dataview")'),
-  ...responseFormatField,
 };
 
 const dataviewSchema = {
@@ -42,7 +36,6 @@ const dataviewSchema = {
     .min(1)
     .max(10_000)
     .describe('Dataview DQL query text. JavaScript queries are not executed by this tool — see plugin_dataview_describe_js_query.'),
-  ...responseFormatField,
 };
 
 const dataviewJsSchema = {
@@ -51,7 +44,6 @@ const dataviewJsSchema = {
     .min(1)
     .max(10_000)
     .describe('Dataview-JS source; returned unchanged, never executed.'),
-  ...responseFormatField,
 };
 
 const templaterSchema = {
@@ -60,7 +52,6 @@ const templaterSchema = {
     .min(1)
     .max(4096)
     .describe('Template path; returned unchanged, not checked or read.'),
-  ...responseFormatField,
 };
 
 const executeCommandSchema = {
@@ -72,9 +63,9 @@ const executeCommandSchema = {
 };
 
 /**
- * Output schemas for the plugin-interop read tools that emit
- * `structuredContent` (Batch D of #248). Each shape mirrors what the
- * corresponding handler in this file puts on `result.structuredContent`.
+ * Output schemas of the plugin-interop data tools (#467): each shape
+ * mirrors what the handler puts on `structuredContent`, which is also the
+ * JSON text. plugin_dataview_query is a document tool and has none.
  */
 const pluginListOutputSchema = {
   plugins: z
@@ -92,15 +83,6 @@ const pluginCheckOutputSchema = {
   pluginId: z.string().describe('Plugin id that was queried.'),
   installed: z.boolean().describe('Whether the plugin is installed in this vault.'),
   enabled: z.boolean().describe('Whether the plugin is enabled (false when not installed).'),
-};
-
-const pluginDataviewQueryOutputSchema = {
-  query: z.string().describe('Dataview DQL query that was executed.'),
-  markdown: z.string().describe('Markdown rendering produced by Dataview, without HTML: list and object values in TABLE cells are plain text (e.g. "a, b").'),
-  truncated: z
-    .boolean()
-    .optional()
-    .describe('True when only the first lines fit in the response; narrow the query with WHERE or LIMIT.'),
 };
 
 const pluginDescribeOutputSchema = {
@@ -136,22 +118,10 @@ function createHandlers(
   getExecuteCommandAllowlist: () => string[],
 ): PluginInteropHandlers {
   return {
-    listPlugins: (params): Promise<CallToolResult> => {
+    listPlugins: (): Promise<CallToolResult> => {
       const plugins = adapter.getInstalledPlugins();
       return Promise.resolve(
-        makeResponse(
-          { plugins },
-          (v) =>
-            v.plugins.length === 0
-              ? 'No community plugins installed.'
-              : v.plugins
-                  .map(
-                    (p) =>
-                      `- **${p.name ?? p.id}** (\`${p.id}\`) — ${p.enabled ? 'enabled' : 'disabled'}`,
-                  )
-                  .join('\n'),
-          readResponseFormat(params),
-        ),
+        dataResponse({ plugins }),
       );
     },
     checkPlugin: (params): Promise<CallToolResult> => {
@@ -159,12 +129,7 @@ function createHandlers(
       const plugins = adapter.getInstalledPlugins();
       const installed = plugins.some((p) => p.id === params.pluginId);
       return Promise.resolve(
-        makeResponse(
-          { pluginId: params.pluginId, installed, enabled },
-          (v) =>
-            `**${v.pluginId}** — ${v.installed ? 'installed' : 'not installed'}, ${v.enabled ? 'enabled' : 'disabled'}`,
-          readResponseFormat(params),
-        ),
+        dataResponse({ pluginId: params.pluginId, installed, enabled }),
       );
     },
     dataviewQuery: async (params): Promise<CallToolResult> => {
@@ -186,20 +151,13 @@ function createHandlers(
         // Over CHARACTER_LIMIT: fewer whole lines (table rows), never a cut
         // line, so the table header and every row shown stay intact (#464).
         const lines = result.value.split('\n');
-        const format = readResponseFormat(params);
         return fitItems(lines.length, (n) => {
           const truncated = n < lines.length;
-          return makeResponse(
-            {
-              query: params.query,
-              markdown: truncated ? lines.slice(0, n).join('\n') : result.value,
-              ...(truncated ? { truncated } : {}),
-            },
-            (v) =>
-              truncated
-                ? `${v.markdown}\n\n[TRUNCATED: Showing ${String(n)} of ${String(lines.length)} lines. Narrow the query with WHERE or LIMIT.]`
-                : v.markdown,
-            format,
+          return documentResponse(
+            truncated ? { lines: `${String(n)} of ${String(lines.length)}`, truncated } : {},
+            truncated
+              ? `${lines.slice(0, n).join('\n')}\n\n[TRUNCATED: Showing ${String(n)} of ${String(lines.length)} lines. Narrow the query with WHERE or LIMIT.]`
+              : result.value,
           );
         });
       } catch (error) {
@@ -215,11 +173,7 @@ function createHandlers(
         note: 'Dataview JS execution is intentionally not performed by this server. Run the source against the Dataview API on the host that owns the vault.',
       };
       return Promise.resolve(
-        makeResponse(
-          payload,
-          (v) => `_${v.note}_\n\n\`\`\`dataviewjs\n${v.query}\n\`\`\``,
-          readResponseFormat(params),
-        ),
+        dataResponse(payload),
       );
     },
     templaterDescribeTemplate: (params): Promise<CallToolResult> => {
@@ -231,11 +185,7 @@ function createHandlers(
         note: 'Templater execution is intentionally not performed by this server. The host client must run the template via the Templater API.',
       };
       return Promise.resolve(
-        makeResponse(
-          payload,
-          (v) => `_${v.note}_\n\nTemplate path: \`${v.templatePath}\``,
-          readResponseFormat(params),
-        ),
+        dataResponse(payload),
       );
     },
     executeCommand: (params): Promise<CallToolResult> => {
@@ -257,7 +207,7 @@ function createHandlers(
       const ok = adapter.executeCommand(params.commandId);
       return Promise.resolve(
         ok
-          ? confirmWithStructured(`Executed command: ${params.commandId}`, {
+          ? dataResponse({
               commandId: params.commandId,
               executed: true,
             })
@@ -306,6 +256,8 @@ export function createPluginInteropModule(
           title: 'Run Dataview query',
           description: describeTool({
             summary: 'Execute a Dataview DQL query and return the rendered markdown. List fields in TABLE cells come back as plain text ("a, b"), not HTML.',
+            returns:
+              'Too long a result returns its first whole lines, after "lines: N of M" and "truncated: true" header lines; narrow the query with WHERE or LIMIT.',
             errors: [
               '"Plugin not installed or disabled: dataview" if Dataview is missing.',
               '"Plugin API unavailable for dataview" if Dataview is loaded but its API is not yet exposed.',
@@ -313,7 +265,6 @@ export function createPluginInteropModule(
             ],
           }),
           schema: dataviewSchema,
-          outputSchema: pluginDataviewQueryOutputSchema,
           handler: h.dataviewQuery,
           annotations: annotations.read,
         }),

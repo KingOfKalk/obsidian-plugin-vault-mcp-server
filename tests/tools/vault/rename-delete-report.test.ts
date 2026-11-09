@@ -45,7 +45,7 @@ describe('rename/move link report and delete destination (#430)', () => {
         updatedFiles: ['index.md', 'other.md'],
         autoUpdateLinks: true,
       });
-      expect(getText(result)).toContain('Updated 3 links in 2 files: index.md, other.md');
+      expect(JSON.parse(getText(result))).toEqual(result.structuredContent);
       expect(await adapter.readFile('index.md')).toBe('See [[archive/target]] and [[archive/target|alias]].');
     });
 
@@ -64,7 +64,7 @@ describe('rename/move link report and delete destination (#430)', () => {
       const warning = (result.structuredContent as { warning?: string }).warning;
       expect(warning).toContain('"Automatically update internal links" is off');
       expect(warning).toContain('1 file links to notes/target.md');
-      expect(getText(result)).toContain('Warning:');
+      expect(JSON.parse(getText(result))).toEqual(result.structuredContent);
       expect(await adapter.readFile('index.md')).toBe('See [[notes/target]].');
     });
 
@@ -94,7 +94,7 @@ describe('rename/move link report and delete destination (#430)', () => {
         updatedFiles: [],
         autoUpdateLinks: false,
       });
-      expect(getText(result)).toBe('Moved file: lonely.md → archive/lonely.md');
+      expect(JSON.parse(getText(result))).toEqual(result.structuredContent);
     });
 
     it('does not count a self-link toward the warning', async () => {
@@ -121,7 +121,7 @@ describe('rename/move link report and delete destination (#430)', () => {
         updatedFiles: ['b.md'],
         autoUpdateLinks: true,
       });
-      expect(getText(result)).toContain('Updated 1 link in 1 file: b.md');
+      expect(JSON.parse(getText(result))).toEqual(result.structuredContent);
     });
   });
 
@@ -141,7 +141,7 @@ describe('rename/move link report and delete destination (#430)', () => {
         updatedFiles: ['archive/wip/one.md', 'index.md'],
         autoUpdateLinks: true,
       });
-      expect(getText(result)).toContain('Moved folder: wip → archive/wip');
+      expect(JSON.parse(getText(result))).toEqual(result.structuredContent);
       expect(await adapter.readFile('index.md')).toBe('[[archive/wip/one]] [[archive/wip/two]]');
     });
 
@@ -158,7 +158,7 @@ describe('rename/move link report and delete destination (#430)', () => {
         updatedFiles: ['index.md'],
         autoUpdateLinks: true,
       });
-      expect(getText(result)).toContain('Renamed folder: wip → done');
+      expect(JSON.parse(getText(result))).toEqual(result.structuredContent);
     });
 
     it.each(['move', 'rename'] as const)(
@@ -219,20 +219,15 @@ describe('rename/move link report and delete destination (#430)', () => {
   });
 
   describe('trashedTo', () => {
-    const cases: Array<[TrashDestination, string]> = [
-      ['system', ' (moved to the system trash)'],
-      ['vault', " (moved to the vault's .trash folder)"],
-      ['permanent', ' (deleted permanently)'],
-      ['unknown', ''],
-    ];
+    const cases: TrashDestination[] = ['system', 'vault', 'permanent', 'unknown'];
 
-    for (const [destination, suffix] of cases) {
+    for (const destination of cases) {
       it(`vault_delete reports "${destination}"`, async () => {
         adapter.setTrashDestination(destination);
         adapter.addFile('old.md', 'x');
         const result = await handlers.deleteFile({ path: 'old.md' });
         expect(result.structuredContent).toEqual({ path: 'old.md', deleted: true, trashedTo: destination });
-        expect(getText(result)).toBe(`Deleted file: old.md${suffix}`);
+        expect(JSON.parse(getText(result))).toEqual(result.structuredContent);
       });
 
       it(`vault_delete_folder reports "${destination}"`, async () => {
@@ -245,7 +240,7 @@ describe('rename/move link report and delete destination (#430)', () => {
           recursive: true,
           trashedTo: destination,
         });
-        expect(getText(result)).toBe(`Deleted folder: drafts${suffix}`);
+        expect(JSON.parse(getText(result))).toEqual(result.structuredContent);
       });
     }
   });
