@@ -11,3 +11,10 @@ export const CHARACTER_LIMIT = 25_000;
  * out-of-band (or chunk once chunked reads land).
  */
 export const BINARY_BYTE_LIMIT = 1_048_576; // 1 MiB
+
+/** Public GitHub repository of the plugin. */
+export const REPOSITORY_URL =
+  'https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server';
+
+/** GitHub "new issue" page, derived from {@link REPOSITORY_URL}. */
+export const NEW_ISSUE_URL = `${REPOSITORY_URL}/issues/new`;
