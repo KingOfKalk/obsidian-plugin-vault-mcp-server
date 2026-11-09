@@ -2,7 +2,10 @@
  * Headless eval server (#393): the real createMcpServer + HttpMcpServer on
  * the fixture vault (the hand-written notes plus the generated bulk notes,
  * #466), without Obsidian. Every module and every tool is
- * enabled, exactly as a user who turned everything on would see it. The
+ * enabled, exactly as a user who turned everything on would see it; the
+ * fixture has no Dataview and an empty command allowlist, so
+ * `plugin_dataview_query` and `plugin_execute_command` are not listed
+ * (#469). The
  * eval questions only need read tools; write tools act on the in-memory
  * copy of the fixture, never on the files on disk.
  *

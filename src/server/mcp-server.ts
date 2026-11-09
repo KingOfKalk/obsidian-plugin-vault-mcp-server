@@ -107,6 +107,9 @@ export function createMcpServer(
   options: CreateMcpServerOptions = {},
 ): McpServer {
   const version = options.version ?? manifest.version;
+  // A new session sees the current plugin and allowlist state, not the
+  // state at the last poll (#469). Other open sessions follow if it changed.
+  registry.refreshAvailability();
   const capabilities: {
     tools: Record<string, never>;
     logging: Record<string, never>;

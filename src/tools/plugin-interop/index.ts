@@ -271,10 +271,8 @@ export function createPluginInteropModule(
   adapter: ObsidianAdapter,
   options: ModuleOptions = {},
 ): ToolModule {
-  const h = createHandlers(
-    adapter,
-    options.getExecuteCommandAllowlist ?? ((): string[] => []),
-  );
+  const getAllowlist = options.getExecuteCommandAllowlist ?? ((): string[] => []);
+  const h = createHandlers(adapter, getAllowlist);
   return {
     metadata: { id: 'plugin-interop', name: 'Plugin Interop', description: 'List plugins, check status, execute commands, and integrate with Dataview/Templater' },
     tools(): ToolDefinition[] {
@@ -316,6 +314,8 @@ export function createPluginInteropModule(
           outputSchema: pluginDataviewQueryOutputSchema,
           handler: h.dataviewQuery,
           annotations: annotations.read,
+          // Listed only while Dataview is enabled (#469).
+          isAvailable: (): boolean => adapter.isPluginEnabled('dataview'),
         }),
         defineTool({
           name: 'plugin_dataview_describe_js_query',
@@ -348,10 +348,9 @@ export function createPluginInteropModule(
           title: 'Execute command',
           description: describeTool({
             summary:
-              'Run an Obsidian command by id. Only ids the user put on the Execute Command Allowlist in the plugin settings run; the list is empty by default.',
+              'Run an Obsidian command by id. Only ids the user put on the Execute Command Allowlist in the plugin settings run.',
             errors: [
-              '"Command execution disabled" if the allowlist is empty; ask the user to add the id in the plugin settings.',
-              '"Command "<id>" is not on the executeCommand allowlist" if the id is not listed.',
+              '"Command "<id>" is not on the executeCommand allowlist" if the id is not listed; ask the user to add it in the plugin settings.',
               '"Command not found" if the id is listed but no such command exists.',
             ],
           }),
@@ -359,6 +358,8 @@ export function createPluginInteropModule(
           outputSchema: executeCommandOutputSchema,
           handler: h.executeCommand,
           annotations: annotations.destructiveExternal,
+          // Listed only while the allowlist has an entry (#469).
+          isAvailable: (): boolean => getAllowlist().length > 0,
         }),
       ];
     },

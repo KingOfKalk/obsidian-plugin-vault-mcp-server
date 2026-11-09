@@ -641,6 +641,12 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     this.installedPlugins.push({ id, name, enabled });
   }
 
+  /** Enable or disable an installed plugin, as the Community plugins tab does. */
+  setPluginEnabled(id: string, enabled: boolean): void {
+    const plugin = this.installedPlugins.find((p) => p.id === id);
+    if (plugin) plugin.enabled = enabled;
+  }
+
   getExecutedCommands(): string[] {
     return [...this.executedCommands];
   }
