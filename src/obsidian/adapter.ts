@@ -136,6 +136,7 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   }
 
   async createFile(path: string, content: string): Promise<void> {
+    await this.ensureParentFolder(path);
     await this.app.vault.create(path, content);
   }
 
@@ -146,16 +147,21 @@ export class RealObsidianAdapter implements ObsidianAdapter {
 
   async deleteFile(path: string): Promise<void> {
     const file = this.getFile(path);
-    await this.app.vault.delete(file);
+    await this.trash(file);
   }
 
   async renameFile(oldPath: string, newPath: string): Promise<void> {
     const file = this.getAbstractFile(oldPath);
-    await this.app.vault.rename(file, newPath);
+    await this.ensureParentFolder(newPath);
+    // `fileManager.renameFile` updates links to the moved file according
+    // to the user's "Automatically update internal links" setting;
+    // `vault.rename` would leave them pointing at the old path (#405).
+    await this.app.fileManager.renameFile(file, newPath);
   }
 
   async copyFile(sourcePath: string, destPath: string): Promise<void> {
     const file = this.getFile(sourcePath);
+    await this.ensureParentFolder(destPath);
     await this.app.vault.copy(file, destPath);
   }
 
@@ -164,6 +170,7 @@ export class RealObsidianAdapter implements ObsidianAdapter {
     if (existing instanceof TFile) {
       await this.app.vault.modifyBinary(existing, data);
     } else {
+      await this.ensureParentFolder(path);
       await this.app.vault.createBinary(path, data);
     }
   }
@@ -177,7 +184,7 @@ export class RealObsidianAdapter implements ObsidianAdapter {
     if (!recursive && folder.children.length > 0) {
       throw new Error(`Folder "${path}" is not empty. Use recursive=true to delete.`);
     }
-    await this.app.vault.delete(folder, true);
+    await this.trash(folder);
   }
 
   exists(path: string): Promise<boolean> {
@@ -488,6 +495,42 @@ export class RealObsidianAdapter implements ObsidianAdapter {
       folder: typeof options.folder === 'string' ? options.folder : '',
       template: typeof options.template === 'string' ? options.template : '',
     };
+  }
+
+  /**
+   * Remove a file or folder the way the user configured under "Deleted
+   * files" (system trash, the vault's .trash folder, or permanently)
+   * instead of always deleting for good like `vault.delete` (#405).
+   * `fileManager.trashFile` exists since Obsidian 1.6.6; older versions
+   * (minAppVersion is 1.5.0) fall back to `vault.trash(file, true)`,
+   * which uses the system trash and the .trash folder if that fails.
+   */
+  private async trash(file: TAbstractFile): Promise<void> {
+    const fileManager = this.app.fileManager as Partial<App['fileManager']> | undefined;
+    if (typeof fileManager?.trashFile === 'function') {
+      await fileManager.trashFile(file);
+      return;
+    }
+    await this.app.vault.trash(file, true);
+  }
+
+  /**
+   * Create every missing ancestor folder of `path` so writes into a new
+   * folder do not fail with a raw ENOENT from the filesystem (#405).
+   */
+  private async ensureParentFolder(path: string): Promise<void> {
+    const parts = path.split('/').filter((p) => p.length > 0);
+    parts.pop();
+    let current = '';
+    for (const part of parts) {
+      current = current ? `${current}/${part}` : part;
+      const existing = this.app.vault.getAbstractFileByPath(current);
+      if (existing instanceof TFolder) continue;
+      if (existing) {
+        throw new Error(`Cannot create folder "${current}": a file with that name exists`);
+      }
+      await this.app.vault.createFolder(current);
+    }
   }
 
   private getFile(path: string): TFile {

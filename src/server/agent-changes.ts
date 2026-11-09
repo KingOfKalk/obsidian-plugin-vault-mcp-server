@@ -18,6 +18,16 @@ export interface AgentChangeEntry {
 
 export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
   {
+    version: '3.3.0',
+    notes: [
+      '`vault_delete` and `vault_delete_folder` follow the user\'s "Deleted files" setting (system trash, `.trash` folder, or permanent) instead of always deleting for good.',
+      '`vault_rename`, `vault_move` and `vault_rename_folder` update links to the moved file when the user enabled "Automatically update internal links".',
+      '`vault_create`, `vault_copy`, `vault_move`, `vault_write_binary` and `template_create_from` create missing parent folders instead of failing.',
+      'Error messages no longer contain absolute filesystem paths; vault paths are vault-relative, other paths read `<path>`.',
+      '`search_by_frontmatter`: a list property matches when any element equals `value`.',
+    ],
+  },
+  {
     version: '3.2.0',
     notes: [
       'New tool `server_info`: plugin version, enabled modules and this change list. The server instructions now start with the version.',
