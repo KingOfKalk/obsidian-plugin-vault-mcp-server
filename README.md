@@ -4,7 +4,7 @@ An Obsidian desktop plugin that runs an MCP (Model Context Protocol) server, exp
 
 ## Features
 
-- **53 MCP tools** across 9 modules (the exact, always-current breakdown is in [`docs/tools.generated.md`](docs/tools.generated.md))
+- **54 MCP tools** across 9 modules (the exact, always-current breakdown is in [`docs/tools.generated.md`](docs/tools.generated.md))
 - **Vault Operations**: Create, read, update, delete, move, copy files and folders
 - **Search & Metadata**: Full-text search, frontmatter, tags, headings, links, backlinks
 - **Editor Operations**: Access and manipulate the active editor

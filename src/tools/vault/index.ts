@@ -11,6 +11,7 @@ import {
   deleteFileSchema,
   appendFileSchema,
   replaceInFileSchema,
+  insertSchema,
   getMetadataSchema,
   renameFileSchema,
   moveFileSchema,
@@ -35,10 +36,22 @@ import {
  */
 const readFileOutputSchema = {
   path: z.string().describe('Vault-relative path that was read.'),
+  heading: z
+    .string()
+    .optional()
+    .describe('With the heading parameter: the matched heading as written, e.g. "## Log".'),
+  line: z
+    .number()
+    .optional()
+    .describe('With the heading parameter: 1-based line number of the heading in the file.'),
   content: z
     .string()
-    .describe('File content in the requested window (the whole file when it fits).'),
-  totalLength: z.number().describe('Length of the whole file in characters.'),
+    .describe(
+      'File content in the requested window (the whole file when it fits). With heading: the section, heading line included.',
+    ),
+  totalLength: z
+    .number()
+    .describe('Length of the whole file (or of the section, with heading) in characters.'),
   offset: z.number().describe('Character offset where this window starts.'),
   hasMore: z.boolean().describe('True when the file continues past this window.'),
   nextOffset: z
@@ -270,6 +283,22 @@ const replaceOutputSchema = {
     .describe('New last-modification timestamp (ISO-8601); usable as the next expectedMtime.'),
 };
 
+const insertOutputSchema = {
+  path: writePath,
+  heading: z.string().describe('The matched heading as written, e.g. "## Log".'),
+  position: z.enum(['start', 'end']).describe('Where the text went in the section.'),
+  line: z.number().describe('1-based line number where the inserted text starts.'),
+  modified: z
+    .string()
+    .describe('New last-modification timestamp (ISO-8601); usable as the next expectedMtime.'),
+};
+
+/** Error lines shared by the tools that address a section by heading (#428). */
+const HEADING_NOT_FOUND_ERROR =
+  '"Heading not found" (with the available headings and their line numbers) if no heading matches.';
+const HEADING_AMBIGUOUS_ERROR =
+  '"Heading … is ambiguous" (with the matches and their line numbers) if more than one heading matches.';
+
 /** Error line shared by the write tools that take `expectedMtime` (#406). */
 const MTIME_CONFLICT_ERROR =
   '"File changed since expectedMtime" (with the current mtime) if expectedMtime is set and the file was modified since; nothing is written.';
@@ -324,14 +353,19 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Read file',
           description: describeTool({
             summary: 'Read the UTF-8 content of a file by vault-relative path.',
-            returns: 'Files over 24 000 characters come in windows: while hasMore is true, call again with offset=nextOffset.',
+            returns:
+              'Files over 24 000 characters come in windows: while hasMore is true, call again with offset=nextOffset. ' +
+              'With heading, only that section is returned (paged the same way).',
             examples: [
               'Use when: "show me the README" -> { path: "README.md" }',
               'Use when: continuing a large file -> { path: "big.md", offset: 24000 }',
+              'Use when: reading one section of a long note -> { path: "journal.md", heading: "## Log" }',
             ],
             errors: [
               '"File not found" if the path does not exist.',
               '"Path must not traverse outside the vault" on traversal attempts.',
+              HEADING_NOT_FOUND_ERROR,
+              HEADING_AMBIGUOUS_ERROR,
             ],
             seeAlso: [
               'editor_get_content — when reading the file currently open in the editor (no path needed).',
@@ -411,6 +445,36 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           outputSchema: replaceOutputSchema,
           handler: handlers.replaceInFile,
           annotations: annotations.destructive,
+        }),
+        defineTool({
+          name: 'vault_insert',
+          title: 'Insert into section',
+          description: describeTool({
+            summary:
+              'Insert text at the start or end of a Markdown section, addressed by its heading, without rewriting the rest of the file.',
+            returns:
+              'A section runs from its heading to the next heading of the same or a higher level (or the end of the file). ' +
+              'Finding the section and writing happen in one atomic step (app.vault.process).',
+            examples: [
+              'Use when: adding a log entry -> { path: "journal.md", heading: "## Log", text: "- 09:30 standup" }',
+              'Use when: putting a note at the top of a section -> { path: "a.md", heading: "Notes", position: "start", text: "Important!" }',
+              "Don't use when: the edit is not at a section boundary (use vault_replace).",
+            ],
+            errors: [
+              '"File not found" if the path does not exist.',
+              `${HEADING_NOT_FOUND_ERROR} Nothing is written.`,
+              `${HEADING_AMBIGUOUS_ERROR} Nothing is written.`,
+              MTIME_CONFLICT_ERROR,
+            ],
+            seeAlso: [
+              'vault_read — with heading to read just that section first.',
+              'vault_append — when adding to the end of the file.',
+            ],
+          }),
+          schema: insertSchema,
+          outputSchema: insertOutputSchema,
+          handler: handlers.insert,
+          annotations: annotations.additive,
         }),
         defineTool({
           name: 'vault_get_metadata',
