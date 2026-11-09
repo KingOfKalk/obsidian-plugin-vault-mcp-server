@@ -64,6 +64,17 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     file.stat.size = content.length;
   }
 
+  async processFile(path: string, fn: (content: string) => string): Promise<string> {
+    const file = this.files.get(path);
+    if (!file) throw new Error(`File not found: ${path}`);
+    // Like app.vault.process: if fn throws, nothing is written.
+    const next = fn(file.content);
+    file.content = next;
+    file.stat.mtime = Date.now();
+    file.stat.size = next.length;
+    return next;
+  }
+
   async deleteFile(path: string): Promise<void> {
     if (!this.files.has(path)) {
       throw new Error(`File not found: ${path}`);

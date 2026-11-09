@@ -471,6 +471,7 @@ describe('vault handlers truncation and size limits', () => {
         totalLength: 7,
         offset: 0,
         hasMore: false,
+        modified: expect.any(String) as unknown,
       });
     });
 
@@ -522,6 +523,7 @@ describe('vault handlers truncation and size limits', () => {
         offset: 2,
         hasMore: true,
         nextOffset: 5,
+        modified: expect.any(String) as unknown,
       });
       expect(getText(result)).toContain('cde');
       expect(getText(result)).toContain('offset=5');
