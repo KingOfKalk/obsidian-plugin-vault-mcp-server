@@ -66,44 +66,47 @@ export function isTextMime(mime: string): boolean {
   return false;
 }
 
-type VaultUriVariables = { path: string | string[] };
+const VAULT_URI_PREFIX = 'obsidian://vault/';
 
 /**
  * Validate an `obsidian://vault/{+path}` URI and return the vault-relative
- * path it points to. The SDK has already parsed the variable; we still
- * defend against scheme/host mismatches and call `validateToolPath` so
- * traversal protection and the config-folder block are shared with the
- * tool surface.
+ * path it points to.
+ *
+ * The path is cut from the serialised URI (`href`), not taken from `host`
+ * and `pathname`: older Electron (Obsidian 1.5.3) parses this custom scheme
+ * without a host (`host` is empty, `pathname` is `//vault/...`), newer
+ * Electron gives the host `vault` (#473). Both keep the `href`. The SDK's
+ * template variable is not used either, because the SDK does not
+ * percent-decode it. Query and fragment are ignored, the rest is
+ * percent-decoded and checked by `validateToolPath`, so traversal
+ * protection and the config-folder block are shared with the tool surface.
  */
-export function parseVaultUri(
-  uri: URL,
-  variables: VaultUriVariables,
-  vaultPath: string,
-  configDir: string,
-): string {
+export function parseVaultUri(uri: URL, vaultPath: string, configDir: string): string {
+  const href = uri.href;
   if (uri.protocol !== 'obsidian:') {
     throw new PathTraversalError(`Unexpected scheme: ${uri.protocol}`);
   }
-  if (uri.host !== 'vault') {
-    throw new PathTraversalError(`Unexpected host: ${uri.host}`);
+  if (href.slice(0, VAULT_URI_PREFIX.length).toLowerCase() !== VAULT_URI_PREFIX) {
+    throw new PathTraversalError(`URI must start with ${VAULT_URI_PREFIX}: ${href}`);
   }
-  const raw = Array.isArray(variables.path)
-    ? variables.path.join('/')
-    : variables.path;
+  const encoded = href.slice(VAULT_URI_PREFIX.length).replace(/[?#][\s\S]*$/, '');
+  let raw: string;
+  try {
+    raw = decodeURIComponent(encoded);
+  } catch {
+    throw new PathTraversalError(`Invalid percent-encoding in URI: ${href}`);
+  }
   return validateToolPath(raw, vaultPath, configDir);
 }
 
-type FileHandler = (
-  uri: URL,
-  variables: VaultUriVariables,
-) => Promise<ReadResourceResult>;
+type FileHandler = (uri: URL) => Promise<ReadResourceResult>;
 
 export function createFileHandler(
   adapter: ObsidianAdapter,
   _logger: Logger,
 ): FileHandler {
-  return async (uri, variables) => {
-    const path = parseVaultUri(uri, variables, adapter.getVaultPath(), adapter.getConfigDir());
+  return async (uri) => {
+    const path = parseVaultUri(uri, adapter.getVaultPath(), adapter.getConfigDir());
     const mime = getMimeType(path);
     if (isTextMime(mime)) {
       const text = await adapter.readFile(path);
@@ -229,6 +232,6 @@ export function registerResources(
       description:
         'Read any file in the vault by obsidian://vault/{+path}. Text files (markdown, txt, json, csv, yaml, html, svg) return TextResourceContents; other files up to 1 MiB return base64 BlobResourceContents.',
     },
-    (uri: URL, variables) => fileHandler(uri, variables as VaultUriVariables),
+    (uri: URL) => fileHandler(uri),
   );
 }

@@ -173,16 +173,14 @@ describe('config folder is blocked (#462)', function () {
         return error instanceof Error ? error.message : String(error);
       }
     }
-    const message = await readError(
-      `obsidian://vault/${configDir}/plugins/vault-mcp-server/data.json`,
-    );
-    expect(message).not.toBeNull();
-    // Older Electron (Obsidian 1.5.3) parses `obsidian://vault/...` without
-    // a host, so every resource read fails there with "Unexpected host"
-    // before the path is checked. Where an ordinary note can be read, the
-    // config-folder URI must fail with the config-folder error.
-    if ((await readError('obsidian://vault/block/src.md')) === null) {
-      expect(message).toContain(blocked);
-    }
+    // An ordinary note can be read (#473), so the failure below comes from
+    // the config-folder block and not from the URI parser.
+    expect(await readError('obsidian://vault/block/src.md')).toBeNull();
+    expect(
+      await readError(`obsidian://vault/${configDir}/plugins/vault-mcp-server/data.json`),
+    ).toContain(blocked);
+    expect(
+      await readError(`obsidian://vault/block/..%2F${configDir}/plugins/vault-mcp-server/data.json`),
+    ).not.toBeNull();
   });
 });

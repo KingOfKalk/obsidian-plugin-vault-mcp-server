@@ -21,6 +21,7 @@ export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
     version: '4.0.2',
     notes: [
       'Paths inside the vault\'s config folder (usually `.obsidian`, any case) are rejected by every tool, prompt and resource, also as the destination of rename, move or copy, with "Path is inside the Obsidian config folder (.obsidian); it cannot be read or written". `vault_list`, `vault_list_recursive` and the `obsidian://vault/index` resource leave the folder out.',
+      '`obsidian://vault/{+path}` resources work on Obsidian 1.5.3 (they failed with "Unexpected host") and percent-decode the path, so the URIs from `obsidian://vault/index` read files with spaces or non-ASCII names; query and fragment are ignored.',
       '`workspace_open_file` applies `mode` ("source" = Source mode, "live" = Live Preview, "preview" = Reading view); it used to be ignored. The file opens in the active leaf (a new tab if that leaf is pinned); a missing file fails with "File not found".',
       '`vault_append` starts the appended text on a new line: if the file is not empty, does not end with a line break and `content` does not start with one, one line break (the file\'s LF or CRLF) is added first. Its result adds `modified`.',
       '`vault_create`, `vault_update`, `vault_write_binary` and `template_create_from` results add `modified` (ISO-8601), usable as the next `expectedMtime`.',

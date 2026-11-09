@@ -62,57 +62,125 @@ const CONFIG_DIR = '.obsidian';
 
 function uri(s: string): URL { return new URL(s); }
 
+/**
+ * The shape older Electron (Obsidian 1.5.3) gives `obsidian://vault/...`:
+ * no host, the path starts with `//vault/`, `href` unchanged (#473).
+ */
+function hostlessUri(href: string): URL {
+  const rest = href.slice('obsidian:'.length);
+  return {
+    href,
+    protocol: 'obsidian:',
+    host: '',
+    hostname: '',
+    pathname: rest.replace(/[?#][\s\S]*$/, ''),
+    toString: () => href,
+  } as unknown as URL;
+}
+
+function parse(u: URL): string {
+  return parseVaultUri(u, VAULT, CONFIG_DIR);
+}
+
 describe('parseVaultUri', () => {
   it('returns the validated relative path for a plain URI', () => {
-    expect(parseVaultUri(uri('obsidian://vault/notes/foo.md'), { path: 'notes/foo.md' }, VAULT, CONFIG_DIR))
-      .toBe('notes/foo.md');
+    expect(parse(uri('obsidian://vault/notes/foo.md'))).toBe('notes/foo.md');
   });
 
-  it('handles unicode paths', () => {
-    expect(parseVaultUri(uri('obsidian://vault/Notizen/%C3%9Cbersicht.md'), { path: 'Notizen/Übersicht.md' }, VAULT, CONFIG_DIR))
-      .toBe('Notizen/Übersicht.md');
+  describe('both URL parse shapes (#473)', () => {
+    it('Node gives the host "vault"', () => {
+      const u = uri('obsidian://vault/notes/foo.md');
+      expect([u.host, u.pathname]).toEqual(['vault', '/notes/foo.md']);
+    });
+
+    it('reads the path when the host is "vault"', () => {
+      expect(parse(uri('obsidian://vault/notes/foo.md'))).toBe('notes/foo.md');
+    });
+
+    it('reads the path when there is no host and the path is //vault/...', () => {
+      expect(parse(hostlessUri('obsidian://vault/notes/foo.md'))).toBe('notes/foo.md');
+      expect(parse(hostlessUri('obsidian://vault/Notizen/%C3%9Cbersicht.md'))).toBe('Notizen/Übersicht.md');
+    });
+
+    it('rejects traversal and the config folder in the hostless shape', () => {
+      expect(() => parse(hostlessUri('obsidian://vault/../etc/passwd'))).toThrow(PathTraversalError);
+      expect(() => parse(hostlessUri('obsidian://vault/.obsidian/plugins/x/data.json'))).toThrow(
+        ConfigDirError,
+      );
+    });
+
+    it('rejects another host in the hostless shape', () => {
+      expect(() => parse(hostlessUri('obsidian://other/foo.md'))).toThrow(PathTraversalError);
+    });
   });
 
-  it('rejects traversal', () => {
-    expect(() => parseVaultUri(uri('obsidian://vault/../etc/passwd'), { path: '../etc/passwd' }, VAULT, CONFIG_DIR))
-      .toThrow(PathTraversalError);
+  describe('percent-encoding', () => {
+    it('decodes unicode paths', () => {
+      expect(parse(uri('obsidian://vault/Notizen/%C3%9Cbersicht.md'))).toBe('Notizen/Übersicht.md');
+    });
+
+    it('decodes spaces, whether the client encoded them or not', () => {
+      expect(parse(uri('obsidian://vault/My%20Notes/a%20b.md'))).toBe('My Notes/a b.md');
+      expect(parse(uri('obsidian://vault/My Notes/a b.md'))).toBe('My Notes/a b.md');
+    });
+
+    it('decodes reserved characters inside a segment', () => {
+      expect(parse(uri('obsidian://vault/weird%3Fname%23x.md'))).toBe('weird?name#x.md');
+    });
+
+    it('rejects encoded traversal', () => {
+      expect(() => parse(uri('obsidian://vault/..%2F..'))).toThrow(PathTraversalError);
+      expect(() => parse(uri('obsidian://vault/notes%2F..%2F..%2Fetc%2Fpasswd'))).toThrow(
+        PathTraversalError,
+      );
+    });
+
+    it('rejects an encoded config folder (#462)', () => {
+      expect(() => parse(uri('obsidian://vault/%2Eobsidian/plugins/x/data.json'))).toThrow(
+        ConfigDirError,
+      );
+    });
+
+    it('rejects malformed percent-encoding', () => {
+      expect(() => parse(uri('obsidian://vault/bad%E0%A4%A.md'))).toThrow(
+        /Invalid percent-encoding/,
+      );
+      expect(() => parse(hostlessUri('obsidian://vault/bad%ZZ.md'))).toThrow(PathTraversalError);
+    });
   });
 
-  it('rejects encoded traversal', () => {
-    expect(() => parseVaultUri(uri('obsidian://vault/..%2F..'), { path: '..%2F..' }, VAULT, CONFIG_DIR))
-      .toThrow(PathTraversalError);
+  it('ignores query and fragment', () => {
+    expect(parse(uri('obsidian://vault/notes/foo.md?x=1#top'))).toBe('notes/foo.md');
+    expect(parse(hostlessUri('obsidian://vault/notes/foo.md#top'))).toBe('notes/foo.md');
   });
 
-  it('rejects wrong scheme', () => {
-    expect(() => parseVaultUri(uri('file:///foo.md'), { path: 'foo.md' }, VAULT, CONFIG_DIR))
-      .toThrow(PathTraversalError);
+  it('accepts the scheme and host in any case', () => {
+    expect(parse(uri('OBSIDIAN://Vault/notes/foo.md'))).toBe('notes/foo.md');
   });
 
-  it('rejects wrong host', () => {
-    expect(() => parseVaultUri(uri('obsidian://other/foo.md'), { path: 'foo.md' }, VAULT, CONFIG_DIR))
-      .toThrow(PathTraversalError);
-  });
-
-  it('rejects empty path', () => {
-    expect(() => parseVaultUri(uri('obsidian://vault/'), { path: '' }, VAULT, CONFIG_DIR))
-      .toThrow(PathTraversalError);
+  it('keeps a literal ../ inside the vault (the URL parser resolves it)', () => {
+    expect(parse(uri('obsidian://vault/../etc/passwd'))).toBe('etc/passwd');
   });
 
   it('rejects a path inside the config folder (#462)', () => {
-    expect(() =>
-      parseVaultUri(
-        uri('obsidian://vault/.obsidian/plugins/vault-mcp-server/data.json'),
-        { path: '.obsidian/plugins/vault-mcp-server/data.json' },
-        VAULT,
-        CONFIG_DIR,
-      ),
-    ).toThrow(ConfigDirError);
+    expect(() => parse(uri('obsidian://vault/.obsidian/plugins/vault-mcp-server/data.json'))).toThrow(
+      ConfigDirError,
+    );
   });
 
-  it('accepts a single-string variable form (some SDK paths pass string[])', () => {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-    expect(parseVaultUri(uri('obsidian://vault/notes/foo.md'), { path: ['notes', 'foo.md'] as unknown as string }, VAULT, CONFIG_DIR))
-      .toBe('notes/foo.md');
+  describe('invalid URIs', () => {
+    it.each([
+      ['wrong scheme', 'file:///foo.md'],
+      ['wrong host', 'obsidian://other/foo.md'],
+      ['host that only starts with vault', 'obsidian://vaultx/foo.md'],
+      ['no slashes after the scheme', 'obsidian:vault/foo.md'],
+      ['empty host', 'obsidian:///vault/foo.md'],
+      ['no path', 'obsidian://vault'],
+      ['empty path', 'obsidian://vault/'],
+      ['only a query', 'obsidian://vault/?x=1'],
+    ])('rejects %s', (_label, value) => {
+      expect(() => parse(uri(value))).toThrow(PathTraversalError);
+    });
   });
 });
 
@@ -124,7 +192,6 @@ describe('fileHandler — text', () => {
 
     const result = await handler(
       new URL('obsidian://vault/notes/foo.md'),
-      { path: 'notes/foo.md' },
     );
 
     expect(result.contents).toHaveLength(1);
@@ -135,13 +202,26 @@ describe('fileHandler — text', () => {
     });
   });
 
+  it('reads a file when the runtime URL has no host (Obsidian 1.5.3, #473)', async () => {
+    const adapter = new MockObsidianAdapter();
+    adapter.addFile('My Notes/a b.md', 'spaced');
+    const handler = createFileHandler(adapter, makeLogger());
+
+    const result = await handler(hostlessUri('obsidian://vault/My%20Notes/a%20b.md'));
+
+    expect(result.contents[0]).toEqual({
+      uri: 'obsidian://vault/My%20Notes/a%20b.md',
+      mimeType: 'text/markdown',
+      text: 'spaced',
+    });
+  });
+
   it('propagates the adapter not-found error for a missing file', async () => {
     const adapter = new MockObsidianAdapter();
     const handler = createFileHandler(adapter, makeLogger());
 
     await expect(handler(
       new URL('obsidian://vault/missing.md'),
-      { path: 'missing.md' },
     )).rejects.toThrow(/not found/i);
   });
 });
@@ -155,7 +235,6 @@ describe('fileHandler — binary', () => {
 
     const result = await handler(
       new URL('obsidian://vault/img.png'),
-      { path: 'img.png' },
     );
 
     expect(result.contents).toHaveLength(1);
@@ -173,7 +252,6 @@ describe('fileHandler — binary', () => {
 
     const result = await handler(
       new URL('obsidian://vault/big.png'),
-      { path: 'big.png' },
     );
 
     const c = result.contents[0] as { blob: string };
@@ -188,7 +266,6 @@ describe('fileHandler — binary', () => {
 
     await expect(handler(
       new URL('obsidian://vault/big.png'),
-      { path: 'big.png' },
     )).rejects.toBeInstanceOf(BinaryTooLargeError);
   });
 
@@ -197,7 +274,6 @@ describe('fileHandler — binary', () => {
     const handler = createFileHandler(adapter, makeLogger());
     await expect(handler(
       new URL('obsidian://vault/missing.png'),
-      { path: 'missing.png' },
     )).rejects.toBeInstanceOf(FileNotFoundError);
   });
 });
@@ -272,9 +348,6 @@ describe('indexHandler', () => {
 
     const parsedPath = parseVaultUri(
       new URL(entry.uri),
-      // The SDK populates `variables.path` by decoding the URI; emulate by
-      // decoding entry.uri's pathname after the host segment.
-      { path: decodeURIComponent(new URL(entry.uri).pathname.replace(/^\//, '')) },
       adapter.getVaultPath(),
       adapter.getConfigDir(),
     );
@@ -300,7 +373,6 @@ describe('indexHandler', () => {
     const url = new URL(entry.uri);
     const parsedPath = parseVaultUri(
       url,
-      { path: decodeURIComponent(url.pathname.replace(/^\//, '')) },
       adapter.getVaultPath(),
       adapter.getConfigDir(),
     );
