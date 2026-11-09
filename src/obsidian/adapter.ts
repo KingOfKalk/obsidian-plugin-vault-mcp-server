@@ -532,7 +532,14 @@ export class RealObsidianAdapter implements ObsidianAdapter {
       queryMarkdown: async (query: string): Promise<DataviewQueryResult> => {
         // Dataview's queryMarkdown returns a Result<string, string>-style
         // object with { successful, value | error }. Pass it through.
-        const out = await api.queryMarkdown(query);
+        //
+        // `allowHtml: false` (#431): with Dataview's default export
+        // settings, list and object values inside TABLE cells are rendered
+        // as `<ul><li>…</li></ul>` HTML (ui/export/markdown.ts,
+        // rawTableLiteral). Without HTML Dataview renders them as plain
+        // text (`a, b`). Dataview merges the partial settings with the
+        // user's own (date format, null rendering), so nothing else changes.
+        const out = await api.queryMarkdown(query, undefined, { allowHtml: false });
         if (out?.successful === true) {
           return { successful: true, value: String(out.value ?? '') };
         }
