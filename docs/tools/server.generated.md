@@ -68,8 +68,8 @@ Response (`structuredContent`):
         "`vault_set_frontmatter` is annotated destructive (`destructiveHint: true`).",
         "The server instructions leave out hints about tools that are switched off.",
         "The tool list can change during a session: when the user switches a module or tool on or off, `tools/list` follows right away and the server sends `notifications/tools/list_changed`. Calls to a tool that was switched off fail with \"Tool <name> disabled\"; re-read `tools/list` after the notification.",
-        "Tool descriptions corrected (behaviour unchanged): an editor range ends before (toLine, toCh), so a range within one line has toLine = fromLine; `vault_list` returns full vault-relative paths; `search_fulltext` searches Markdown note text only (not file names) and shows matching lines only in JSON /… [truncated, 244 more chars]",
-        "… 3 more items"
+        "Tool descriptions corrected (behaviour unchanged): an editor range ends before (toLine, toCh), so a range within one line has toLine = fromLine; `vault_list` returns full vault-relative paths; `search_fulltext` searches Markdown note text only (not file names); `plugin_execute_command` runs only ids… [truncated, 178 more chars]",
+        "… 8 more items"
       ]
     },
     {
