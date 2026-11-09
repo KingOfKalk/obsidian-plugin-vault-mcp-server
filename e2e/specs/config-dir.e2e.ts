@@ -5,6 +5,7 @@ import {
   callToolError,
   connectClient,
   readFromDisk,
+  enableModules,
   startMcpServer,
   waitForCache,
   writeNotes,
@@ -32,6 +33,7 @@ describe('config folder is blocked (#462)', function () {
   const seeded: Record<string, string> = {};
 
   before(async function () {
+    await enableModules('workspace');
     await startMcpServer();
     client = await connectClient();
     configDir = await browser.executeObsidian(({ app }) => app.vault.configDir);

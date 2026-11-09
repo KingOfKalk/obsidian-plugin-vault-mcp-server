@@ -1,6 +1,6 @@
 import { expect } from '@wdio/globals';
 import type { Client } from '@modelcontextprotocol/client';
-import { callTool, connectClient, startMcpServer, waitForCache, writeNotes } from '../helpers';
+import { callTool, connectClient, enableModules, startMcpServer, waitForCache, writeNotes } from '../helpers';
 
 async function openWith(client: Client, path: string, content: string): Promise<void> {
   await writeNotes({ [path]: content });
@@ -24,6 +24,7 @@ describe('editor positions at the end of the document', function () {
   let client: Client;
 
   before(async function () {
+    await enableModules('editor', 'workspace');
     await startMcpServer();
     client = await connectClient();
   });

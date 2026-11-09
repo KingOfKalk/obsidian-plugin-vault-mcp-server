@@ -12,6 +12,7 @@ import {
   migrateV9ToV10,
   migrateV10ToV11,
   migrateV11ToV12,
+  migrateV12ToV13,
   migrateSettings,
   CURRENT_SCHEMA_VERSION,
 } from '../../src/settings/migrations';
@@ -305,23 +306,86 @@ describe('migrateSettings — composition', () => {
     expect(JSON.stringify(data)).toBe(before);
   });
 
-  it('migrates a v10 install to v12 with resourcesEnabled and promptsEnabled defaulted on', () => {
+  it('migrates a v10 install to the current version with resourcesEnabled and promptsEnabled defaulted on', () => {
     const result = migrateSettings({ schemaVersion: 10 }) as {
       schemaVersion: number;
       resourcesEnabled: boolean;
       promptsEnabled: boolean;
     };
-    expect(result.schemaVersion).toBe(12);
+    expect(result.schemaVersion).toBe(13);
     expect(result.resourcesEnabled).toBe(true);
     expect(result.promptsEnabled).toBe(true);
   });
 
-  it('migrates a v11 install to v12 with promptsEnabled defaulted on', () => {
+  it('migrates a v11 install to the current version with promptsEnabled defaulted on', () => {
     const result = migrateSettings({ schemaVersion: 11 }) as {
       schemaVersion: number;
       promptsEnabled: boolean;
     };
-    expect(result.schemaVersion).toBe(12);
+    expect(result.schemaVersion).toBe(13);
     expect(result.promptsEnabled).toBe(true);
+  });
+});
+
+describe('migrateV12ToV13 (#469: editor, workspace and ui off by default)', () => {
+  it('keeps the old default (on) for modules without a saved state', () => {
+    const data: Record<string, unknown> = { moduleStates: { vault: { enabled: true } } };
+    migrateV12ToV13(data);
+    expect(data.moduleStates).toEqual({
+      vault: { enabled: true },
+      editor: { enabled: true },
+      workspace: { enabled: true },
+      ui: { enabled: true },
+    });
+  });
+
+  it('keeps a saved state, on or off', () => {
+    const data: Record<string, unknown> = {
+      moduleStates: {
+        editor: { enabled: false },
+        workspace: { enabled: true },
+        ui: { enabled: false },
+      },
+    };
+    migrateV12ToV13(data);
+    expect(data.moduleStates).toEqual({
+      editor: { enabled: false },
+      workspace: { enabled: true },
+      ui: { enabled: false },
+    });
+  });
+
+  it('creates moduleStates when it is missing', () => {
+    const data: Record<string, unknown> = {};
+    migrateV12ToV13(data);
+    expect(data.moduleStates).toEqual({
+      editor: { enabled: true },
+      workspace: { enabled: true },
+      ui: { enabled: true },
+    });
+  });
+
+  it('replaces a malformed entry with the old default', () => {
+    const data: Record<string, unknown> = { moduleStates: { editor: 'on', ui: {} } };
+    migrateV12ToV13(data);
+    expect(data.moduleStates).toMatchObject({
+      editor: { enabled: true },
+      ui: { enabled: true },
+    });
+  });
+
+  it('runs for a v12 install through migrateSettings', () => {
+    const result = migrateSettings({ schemaVersion: 12, moduleStates: { ui: { enabled: false } } });
+    expect(result.schemaVersion).toBe(13);
+    expect(result.moduleStates).toEqual({
+      ui: { enabled: false },
+      editor: { enabled: true },
+      workspace: { enabled: true },
+    });
+  });
+
+  it('does not run again for a v13 install', () => {
+    const result = migrateSettings({ schemaVersion: 13, moduleStates: {} });
+    expect(result.moduleStates).toEqual({});
   });
 });

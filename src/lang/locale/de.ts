@@ -117,6 +117,8 @@ const de: Partial<Record<keyof typeof en, string>> = {
   // Feature Modules / Extras section
   heading_feature_modules: 'Funktionsmodule',
   heading_extras: 'Extras',
+  message_modules_open_note:
+    'Die Werkzeuge für Editor, Arbeitsbereich und Oberfläche arbeiten mit der in Obsidian geöffneten Notiz, nicht mit Dateien im Tresor. Sie sind standardmäßig aus; schalte sie ein, wenn dein Assistent mit der geöffneten Notiz arbeiten soll.',
   message_no_modules:
     'Keine Module registriert. Klicke auf „Module neu laden", um die Erkennung erneut auszuführen.',
   button_refresh_modules: 'Module neu laden',

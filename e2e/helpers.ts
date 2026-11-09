@@ -61,15 +61,45 @@ export async function startMcpServer(): Promise<void> {
   if (error !== null) throw new Error(`MCP server did not start: ${error}`);
 }
 
-/** Connect an MCP SDK client to the plugin over Streamable HTTP. */
-export async function connectClient(): Promise<Client> {
+/**
+ * Connect an MCP SDK client to the plugin over Streamable HTTP.
+ * `onToolsListChanged` runs on each `notifications/tools/list_changed`.
+ */
+export async function connectClient(onToolsListChanged?: () => void): Promise<Client> {
   const transport = new StreamableHTTPClientTransport(
     new URL(`http://127.0.0.1:${String(MCP_PORT)}/mcp`),
     { requestInit: { headers: { Authorization: `Bearer ${ACCESS_KEY}` } } },
   );
   const client = new Client({ name: 'vault-mcp-e2e', version: '1.0.0' });
+  if (onToolsListChanged) {
+    client.setNotificationHandler('notifications/tools/list_changed', onToolsListChanged);
+  }
   await client.connect(transport);
   return client;
+}
+
+/**
+ * Switch modules on and save, as their settings toggles do. Editor,
+ * workspace and ui are off in a new install since 5.0 (#469), and each spec
+ * file starts from a fresh vault.
+ */
+export async function enableModules(...ids: string[]): Promise<void> {
+  await browser.executeObsidian(
+    async ({ app }, pluginId, moduleIds) => {
+      const plugins = (app as unknown as { plugins: { plugins: Record<string, unknown> } }).plugins
+        .plugins;
+      const plugin = plugins[pluginId] as {
+        registry: { enableModule(id: string): void; getState(): unknown };
+        settings: { moduleStates: unknown };
+        saveSettings(): Promise<void>;
+      };
+      for (const id of moduleIds) plugin.registry.enableModule(id);
+      plugin.settings.moduleStates = plugin.registry.getState();
+      await plugin.saveSettings();
+    },
+    PLUGIN_ID,
+    ids,
+  );
 }
 
 /** Call a tool; fail with its text when the tool reports an error. */

@@ -4,6 +4,7 @@ import {
   callTool,
   callToolError,
   connectClient,
+  enableModules,
   startMcpServer,
   waitForCache,
   writeNotes,
@@ -38,6 +39,7 @@ describe('workspace_open_file mode', function () {
   let client: Client;
 
   before(async function () {
+    await enableModules('editor', 'workspace');
     await startMcpServer();
     client = await connectClient();
     await writeNotes({ 'ws/a.md': '# A\n', 'ws/b.md': '# B\n' });
