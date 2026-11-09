@@ -679,7 +679,7 @@ In addition to tools, the server exposes the vault as **MCP resources** so hosts
 ### URIs
 
 - **`obsidian://vault/index`** — a static JSON listing of every file and folder in the vault. Each file entry carries a ready-to-read URI and mime type. Listings over 25 000 characters are truncated; use the `vault_list_recursive` tool for full enumeration on very large vaults.
-- **`obsidian://vault/{path}`** — read any file by its vault-relative path. Markdown, text, JSON, CSV, YAML, HTML, and SVG files are returned as text; other files (images, PDFs, audio, video) are returned as base64 blobs.
+- **`obsidian://vault/{path}`** — read any file by its vault-relative path. Markdown, text, JSON, CSV, YAML, HTML, and SVG files are returned as text; other files (images, PDFs, audio, video) are returned as base64 blobs. The path is percent-decoded, so `obsidian://vault/My%20Notes/%C3%9Cbersicht.md` reads `My Notes/Übersicht.md` (the index already lists encoded URIs); a `?query` or `#fragment` is ignored.
 
 Binary files larger than **1 MiB** are refused. Use the `vault_read_binary` tool if you genuinely need a larger file.
 
