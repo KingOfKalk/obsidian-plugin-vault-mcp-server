@@ -89,6 +89,7 @@ export const SAMPLE_ARGS: Record<string, Record<string, unknown>> = {
     newString: 'Ship it this week.',
     expectedMtime: '2026-01-10T08:15:00.000Z',
   },
+  vault_insert: { path: 'projects/alpha.md', heading: '## Goals', text: 'Write the docs.' },
   vault_get_metadata: { path: 'README.md' },
   vault_rename: { path: 'people/ada.md', newName: 'ada-lovelace.md' },
   vault_move: { path: 'people/ada.md', newPath: 'archive/ada.md' },

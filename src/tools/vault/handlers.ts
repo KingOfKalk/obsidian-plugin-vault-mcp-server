@@ -20,6 +20,13 @@ import { BINARY_BYTE_LIMIT } from '../../constants';
 import type { InferredParams } from '../../registry/types';
 import type { SearchHandlers } from '../search/handlers';
 import { READ_MAX_LENGTH, parseExpectedMtime } from './schemas';
+import {
+  findSection,
+  formatHeading,
+  insertIntoSection,
+  sectionText,
+  splitLines,
+} from './sections';
 import type {
   createFileSchema,
   readFileSchema,
@@ -27,6 +34,7 @@ import type {
   deleteFileSchema,
   appendFileSchema,
   replaceInFileSchema,
+  insertSchema,
   getMetadataSchema,
   renameFileSchema,
   moveFileSchema,
@@ -329,6 +337,7 @@ export interface VaultHandlers {
   deleteFile: (params: InferredParams<typeof deleteFileSchema>) => Promise<CallToolResult>;
   appendFile: (params: InferredParams<typeof appendFileSchema>) => Promise<CallToolResult>;
   replaceInFile: (params: InferredParams<typeof replaceInFileSchema>) => Promise<CallToolResult>;
+  insert: (params: InferredParams<typeof insertSchema>) => Promise<CallToolResult>;
   renameFile: (params: InferredParams<typeof renameFileSchema>) => Promise<CallToolResult>;
   moveFile: (params: InferredParams<typeof moveFileSchema>) => Promise<CallToolResult>;
   copyFile: (params: InferredParams<typeof copyFileSchema>) => Promise<CallToolResult>;
@@ -368,8 +377,18 @@ export function createHandlers(
     async readFile(params): Promise<CallToolResult> {
       try {
         const path = validateVaultPath(params.path, vaultPath);
-        const fullContent = await adapter.readFile(path);
+        const fileContent = await adapter.readFile(path);
         const modified = await modifiedIso(adapter, path);
+        let fullContent = fileContent;
+        let sectionFields: { heading: string; line: number } | Record<string, never> = {};
+        if (params.heading !== undefined) {
+          const section = findSection(splitLines(fileContent), params.heading, path);
+          fullContent = sectionText(fileContent, section);
+          sectionFields = {
+            heading: formatHeading(section.heading),
+            line: section.start + 1,
+          };
+        }
         const window = sliceReadWindow(
           fullContent,
           params.offset ?? 0,
@@ -377,6 +396,7 @@ export function createHandlers(
         );
         const payload = {
           path,
+          ...sectionFields,
           content: window.content,
           totalLength: fullContent.length,
           offset: window.offset,
@@ -481,6 +501,35 @@ export function createHandlers(
           return confirmWithStructured(
             `Replaced ${String(replacements)} ${noun} in ${path}`,
             { path, replacements, modified },
+          );
+        });
+      } catch (error) {
+        return handleToolError(error);
+      }
+    },
+
+    async insert(params): Promise<CallToolResult> {
+      try {
+        const path = validateVaultPath(params.path, vaultPath);
+        const position = params.position ?? 'end';
+        return await mutex.acquire(path, async () => {
+          await assertExpectedMtime(adapter, path, params.expectedMtime);
+          let heading = '';
+          let line = 0;
+          // Resolving the section inside vault.process keeps the
+          // read-modify-write atomic; throwing here writes nothing.
+          await adapter.processFile(path, (content) => {
+            const lines = splitLines(content);
+            const section = findSection(lines, params.heading, path, ' Nothing was written.');
+            const result = insertIntoSection(content, lines, section, position, params.text);
+            heading = formatHeading(section.heading);
+            line = result.line + 1;
+            return result.content;
+          });
+          const modified = await modifiedIso(adapter, path);
+          return confirmWithStructured(
+            `Inserted into "${heading}" (${position}) in ${path} at line ${String(line)}`,
+            { path, heading, position, line, modified },
           );
         });
       } catch (error) {

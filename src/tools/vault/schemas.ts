@@ -59,8 +59,25 @@ export const createFileSchema = {
  */
 export const READ_MAX_LENGTH = 24_000;
 
+/**
+ * A heading to address a section by (#428): its text without the `#`
+ * marks, or with them to pin the level.
+ */
+const heading = z
+  .string()
+  .min(1)
+  .max(1024)
+  .refine((value) => value.trim().length > 0, 'heading must not be blank');
+
 export const readFileSchema = {
   path,
+  heading: heading
+    .optional()
+    .describe(
+      'Optional: return only this section — the heading line up to the next heading of the same or a higher level. ' +
+        'Heading text without the # marks (e.g. "Log"), or with them to pin the level (e.g. "## Log"). ' +
+        'offset/length then page within the section.',
+    ),
   offset: z
     .number()
     .int()
@@ -121,6 +138,29 @@ export const replaceInFileSchema = {
     .boolean()
     .default(false)
     .describe('Replace every occurrence instead of requiring exactly one (default false).'),
+  expectedMtime,
+};
+
+export const insertSchema = {
+  path,
+  heading: heading.describe(
+    'Heading of the target section: its text without the # marks (e.g. "Log"), or with them to pin the level (e.g. "## Log"). ' +
+      'Must match exactly one heading; headings in code blocks and frontmatter are ignored.',
+  ),
+  position: z
+    .enum(['start', 'end'])
+    .default('end')
+    .describe(
+      '"end" (default): after the last non-blank line of the section, nested subsections included. ' +
+        '"start": right below the heading (after a blank line that follows it).',
+    ),
+  text: z
+    .string()
+    .min(1)
+    .max(5_000_000)
+    .describe(
+      'Text to insert as whole lines; one trailing newline is ignored. Start it with a newline to leave a blank line before it.',
+    ),
   expectedMtime,
 };
 
