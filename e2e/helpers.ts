@@ -166,3 +166,21 @@ export async function waitForCache(paths: string[]): Promise<void> {
     { timeout: 30000, timeoutMsg: `no metadata cache for ${paths.join(', ')}` },
   );
 }
+
+/**
+ * Fail if Obsidian has a modal open (e.g. the "Update links" prompt, #445).
+ * Waits briefly first, because a modal opened by a rename can appear just
+ * after the tool call returned.
+ */
+export async function expectNoModal(): Promise<void> {
+  await browser.pause(1000);
+  const open = await browser.executeObsidian(
+    () => document.querySelectorAll('.modal-container').length,
+  );
+  if (open !== 0) {
+    const text = await browser.executeObsidian(
+      () => document.querySelector('.modal-container')?.textContent ?? '',
+    );
+    throw new Error(`expected no open modal, found ${String(open)}: ${text}`);
+  }
+}

@@ -450,7 +450,9 @@ clients and agents commonly trip over:
 - **Links follow renamed and moved files.** `vault_rename`, `vault_move` and
   `vault_rename_folder` rename through Obsidian, so links to the file are
   updated when **Settings → Files and links → Automatically update internal
-  links** is on. With it off, links keep pointing at the old path. The
+  links** is on. With it off, links are not updated and keep pointing at
+  the old path, and Obsidian's "Update links" prompt does not appear, so
+  the call never waits for someone to answer it. The
   result reports what happened: `autoUpdateLinks` is the setting,
   `updatedFiles` lists the notes whose links were rewritten and
   `linksUpdated` counts those links. When the setting is off and other notes

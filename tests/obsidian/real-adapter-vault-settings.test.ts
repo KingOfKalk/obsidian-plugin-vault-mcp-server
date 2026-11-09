@@ -14,19 +14,38 @@ function makeFile(path: string): TFile {
  * A fake App with an in-memory vault, `vault.getConfig` (undeclared in
  * Obsidian's typings), the metadata cache's `resolvedLinks`, and a
  * `fileManager.renameFile` that rewrites `[[old]]` links in the linking
- * files when `alwaysUpdateLinks` is on, like Obsidian does.
+ * files (Obsidian does so without a prompt when `alwaysUpdateLinks` is on),
+ * and a `vault.rename` that moves the file without touching links.
  */
 function makeApp(
   config: Record<string, unknown>,
   files: Record<string, string>,
   resolvedLinks: Record<string, Record<string, number>>,
-): { app: App; contents: Map<string, string>; trashFile: ReturnType<typeof vi.fn> } {
+): {
+  app: App;
+  contents: Map<string, string>;
+  trashFile: ReturnType<typeof vi.fn>;
+  vaultRename: ReturnType<typeof vi.fn>;
+  managerRename: ReturnType<typeof vi.fn>;
+} {
   const contents = new Map(Object.entries(files));
   const entries = new Map<string, TFile | TFolder>();
   for (const path of contents.keys()) entries.set(path, makeFile(path));
   const strip = (p: string): string => p.replace(/\.md$/, '');
 
+  const move = (oldPath: string, newPath: string): void => {
+    const body = contents.get(oldPath) ?? '';
+    contents.delete(oldPath);
+    entries.delete(oldPath);
+    contents.set(newPath, body);
+    entries.set(newPath, makeFile(newPath));
+  };
+  const vaultRename = vi.fn((file: TFile, newPath: string): Promise<void> => {
+    move(file.path, newPath);
+    return Promise.resolve();
+  });
   const vault = {
+    rename: vaultRename,
     getConfig: (key: string): unknown => config[key],
     getAbstractFileByPath: (path: string): TFile | TFolder | null => entries.get(path) ?? null,
     read: (file: TFile): Promise<string> => Promise.resolve(contents.get(file.path) ?? ''),
@@ -34,28 +53,23 @@ function makeApp(
     adapter: { basePath: '/abs/vault' },
   };
   const trashFile = vi.fn(() => Promise.resolve());
+  const managerRename = vi.fn((file: TFile, newPath: string): Promise<void> => {
+    const oldPath = file.path;
+    move(oldPath, newPath);
+    for (const [path, text] of contents) {
+      contents.set(path, text.split(`[[${strip(oldPath)}]]`).join(`[[${strip(newPath)}]]`));
+    }
+    return Promise.resolve();
+  });
   const fileManager = {
     trashFile,
-    renameFile: vi.fn((file: TFile, newPath: string): Promise<void> => {
-      const oldPath = file.path;
-      const body = contents.get(oldPath) ?? '';
-      contents.delete(oldPath);
-      entries.delete(oldPath);
-      contents.set(newPath, body);
-      entries.set(newPath, makeFile(newPath));
-      if (config.alwaysUpdateLinks === true) {
-        for (const [path, text] of contents) {
-          contents.set(path, text.split(`[[${strip(oldPath)}]]`).join(`[[${strip(newPath)}]]`));
-        }
-      }
-      return Promise.resolve();
-    }),
+    renameFile: managerRename,
   };
   const app = new App();
   (app as unknown as { vault: unknown }).vault = vault;
   (app as unknown as { fileManager: unknown }).fileManager = fileManager;
   (app as unknown as { metadataCache: unknown }).metadataCache = { resolvedLinks };
-  return { app, contents, trashFile };
+  return { app, contents, trashFile, vaultRename, managerRename };
 }
 
 describe('RealObsidianAdapter reads vault settings via getConfig (#430)', () => {
@@ -108,7 +122,7 @@ describe('vault handlers on the real adapter report link updates (#430)', () => 
   const links = { 'b.md': { 'a.md': 2 } };
 
   it('counts the rewritten links when "Automatically update internal links" is on', async () => {
-    const { app, contents } = makeApp({ alwaysUpdateLinks: true }, files, links);
+    const { app, contents, managerRename, vaultRename } = makeApp({ alwaysUpdateLinks: true }, files, links);
     const adapter = new RealObsidianAdapter(app);
     const handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
 
@@ -122,10 +136,12 @@ describe('vault handlers on the real adapter report link updates (#430)', () => 
       autoUpdateLinks: true,
     });
     expect(contents.get('b.md')).toBe('see [[z]] and [[z]]');
+    expect(managerRename).toHaveBeenCalled();
+    expect(vaultRename).not.toHaveBeenCalled();
   });
 
-  it('warns when the setting is off', async () => {
-    const { app } = makeApp({ alwaysUpdateLinks: false }, files, links);
+  it('warns when the setting is off and renames without the "Update links" prompt (#445)', async () => {
+    const { app, contents, managerRename, vaultRename } = makeApp({ alwaysUpdateLinks: false }, files, links);
     const adapter = new RealObsidianAdapter(app);
     const handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
 
@@ -137,6 +153,28 @@ describe('vault handlers on the real adapter report link updates (#430)', () => 
       autoUpdateLinks: false,
     });
     expect((result.structuredContent as { warning?: string }).warning).toContain('1 file links to a.md');
+    expect(vaultRename).toHaveBeenCalled();
+    expect(managerRename).not.toHaveBeenCalled();
+    expect(contents.get('b.md')).toBe('see [[a]] and [[a]]');
+    expect(contents.get('z.md')).toBe('a');
+  });
+
+  it('renames via vault.rename and warns when the setting cannot be read (#445)', async () => {
+    const { app, contents, managerRename, vaultRename } = makeApp({}, files, links);
+    const adapter = new RealObsidianAdapter(app);
+    const handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
+
+    const result = await handlers.renameFile({ path: 'a.md', newName: 'z.md' });
+
+    expect(result.structuredContent).toMatchObject({
+      linksUpdated: 0,
+      updatedFiles: [],
+      autoUpdateLinks: null,
+    });
+    expect((result.structuredContent as { warning?: string }).warning).toContain('could not be read');
+    expect(vaultRename).toHaveBeenCalled();
+    expect(managerRename).not.toHaveBeenCalled();
+    expect(contents.get('b.md')).toBe('see [[a]] and [[a]]');
   });
 
   it('vault_delete reports where the file went', async () => {

@@ -568,7 +568,10 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     return this.autoUpdateLinks;
   }
 
-  /** Test helper: `false` (or `null`) makes renames leave links alone. */
+  /**
+   * Test helper: `false` (or `null`) makes renames leave links alone, like
+   * the real adapter's `vault.rename` path (#445).
+   */
   setAutoUpdateLinks(value: boolean | null): void {
     this.autoUpdateLinks = value;
   }

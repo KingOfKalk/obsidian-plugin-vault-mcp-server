@@ -1,8 +1,9 @@
-import { browser, expect } from '@wdio/globals';
+import { expect } from '@wdio/globals';
 import type { Client } from '@modelcontextprotocol/client';
 import {
   callTool,
   connectClient,
+  expectNoModal,
   readFromDisk,
   setVaultConfig,
   startMcpServer,
@@ -21,9 +22,10 @@ interface LinkReport {
 
 /**
  * `vault_rename` / `vault_move` report which links Obsidian rewrote (#430).
- * The report reads the linking files right after `fileManager.renameFile`
- * resolves, so these specs check that Obsidian has rewritten the links by
- * then, and that the report matches the bytes on disk.
+ * The report reads the linking files right after the rename resolves, so
+ * these specs check that Obsidian has rewritten the links by then (setting
+ * on), that nothing is rewritten and no "Update links" prompt opens
+ * (setting off, #445), and that the report matches the bytes on disk.
  */
 describe('rename and move: link report vs real link rewriting', function () {
   let client: Client;
@@ -102,58 +104,86 @@ describe('rename and move: link report vs real link rewriting', function () {
   });
 
   /**
-   * With the setting off, Obsidian renames the file and then asks "Update
-   * links" (Always update / Just once / Do not update).
-   * `fileManager.renameFile` does not resolve until that prompt is
-   * answered, so the `vault_rename` call waits for the user.
+   * With the setting off, `fileManager.renameFile` would rename the file and
+   * then ask "Update links" (Always update / Just once / Do not update),
+   * and not resolve until someone answers. The tools rename with
+   * `vault.rename` instead (#445), so the call returns on its own, no modal
+   * opens and links stay as they were.
    */
-  async function renameAnswering(answer: string, name: string): Promise<LinkReport> {
-    // Each case uses its own note name: a link left pointing at a missing
-    // `[[Target]]` would otherwise resolve to the next case's Target.md.
+  it('vault_rename returns without a prompt, leaves links alone and warns when auto-update is off', async function () {
     await setVaultConfig('alwaysUpdateLinks', false);
     await writeNotes({
-      [`rename-prompt/${name}.md`]: `# ${name}\n`,
-      [`rename-prompt/${name} linker.md`]: `See [[${name}]].\n`,
+      'rename-off/Kept.md': '# Kept\n',
+      'rename-off/Kept linker.md': 'See [[Kept]].\n',
     });
-    await waitForLinks({
-      [`rename-prompt/${name} linker.md`]: { [`rename-prompt/${name}.md`]: 1 },
-    });
+    await waitForLinks({ 'rename-off/Kept linker.md': { 'rename-off/Kept.md': 1 } });
 
-    const pending = callTool<LinkReport>(client, 'vault_rename', {
-      path: `rename-prompt/${name}.md`,
-      newName: `${name} renamed.md`,
+    const report = await callTool<LinkReport>(client, 'vault_rename', {
+      path: 'rename-off/Kept.md',
+      newName: 'Kept renamed.md',
     });
-    const button = browser.$('.modal-container').$(`button=${answer}`);
-    await button.waitForClickable({ timeout: 15000, timeoutMsg: 'no "Update links" prompt' });
-    await button.click();
-    return pending;
-  }
-
-  it('vault_rename warns and leaves links alone when the prompt says "Do not update"', async function () {
-    const report = await renameAnswering('Do not update', 'Kept');
 
     expect(report).toMatchObject({
-      to: 'rename-prompt/Kept renamed.md',
+      to: 'rename-off/Kept renamed.md',
       autoUpdateLinks: false,
       linksUpdated: 0,
       updatedFiles: [],
     });
     expect(report.warning).toContain('"Automatically update internal links" is off');
-    expect(report.warning).toContain('1 file links to rename-prompt/Kept.md');
-    expect(await readFromDisk('rename-prompt/Kept linker.md')).toBe('See [[Kept]].\n');
-    expect(await readFromDisk('rename-prompt/Kept renamed.md')).toBe('# Kept\n');
+    expect(report.warning).toContain('1 file links to rename-off/Kept.md');
+    expect(await readFromDisk('rename-off/Kept linker.md')).toBe('See [[Kept]].\n');
+    expect(await readFromDisk('rename-off/Kept.md')).toBeNull();
+    expect(await readFromDisk('rename-off/Kept renamed.md')).toBe('# Kept\n');
+    await expectNoModal();
   });
 
-  it('vault_rename reports the links when the prompt says "Just once"', async function () {
-    const report = await renameAnswering('Just once', 'Once');
+  it('vault_move returns without a prompt and leaves links alone when auto-update is off', async function () {
+    await setVaultConfig('alwaysUpdateLinks', false);
+    await writeNotes({
+      'move-off/Note.md': 'Body\n',
+      'move-off/Linker.md': 'Link: [[move-off/Note]]\n',
+    });
+    await waitForLinks({ 'move-off/Linker.md': { 'move-off/Note.md': 1 } });
+
+    const report = await callTool<LinkReport>(client, 'vault_move', {
+      path: 'move-off/Note.md',
+      newPath: 'move-off/archive/Note.md',
+    });
 
     expect(report).toMatchObject({
-      to: 'rename-prompt/Once renamed.md',
+      to: 'move-off/archive/Note.md',
       autoUpdateLinks: false,
-      linksUpdated: 1,
-      updatedFiles: ['rename-prompt/Once linker.md'],
+      linksUpdated: 0,
+      updatedFiles: [],
     });
-    expect(report.warning).toBeUndefined();
-    expect(await readFromDisk('rename-prompt/Once linker.md')).toBe('See [[Once renamed]].\n');
+    expect(report.warning).toContain('1 file links to move-off/Note.md');
+    expect(await readFromDisk('move-off/Linker.md')).toBe('Link: [[move-off/Note]]\n');
+    expect(await readFromDisk('move-off/archive/Note.md')).toBe('Body\n');
+    await expectNoModal();
+  });
+
+  it('vault_rename_folder returns without a prompt and leaves links alone when auto-update is off', async function () {
+    await setVaultConfig('alwaysUpdateLinks', false);
+    await writeNotes({
+      'folder-off/wip/Inside.md': 'Inside\n',
+      'folder-off/Outside.md': 'Link: [[folder-off/wip/Inside]]\n',
+    });
+    await waitForLinks({ 'folder-off/Outside.md': { 'folder-off/wip/Inside.md': 1 } });
+
+    const report = await callTool<LinkReport>(client, 'vault_rename_folder', {
+      path: 'folder-off/wip',
+      newPath: 'folder-off/done',
+    });
+
+    expect(report).toMatchObject({
+      autoUpdateLinks: false,
+      linksUpdated: 0,
+      updatedFiles: [],
+    });
+    expect(report.warning).toContain('1 file links to folder-off/wip');
+    expect(await readFromDisk('folder-off/Outside.md')).toBe('Link: [[folder-off/wip/Inside]]\n');
+    expect(await readFromDisk('folder-off/done/Inside.md')).toBe('Inside\n');
+    expect(await readFromDisk('folder-off/wip/Inside.md')).toBeNull();
+    await expectNoModal();
   });
 });
