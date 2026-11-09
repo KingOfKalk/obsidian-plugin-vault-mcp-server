@@ -280,14 +280,15 @@ Response (`structuredContent`):
 
 **Replace text in file**
 
-Replace an exact passage in a file without rewriting the rest. oldString must match exactly once unless replaceAll is true.
+Replace an exact passage in a file without rewriting the rest. oldString must match exactly once unless replaceAll is true. Pass edits instead of oldString/newString to make several replacements all or nothing.
 
 Returns:
-  Matching and writing happen in one atomic step (app.vault.process).
+  Matching and writing happen in one atomic step (app.vault.process). With edits, every edit is checked against the file as it was before the call, and the result adds edits: [{ index, replacements }].
 
 Examples:
   - Use when: fixing one line in a large note -> { path: "notes/a.md", oldString: "status: draft", newString: "status: done" }
   - Use when: renaming a term everywhere in one file -> { ..., replaceAll: true }
+  - Use when: changing two sections at once -> { path: "notes/a.md", edits: [{ oldString: "## Agenda\n- old", newString: "## Agenda\n- new" }, { oldString: "- [ ] task", newString: "- [x] task" }] }
   - Don't use when: editing the open file at a cursor position (use editor_replace).
 
 See also:
@@ -296,6 +297,8 @@ See also:
 Errors:
   - "File not found" if the path does not exist.
   - "oldString not found … (0 matches)" or "oldString is ambiguous … (N matches)"; nothing is written.
+  - "edits[i].oldString not found/is ambiguous … (N matches)" or "edits[i] and edits[j] overlap"; nothing is written.
+  - "Pass either oldString/newString or edits, not both" (or neither); nothing is written.
   - "File changed since expectedMtime" (with the current mtime) if expectedMtime is set and the file was modified since; nothing is written.
 
 #### Input
@@ -303,9 +306,10 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
-| `oldString` | string (1–5000000) | yes | Exact text to find (literal, case-sensitive, no regex). Must occur exactly once unless replaceAll is true. |
-| `newString` | string (≤5000000) | yes | Replacement text (literal; may be empty to delete oldString). |
-| `replaceAll` | boolean | no (default `false`) | Replace every occurrence instead of requiring exactly one (default false). |
+| `oldString` | string (1–5000000) | no | Single-edit form: exact text to find (literal, case-sensitive, no regex). Must occur exactly once unless replaceAll is true. Give it with newString, or use edits instead. |
+| `newString` | string (≤5000000) | no | Single-edit form: replacement text (literal; may be empty to delete oldString). Give it with oldString. |
+| `replaceAll` | boolean | no (default `false`) | Single-edit form: replace every occurrence instead of requiring exactly one (default false). With edits, set replaceAll on each edit instead. |
+| `edits` | object[] | no | Multi-edit form, instead of oldString/newString: up to 100 { oldString, newString, replaceAll? } edits, all or nothing. Every edit is matched against the file as it was before the call (text inserted by one edit is never matched by another), and the matches of different edits must not overlap. If any edit fails, nothing is written. |
 | `expectedMtime` | string (≤64) | no | Optional conflict check: the `modified` value from vault_read or vault_get_metadata (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
 
 #### Output
@@ -313,7 +317,8 @@ Errors:
 | Field | Type | Description |
 |---|---|---|
 | `path` | string | Vault-relative path that was written. |
-| `replacements` | number | Number of occurrences replaced. |
+| `replacements` | number | Number of occurrences replaced (over all edits). |
+| `edits` | object[] | Multi-edit form only: occurrences replaced per edit, in input order. |
 | `modified` | string | New last-modification timestamp (ISO-8601); usable as the next expectedMtime. |
 
 #### Example
@@ -1080,7 +1085,7 @@ Response (`structuredContent`):
 Set or remove YAML frontmatter keys of a Markdown note without rewriting the rest of the file.
 
 Returns:
-  The resulting frontmatter. Obsidian writes the YAML, keeps key order and creates the block if missing.
+  The resulting frontmatter and the new modified timestamp. Obsidian writes the YAML, keeps key order and creates the block if missing.
 
 Examples:
   - Use when: marking a note done -> { path: "projects/alpha.md", set: { status: "done" } }
@@ -1095,6 +1100,7 @@ Errors:
   - "Frontmatter can only be set on Markdown (.md) files" for other file types.
   - "Keys cannot be both set and removed" if a key appears in set and remove.
   - "Nothing to change" if set is empty and remove is missing or empty.
+  - "File changed since expectedMtime" (with the current mtime) if expectedMtime is set and the file was modified since; nothing is written.
 
 #### Input
 
@@ -1103,6 +1109,7 @@ Errors:
 | `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
 | `set` | object | yes | Frontmatter keys to set, mapped to JSON-compatible values (string, number, boolean, null, array or object). Existing keys are overwritten; keys not listed are left untouched. Pass {} to only remove keys. |
 | `remove` | string[] | no | Frontmatter keys to delete. Keys that are not present are ignored. |
+| `expectedMtime` | string (≤64) | no | Optional conflict check: the `modified` value from vault_read or vault_get_metadata (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
 
 #### Output
 
@@ -1110,6 +1117,7 @@ Errors:
 |---|---|---|
 | `path` | string | Vault-relative path that was written. |
 | `frontmatter` | object | The whole frontmatter after the change ({} when no keys are left). |
+| `modified` | string | New last-modification timestamp (ISO-8601); usable as the next expectedMtime. |
 
 #### Example
 
@@ -1136,6 +1144,7 @@ Response (`structuredContent`):
   "frontmatter": {
     "status": "done",
     "reviewed": true
-  }
+  },
+  "modified": "2026-01-15T09:30:00.000Z"
 }
 ```

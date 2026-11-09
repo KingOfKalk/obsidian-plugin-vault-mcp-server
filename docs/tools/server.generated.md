@@ -55,6 +55,13 @@ Response (`structuredContent`):
   ],
   "changes": [
     {
+      "version": "3.5.0",
+      "notes": [
+        "`vault_replace` takes `edits: [{ oldString, newString, replaceAll? }]` as an alternative to `oldString`/`newString` (exactly one form per call). All edits are matched against the file before the call, must not overlap, and are written together or not at all; an error names the failing edit as `edits… [truncated, 158 more chars]",
+        "`vault_set_frontmatter` takes optional `expectedMtime` (same semantics as the other write tools) and its result adds `modified`."
+      ]
+    },
+    {
       "version": "3.3.0",
       "notes": [
         "`vault_delete` and `vault_delete_folder` follow the user's \"Deleted files\" setting (system trash, `.trash` folder, or permanent) instead of always deleting for good.",
