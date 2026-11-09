@@ -17,6 +17,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import type { CallToolResult, Tool } from '@modelcontextprotocol/client';
+import { BULK_SEED } from './fixture-generator';
 import { connectClient, startHarness } from './harness';
 import { answersMatch, extractTagged, parseEvaluationXml, type QaPair } from './lib';
 
@@ -281,6 +282,39 @@ function print(line: string): void {
   process.stdout.write(`${line}\n`);
 }
 
+/** Plugin version from package.json, for the baseline table. */
+export function pluginVersion(): string {
+  const pkg = JSON.parse(readFileSync(resolve(process.cwd(), 'package.json'), 'utf8')) as { version?: string };
+  return pkg.version ?? 'unknown';
+}
+
+export interface BaselineInput {
+  date: string;
+  version: string;
+  model: string;
+  effort: string;
+  passed: number;
+  total: number;
+  toolCalls: number;
+}
+
+/** One row for the baseline table in evals/README.md (#466). */
+export function baselineRow(b: BaselineInput): string {
+  const pct = b.total === 0 ? 0 : (b.passed / b.total) * 100;
+  const perQuestion = b.total === 0 ? 0 : b.toolCalls / b.total;
+  return (
+    `| ${b.date} | ${b.version} | ${b.model} | ${b.effort} | ${String(BULK_SEED)} | ` +
+    `${String(b.passed)}/${String(b.total)} (${pct.toFixed(0)}%) | ${perQuestion.toFixed(1)} |`
+  );
+}
+
+function fixtureLine(f: { files: number; generated: number; seed: number | null }): string {
+  return (
+    `Fixture: ${String(f.files)} files (${String(f.files - f.generated)} from evals/fixture-vault/, ` +
+    `${String(f.generated)} generated with seed ${String(f.seed)}).`
+  );
+}
+
 async function dryRun(pairs: Array<{ qa: QaPair; index: number }>): Promise<void> {
   const harness = await startHarness();
   const mcp = await connectClient(harness);
@@ -288,6 +322,7 @@ async function dryRun(pairs: Array<{ qa: QaPair; index: number }>): Promise<void
     const tools = (await mcp.listTools()).tools.map(toClaudeTool);
     print(`Dry run: harness at ${harness.url}, ${String(tools.length)} tools converted for Claude.`);
     print(`Server instructions: ${String(mcp.getInstructions()?.length ?? 0)} characters.`);
+    print(fixtureLine(harness.fixture));
     for (const { qa, index } of pairs) {
       print(`  Q${String(index)}: ${qa.question}\n       expected: ${qa.answer}`);
     }
@@ -343,11 +378,38 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<numb
   print('');
   print(`Accuracy: ${String(passed)}/${String(results.length)} (${((passed / results.length) * 100).toFixed(1)}%)`);
   print(`Tool calls: ${String(totalCalls)} total, ${(totalCalls / results.length).toFixed(1)} per question`);
+  const baseline: BaselineInput = {
+    date: new Date().toISOString().slice(0, 10),
+    version: pluginVersion(),
+    model: config.model,
+    effort: config.effort,
+    passed,
+    total: results.length,
+    toolCalls: totalCalls,
+  };
+  if (args.only === null) {
+    print('');
+    print('Baseline row for evals/README.md (full run only):');
+    print(baselineRow(baseline));
+  }
 
   if (args.report) {
     writeFileSync(
       args.report,
-      JSON.stringify({ model: config.model, effort: config.effort, passed, total: results.length, results }, null, 2),
+      JSON.stringify(
+        {
+          date: baseline.date,
+          version: baseline.version,
+          model: config.model,
+          effort: config.effort,
+          bulkSeed: BULK_SEED,
+          passed,
+          total: results.length,
+          results,
+        },
+        null,
+        2,
+      ),
     );
     print(`Report written to ${args.report}`);
   }

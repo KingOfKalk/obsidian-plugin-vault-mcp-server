@@ -14,6 +14,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { MockObsidianAdapter } from '../src/obsidian/mock-adapter';
+import type { GeneratedNote } from './fixture-generator';
 
 /** Fixed timestamp for every fixture file so stat output is deterministic. */
 export const FIXTURE_TIME = Date.UTC(2026, 0, 1, 0, 0, 0);
@@ -158,8 +159,13 @@ function basename(path: string): string {
 export class FixtureAdapter extends MockObsidianAdapter {
   private notes = new Map<string, ParsedNote>();
   private paths: string[] = [];
+  /** Resolved link targets by lower-cased link path; cleared on every addNote. */
+  private resolveCache = new Map<string, string | null>();
+  private linkMaps: { resolved: Record<string, Record<string, number>>; unresolved: Record<string, Record<string, number>> } | null = null;
 
   addNote(path: string, content: string): void {
+    this.resolveCache.clear();
+    this.linkMaps = null;
     this.addFile(path, content, {
       size: Buffer.byteLength(content, 'utf8'),
       ctime: FIXTURE_TIME,
@@ -187,6 +193,14 @@ export class FixtureAdapter extends MockObsidianAdapter {
     const linkpath = (hash === -1 ? link : link.slice(0, hash)).trim();
     if (linkpath === '') return source;
     const lower = linkpath.toLowerCase();
+    const cached = this.resolveCache.get(lower);
+    if (cached !== undefined) return cached;
+    const resolved = this.resolveUncached(lower);
+    this.resolveCache.set(lower, resolved);
+    return resolved;
+  }
+
+  private resolveUncached(lower: string): string | null {
     const exact = this.paths.find(
       (p) => p.toLowerCase() === lower || stripMd(p).toLowerCase() === lower,
     );
@@ -205,7 +219,25 @@ export class FixtureAdapter extends MockObsidianAdapter {
     return note ? [...note.links, ...note.embeds] : [];
   }
 
+  /**
+   * Both link maps, built once per fixture: with the bulk notes (#466)
+   * rebuilding them on every call would slow the answer-key check down.
+   * Notes are only added through addNote, which clears the cache.
+   */
+  private maps(): { resolved: Record<string, Record<string, number>>; unresolved: Record<string, Record<string, number>> } {
+    this.linkMaps ??= { resolved: this.buildResolved(), unresolved: this.buildUnresolved() };
+    return this.linkMaps;
+  }
+
   override getResolvedLinks(): Record<string, Record<string, number>> {
+    return structuredClone(this.maps().resolved);
+  }
+
+  override getUnresolvedLinks(): Record<string, Record<string, number>> {
+    return structuredClone(this.maps().unresolved);
+  }
+
+  private buildResolved(): Record<string, Record<string, number>> {
     const result: Record<string, Record<string, number>> = {};
     for (const source of this.notes.keys()) {
       const targets: Record<string, number> = {};
@@ -218,7 +250,7 @@ export class FixtureAdapter extends MockObsidianAdapter {
     return result;
   }
 
-  override getUnresolvedLinks(): Record<string, Record<string, number>> {
+  private buildUnresolved(): Record<string, Record<string, number>> {
     const result: Record<string, Record<string, number>> = {};
     for (const source of this.notes.keys()) {
       const targets: Record<string, number> = {};
@@ -237,18 +269,28 @@ export class FixtureAdapter extends MockObsidianAdapter {
     // Like the real adapter (#447): a missing path is "File not found",
     // not "no backlinks" (#463).
     this.requireFile(path);
-    const resolved = this.getResolvedLinks();
+    const resolved = this.maps().resolved;
     // Same rule as the real adapter: every source whose resolved map has `path`.
     return Object.keys(resolved).filter((source) => path in resolved[source]);
   }
 }
 
-/** Load every file under `dir` into a fresh FixtureAdapter. */
-export function loadFixtureVault(dir: string): FixtureAdapter {
+/**
+ * Load every file under `dir` into a fresh FixtureAdapter, then the
+ * generated notes in `extra` (#466). A generated note never replaces a
+ * file from disk.
+ */
+export function loadFixtureVault(dir: string, extra: readonly GeneratedNote[] = []): FixtureAdapter {
   const adapter = new FixtureAdapter();
+  const seen = new Set<string>();
   for (const full of walk(dir)) {
     const path = relative(dir, full).split(sep).join('/');
+    seen.add(path);
     adapter.addNote(path, readFileSync(full, 'utf8'));
+  }
+  for (const note of extra) {
+    if (seen.has(note.path)) throw new Error(`Generated note ${note.path} collides with a fixture file.`);
+    adapter.addNote(note.path, note.content);
   }
   return adapter;
 }

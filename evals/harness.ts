@@ -1,6 +1,7 @@
 /**
  * Headless eval server (#393): the real createMcpServer + HttpMcpServer on
- * the fixture vault, without Obsidian. Every module and every tool is
+ * the fixture vault (the hand-written notes plus the generated bulk notes,
+ * #466), without Obsidian. Every module and every tool is
  * enabled, exactly as a user who turned everything on would see it. The
  * eval questions only need read tools; write tools act on the in-memory
  * copy of the fixture, never on the files on disk.
@@ -18,6 +19,7 @@ import { discoverModules } from '../src/tools';
 import { DEFAULT_SETTINGS } from '../src/types';
 import { Logger } from '../src/utils/logger';
 import { loadFixtureVault, type FixtureAdapter } from './fixture-adapter';
+import { BULK_SEED, generateBulkNotes } from './fixture-generator';
 
 /** Fixed bearer token for the local eval server. Not a secret. */
 export const EVAL_TOKEN = 'eval-fixture-token';
@@ -27,6 +29,8 @@ export interface Harness {
   url: string;
   token: string;
   adapter: FixtureAdapter;
+  /** What the fixture holds: all files, how many were generated, and the seed. */
+  fixture: { files: number; generated: number; seed: number | null };
   close: () => Promise<void>;
 }
 
@@ -36,6 +40,12 @@ export interface HarnessOptions {
   port?: number;
   /** Print the server's info/debug log lines to stderr. */
   verbose?: boolean;
+  /**
+   * Seed of the generated bulk notes added on top of `vaultDir` (#466).
+   * Defaults to BULK_SEED, the seed the answer key was made with; `null`
+   * loads only the hand-written notes.
+   */
+  bulkSeed?: number | null;
 }
 
 /** Logger that keeps info/debug quiet unless asked, so eval output stays readable. */
@@ -66,7 +76,9 @@ function freePort(): Promise<number> {
 }
 
 export async function startHarness(options: HarnessOptions = {}): Promise<Harness> {
-  const adapter = loadFixtureVault(options.vaultDir ?? DEFAULT_VAULT_DIR);
+  const seed = options.bulkSeed === undefined ? BULK_SEED : options.bulkSeed;
+  const generated = seed === null ? [] : generateBulkNotes(seed);
+  const adapter = loadFixtureVault(options.vaultDir ?? DEFAULT_VAULT_DIR, generated);
   const logger = new EvalLogger(options.verbose ?? false);
   const registry = new ModuleRegistry(logger);
   for (const m of discoverModules(adapter, { getExecuteCommandAllowlist: () => [] })) {
@@ -92,6 +104,7 @@ export async function startHarness(options: HarnessOptions = {}): Promise<Harnes
     url: `http://127.0.0.1:${String(port)}/mcp`,
     token: EVAL_TOKEN,
     adapter,
+    fixture: { files: adapter.getAllFiles().length, generated: generated.length, seed },
     close: () => http.stop(),
   };
 }
@@ -109,7 +122,10 @@ export async function connectClient(harness: Harness): Promise<Client> {
 async function main(): Promise<void> {
   const port = Number(process.env.EVAL_PORT ?? '0');
   const harness = await startHarness({ port, verbose: true });
-  process.stdout.write(`Eval MCP server: ${harness.url}\nBearer token: ${harness.token}\n`);
+  process.stdout.write(
+    `Eval MCP server: ${harness.url}\nBearer token: ${harness.token}\n` +
+      `Fixture: ${String(harness.fixture.files)} files (${String(harness.fixture.generated)} generated, seed ${String(harness.fixture.seed)})\n`,
+  );
   const shutdown = (): void => {
     void harness.close().then(() => process.exit(0));
   };
