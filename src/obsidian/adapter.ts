@@ -19,6 +19,12 @@ export interface ObsidianAdapter {
   readBinary(path: string): Promise<ArrayBuffer>;
   createFile(path: string, content: string): Promise<void>;
   modifyFile(path: string, content: string): Promise<void>;
+  /**
+   * Atomically read, transform and save a text file (`app.vault.process`).
+   * `fn` runs synchronously on the current content; if it throws, nothing
+   * is written and the error propagates. Resolves to the new content.
+   */
+  processFile(path: string, fn: (content: string) => string): Promise<string>;
   deleteFile(path: string): Promise<void>;
   renameFile(oldPath: string, newPath: string): Promise<void>;
   copyFile(sourcePath: string, destPath: string): Promise<void>;
@@ -150,6 +156,11 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   async modifyFile(path: string, content: string): Promise<void> {
     const file = this.getFile(path);
     await this.app.vault.modify(file, content);
+  }
+
+  async processFile(path: string, fn: (content: string) => string): Promise<string> {
+    const file = this.getFile(path);
+    return this.app.vault.process(file, fn);
   }
 
   async deleteFile(path: string): Promise<void> {

@@ -83,6 +83,12 @@ export const SAMPLE_ARGS: Record<string, Record<string, unknown>> = {
   vault_update: { path: 'README.md', content: '# Updated' },
   vault_delete: { path: 'people/ada.md' },
   vault_append: { path: 'README.md', content: '\nmore' },
+  vault_replace: {
+    path: 'projects/alpha.md',
+    oldString: 'Ship it.',
+    newString: 'Ship it this week.',
+    expectedMtime: '2026-01-10T08:15:00.000Z',
+  },
   vault_get_metadata: { path: 'README.md' },
   vault_rename: { path: 'people/ada.md', newName: 'ada-lovelace.md' },
   vault_move: { path: 'people/ada.md', newPath: 'archive/ada.md' },

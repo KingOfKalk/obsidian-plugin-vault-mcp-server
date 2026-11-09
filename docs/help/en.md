@@ -201,7 +201,7 @@ modules are hidden from `tools/list`, so the client never sees them.
 
 | Module | Tools | Notes |
 |---|---|---|
-| Vault and File Operations | 18 | Create / read / update / delete files and folders, rename, move, copy, list, binary I/O, metadata, daily note. |
+| Vault and File Operations | 19 | Create / read / update / delete files and folders, replace a passage in a file, rename, move, copy, list, binary I/O, metadata, daily note. |
 | Search and Metadata | 6 | Full-text search, list tags, find notes by tag / frontmatter, find resolved / unresolved links. |
 | Editor Operations | 10 | Read/insert/replace/delete text in the active editor, cursor and selection management. |
 | Workspace and Navigation | 5 | Inspect / open / focus leaves, read the layout. |
@@ -332,7 +332,27 @@ clients and agents commonly trip over:
   `[TRUNCATED: …]` footer, and `structuredContent` carries `totalLength`,
   `hasMore` and `nextOffset`. Call `vault_read` again with
   `offset: <nextOffset>` to continue. You can also pass `length` (1–24 000)
-  for smaller windows.
+  for smaller windows. Never write a single window back with `vault_update`:
+  that replaces the whole file and cuts off the rest. Use `vault_replace`
+  for targeted edits instead.
+- **Editing part of a file.** `vault_replace` takes `path`, `oldString`
+  and `newString` and swaps that exact passage (literal text, no regex),
+  leaving the rest of the file untouched. `oldString` must occur exactly
+  once; if it occurs 0 times, or more than once, the call fails with the
+  match count and nothing is written. Add surrounding text to make it
+  unique, or pass `replaceAll: true` to replace every occurrence. The edit
+  runs through Obsidian's atomic `vault.process()`. `structuredContent` is
+  `{ path, replacements, modified }`.
+- **Detecting concurrent edits (`expectedMtime`).** `vault_update`,
+  `vault_append`, `vault_replace` and `vault_write_binary` accept an
+  optional `expectedMtime`. Pass the `modified` value from `vault_read` or
+  `vault_get_metadata` (an ISO-8601 timestamp; epoch milliseconds also
+  work). If the file was changed since, for example because you typed in
+  it in Obsidian, the call fails with `File changed since expectedMtime`,
+  names the file's current modification time, and writes nothing. Re-read
+  the file and retry. `vault_replace` returns the new `modified`, so
+  several edits in a row can chain it. Without `expectedMtime` the tools
+  write unconditionally, as before.
 - **Full-text search results per file.** `search_fulltext` returns at most
   `maxMatchesPerFile` matching lines per file (default 5, maximum 100);
   `matchCount` always reports the real number of matches. `limit` and
@@ -574,6 +594,23 @@ The file is longer than one window (24 000 characters). The footer names the
 offset to continue at; call `vault_read` again with that `offset`, or read
 `nextOffset` from `structuredContent`. See
 [Tool behaviour worth knowing](#tool-behaviour-worth-knowing).
+
+### A write fails with "File changed since expectedMtime"
+
+The call passed `expectedMtime`, and the file was modified after that
+time, by you in Obsidian, by sync, or by another tool call. Nothing was
+written. Read the file again (`vault_read` returns the current
+`modified`), redo the edit on the fresh content, and retry with the new
+value. See
+[Tool behaviour worth knowing](#tool-behaviour-worth-knowing).
+
+### `vault_replace` fails with "0 matches" or "N matches"
+
+`oldString` must match the file's text exactly (case, whitespace and line
+breaks included) and occur exactly once. With 0 matches, re-read the file
+and copy the passage verbatim. With more than one match, include more
+surrounding text, or pass `replaceAll: true` if every occurrence should
+change. Nothing is written when the call fails.
 
 ### `vault_get_aspect` fails with "Cannot read properties of undefined (reading '_zod')"
 

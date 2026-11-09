@@ -15,6 +15,35 @@ const folderPath = z
   .max(4096)
   .describe('Folder path relative to vault root');
 
+/**
+ * Parse an `expectedMtime` value into epoch milliseconds: an ISO-8601
+ * timestamp (the `modified` field of vault_read / vault_get_metadata) or a
+ * string of digits (epoch milliseconds). Returns NaN when it is neither.
+ */
+export function parseExpectedMtime(value: string): number {
+  if (/^\d+$/.test(value)) return Number(value);
+  return Date.parse(value);
+}
+
+/**
+ * Optional optimistic-concurrency guard shared by the write tools (#406).
+ * The handler compares it with the file's current mtime and refuses to
+ * write when they differ.
+ */
+const expectedMtime = z
+  .string()
+  .max(64)
+  .refine(
+    (value) => !Number.isNaN(parseExpectedMtime(value)),
+    'expectedMtime must be an ISO-8601 timestamp or epoch milliseconds',
+  )
+  .optional()
+  .describe(
+    'Optional conflict check: the `modified` value from vault_read or vault_get_metadata ' +
+      '(ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written ' +
+      'and the error reports the current mtime.',
+  );
+
 export const createFileSchema = {
   path,
   content: z
@@ -58,6 +87,7 @@ export const updateFileSchema = {
     .string()
     .max(5_000_000)
     .describe('Replacement content for the file'),
+  expectedMtime,
 };
 
 export const deleteFileSchema = {
@@ -71,6 +101,27 @@ export const appendFileSchema = {
     .min(1)
     .max(5_000_000)
     .describe('Content to append to the end of the file'),
+  expectedMtime,
+};
+
+export const replaceInFileSchema = {
+  path,
+  oldString: z
+    .string()
+    .min(1)
+    .max(5_000_000)
+    .describe(
+      'Exact text to find (literal, case-sensitive, no regex). Must occur exactly once unless replaceAll is true.',
+    ),
+  newString: z
+    .string()
+    .max(5_000_000)
+    .describe('Replacement text (literal; may be empty to delete oldString).'),
+  replaceAll: z
+    .boolean()
+    .default(false)
+    .describe('Replace every occurrence instead of requiring exactly one (default false).'),
+  expectedMtime,
 };
 
 export const getMetadataSchema = {
@@ -169,6 +220,7 @@ export const writeBinarySchema = {
   data: base64Schema
     .refine((val) => val.length > 0, 'Base64 content must not be empty')
     .describe('Base64-encoded binary content (no leading data: prefix)'),
+  expectedMtime,
 };
 
 /**

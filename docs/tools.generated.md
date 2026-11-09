@@ -6,7 +6,7 @@ This file is regenerated from the tool registry and committed so CI can detect d
 
 | Module ID | Module Name | Count | Tools |
 |---|---|---|---|
-| `vault` | Vault and File Operations | 18 | vault_create, vault_read, vault_update, vault_delete, vault_append, vault_get_metadata, vault_rename, vault_move, vault_copy, vault_create_folder, vault_delete_folder, vault_rename_folder, vault_list, vault_list_recursive, vault_read_binary, vault_write_binary, vault_get_aspect, vault_daily_note |
+| `vault` | Vault and File Operations | 19 | vault_create, vault_read, vault_update, vault_delete, vault_append, vault_replace, vault_get_metadata, vault_rename, vault_move, vault_copy, vault_create_folder, vault_delete_folder, vault_rename_folder, vault_list, vault_list_recursive, vault_read_binary, vault_write_binary, vault_get_aspect, vault_daily_note |
 | `editor` | Editor Operations | 10 | editor_get_content, editor_get_active_file, editor_insert, editor_replace, editor_delete, editor_get_cursor, editor_set_cursor, editor_get_selection, editor_set_selection, editor_get_line_count |
 | `search` | Search and Metadata | 6 | search_fulltext, search_tags, search_resolved_links, search_unresolved_links, search_by_tag, search_by_frontmatter |
 | `workspace` | Workspace and Navigation | 5 | workspace_get_active_leaf, workspace_open_file, workspace_list_leaves, workspace_set_active_leaf, workspace_get_layout |
@@ -16,7 +16,7 @@ This file is regenerated from the tool registry and committed so CI can detect d
 | `extras` | Extras | 1 | extras_get_date |
 | `server` | Server | 1 | server_info |
 
-**Total tools:** 51 across 9 modules.
+**Total tools:** 52 across 9 modules.
 
 ## Tools by module
 
@@ -31,6 +31,7 @@ Schemas → [docs/tools/vault.generated.md](tools/vault.generated.md)
 | `vault_update` | Replace file content |  | ✓ |
 | `vault_delete` | Delete file |  | ✓ |
 | `vault_append` | Append to file |  |  |
+| `vault_replace` | Replace text in file |  | ✓ |
 | `vault_get_metadata` | Get file metadata | ✓ |  |
 | `vault_rename` | Rename file |  | ✓ |
 | `vault_move` | Move file |  | ✓ |
