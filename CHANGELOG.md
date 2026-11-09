@@ -4,6 +4,17 @@
 > were renamed from `vX.Y.Z` (and `obsidian-mcp-v1.1.0`) to `X.Y.Z`; old links
 > containing `v` no longer resolve.
 
+## [4.0.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/3.5.0...4.0.0) (2026-11-09)
+
+
+### ⚠ BREAKING CHANGES
+
+* `vault_daily_note` only creates a missing daily note when called with `create: true`. Callers that relied on the old default must pass `create: true`.
+
+### Features
+
+* vault_daily_note create defaults to false, drop response_format alias ([#438](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/438)) ([51143ce](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/51143ce11d301c2717dca1c50d0e73d845616b94))
+
 ## [3.5.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/3.4.1...3.5.0) (2026-11-09)
 
 
