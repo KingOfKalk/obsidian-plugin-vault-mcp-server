@@ -359,7 +359,26 @@ clients and agents commonly trip over:
   `offset` page over files.
 - **Frontmatter key search.** `search_by_frontmatter` with only `key` finds
   every note that has that frontmatter property; add `value` to match a
-  specific value.
+  specific value. For a list property such as `tags: [project, idea]`, a
+  note matches when any item equals `value`, so `value: "idea"` finds it.
+  Other values are compared as text.
+- **Where deleted files go.** `vault_delete` and `vault_delete_folder`
+  follow Obsidian's **Settings → Files and links → Deleted files** option:
+  the system trash, the vault's `.trash` folder, or permanent deletion.
+  Choose "Move to Obsidian trash" or "Move to system trash" if you want to
+  be able to restore what an agent deletes.
+- **Links follow renamed and moved files.** `vault_rename`, `vault_move` and
+  `vault_rename_folder` rename through Obsidian, so links to the file are
+  updated when **Settings → Files and links → Automatically update internal
+  links** is on. With it off, links keep pointing at the old path.
+- **Missing folders are created.** `vault_create`, `vault_copy`,
+  `vault_move`, `vault_write_binary` and `template_create_from` create any
+  folders in the target path that do not exist yet, so writing
+  `projects/2026/plan.md` works in an empty vault. If a file has the name of
+  a folder in the path, the call fails.
+- **No absolute paths in errors.** Error messages never show where your vault
+  lives on disk: paths inside the vault appear vault-relative (for example
+  `projects/plan.md`), other filesystem paths appear as `<path>`.
 - **Structured output on every tool.** All tools declare an `outputSchema`
   and return `structuredContent`. Write tools keep their plain-text
   confirmation (for example `Created file: notes/a.md`) and add a small

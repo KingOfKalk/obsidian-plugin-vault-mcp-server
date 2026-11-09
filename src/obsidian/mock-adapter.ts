@@ -27,6 +27,8 @@ export class MockObsidianAdapter implements ObsidianAdapter {
   private files: Map<string, MockFile> = new Map();
   private folders: Set<string> = new Set(['/']);
   private vaultPath = '/mock-vault';
+  /** Paths moved to the trash, in order (mirrors `fileManager.trashFile`). */
+  private trashed: string[] = [];
 
   async readFile(path: string): Promise<string> {
     const file = this.files.get(path);
@@ -80,6 +82,7 @@ export class MockObsidianAdapter implements ObsidianAdapter {
       throw new Error(`File not found: ${path}`);
     }
     this.files.delete(path);
+    this.trashed.push(path);
   }
 
   async renameFile(oldPath: string, newPath: string): Promise<void> {
@@ -94,9 +97,11 @@ export class MockObsidianAdapter implements ObsidianAdapter {
       this.ensureParentFolder(newPath);
       this.files.set(newPath, { ...file, stat: { ...file.stat, mtime: Date.now() } });
       this.files.delete(oldPath);
+      this.rewriteLinks(oldPath, newPath);
     }
 
     if (isFolder) {
+      this.ensureParentFolder(newPath);
       this.folders.add(newPath);
       this.folders.delete(oldPath);
       // Move all children
@@ -175,6 +180,7 @@ export class MockObsidianAdapter implements ObsidianAdapter {
       }
     }
     this.folders.delete(path);
+    this.trashed.push(path);
   }
 
   async exists(path: string): Promise<boolean> {
@@ -516,6 +522,11 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     });
   }
 
+  /** Paths deleted via `deleteFile` / `deleteFolder`, i.e. sent to the trash. */
+  getTrashedPaths(): string[] {
+    return [...this.trashed];
+  }
+
   addFolder(path: string): void {
     this.folders.add(path);
   }
@@ -541,6 +552,23 @@ export class MockObsidianAdapter implements ObsidianAdapter {
       }
     }
     return { files: files.sort(), folders: folders.sort() };
+  }
+
+  /**
+   * Minimal stand-in for Obsidian's "Automatically update internal
+   * links": rewrite `[[old]]`, `[[old|alias]]` and `[[old#heading]]`
+   * wikilinks (with or without the `.md` extension) in every other file
+   * to the new path. The real link format depends on user settings.
+   */
+  private rewriteLinks(oldPath: string, newPath: string): void {
+    const strip = (p: string): string => p.replace(/\.md$/, '');
+    const escaped = strip(oldPath).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp(`\\[\\[${escaped}(\\.md)?(?=[\\]|#])`, 'g');
+    const replacement = `[[${strip(newPath)}`;
+    for (const file of this.files.values()) {
+      if (file.binary) continue;
+      file.content = file.content.replace(pattern, replacement);
+    }
   }
 
   private ensureParentFolder(path: string): void {

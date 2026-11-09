@@ -382,6 +382,29 @@ describe('search handlers', () => {
       const page = result.structuredContent as { items: string[] };
       expect(page.items).toEqual(['b.md']);
     });
+
+    it('matches a list property when any element equals the value (#405)', async () => {
+      adapter.addFile('a.md', 'content');
+      adapter.setMetadata('a.md', { frontmatter: { tags: ['alpha', 'beta'] } });
+      adapter.addFile('b.md', 'content');
+      adapter.setMetadata('b.md', { frontmatter: { tags: ['beta'] } });
+      adapter.addFile('c.md', 'content');
+      adapter.setMetadata('c.md', { frontmatter: { tags: 'alpha,beta' } });
+      adapter.addFile('d.md', 'content');
+      adapter.setMetadata('d.md', { frontmatter: { tags: [1, 'gamma'] } });
+
+      const alpha = await handlers.searchByFrontmatter({ key: 'tags', value: 'alpha' });
+      expect((alpha.structuredContent as { items: string[] }).items).toEqual(['a.md']);
+
+      const beta = await handlers.searchByFrontmatter({ key: 'tags', value: 'beta' });
+      expect((beta.structuredContent as { items: string[] }).items.sort()).toEqual(['a.md', 'b.md']);
+
+      const joined = await handlers.searchByFrontmatter({ key: 'tags', value: 'alpha,beta' });
+      expect((joined.structuredContent as { items: string[] }).items).toEqual(['c.md']);
+
+      const numeric = await handlers.searchByFrontmatter({ key: 'tags', value: '1' });
+      expect((numeric.structuredContent as { items: string[] }).items).toEqual(['d.md']);
+    });
   });
 
   describe('markdown rendering (default format)', () => {

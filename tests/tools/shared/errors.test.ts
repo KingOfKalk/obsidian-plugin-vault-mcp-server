@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { z } from 'zod';
 import {
   handleToolError,
@@ -7,6 +7,9 @@ import {
   PermissionError,
   ValidationError,
   TimeoutError,
+  registerVaultBasePath,
+  clearVaultBasePaths,
+  redactFilesystemPaths,
 } from '../../../src/tools/shared/errors';
 import { PathTraversalError } from '../../../src/utils/path-guard';
 
@@ -93,5 +96,51 @@ describe('BinaryTooLargeError', () => {
       type: 'text',
       text: 'Error: Binary file too large (2000000 bytes, limit 1048576). Fetch the file out-of-band or use a chunked read when available.',
     });
+  });
+});
+
+describe('handleToolError never leaks absolute filesystem paths (#405)', () => {
+  afterEach(() => {
+    clearVaultBasePaths();
+  });
+
+  it('turns the registered vault base path into a vault-relative path', () => {
+    registerVaultBasePath('/home/alice/Vault/');
+    const err = new Error("ENOENT: no such file or directory, open '/home/alice/Vault/new/note.md'");
+    const text = getText(handleToolError(err));
+    expect(text).toBe("Error: ENOENT: no such file or directory, open 'new/note.md'");
+  });
+
+  it('replaces a bare vault base path with <vault>', () => {
+    registerVaultBasePath('/home/alice/Vault');
+    expect(redactFilesystemPaths('cannot scan /home/alice/Vault')).toBe('cannot scan <vault>');
+  });
+
+  it('handles a Windows vault base path', () => {
+    registerVaultBasePath('C:\\Users\\alice\\Vault');
+    expect(
+      redactFilesystemPaths("EPERM: operation not permitted, open 'C:\\Users\\alice\\Vault\\a\\b.md'"),
+    ).toBe("EPERM: operation not permitted, open 'a\\b.md'");
+  });
+
+  it('redacts unknown absolute paths when no base path is registered', () => {
+    const err = new Error("ENOENT: no such file or directory, open '/srv/vaults/me/x/y.md'");
+    expect(getText(handleToolError(err))).toBe(
+      "Error: ENOENT: no such file or directory, open '<path>'",
+    );
+    expect(redactFilesystemPaths('failed at C:\\Users\\bob\\v\\a.md')).toBe('failed at <path>');
+    expect(redactFilesystemPaths('failed at D:/v/a.md now')).toBe('failed at <path> now');
+  });
+
+  it('leaves vault-relative paths and short messages alone', () => {
+    expect(redactFilesystemPaths('File already exists: notes/a.md')).toBe(
+      'File already exists: notes/a.md',
+    );
+    expect(redactFilesystemPaths('Folder not found: /')).toBe('Folder not found: /');
+    expect(redactFilesystemPaths('a/b and x-y/c/d.md')).toBe('a/b and x-y/c/d.md');
+  });
+
+  it('applies to non-Error values too', () => {
+    expect(getText(handleToolError('bad /tmp/x/y'))).toBe('Error: bad <path>');
   });
 });

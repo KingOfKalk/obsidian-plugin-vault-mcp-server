@@ -240,7 +240,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           name: 'vault_create',
           title: 'Create file',
           description: describeTool({
-            summary: 'Create a new file at a vault-relative path with text content.',
+            summary: 'Create a new file at a vault-relative path with text content. Missing parent folders are created.',
             examples: [
               'Use when: creating notes/ideas.md with "# Ideas"',
               'Don\'t use when: the file already exists — call vault_update instead.',
@@ -300,6 +300,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Delete file',
           description: describeTool({
             summary: 'Delete a file by vault-relative path.',
+            returns: 'The file goes where the user\'s "Deleted files" setting says: system trash, the vault\'s .trash folder, or permanently.',
             examples: ['Use when: removing an outdated note.'],
             errors: ['"File not found" if the path does not exist.'],
           }),
@@ -368,6 +369,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Rename file',
           description: describeTool({
             summary: 'Rename a file within its current folder.',
+            returns: 'Links to the file are updated if the user enabled "Automatically update internal links".',
             examples: ['Use when: renaming "draft.md" to "final.md" in the same folder.'],
             errors: [
               '"Invalid rename target" if newName contains path separators.',
@@ -383,7 +385,8 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           name: 'vault_move',
           title: 'Move file',
           description: describeTool({
-            summary: 'Move a file to a different path (can change folder and name).',
+            summary: 'Move a file to a different path (can change folder and name). Missing parent folders are created.',
+            returns: 'Links to the file are updated if the user enabled "Automatically update internal links".',
             examples: ['Use when: archiving a note by moving it to "archive/<name>.md".'],
             errors: ['"File not found" if path does not exist.'],
           }),
@@ -396,7 +399,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           name: 'vault_copy',
           title: 'Copy file',
           description: describeTool({
-            summary: 'Copy a file to a new path, leaving the original in place.',
+            summary: 'Copy a file to a new path, leaving the original in place. Missing parent folders are created.',
             examples: ['Use when: duplicating a template before editing.'],
             errors: ['"File not found" if sourcePath does not exist.'],
           }),
@@ -423,6 +426,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Delete folder',
           description: describeTool({
             summary: 'Delete a folder, optionally recursively.',
+            returns: 'The folder goes where the user\'s "Deleted files" setting says: system trash, the vault\'s .trash folder, or permanently.',
             examples: ['Use when: removing an empty "old-drafts" folder.'],
             errors: ['"Folder not empty" if non-empty and recursive=false.'],
           }),
@@ -436,6 +440,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Rename folder',
           description: describeTool({
             summary: 'Rename or move a folder.',
+            returns: 'Links into the folder are updated if the user enabled "Automatically update internal links".',
             examples: ['Use when: renaming "WIP" to "Archive".'],
             errors: ['"Folder not found" if path does not exist.'],
           }),
@@ -501,7 +506,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           name: 'vault_write_binary',
           title: 'Write binary file',
           description: describeTool({
-            summary: 'Write binary file contents from a base64 string.',
+            summary: 'Write binary file contents from a base64 string. Missing parent folders are created.',
             examples: ['Use when: attaching a downloaded PDF to the vault.'],
             errors: ['"Invalid base64 string" if data is not valid base64.', MTIME_CONFLICT_ERROR],
           }),

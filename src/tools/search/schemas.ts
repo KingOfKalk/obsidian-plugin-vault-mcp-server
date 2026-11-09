@@ -52,7 +52,7 @@ export const searchByFrontmatterSchema = {
     .max(1000)
     .optional()
     .describe(
-      'Value to match exactly (compared as stringified). Omit to match every file that has the key.',
+      'Value to match exactly (compared as stringified). For a list property, a file matches if any element equals the value. Omit to match every file that has the key.',
     ),
   ...paginationFields,
   ...responseFormatField,
