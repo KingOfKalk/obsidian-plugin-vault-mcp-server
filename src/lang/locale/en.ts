@@ -146,6 +146,15 @@ const en = {
   button_copy: 'Copy',
   button_close: 'Close',
 
+  // Settings — About section
+  heading_about: 'About',
+  setting_about_version_name: 'Version',
+  setting_about_repository_name: 'Repository',
+  setting_about_report_issue_name: 'Report an issue',
+  setting_about_report_issue_desc:
+    'Opens a new GitHub issue with your plugin and Obsidian versions filled in. Paste the output of "Copy debug info" into it.',
+  link_report_issue: 'Open a new issue on GitHub',
+
   // Command palette entries
   command_start_server: 'Start MCP Server',
   command_stop_server: 'Stop MCP Server',

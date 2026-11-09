@@ -145,6 +145,15 @@ const de: Partial<Record<keyof typeof en, string>> = {
   button_copy: 'Kopieren',
   button_close: 'Schließen',
 
+  // About section
+  heading_about: 'Über',
+  setting_about_version_name: 'Version',
+  setting_about_repository_name: 'Repository',
+  setting_about_report_issue_name: 'Problem melden',
+  setting_about_report_issue_desc:
+    'Öffnet ein neues GitHub-Issue, in dem Plugin- und Obsidian-Version bereits eingetragen sind. Füge dort die Ausgabe von „Debug-Infos kopieren“ ein.',
+  link_report_issue: 'Neues Issue auf GitHub öffnen',
+
   // Command palette entries
   command_start_server: 'MCP-Server starten',
   command_stop_server: 'MCP-Server stoppen',
