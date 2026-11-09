@@ -4,6 +4,41 @@
 > were renamed from `vX.Y.Z` (and `obsidian-mcp-v1.1.0`) to `X.Y.Z`; old links
 > containing `v` no longer resolve.
 
+## [4.1.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/4.0.1...4.1.0) (2026-11-09)
+
+
+### Features
+
+* **tools:** page and cap large tool responses ([#476](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/476)) ([0fdd33d](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/0fdd33d4d67122acddc13aeed2aaeb8b9789e336))
+
+
+### Bug Fixes
+
+* quick fixes from the mcp-builder review (labels, error hints, search lines, server_info) ([#474](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/474)) ([335b512](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/335b5122098387d662e620e18e1d799db1617684))
+* **security:** block tool access to the vault config folder ([#472](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/472)) ([0dd6458](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/0dd6458d3360619f8da0ab53f92475e99e45ead1))
+* **server:** apply module and tool switches to open MCP sessions ([#452](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/452)) ([87d0b39](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/87d0b395daf37678d1eaef0b6316517fbfce5cca))
+* **server:** HTTP transport hygiene ([#471](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/471)) ([d72b901](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/d72b9018bc333af2b674170bc7774339578226f3))
+* **server:** parse obsidian://vault resource URIs without URL host semantics ([#475](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/475)) ([cad0e23](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/cad0e23aefdf2b1725f11f9c8dcf6205c2b7f942))
+* tool behaviour bugs found in the tool-description review ([#454](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/454)) ([16c1368](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/16c1368e0dd78f51af61ef095ad74af3cccca83c))
+* **tools:** correct wrong and ambiguous tool descriptions ([#456](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/456)) ([fed3605](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/fed3605b3748a9bb7631f158ef7f84803ea6b190))
+
+
+### Performance Improvements
+
+* **server:** trim JSON Schemas advertised in tools/list ([#458](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/458)) ([661376f](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/661376f3703300c4829d4ed7476e04f5dab6b563))
+* **tools:** shorten tool and parameter descriptions without losing precision ([#459](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/459)) ([c66aff3](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/c66aff3e5e691db570ff6803f23860f263bdb854))
+
+
+### Continuous Integration
+
+* make build wait for the e2e jobs ([#461](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/461)) ([264e885](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/264e885b91781366ec8dc6d232759672c8cad92e))
+
+
+### Miscellaneous Chores
+
+* **evals:** stronger local evals with a seeded bulk fixture and multi-step questions ([#477](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/477)) ([2c114d7](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/2c114d7674318b5197bae68f36b94dc89347c740))
+* measure the agent-facing tool surface and track a size budget ([#455](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/455)) ([29090f2](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/29090f23b52bfbc11c0b29ce1c509c2a6bf13158))
+
 ## [4.0.1](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/4.0.0...4.0.1) (2026-11-09)
 
 
