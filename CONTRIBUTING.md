@@ -69,7 +69,7 @@ src/
 
 See existing modules (e.g., `src/tools/vault/`) for examples.
 
-When you change tool names, descriptions, parameters or error messages, consider running the LLM evaluation in [`evals/`](evals/README.md). It checks that a model can still use the tools to answer questions about a fixture vault.
+When you change tool names, descriptions, parameters or error messages, consider running the LLM evaluation in [`evals/`](evals/README.md). It checks that a model can still use the tools to answer questions about a fixture vault. It runs locally only, never in CI (CI only checks the answer key). Compare the score with the last baseline in [`evals/README.md`](evals/README.md#baseline-score), and add a new row when your change is meant to move it.
 
 ## Tool surface budget
 
