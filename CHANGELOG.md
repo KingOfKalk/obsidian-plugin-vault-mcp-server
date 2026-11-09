@@ -4,6 +4,13 @@
 > were renamed from `vX.Y.Z` (and `obsidian-mcp-v1.1.0`) to `X.Y.Z`; old links
 > containing `v` no longer resolve.
 
+## [3.4.1](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/3.4.0...3.4.1) (2026-11-09)
+
+
+### Miscellaneous Chores
+
+* **release:** drop the v prefix from GitHub release names ([#426](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/426)) ([42d03b6](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/42d03b613fa87c0138904c0a5bdc953d3cdabbba)), closes [#425](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/425)
+
 ## [3.4.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/3.3.0...3.4.0) (2026-11-09)
 
 
