@@ -1,7 +1,7 @@
 import { posix } from 'path';
 import { ResourceTemplate } from '@modelcontextprotocol/server';
 import type { ReadResourceResult, McpServer } from '@modelcontextprotocol/server';
-import { validateVaultPath, PathTraversalError } from '../utils/path-guard';
+import { validateToolPath, withoutConfigDir, PathTraversalError } from '../utils/path-guard';
 import type { ObsidianAdapter } from '../obsidian/adapter';
 import type { Logger } from '../utils/logger';
 import { BinaryTooLargeError, FileNotFoundError } from '../tools/shared/errors';
@@ -71,13 +71,15 @@ type VaultUriVariables = { path: string | string[] };
 /**
  * Validate an `obsidian://vault/{+path}` URI and return the vault-relative
  * path it points to. The SDK has already parsed the variable; we still
- * defend against scheme/host mismatches and call `validateVaultPath` so
- * traversal protection is shared with the tool surface.
+ * defend against scheme/host mismatches and call `validateToolPath` so
+ * traversal protection and the config-folder block are shared with the
+ * tool surface.
  */
 export function parseVaultUri(
   uri: URL,
   variables: VaultUriVariables,
   vaultPath: string,
+  configDir: string,
 ): string {
   if (uri.protocol !== 'obsidian:') {
     throw new PathTraversalError(`Unexpected scheme: ${uri.protocol}`);
@@ -88,7 +90,7 @@ export function parseVaultUri(
   const raw = Array.isArray(variables.path)
     ? variables.path.join('/')
     : variables.path;
-  return validateVaultPath(raw, vaultPath);
+  return validateToolPath(raw, vaultPath, configDir);
 }
 
 type FileHandler = (
@@ -101,7 +103,7 @@ export function createFileHandler(
   _logger: Logger,
 ): FileHandler {
   return async (uri, variables) => {
-    const path = parseVaultUri(uri, variables, adapter.getVaultPath());
+    const path = parseVaultUri(uri, variables, adapter.getVaultPath(), adapter.getConfigDir());
     const mime = getMimeType(path);
     if (isTextMime(mime)) {
       const text = await adapter.readFile(path);
@@ -151,7 +153,7 @@ export function createIndexHandler(
   _logger: Logger,
 ): IndexHandler {
   return async (_uri) => {
-    const list = adapter.listRecursive('');
+    const list = withoutConfigDir(adapter.listRecursive(''), adapter.getConfigDir());
     // Stable order so truncation is deterministic across calls and adapters.
     const sortedFiles = [...list.files].sort();
     const sortedFolders = [...list.folders].sort();

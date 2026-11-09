@@ -57,6 +57,7 @@ export class MockObsidianAdapter implements ObsidianAdapter {
   private files: Map<string, MockFile> = new Map();
   private folders: Set<string> = new Set(['/']);
   private vaultPath = '/mock-vault';
+  private configDir = '.obsidian';
   /** Paths moved to the trash, in order (mirrors `fileManager.trashFile`). */
   private trashed: string[] = [];
   /** Mock "Automatically update internal links"; on by default. */
@@ -274,6 +275,10 @@ export class MockObsidianAdapter implements ObsidianAdapter {
 
   getVaultPath(): string {
     return this.vaultPath;
+  }
+
+  getConfigDir(): string {
+    return this.configDir;
   }
 
   async getFileContent(path: string): Promise<string> {
@@ -639,6 +644,10 @@ export class MockObsidianAdapter implements ObsidianAdapter {
 
   setVaultPath(path: string): void {
     this.vaultPath = path;
+  }
+
+  setConfigDir(dir: string): void {
+    this.configDir = dir;
   }
 
   addFile(path: string, content: string, stat?: Partial<FileStat>): void {
