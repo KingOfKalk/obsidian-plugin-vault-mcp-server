@@ -122,7 +122,7 @@ the registry; the table below mirrors its module / count rows.
 
 | Module                    | Tools  |
 | ------------------------- | ------ |
-| Vault and File Operations | 19     |
+| Vault and File Operations | 20     |
 | Editor Operations         | 10     |
 | Search and Metadata       | 6      |
 | Workspace and Navigation  | 5      |
@@ -131,7 +131,7 @@ the registry; the table below mirrors its module / count rows.
 | Plugin Interop            | 6      |
 | Extras                    | 1      |
 | Server (always on)        | 1      |
-| **Total**                 | **52** |
+| **Total**                 | **53** |
 
 ### Extras
 

@@ -24,6 +24,7 @@ import {
   writeBinarySchema,
   getAspectSchema,
   dailyNoteSchema,
+  setFrontmatterSchema,
 } from './schemas';
 
 /**
@@ -246,6 +247,13 @@ const MTIME_CONFLICT_ERROR =
 const writeBinaryOutputSchema = {
   path: writePath,
   sizeBytes: z.number().describe('Number of bytes written.'),
+};
+
+const setFrontmatterOutputSchema = {
+  path: writePath,
+  frontmatter: z
+    .record(z.string(), z.unknown())
+    .describe('The whole frontmatter after the change ({} when no keys are left).'),
 };
 
 export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
@@ -581,6 +589,34 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           outputSchema: dailyNoteOutputSchema,
           handler: handlers.dailyNote,
           annotations: annotations.additive,
+        }),
+        defineTool({
+          name: 'vault_set_frontmatter',
+          title: 'Set frontmatter',
+          description: describeTool({
+            summary:
+              'Set or remove YAML frontmatter keys of a Markdown note without rewriting the rest of the file.',
+            returns:
+              'The resulting frontmatter. Obsidian writes the YAML, keeps key order and creates the block if missing.',
+            examples: [
+              'Use when: marking a note done -> { path: "projects/alpha.md", set: { status: "done" } }',
+              'Use when: dropping a key -> { path: "projects/alpha.md", set: {}, remove: ["draft"] }',
+              'Don\'t use when: changing the note body — use vault_update or the editor tools.',
+            ],
+            errors: [
+              '"File not found" if the path does not exist.',
+              '"Frontmatter can only be set on Markdown (.md) files" for other file types.',
+              '"Keys cannot be both set and removed" if a key appears in set and remove.',
+              '"Nothing to change" if set is empty and remove is missing or empty.',
+            ],
+            seeAlso: [
+              'vault_get_aspect — with aspect=frontmatter to read frontmatter without changing it.',
+            ],
+          }),
+          schema: setFrontmatterSchema,
+          outputSchema: setFrontmatterOutputSchema,
+          handler: handlers.setFrontmatter,
+          annotations: annotations.additiveIdempotent,
         }),
       ];
     },

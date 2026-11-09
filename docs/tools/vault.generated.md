@@ -1072,3 +1072,70 @@ Response (`structuredContent`):
   "content": ""
 }
 ```
+
+### vault_set_frontmatter
+
+**Set frontmatter**
+
+Set or remove YAML frontmatter keys of a Markdown note without rewriting the rest of the file.
+
+Returns:
+  The resulting frontmatter. Obsidian writes the YAML, keeps key order and creates the block if missing.
+
+Examples:
+  - Use when: marking a note done -> { path: "projects/alpha.md", set: { status: "done" } }
+  - Use when: dropping a key -> { path: "projects/alpha.md", set: {}, remove: ["draft"] }
+  - Don't use when: changing the note body — use vault_update or the editor tools.
+
+See also:
+  - vault_get_aspect — with aspect=frontmatter to read frontmatter without changing it.
+
+Errors:
+  - "File not found" if the path does not exist.
+  - "Frontmatter can only be set on Markdown (.md) files" for other file types.
+  - "Keys cannot be both set and removed" if a key appears in set and remove.
+  - "Nothing to change" if set is empty and remove is missing or empty.
+
+#### Input
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
+| `set` | object | yes | Frontmatter keys to set, mapped to JSON-compatible values (string, number, boolean, null, array or object). Existing keys are overwritten; keys not listed are left untouched. Pass {} to only remove keys. |
+| `remove` | string[] | no | Frontmatter keys to delete. Keys that are not present are ignored. |
+
+#### Output
+
+| Field | Type | Description |
+|---|---|---|
+| `path` | string | Vault-relative path that was written. |
+| `frontmatter` | object | The whole frontmatter after the change ({} when no keys are left). |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "vault_set_frontmatter",
+  "arguments": {
+    "path": "projects/alpha.md",
+    "set": {
+      "status": "done",
+      "reviewed": true
+    }
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "path": "projects/alpha.md",
+  "frontmatter": {
+    "status": "done",
+    "reviewed": true
+  }
+}
+```

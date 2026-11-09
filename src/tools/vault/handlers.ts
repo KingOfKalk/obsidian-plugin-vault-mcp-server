@@ -40,6 +40,7 @@ import type {
   writeBinarySchema,
   getAspectSchema,
   dailyNoteSchema,
+  setFrontmatterSchema,
 } from './schemas';
 
 export class WriteMutex {
@@ -287,6 +288,28 @@ function sliceReadWindow(
   };
 }
 
+/** Keys that would reach Object.prototype when assigned on a plain object. */
+const FORBIDDEN_FRONTMATTER_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+/**
+ * Check a vault_set_frontmatter request before touching the file: at least
+ * one key to change, no key both set and removed, no prototype keys.
+ */
+function validateFrontmatterChange(setKeys: string[], removeKeys: string[]): void {
+  if (setKeys.length === 0 && removeKeys.length === 0) {
+    throw new Error('Nothing to change: pass at least one key in set or remove');
+  }
+  for (const key of [...setKeys, ...removeKeys]) {
+    if (FORBIDDEN_FRONTMATTER_KEYS.has(key)) {
+      throw new Error(`Invalid frontmatter key: ${key}`);
+    }
+  }
+  const both = setKeys.filter((key) => removeKeys.includes(key));
+  if (both.length > 0) {
+    throw new Error(`Keys cannot be both set and removed: ${both.join(', ')}`);
+  }
+}
+
 const RENAME_TARGET_PATTERN =/^[^/\\\x00]+$/;
 
 function isValidRenameTarget(value: unknown): value is string {
@@ -319,6 +342,7 @@ export interface VaultHandlers {
   writeBinary: (params: InferredParams<typeof writeBinarySchema>) => Promise<CallToolResult>;
   getAspect: (params: InferredParams<typeof getAspectSchema>) => Promise<CallToolResult>;
   dailyNote: (params: InferredParams<typeof dailyNoteSchema>) => Promise<CallToolResult>;
+  setFrontmatter: (params: InferredParams<typeof setFrontmatterSchema>) => Promise<CallToolResult>;
 }
 
 export function createHandlers(
@@ -727,6 +751,42 @@ export function createHandlers(
           (v) => `${v.path} (created)\n\n${v.content}`,
           readResponseFormat(params),
         );
+      } catch (error) {
+        return handleToolError(error);
+      }
+    },
+
+    async setFrontmatter(params): Promise<CallToolResult> {
+      try {
+        const path = validateVaultPath(params.path, vaultPath);
+        if (!path.toLowerCase().endsWith('.md')) {
+          throw new Error('Frontmatter can only be set on Markdown (.md) files');
+        }
+        const set = params.set;
+        const remove = params.remove ?? [];
+        const setKeys = Object.keys(set);
+        validateFrontmatterChange(setKeys, remove);
+        return await mutex.acquire(path, async () => {
+          let frontmatter: Record<string, unknown> = {};
+          await adapter.processFrontMatter(path, (fm) => {
+            for (const key of setKeys) {
+              fm[key] = set[key];
+            }
+            for (const key of remove) {
+              delete fm[key];
+            }
+            // Snapshot as plain JSON so the result is serialisable even if
+            // Obsidian hands back richer YAML values.
+            frontmatter = JSON.parse(JSON.stringify(fm)) as Record<string, unknown>;
+          });
+          const parts: string[] = [];
+          if (setKeys.length > 0) parts.push(`set ${setKeys.join(', ')}`);
+          if (remove.length > 0) parts.push(`removed ${remove.join(', ')}`);
+          return confirmWithStructured(
+            `Updated frontmatter of ${path} (${parts.join('; ')})`,
+            { path, frontmatter },
+          );
+        });
       } catch (error) {
         return handleToolError(error);
       }
