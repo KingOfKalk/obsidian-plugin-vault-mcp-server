@@ -1,17 +1,24 @@
 import { expect } from '@wdio/globals';
 import type { Client } from '@modelcontextprotocol/client';
-import { callTool, connectClient, startMcpServer, waitForCache, writeNotes } from '../helpers';
+import {
+  callDocument,
+  callTool,
+  connectClient,
+  startMcpServer,
+  waitForCache,
+  writeNotes,
+} from '../helpers';
 
 async function openWith(client: Client, path: string, content: string): Promise<void> {
   await writeNotes({ [path]: content });
   await waitForCache([path]);
   await callTool(client, 'workspace_open_file', { path });
-  const opened = await callTool<{ content: string }>(client, 'editor_get_content');
-  expect(opened.content).toBe(content);
+  const opened = await callDocument(client, 'editor_get_content');
+  expect(opened.body).toBe(content);
 }
 
 async function editorContent(client: Client): Promise<string> {
-  return (await callTool<{ content: string }>(client, 'editor_get_content')).content;
+  return (await callDocument(client, 'editor_get_content')).body;
 }
 
 /**
