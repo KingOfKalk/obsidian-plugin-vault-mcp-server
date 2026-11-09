@@ -2,6 +2,7 @@ import {
   DailyNotesSettings,
   DataviewApi,
   FileStat,
+  OpenFileMode,
   ListResult,
   ObsidianAdapter,
   TrashDestination,
@@ -523,7 +524,7 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     return { id: leaf.leafId, type: 'markdown', filePath: leaf.path };
   }
 
-  async openFile(path: string, _mode?: string): Promise<void> {
+  async openFile(path: string, _mode?: OpenFileMode): Promise<void> {
     if (!this.files.has(path)) throw new Error(`File not found: ${path}`);
     const leafId = `leaf-${String(this.openLeaves.length)}`;
     this.openLeaves.push({ path, leafId });

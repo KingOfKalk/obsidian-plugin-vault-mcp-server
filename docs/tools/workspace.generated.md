@@ -55,9 +55,13 @@ Response (`structuredContent`):
 
 **Open file in workspace**
 
-Open a file in a leaf, optionally requesting a view mode.
+Open a file in the active leaf (replacing what it shows; a new tab if that leaf is pinned) and focus it, optionally in a given view mode.
+
+Examples:
+  - Use when: showing a note read-only -> { path: "notes/a.md", mode: "preview" }
 
 Errors:
+  - "File not found" if the path does not exist.
   - "Path must not traverse outside the vault" on traversal attempts.
 
 #### Input
@@ -65,14 +69,14 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `path` | string (1–4096) | yes | Vault-relative file path to open |
-| `mode` | enum: `source` \| `preview` \| `live` | no | Optional view mode for the opened leaf |
+| `mode` | enum: `source` \| `preview` \| `live` | no | Optional view mode for a Markdown note: "source" (Source mode), "live" (Live Preview) or "preview" (Reading view). Without it, Obsidian's default view applies. |
 
 #### Output
 
 | Field | Type | Description |
 |---|---|---|
 | `path` | string | Vault-relative path that was opened. |
-| `mode` | enum: `source` \| `preview` \| `live` | View mode that was requested, when one was given. |
+| `mode` | enum: `source` \| `preview` \| `live` | View mode the note was opened in, when mode was given. |
 
 #### Example
 

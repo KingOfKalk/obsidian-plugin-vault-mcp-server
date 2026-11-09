@@ -31,7 +31,9 @@ const openFileSchema = {
   mode: z
     .enum(['source', 'preview', 'live'])
     .optional()
-    .describe('Optional view mode for the opened leaf'),
+    .describe(
+      'Optional view mode for a Markdown note: "source" (Source mode), "live" (Live Preview) or "preview" (Reading view). Without it, Obsidian\'s default view applies.',
+    ),
 };
 
 const setActiveLeafSchema = {
@@ -86,7 +88,7 @@ const openFileOutputSchema = {
   mode: z
     .enum(['source', 'preview', 'live'])
     .optional()
-    .describe('View mode that was requested, when one was given.'),
+    .describe('View mode the note was opened in, when mode was given.'),
 };
 
 const setActiveLeafOutputSchema = {
@@ -190,8 +192,14 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
           name: 'workspace_open_file',
           title: 'Open file in workspace',
           description: describeTool({
-            summary: 'Open a file in a leaf, optionally requesting a view mode.',
-            errors: ['"Path must not traverse outside the vault" on traversal attempts.'],
+            summary: 'Open a file in the active leaf (replacing what it shows; a new tab if that leaf is pinned) and focus it, optionally in a given view mode.',
+            examples: [
+              'Use when: showing a note read-only -> { path: "notes/a.md", mode: "preview" }',
+            ],
+            errors: [
+              '"File not found" if the path does not exist.',
+              '"Path must not traverse outside the vault" on traversal attempts.',
+            ],
           }),
           schema: openFileSchema,
           outputSchema: openFileOutputSchema,
