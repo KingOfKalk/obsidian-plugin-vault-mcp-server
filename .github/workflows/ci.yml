@@ -80,6 +80,24 @@ jobs:
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: npx tsx scripts/ci-summary.ts coverage coverage/coverage-summary.json
 
+      # The budget itself is checked by the Test step
+      # (tests/scripts/surface/surface-budget.test.ts). This step only shows
+      # the numbers and the difference against main's baseline (#450). A
+      # missing baseline on main (before #450 landed) is not an error.
+      - name: Agent-facing surface summary
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: |
+          if git fetch --quiet --depth=1 origin main \
+            && git show FETCH_HEAD:docs/surface-baseline.json > "$RUNNER_TEMP/surface-main.json" 2>/dev/null; then
+            echo "Comparing with docs/surface-baseline.json on main."
+          else
+            echo "No docs/surface-baseline.json on main; no comparison."
+            rm -f "$RUNNER_TEMP/surface-main.json"
+          fi
+          npx tsx scripts/measure-surface.ts --json "$RUNNER_TEMP/surface.json"
+          npx tsx scripts/ci-summary.ts surface --current "$RUNNER_TEMP/surface.json" \
+            --baseline docs/surface-baseline.json --main "$RUNNER_TEMP/surface-main.json"
+
   # Headless Obsidian E2E (#441). Runs in parallel with `test` once lint
   # (which also type-checks e2e/) passes: it needs neither the unit tests
   # nor the build job (`npm run test:e2e` builds itself), and keeping it out

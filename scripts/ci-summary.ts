@@ -12,6 +12,8 @@
  *   tsx scripts/ci-summary.ts build --size <bundle-size.json> [--baseline <file>]
  *       --manifest <manifest.json> --event <event> [--artifact-name <n>]
  *       [--artifact-url <url>] [--retention-days <n>]
+ *   tsx scripts/ci-summary.ts surface --current <surface.json>
+ *       --baseline <docs/surface-baseline.json> [--main <surface-baseline.json from main>]
  *
  * Missing input files are reported in the summary instead of failing the
  * step, so a crashed tool still gets a readable summary.
@@ -32,6 +34,9 @@ import {
   tscAnnotations,
 } from './ci-summary/lint';
 import { toOutcome } from './ci-summary/markdown';
+import { checkBudget } from './surface/budget';
+import { parseSurface } from './surface/measure';
+import { renderSurfaceSummary } from './surface/render';
 
 const root = env.GITHUB_WORKSPACE ?? cwd();
 
@@ -182,6 +187,33 @@ function build(args: string[]): void {
   );
 }
 
+function surface(args: string[]): void {
+  const { values } = parseArgs({
+    args,
+    options: {
+      current: { type: 'string' },
+      baseline: { type: 'string' },
+      main: { type: 'string' },
+    },
+  });
+  const current = parseReport(values.current, parseSurface);
+  if (current === null) {
+    writeSummary(
+      `## Agent-facing surface\n\n_No surface measurement found at \`${values.current ?? ''}\`. See the step log._`,
+    );
+    return;
+  }
+  const baseline = parseReport(values.baseline, parseSurface);
+  writeSummary(
+    renderSurfaceSummary({
+      current,
+      baseline,
+      main: parseReport(values.main, parseSurface),
+      problems: baseline === null ? [] : checkBudget(current, baseline),
+    }),
+  );
+}
+
 async function main(): Promise<void> {
   const [command, ...rest] = argv.slice(2);
   switch (command) {
@@ -195,8 +227,12 @@ async function main(): Promise<void> {
       return size(rest);
     case 'build':
       return build(rest);
+    case 'surface':
+      return surface(rest);
     default:
-      throw new Error(`unknown command "${command ?? ''}" (annotate, lint, coverage, size, build)`);
+      throw new Error(
+        `unknown command "${command ?? ''}" (annotate, lint, coverage, size, build, surface)`,
+      );
   }
 }
 
