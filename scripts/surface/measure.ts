@@ -70,7 +70,7 @@ export interface SurfaceMeasurement {
     modules: Record<string, ModuleSurface>;
     tools: Record<string, ToolSurface>;
   };
-  /** Module and tool states of a fresh install (extras off). */
+  /** Module and tool states of a fresh install (editor, workspace, ui and extras off; empty command allowlist). */
   defaults: SurfaceView;
 }
 

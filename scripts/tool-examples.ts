@@ -170,6 +170,11 @@ export interface ConnectOptions {
    * enabling everything (extras stay off), as a fresh install would (#450).
    */
   defaultStates?: boolean;
+  /**
+   * The command allowlist `plugin_execute_command` reads; defaults to one
+   * id. Empty, the tool is not listed (#469).
+   */
+  executeCommandAllowlist?: string[];
 }
 
 /**
@@ -184,7 +189,7 @@ export async function connectSeededServer(options: ConnectOptions = {}): Promise
   const logger = new QuietLogger('test', { debugMode: false, accessKey: '' });
   const registry = new ModuleRegistry(logger);
   for (const m of discoverModules(adapter, {
-    getExecuteCommandAllowlist: () => ['editor:save-file'],
+    getExecuteCommandAllowlist: () => options.executeCommandAllowlist ?? ['editor:save-file'],
   })) {
     registry.registerModule(m);
   }
