@@ -17,6 +17,8 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p e2e",
     "eval": "tsx evals/run.ts",
     "docs:tools": "tsx scripts/list-tools.ts docs",
+    "surface:measure": "tsx scripts/measure-surface.ts",
+    "surface:update": "tsx scripts/measure-surface.ts --json docs/surface-baseline.json",
     "docs:check": "rm -rf /tmp/tools.check && mkdir -p /tmp/tools.check && tsx scripts/list-tools.ts /tmp/tools.check && diff -u docs/tools.generated.md /tmp/tools.check/tools.generated.md && diff -ru docs/tools/ /tmp/tools.check/tools/"
   },
   "keywords": [
