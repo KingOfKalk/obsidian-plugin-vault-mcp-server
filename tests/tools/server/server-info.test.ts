@@ -33,7 +33,7 @@ describe('server_info changes', () => {
   it('lists the 3 most recent versions by default', async () => {
     expect(RECENT_CHANGE_VERSIONS).toBe(3);
     const result = await serverInfo().handler({});
-    const info = result.structuredContent as unknown as Info;
+    const info = result.structuredContent as Info;
     expect(info.changes.map((c) => c.version)).toEqual(['4.0.2', '4.0.1', '4.0.0']);
     expect(info.olderVersionsOmitted).toBe(2);
     expect(getText(result)).toContain('## 4.0.0');
@@ -43,7 +43,7 @@ describe('server_info changes', () => {
 
   it('lists every version with allChanges: true', async () => {
     const result = await serverInfo().handler({ allChanges: true });
-    const info = result.structuredContent as unknown as Info;
+    const info = result.structuredContent as Info;
     expect(info.changes.map((c) => c.version)).toEqual(CHANGES.map((c) => c.version));
     expect(info.olderVersionsOmitted).toBe(0);
     expect(getText(result)).toContain('## 3.3.0');
@@ -57,7 +57,7 @@ describe('server_info changes', () => {
 
   it('omits nothing when there are few versions', async () => {
     const result = await serverInfo(CHANGES.slice(0, 2)).handler({ allChanges: false });
-    const info = result.structuredContent as unknown as Info;
+    const info = result.structuredContent as Info;
     expect(info.changes).toHaveLength(2);
     expect(info.olderVersionsOmitted).toBe(0);
     expect(getText(result)).not.toContain('left out');
