@@ -83,9 +83,13 @@ function renderPaginatedPaths(
     hasMore: boolean;
     nextOffset?: number;
   },
+  /** Text after the noun, kept verbatim (e.g. `tagged #project`). */
   label: string,
 ): string {
-  const header = `**${String(page.total)} ${label}${page.total === 1 ? '' : 's'}**`;
+  // Pluralise the noun only, never the label: the label echoes a tag or
+  // value that must stay exact (#463).
+  const noun = page.total === 1 ? 'file' : 'files';
+  const header = `**${String(page.total)} ${noun} ${label}**`;
   const body = renderPathList(page.items);
   const footer = page.hasMore
     ? `\n\n_Showing ${String(page.count)} of ${String(page.total)} — next offset: ${String(page.nextOffset ?? '')}_`
@@ -398,7 +402,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
         return Promise.resolve(
           makeResponse(
             page,
-            (v) => renderPaginatedPaths(v, `file tagged ${normalizedTag}`),
+            (v) => renderPaginatedPaths(v, `tagged ${normalizedTag}`),
             readResponseFormat(params),
           ),
         );
@@ -422,7 +426,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
           }
         }
         const page = paginate(matching, readPagination(params));
-        const label = value === undefined ? `file with ${key}` : `file with ${key}=${value}`;
+        const label = value === undefined ? `with ${key}` : `with ${key}=${value}`;
         return Promise.resolve(
           makeResponse(
             page,

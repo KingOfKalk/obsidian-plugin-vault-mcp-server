@@ -596,6 +596,47 @@ describe('search handlers', () => {
       expect(getText(result)).toContain('**1 file tagged #project**');
       expect(getText(result)).toContain('- a.md');
     });
+
+    it('searchByTag pluralises the noun, not the tag (#463)', async () => {
+      for (const p of ['a.md', 'b.md', 'c.md']) {
+        adapter.addFile(p, 'x');
+        adapter.setMetadata(p, { tags: ['#project'] });
+      }
+      const result = await handlers.searchByTag({ tag: 'project' });
+      expect(getText(result)).toContain('**3 files tagged #project**');
+      expect(getText(result)).not.toContain('#projects');
+    });
+
+    it('searchByTag with no match says "0 files" and keeps the tag', async () => {
+      const result = await handlers.searchByTag({ tag: 'project' });
+      expect(getText(result)).toContain('**0 files tagged #project**');
+    });
+
+    it('searchByFrontmatter keeps key=value verbatim for one result (#463)', async () => {
+      adapter.addFile('a.md', 'x');
+      adapter.setMetadata('a.md', { frontmatter: { status: 'active' } });
+      const result = await handlers.searchByFrontmatter({ key: 'status', value: 'active' });
+      expect(getText(result)).toContain('**1 file with status=active**');
+    });
+
+    it('searchByFrontmatter pluralises the noun, not the value (#463)', async () => {
+      for (const p of ['a.md', 'b.md']) {
+        adapter.addFile(p, 'x');
+        adapter.setMetadata(p, { frontmatter: { status: 'active' } });
+      }
+      const result = await handlers.searchByFrontmatter({ key: 'status', value: 'active' });
+      expect(getText(result)).toContain('**2 files with status=active**');
+      expect(getText(result)).not.toContain('actives');
+    });
+
+    it('searchByFrontmatter without a value pluralises the noun only', async () => {
+      for (const p of ['a.md', 'b.md']) {
+        adapter.addFile(p, 'x');
+        adapter.setMetadata(p, { frontmatter: { status: 'x' } });
+      }
+      const result = await handlers.searchByFrontmatter({ key: 'status' });
+      expect(getText(result)).toContain('**2 files with status**');
+    });
   });
 
   describe('searchBlockReferences', () => {
