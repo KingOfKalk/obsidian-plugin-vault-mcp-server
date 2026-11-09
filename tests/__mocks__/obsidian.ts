@@ -410,6 +410,49 @@ export function setIcon(el: { _icon?: string } | null, icon: string): void {
   if (el) el._icon = icon;
 }
 
+/**
+ * Mirrors Obsidian's `parseFrontMatterTags`: the `tags` / `tag` keys (any
+ * case), as a list or a comma/space separated string, normalised to `#tag`.
+ * Returns null when the frontmatter declares no tags.
+ */
+export function parseFrontMatterTags(
+  frontmatter: Record<string, unknown> | null | undefined,
+): string[] | null {
+  if (!frontmatter) return null;
+  const tags: string[] = [];
+  const add = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      value.forEach(add);
+      return;
+    }
+    if (typeof value !== 'string' && typeof value !== 'number') return;
+    for (const part of String(value).split(/[,\s]+/)) {
+      const name = part.replace(/^#+/, '');
+      if (name) tags.push(`#${name}`);
+    }
+  };
+  for (const key of Object.keys(frontmatter)) {
+    if (/^tags?$/i.test(key)) add(frontmatter[key]);
+  }
+  return tags.length > 0 ? tags : null;
+}
+
+/**
+ * Mirrors Obsidian's `getAllTags(cache)`: frontmatter tags followed by the
+ * inline `cache.tags`, one entry per occurrence (duplicates kept). Returns
+ * null when the cache has neither.
+ */
+export function getAllTags(cache: {
+  frontmatter?: Record<string, unknown>;
+  tags?: Array<{ tag: string }>;
+}): string[] | null {
+  const tags = [
+    ...(parseFrontMatterTags(cache.frontmatter) ?? []),
+    ...(cache.tags ?? []).map((t) => t.tag),
+  ];
+  return tags.length > 0 ? tags : null;
+}
+
 export interface MockModalContentEl {
   createEl: () => Record<string, never>;
   empty: () => void;
