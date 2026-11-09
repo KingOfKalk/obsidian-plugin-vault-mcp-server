@@ -10,6 +10,7 @@ import {
   updateFileSchema,
   deleteFileSchema,
   appendFileSchema,
+  replaceInFileSchema,
   getMetadataSchema,
   renameFileSchema,
   moveFileSchema,
@@ -44,6 +45,11 @@ const readFileOutputSchema = {
     .number()
     .optional()
     .describe('Offset to pass in the next call when hasMore is true.'),
+  modified: z
+    .string()
+    .describe(
+      'Last-modification timestamp (ISO-8601). Pass it as expectedMtime to a write tool to detect concurrent edits.',
+    ),
 };
 
 const getMetadataOutputSchema = {
@@ -200,6 +206,18 @@ const fromToOutputSchema = {
   to: z.string().describe('Vault-relative destination path.'),
 };
 
+const replaceOutputSchema = {
+  path: writePath,
+  replacements: z.number().describe('Number of occurrences replaced.'),
+  modified: z
+    .string()
+    .describe('New last-modification timestamp (ISO-8601); usable as the next expectedMtime.'),
+};
+
+/** Error line shared by the write tools that take `expectedMtime` (#406). */
+const MTIME_CONFLICT_ERROR =
+  '"File changed since expectedMtime" (with the current mtime) if expectedMtime is set and the file was modified since; nothing is written.';
+
 const writeBinaryOutputSchema = {
   path: writePath,
   sizeBytes: z.number().describe('Number of bytes written.'),
@@ -275,9 +293,10 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             summary: 'Overwrite an existing file with new content.',
             examples: [
               'Use when: replacing a draft with a final version.',
-              'Don\'t use when: you only need to append (use vault_append).',
+              'Don\'t use when: you only need to append (use vault_append) or change one passage (use vault_replace).',
+              'Don\'t use when: you read only part of a large file — writing that window back truncates the note.',
             ],
-            errors: ['"File not found" if the path does not exist.'],
+            errors: ['"File not found" if the path does not exist.', MTIME_CONFLICT_ERROR],
           }),
           schema: updateFileSchema,
           outputSchema: updatedOutputSchema,
@@ -304,12 +323,38 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary: 'Append content to the end of an existing file.',
             examples: ['Use when: adding a new bullet to a daily note.'],
-            errors: ['"File not found" if the path does not exist.'],
+            errors: ['"File not found" if the path does not exist.', MTIME_CONFLICT_ERROR],
           }),
           schema: appendFileSchema,
           outputSchema: appendedOutputSchema,
           handler: handlers.appendFile,
           annotations: annotations.additive,
+        }),
+        defineTool({
+          name: 'vault_replace',
+          title: 'Replace text in file',
+          description: describeTool({
+            summary:
+              'Replace an exact passage in a file without rewriting the rest. oldString must match exactly once unless replaceAll is true.',
+            returns: 'Matching and writing happen in one atomic step (app.vault.process).',
+            examples: [
+              'Use when: fixing one line in a large note -> { path: "notes/a.md", oldString: "status: draft", newString: "status: done" }',
+              'Use when: renaming a term everywhere in one file -> { ..., replaceAll: true }',
+              'Don\'t use when: editing the open file at a cursor position (use editor_replace).',
+            ],
+            errors: [
+              '"File not found" if the path does not exist.',
+              '"oldString not found … (0 matches)" or "oldString is ambiguous … (N matches)"; nothing is written.',
+              MTIME_CONFLICT_ERROR,
+            ],
+            seeAlso: [
+              'vault_update — when replacing the whole file.',
+            ],
+          }),
+          schema: replaceInFileSchema,
+          outputSchema: replaceOutputSchema,
+          handler: handlers.replaceInFile,
+          annotations: annotations.destructive,
         }),
         defineTool({
           name: 'vault_get_metadata',
@@ -471,7 +516,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary: 'Write binary file contents from a base64 string. Missing parent folders are created.',
             examples: ['Use when: attaching a downloaded PDF to the vault.'],
-            errors: ['"Invalid base64 string" if data is not valid base64.'],
+            errors: ['"Invalid base64 string" if data is not valid base64.', MTIME_CONFLICT_ERROR],
           }),
           schema: writeBinarySchema,
           outputSchema: writeBinaryOutputSchema,

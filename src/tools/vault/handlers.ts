@@ -6,20 +6,27 @@ import moment from 'moment';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateFolderListPath, validateVaultPath } from '../../utils/path-guard';
 import { truncateText } from '../shared/truncate';
-import { handleToolError, BinaryTooLargeError, PluginApiUnavailableError } from '../shared/errors';
+import {
+  handleToolError,
+  BinaryTooLargeError,
+  FileNotFoundError,
+  PluginApiUnavailableError,
+  ValidationError,
+} from '../shared/errors';
 import { paginate, readPagination } from '../shared/pagination';
 import { confirmWithStructured, makeResponse, readResponseFormat } from '../shared/response';
 import { expandPlaceholders } from '../shared/placeholders';
 import { BINARY_BYTE_LIMIT } from '../../constants';
 import type { InferredParams } from '../../registry/types';
 import type { SearchHandlers } from '../search/handlers';
-import { READ_MAX_LENGTH } from './schemas';
+import { READ_MAX_LENGTH, parseExpectedMtime } from './schemas';
 import type {
   createFileSchema,
   readFileSchema,
   updateFileSchema,
   deleteFileSchema,
   appendFileSchema,
+  replaceInFileSchema,
   getMetadataSchema,
   renameFileSchema,
   moveFileSchema,
@@ -57,6 +64,61 @@ export class WriteMutex {
       }
     }
   }
+}
+
+/**
+ * The file changed after the agent read it: its mtime no longer matches
+ * the `expectedMtime` the caller sent (#406). Nothing is written.
+ */
+export class MtimeConflictError extends Error {
+  constructor(path: string, expectedMs: number, currentMs: number) {
+    const current = new Date(currentMs).toISOString();
+    super(
+      `File changed since expectedMtime: ${path} was last modified at ${current} ` +
+        `(mtime ${String(currentMs)}), expected ${new Date(expectedMs).toISOString()}. ` +
+        'Nothing was written. Re-read the file, then retry with ' +
+        `expectedMtime: "${current}".`,
+    );
+    this.name = 'MtimeConflictError';
+  }
+}
+
+/**
+ * Throw unless the file's current mtime equals `expectedMtime`. A no-op
+ * when `expectedMtime` is omitted. Compares whole milliseconds, the
+ * precision of the ISO-8601 `modified` value agents round-trip.
+ */
+async function assertExpectedMtime(
+  adapter: ObsidianAdapter,
+  path: string,
+  expectedMtime: string | undefined,
+): Promise<void> {
+  if (expectedMtime === undefined) return;
+  const expectedMs = Math.trunc(parseExpectedMtime(expectedMtime));
+  const stat = await adapter.stat(path);
+  if (!stat) throw new FileNotFoundError(path);
+  const currentMs = Math.trunc(stat.mtime);
+  if (currentMs !== expectedMs) {
+    throw new MtimeConflictError(path, expectedMs, currentMs);
+  }
+}
+
+/** Count non-overlapping occurrences of `needle` (non-empty) in `haystack`. */
+function countOccurrences(haystack: string, needle: string): number {
+  let count = 0;
+  let index = haystack.indexOf(needle);
+  while (index !== -1) {
+    count += 1;
+    index = haystack.indexOf(needle, index + needle.length);
+  }
+  return count;
+}
+
+/** The file's mtime as an ISO-8601 string, or throw when it is gone. */
+async function modifiedIso(adapter: ObsidianAdapter, path: string): Promise<string> {
+  const stat = await adapter.stat(path);
+  if (!stat) throw new FileNotFoundError(path);
+  return new Date(stat.mtime).toISOString();
 }
 
 function errorResult(message: string): CallToolResult {
@@ -266,6 +328,7 @@ export interface VaultHandlers {
   updateFile: (params: InferredParams<typeof updateFileSchema>) => Promise<CallToolResult>;
   deleteFile: (params: InferredParams<typeof deleteFileSchema>) => Promise<CallToolResult>;
   appendFile: (params: InferredParams<typeof appendFileSchema>) => Promise<CallToolResult>;
+  replaceInFile: (params: InferredParams<typeof replaceInFileSchema>) => Promise<CallToolResult>;
   renameFile: (params: InferredParams<typeof renameFileSchema>) => Promise<CallToolResult>;
   moveFile: (params: InferredParams<typeof moveFileSchema>) => Promise<CallToolResult>;
   copyFile: (params: InferredParams<typeof copyFileSchema>) => Promise<CallToolResult>;
@@ -306,6 +369,7 @@ export function createHandlers(
       try {
         const path = validateVaultPath(params.path, vaultPath);
         const fullContent = await adapter.readFile(path);
+        const modified = await modifiedIso(adapter, path);
         const window = sliceReadWindow(
           fullContent,
           params.offset ?? 0,
@@ -318,6 +382,7 @@ export function createHandlers(
           offset: window.offset,
           hasMore: window.hasMore,
           ...(window.hasMore ? { nextOffset: window.end } : {}),
+          modified,
         };
         const result = makeResponse(
           payload,
@@ -347,6 +412,7 @@ export function createHandlers(
       try {
         const path = validateVaultPath(params.path, vaultPath);
         return await mutex.acquire(path, async () => {
+          await assertExpectedMtime(adapter, path, params.expectedMtime);
           await adapter.modifyFile(path, params.content);
           return confirmWithStructured(`Updated file: ${path}`, { path, updated: true });
         });
@@ -371,9 +437,51 @@ export function createHandlers(
       try {
         const path = validateVaultPath(params.path, vaultPath);
         return await mutex.acquire(path, async () => {
+          await assertExpectedMtime(adapter, path, params.expectedMtime);
           const existing = await adapter.readFile(path);
           await adapter.modifyFile(path, existing + params.content);
           return confirmWithStructured(`Appended to file: ${path}`, { path, appended: true });
+        });
+      } catch (error) {
+        return handleToolError(error);
+      }
+    },
+
+    async replaceInFile(params): Promise<CallToolResult> {
+      try {
+        const path = validateVaultPath(params.path, vaultPath);
+        const { oldString, newString } = params;
+        const replaceAll = params.replaceAll ?? false;
+        return await mutex.acquire(path, async () => {
+          await assertExpectedMtime(adapter, path, params.expectedMtime);
+          let replacements = 0;
+          // Matching runs inside vault.process so the read-modify-write is
+          // atomic with respect to Obsidian; throwing here writes nothing.
+          await adapter.processFile(path, (content) => {
+            const count = countOccurrences(content, oldString);
+            if (count === 0) {
+              throw new ValidationError(
+                `oldString not found in ${path} (0 matches). Nothing was written.`,
+              );
+            }
+            if (count > 1 && !replaceAll) {
+              throw new ValidationError(
+                `oldString is ambiguous in ${path} (${String(count)} matches). ` +
+                  'Include more surrounding text so it matches exactly once, or set replaceAll: true. ' +
+                  'Nothing was written.',
+              );
+            }
+            replacements = replaceAll ? count : 1;
+            return replaceAll
+              ? content.split(oldString).join(newString)
+              : content.replace(oldString, () => newString);
+          });
+          const modified = await modifiedIso(adapter, path);
+          const noun = replacements === 1 ? 'occurrence' : 'occurrences';
+          return confirmWithStructured(
+            `Replaced ${String(replacements)} ${noun} in ${path}`,
+            { path, replacements, modified },
+          );
         });
       } catch (error) {
         return handleToolError(error);
@@ -573,6 +681,7 @@ export function createHandlers(
         const path = validateVaultPath(params.path, vaultPath);
         const buffer = Buffer.from(params.data, 'base64');
         return await mutex.acquire(path, async () => {
+          await assertExpectedMtime(adapter, path, params.expectedMtime);
           await adapter.writeBinary(
             path,
             buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
