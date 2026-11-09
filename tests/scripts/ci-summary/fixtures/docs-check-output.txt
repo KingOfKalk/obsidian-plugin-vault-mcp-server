@@ -1,0 +1,12 @@
+
+> vault-mcp-server@3.2.0 docs:check
+> rm -rf /tmp/tools.check && mkdir -p /tmp/tools.check && tsx scripts/list-tools.ts /tmp/tools.check && diff -u docs/tools.generated.md /tmp/tools.check/tools.generated.md && diff -ru docs/tools/ /tmp/tools.check/tools/
+
+--- docs/tools.generated.md	2026-11-09 10:00:00.000000000 +0000
++++ /tmp/tools.check/tools.generated.md	2026-11-09 10:05:00.000000000 +0000
+@@ -10,7 +10,7 @@
+ | Module | Tools |
+ | --- | --- |
+-| vault | 20 |
++| vault | 21 |
+ | search | 6 |
