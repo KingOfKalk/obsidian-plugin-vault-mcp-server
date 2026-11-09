@@ -28,6 +28,7 @@ import {
   sectionText,
   splitLines,
 } from './sections';
+import { applyReplaceEdits, type ReplaceEdit } from './replace-edits';
 import type {
   createFileSchema,
   readFileSchema,
@@ -355,6 +356,40 @@ export function createHandlers(
 ): VaultHandlers {
   const vaultPath = adapter.getVaultPath();
 
+  /**
+   * `vault_replace`'s multi-edit form (#429): one mtime check, then every
+   * edit is validated and applied inside a single `processFile` call, so a
+   * failing edit writes nothing.
+   */
+  async function replaceEdits(
+    path: string,
+    edits: readonly ReplaceEdit[],
+    expectedMtime: string | undefined,
+  ): Promise<CallToolResult> {
+    return await mutex.acquire(path, async () => {
+      await assertExpectedMtime(adapter, path, expectedMtime);
+      let perEdit: number[] = [];
+      await adapter.processFile(path, (content) => {
+        const applied = applyReplaceEdits(content, edits, path);
+        perEdit = applied.replacements;
+        return applied.content;
+      });
+      const modified = await modifiedIso(adapter, path);
+      const replacements = perEdit.reduce((sum, count) => sum + count, 0);
+      const noun = replacements === 1 ? 'occurrence' : 'occurrences';
+      const editNoun = edits.length === 1 ? 'edit' : 'edits';
+      return confirmWithStructured(
+        `Replaced ${String(replacements)} ${noun} in ${path} (${String(edits.length)} ${editNoun})`,
+        {
+          path,
+          replacements,
+          edits: perEdit.map((count, index) => ({ index, replacements: count })),
+          modified,
+        },
+      );
+    });
+  }
+
   return {
     async createFile(params): Promise<CallToolResult> {
       try {
@@ -464,8 +499,29 @@ export function createHandlers(
     async replaceInFile(params): Promise<CallToolResult> {
       try {
         const path = validateVaultPath(params.path, vaultPath);
-        const { oldString, newString } = params;
+        const { oldString, newString, edits } = params;
         const replaceAll = params.replaceAll ?? false;
+        if (edits !== undefined) {
+          if (oldString !== undefined || newString !== undefined) {
+            throw new ValidationError(
+              'Pass either oldString/newString or edits, not both. Nothing was written.',
+            );
+          }
+          if (replaceAll) {
+            throw new ValidationError(
+              'replaceAll belongs to the single-edit form; with edits, set replaceAll on each edit. ' +
+                'Nothing was written.',
+            );
+          }
+          return await replaceEdits(path, edits, params.expectedMtime);
+        }
+        if (oldString === undefined || newString === undefined) {
+          throw new ValidationError(
+            oldString === undefined && newString === undefined
+              ? 'Pass oldString and newString, or edits. Nothing was written.'
+              : 'oldString and newString must be given together. Nothing was written.',
+          );
+        }
         return await mutex.acquire(path, async () => {
           await assertExpectedMtime(adapter, path, params.expectedMtime);
           let replacements = 0;
@@ -810,6 +866,7 @@ export function createHandlers(
         const setKeys = Object.keys(set);
         validateFrontmatterChange(setKeys, remove);
         return await mutex.acquire(path, async () => {
+          await assertExpectedMtime(adapter, path, params.expectedMtime);
           let frontmatter: Record<string, unknown> = {};
           await adapter.processFrontMatter(path, (fm) => {
             for (const key of setKeys) {
@@ -825,9 +882,10 @@ export function createHandlers(
           const parts: string[] = [];
           if (setKeys.length > 0) parts.push(`set ${setKeys.join(', ')}`);
           if (remove.length > 0) parts.push(`removed ${remove.join(', ')}`);
+          const modified = await modifiedIso(adapter, path);
           return confirmWithStructured(
             `Updated frontmatter of ${path} (${parts.join('; ')})`,
-            { path, frontmatter },
+            { path, frontmatter, modified },
           );
         });
       } catch (error) {
