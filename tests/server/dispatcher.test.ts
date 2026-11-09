@@ -175,7 +175,7 @@ describe('createToolDispatcher', () => {
   });
 });
 
-describe('createToolDispatcher deprecated response_format alias (#392)', () => {
+describe('createToolDispatcher without the response_format alias (#432)', () => {
   function makeFormatTool(): ToolDefinition {
     return makeTool({
       schema: {
@@ -185,39 +185,27 @@ describe('createToolDispatcher deprecated response_format alias (#392)', () => {
     });
   }
 
-  it('maps response_format to responseFormat and warns once', async () => {
+  it('rejects response_format with the unknown-parameter error', async () => {
     const tool = makeFormatTool();
-    const logger = makeLogger();
-    const warn = vi.spyOn(logger, 'warn');
-    const dispatch = createToolDispatcher(tool, logger);
-
-    const first = await dispatch(
+    const dispatch = createToolDispatcher(tool, makeLogger());
+    const result = await dispatch(
       { path: 'a.md', response_format: 'json' },
       makeExtra() as never,
     );
-    await dispatch({ path: 'a.md', response_format: 'json' }, makeExtra() as never);
-
-    expect(first.isError).not.toBe(true);
-    expect(tool.handler).toHaveBeenCalledWith(
-      { path: 'a.md', responseFormat: 'json' },
-       
-      expect.anything(),
-    );
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0][0]).toContain('deprecated parameter "response_format"');
-    expect(warn.mock.calls[0][0]).toContain('"responseFormat"');
+    expect(result.isError).toBe(true);
+    expect(result.content[0]).toEqual({
+      type: 'text',
+      text: 'Invalid arguments: Unknown parameter: response_format. Valid parameters: path, responseFormat.',
+    });
+    expect(tool.handler).not.toHaveBeenCalled();
   });
 
-  it('prefers responseFormat when both names are given', async () => {
+  it('passes responseFormat through to the handler', async () => {
     const tool = makeFormatTool();
     const dispatch = createToolDispatcher(tool, makeLogger());
-    await dispatch(
-      { path: 'a.md', response_format: 'json', responseFormat: 'markdown' },
-      makeExtra() as never,
-    );
+    await dispatch({ path: 'a.md', responseFormat: 'json' }, makeExtra() as never);
     expect(tool.handler).toHaveBeenCalledWith(
-      { path: 'a.md', responseFormat: 'markdown' },
-       
+      { path: 'a.md', responseFormat: 'json' },
       expect.anything(),
     );
   });
