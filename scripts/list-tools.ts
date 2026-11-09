@@ -11,13 +11,14 @@ import { join } from 'node:path';
 import { argv } from 'node:process';
 import { MockObsidianAdapter } from '../src/obsidian/mock-adapter';
 import { discoverModules } from '../src/tools';
+import { createServerModule } from '../src/tools/server';
 import {
   renderIndexPage,
   renderModulePage,
   type ModuleDoc,
   type ToolExampleDoc,
 } from './render-tools/render';
-import { collectToolExamples, type ToolExample } from './tool-examples';
+import { collectToolExamples, DOCS_VERSION, type ToolExample } from './tool-examples';
 
 export type ToolRow = ModuleDoc;
 
@@ -39,7 +40,12 @@ export function toExampleDoc(example: ToolExample): ToolExampleDoc {
  */
 export function collectToolRows(examples?: ReadonlyMap<string, ToolExample>): ToolRow[] {
   const adapter = new MockObsidianAdapter();
-  const modules = discoverModules(adapter);
+  // The always-on server module (server_info) is not discovered: it never
+  // enters the registry. Render it with the fixed docs version (#402).
+  const modules = [
+    ...discoverModules(adapter),
+    createServerModule({ version: DOCS_VERSION, getEnabledModules: () => [] }),
+  ];
   return modules.map((module) => ({
     moduleId: module.metadata.id,
     moduleName: module.metadata.name,

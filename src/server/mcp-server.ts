@@ -14,6 +14,7 @@ import { registerPrompts } from './prompts';
 import type { ObsidianAdapter } from '../obsidian/adapter';
 import type { McpPluginSettings } from '../types';
 import manifest from '../../manifest.json';
+import { createServerModule, SERVER_DISPLAY_NAME } from '../tools/server';
 
 /**
  * Tool-use hints injected into Claude's session-long system prompt via the
@@ -22,19 +23,39 @@ import manifest from '../../manifest.json';
  * descriptions cannot convey on their own. See
  * docs/superpowers/specs/2026-05-03-mcp-server-instructions-field-design.md.
  */
-export const SERVER_INSTRUCTIONS = `This server exposes an Obsidian vault as MCP tools.
+export function buildServerInstructions(version: string): string {
+  return `${SERVER_DISPLAY_NAME} v${version}
+Call \`server_info\` for agent-relevant changes (renamed parameters or fields, new tools).
+
+This server exposes an Obsidian vault as MCP tools.
 
 - Prefer \`search_fulltext\` (or other \`search_*\` tools) before \`vault_read\` when you don't already know the file path.
 - \`editor_*\` tools operate on the **active** file only — open one with \`workspace_open_file\` first if needed.
 - Paths are vault-relative with forward slashes (e.g. \`notes/foo.md\`); never absolute filesystem paths.
 - Frontmatter, headings, links, embeds, backlinks, and block refs are exposed via the \`vault_get_aspect\` tool (call it with the matching \`aspect\` enum value) — don't parse them out of \`vault_read\` output.`;
+}
+
+/** Instructions for the running plugin version (from manifest.json). */
+export const SERVER_INSTRUCTIONS = buildServerInstructions(manifest.version);
+
+export interface CreateMcpServerOptions {
+  /**
+   * Version reported in the handshake, the instructions and `server_info`.
+   * Defaults to manifest.json's version; the docs generator passes a fixed
+   * placeholder so release PRs (which only bump the version) keep the
+   * generated docs unchanged (#402).
+   */
+  version?: string;
+}
 
 export function createMcpServer(
   registry: ModuleRegistry,
   adapter: ObsidianAdapter,
   settings: McpPluginSettings,
   logger: Logger,
+  options: CreateMcpServerOptions = {},
 ): McpServer {
+  const version = options.version ?? manifest.version;
   const capabilities: {
     tools: Record<string, never>;
     logging: Record<string, never>;
@@ -57,15 +78,15 @@ export function createMcpServer(
       // handshake. This is internal to the protocol and intentionally
       // distinct from the npm package name and Obsidian plugin id.
       name: 'obsidian-mcp-server',
-      version: manifest.version,
+      version,
     },
     {
       capabilities,
-      instructions: SERVER_INSTRUCTIONS,
+      instructions: buildServerInstructions(version),
     },
   );
 
-  registerTools(server, registry, logger);
+  registerTools(server, registry, logger, version);
   if (settings.resourcesEnabled) {
     registerResources(server, adapter, logger);
   }
@@ -166,8 +187,15 @@ function registerTools(
   server: McpServer,
   registry: ModuleRegistry,
   logger: Logger,
+  version: string,
 ): void {
-  const tools = registry.getActiveTools();
+  // The `server` module (server_info) is always on: it never enters the
+  // registry, so no module toggle can switch it off (#402).
+  const serverModule = createServerModule({
+    version,
+    getEnabledModules: () => registry.getEnabledModuleIds(),
+  });
+  const tools = [...serverModule.tools(), ...registry.getActiveTools()];
   for (const tool of tools) {
     logger.debug(`Registering tool: ${tool.name}`);
     // One warner shared by the SDK's validation and the dispatcher: the SDK

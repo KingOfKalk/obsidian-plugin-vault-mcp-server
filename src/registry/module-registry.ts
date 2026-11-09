@@ -127,6 +127,25 @@ export class ModuleRegistry {
     return tools;
   }
 
+  /**
+   * Ids of the modules that contribute at least one active tool. An extras
+   * module counts only while one of its tools is switched on.
+   */
+  getEnabledModuleIds(): string[] {
+    const ids: string[] = [];
+    for (const [id, registration] of this.modules.entries()) {
+      if (!registration.enabled) continue;
+      if (registration.module.metadata.group === 'extras') {
+        const anyOn = registration.module
+          .tools()
+          .some((t) => registration.toolStates[t.name] ?? false);
+        if (!anyOn) continue;
+      }
+      ids.push(id);
+    }
+    return ids;
+  }
+
   isModuleEnabled(id: string): boolean {
     const registration = this.modules.get(id);
     return registration?.enabled ?? false;

@@ -25,6 +25,13 @@ import { discoverModules } from '../src/tools';
 import { DEFAULT_SETTINGS } from '../src/types';
 import { Logger } from '../src/utils/logger';
 
+/**
+ * Version the generated docs show instead of manifest.json's. Release PRs
+ * only bump the version, so the docs must not contain it or `docs:check`
+ * would fail on every release (#402).
+ */
+export const DOCS_VERSION = '0.0.0-docs';
+
 /** The instant every example sees as "now": 2026-01-15T09:30:00.000Z. */
 export const EXAMPLE_NOW = Date.UTC(2026, 0, 15, 9, 30, 0, 0);
 
@@ -125,6 +132,7 @@ export const SAMPLE_ARGS: Record<string, Record<string, unknown>> = {
   plugin_templater_describe_template: { templatePath: 'templates/meeting.md' },
   plugin_execute_command: { commandId: 'app:reload' },
   extras_get_date: {},
+  server_info: {},
 };
 
 /**
@@ -143,11 +151,18 @@ export interface Harness {
   close: () => Promise<void>;
 }
 
+export interface ConnectOptions {
+  /** Version the server reports; defaults to {@link DOCS_VERSION}. */
+  version?: string;
+  /** Module state applied after enabling everything, e.g. to switch modules off. */
+  moduleStates?: ModuleStateMap;
+}
+
 /**
  * Start a server over a freshly seeded vault with every module and tool
  * enabled (extras included) and connect a real SDK client to it.
  */
-export async function connectSeededServer(): Promise<Harness> {
+export async function connectSeededServer(options: ConnectOptions = {}): Promise<Harness> {
   const adapter = new MockObsidianAdapter();
   seedVault(adapter);
 
@@ -165,8 +180,11 @@ export async function connectSeededServer(): Promise<Harness> {
     state[r.module.metadata.id] = { enabled: true, toolStates };
   }
   registry.applyState(state);
+  if (options.moduleStates) registry.applyState(options.moduleStates);
 
-  const server = createMcpServer(registry, adapter, DEFAULT_SETTINGS, logger);
+  const server = createMcpServer(registry, adapter, DEFAULT_SETTINGS, logger, {
+    version: options.version ?? DOCS_VERSION,
+  });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);
   const client = new Client({ name: 'test', version: '0' }, { capabilities: {} });
