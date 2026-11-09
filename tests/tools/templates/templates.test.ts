@@ -107,6 +107,8 @@ describe('templates module', () => {
       variables: { title: 'My Note' },
     });
     expect(result.isError).toBeUndefined();
+    // The missing destination folder is created (#405).
+    expect(await adapter.exists('notes')).toBe(true);
     const content = await adapter.readFile('notes/new.md');
     expect(content).toContain('# My Note');
     expect(content).toContain('Created:');
