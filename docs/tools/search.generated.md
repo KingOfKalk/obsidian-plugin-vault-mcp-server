@@ -91,7 +91,7 @@ Response (`structuredContent`):
 
 **List tags**
 
-List every tag used anywhere in the vault with the files that use it.
+List every tag used anywhere in the vault with the files that use it (each file once) and its total occurrence count.
 
 See also:
   - search_by_tag — when you want notes carrying a tag, not the list of tags.
@@ -106,7 +106,8 @@ See also:
 
 | Field | Type | Description |
 |---|---|---|
-| `tags` | object | Map of tag (with leading #) to vault-relative file paths that use it. |
+| `tags` | object | Map of tag (with leading #) to the vault-relative paths of the files that use it. Each file is listed once per tag. |
+| `counts` | object | Map of tag (with leading #) to its total number of occurrences across the vault; a file using a tag twice counts twice. The number of files is the length of the matching tags entry. |
 
 #### Example
 
@@ -127,6 +128,9 @@ Response (`structuredContent`):
     "#project": [
       "projects/alpha.md"
     ]
+  },
+  "counts": {
+    "#project": 1
   }
 }
 ```

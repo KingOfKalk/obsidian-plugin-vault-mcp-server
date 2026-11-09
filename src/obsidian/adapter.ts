@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unnecessary-type-assertion */
 import { App, Notice, TFile, TFolder, TAbstractFile, Vault } from 'obsidian';
 import { FolderNotFoundError } from '../tools/shared/errors';
+import { buildTagIndex, type TagUsage } from './tag-index';
+
+export type { TagUsage } from './tag-index';
 
 export interface FileStat {
   size: number;
@@ -55,7 +58,13 @@ export interface ObsidianAdapter {
    */
   processFrontMatter(path: string, fn: (frontmatter: Record<string, unknown>) => void): Promise<void>;
   getTags(path: string): string[];
-  getAllTags(): Record<string, string[]>;
+  /**
+   * Vault-wide tag index: for every tag (with leading `#`), the files that
+   * use it — each file listed once, in vault order — and `count`, the total
+   * number of occurrences across those files (a file using a tag twice
+   * counts twice).
+   */
+  getAllTags(): Record<string, TagUsage>;
   getHeadings(path: string): Array<{ heading: string; level: number }>;
   getLinks(path: string): Array<{ link: string; displayText?: string }>;
   getEmbeds(path: string): Array<{ link: string; displayText?: string }>;
@@ -284,17 +293,13 @@ export class RealObsidianAdapter implements ObsidianAdapter {
     return cache.tags.map((t: { tag: string }) => t.tag);
   }
 
-  getAllTags(): Record<string, string[]> {
-    const result: Record<string, string[]> = {};
-    const files = this.app.vault.getMarkdownFiles();
-    for (const file of files) {
-      const tags = this.getTags(file.path);
-      for (const tag of tags) {
-        if (!result[tag]) result[tag] = [];
-        result[tag].push(file.path);
-      }
-    }
-    return result;
+  getAllTags(): Record<string, TagUsage> {
+    return buildTagIndex(
+      this.app.vault.getMarkdownFiles().map((file) => ({
+        path: file.path,
+        tags: this.getTags(file.path),
+      })),
+    );
   }
 
   getHeadings(path: string): Array<{ heading: string; level: number }> {

@@ -45,7 +45,10 @@ const searchFulltextOutputSchema = {
 const searchTagsOutputSchema = {
   tags: z
     .record(z.string(), z.array(z.string()))
-    .describe('Map of tag (with leading #) to vault-relative file paths that use it.'),
+    .describe('Map of tag (with leading #) to the vault-relative paths of the files that use it. Each file is listed once per tag.'),
+  counts: z
+    .record(z.string(), z.number())
+    .describe('Map of tag (with leading #) to its total number of occurrences across the vault; a file using a tag twice counts twice. The number of files is the length of the matching tags entry.'),
 };
 
 const searchLinksMapOutputSchema = {
@@ -102,7 +105,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           name: 'search_tags',
           title: 'List tags',
           description: describeTool({
-            summary: 'List every tag used anywhere in the vault with the files that use it.',
+            summary: 'List every tag used anywhere in the vault with the files that use it (each file once) and its total occurrence count.',
             seeAlso: [
               'search_by_tag — when you want notes carrying a tag, not the list of tags.',
             ],
