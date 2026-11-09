@@ -114,11 +114,11 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/):
 
 ### CI results
 
-The `CI` workflow runs `lint`, `test` and `build` one after another, and `e2e` after `lint`, in parallel with `test`. Open a run (the **Details** link of a check on the PR) and look at its **Summary** page:
+The `CI` workflow runs `lint` first, then `test` and `e2e` in parallel, then `build` once `test` and both `e2e` jobs have passed. A failed job skips the jobs after it. Open a run (the **Details** link of a check on the PR) and look at its **Summary** page:
 
 - **lint** lists every ESLint finding, type error and out-of-date generated doc file. ESLint and `tsc` findings also show up as annotations on the affected lines in the PR's **Files changed** tab.
 - **test** shows Vitest's results and a coverage table with the thresholds from `vitest.config.ts`, then the size of the agent-facing surface compared with `docs/surface-baseline.json` on `main` (see [Tool surface budget](#tool-surface-budget)).
-- **e2e** runs `npm run test:e2e` in headless Obsidian, once per pinned Obsidian version (`e2e (minimum)`, `e2e (current)`). It is not a required check yet.
-- **build** shows the size of `main.js` (raw and gzipped) compared with the latest `main` build, and links the artifact `vault-mcp-server-<short-sha>`. It holds `main.js`, `manifest.json` and `styles.css` for 14 days. To try the PR in Obsidian, copy the three files into `<vault>/.obsidian/plugins/vault-mcp-server/` of a test vault and reload the plugin.
+- **e2e** runs `npm run test:e2e` in headless Obsidian, once per pinned Obsidian version (`e2e (minimum)`, `e2e (current)`). The two jobs are not required checks themselves, but `build` waits for them, so a failing e2e job skips `build` and blocks the merge.
+- **build** runs only after `test` and both `e2e` jobs passed. It shows the size of `main.js` (raw and gzipped) compared with the latest `main` build, and links the artifact `vault-mcp-server-<short-sha>`. It holds `main.js`, `manifest.json` and `styles.css` for 14 days. To try the PR in Obsidian, copy the three files into `<vault>/.obsidian/plugins/vault-mcp-server/` of a test vault and reload the plugin.
 
 The summaries are written by `scripts/ci-summary.ts`. You can run it locally with `npx tsx scripts/ci-summary.ts <command> …`; it prints the Markdown to stdout when `GITHUB_STEP_SUMMARY` is not set.
