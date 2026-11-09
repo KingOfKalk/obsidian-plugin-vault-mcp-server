@@ -2,6 +2,7 @@ import {
   McpServer,
   type CallToolResult,
   type RegisteredTool,
+  type StandardSchemaWithJSON,
 } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import { Logger } from '../utils/logger';
@@ -10,6 +11,7 @@ import { ToolDefinition } from '../registry/types';
 import { handleToolError } from '../tools/shared/errors';
 import { createToolContext, type SdkExtra } from '../registry/tool-context';
 import { buildInputSchema } from '../registry/input-schema';
+import { withAdvertisedSchema } from '../registry/advertised-schema';
 import { registerResources } from './resources';
 import { registerPrompts } from './prompts';
 import type { ObsidianAdapter } from '../obsidian/adapter';
@@ -217,6 +219,14 @@ export function toOutputSchema(
   return z.object(schema);
 }
 
+/** {@link toOutputSchema}, with the trimmed JSON advertised in tools/list (#451). */
+function advertisedOutputSchema(
+  schema: ToolDefinition['outputSchema'],
+): StandardSchemaWithJSON | undefined {
+  const output = toOutputSchema(schema);
+  return output === undefined ? undefined : withAdvertisedSchema(output, 'output');
+}
+
 /**
  * Register the tools and keep them in step with the registry for the
  * lifetime of this server (one MCP session, #448).
@@ -292,11 +302,12 @@ function registerTool(
       description: tool.description,
       // Strict object (not the raw shape): the SDK validates before our
       // dispatcher runs, and a raw shape would make it strip unknown keys.
-      inputSchema: buildInputSchema(tool.schema),
-      outputSchema: toOutputSchema(tool.outputSchema),
-      annotations: tool.title
-        ? { ...tool.annotations, title: tool.title }
-        : tool.annotations,
+      // Both schemas validate with Zod as before; only the JSON Schema
+      // advertised in tools/list is trimmed (#451).
+      inputSchema: withAdvertisedSchema(buildInputSchema(tool.schema), 'input'),
+      outputSchema: advertisedOutputSchema(tool.outputSchema),
+      // No annotations.title: the top-level `title` carries it (#451).
+      annotations: tool.annotations,
     },
     createToolDispatcher(tool, logger),
   );

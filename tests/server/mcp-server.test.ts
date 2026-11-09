@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/server';
+import type { StandardSchemaWithJSON } from '@modelcontextprotocol/server';
 import manifest from '../../manifest.json';
 import { Logger } from '../../src/utils/logger';
 import { ModuleRegistry } from '../../src/registry/module-registry';
@@ -298,17 +299,38 @@ describe('createMcpServer', () => {
       (c) => c.name === 'tool_with_output',
     );
     expect(withOutput).toBeDefined();
-    // SDK v2 rejects raw shapes; the registry wraps them in z.object.
-    expect(withOutput?.config.outputSchema).toBeInstanceOf(z.ZodObject);
-    expect((withOutput?.config.outputSchema as z.ZodObject).shape).toEqual(
-      outputSchema,
-    );
+    // SDK v2 rejects raw shapes; the registry wraps them in z.object. The
+    // SDK gets a Standard Schema that validates with that object and
+    // advertises a trimmed JSON Schema (#451).
+    const registeredOutput = withOutput?.config.outputSchema as StandardSchemaWithJSON;
+    expect(registeredOutput['~standard'].validate({ result: 'x' })).toEqual({
+      value: { result: 'x' },
+    });
+    expect(registeredOutput['~standard'].validate({ result: 1 })).toHaveProperty('issues');
+    expect(
+      registeredOutput['~standard'].jsonSchema.output({ target: 'draft-2020-12' }),
+    ).toEqual({
+      type: 'object',
+      properties: { result: { type: 'string' } },
+      required: ['result'],
+    });
     // inputSchema is a strict object so the SDK rejects unknown keys
     // instead of stripping them (#388). No alias preprocess step (#432).
-    const registeredInput = withOutput?.config.inputSchema as z.ZodObject;
-    expect(registeredInput).toBeInstanceOf(z.ZodObject);
-    expect(registeredInput.shape).toEqual(inputSchema);
-    expect(registeredInput.safeParse({ foo: 'x', extra: 1 }).success).toBe(false);
+    const registeredInput = withOutput?.config.inputSchema as StandardSchemaWithJSON;
+    expect(registeredInput['~standard'].validate({ foo: 'x' })).toEqual({
+      value: { foo: 'x' },
+    });
+    expect(registeredInput['~standard'].validate({ foo: 'x', extra: 1 })).toHaveProperty(
+      'issues',
+    );
+    expect(
+      registeredInput['~standard'].jsonSchema.input({ target: 'draft-2020-12' }),
+    ).toEqual({
+      type: 'object',
+      properties: { foo: { type: 'string' } },
+      required: ['foo'],
+      additionalProperties: false,
+    });
 
     const withoutOutput = capturedRegisterToolCalls.find(
       (c) => c.name === 'tool_without_output',
@@ -327,7 +349,7 @@ describe('createMcpServer', () => {
     expect(toOutputSchema(undefined)).toBeUndefined();
   });
 
-  it('forwards tool.title to both Tool.title and annotations.title', async () => {
+  it('forwards tool.title as Tool.title only, not as annotations.title (#451)', async () => {
     const { ModuleRegistry } = await import('../../src/registry/module-registry');
     const { createMcpServer } = await import('../../src/server/mcp-server');
 
@@ -353,7 +375,8 @@ describe('createMcpServer', () => {
     const call = capturedRegisterToolCalls.find((c) => c.name === 'titled');
     expect(call).toBeDefined();
     expect(call?.config.title).toBe('Pretty title');
-    expect(call?.config.annotations?.title).toBe('Pretty title');
+    expect(call?.config.annotations).toEqual(annotations.read);
+    expect(call?.config.annotations).not.toHaveProperty('title');
   });
 
   it('declares the resources capability and registers vault-index + vault-file when resourcesEnabled', async () => {
