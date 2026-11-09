@@ -4,8 +4,8 @@ import { callTool, connectClient, startMcpServer, waitForCache, writeNotes } fro
 
 /**
  * Frontmatter-only and inline tags in `search_by_tag` / `search_tags`.
- * The tag tools ignored frontmatter tags, and the mock adapter had the same
- * gap, so only real Obsidian shows it.
+ * The tag tools used to ignore frontmatter tags and the mock adapter had the
+ * same gap (#440), so this runs against real Obsidian.
  */
 describe('tags: frontmatter and inline', function () {
   let client: Client;
@@ -25,14 +25,12 @@ describe('tags: frontmatter and inline', function () {
     await client.close();
   });
 
-  // Pending until #440 (frontmatter tags in the tag tools) is merged.
-  it.skip('search_by_tag finds frontmatter-only and inline tags', async function () {
+  it('search_by_tag finds frontmatter-only and inline tags', async function () {
     const page = await callTool<{ items: string[] }>(client, 'search_by_tag', { tag: 'project' });
     expect([...page.items].sort()).toEqual(['tags/Frontmatter.md', 'tags/Inline.md']);
   });
 
-  // Pending until #440 (frontmatter tags in the tag tools) is merged.
-  it.skip('search_tags lists frontmatter-only and inline tags', async function () {
+  it('search_tags lists frontmatter-only and inline tags', async function () {
     const result = await callTool<{ tags: Record<string, string[]> }>(client, 'search_tags');
     expect([...(result.tags['#project'] ?? [])].sort()).toEqual([
       'tags/Frontmatter.md',
