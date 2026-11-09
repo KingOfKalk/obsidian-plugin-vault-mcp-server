@@ -40,8 +40,15 @@ log() { printf '%s\n' "$*"; }
 summary() { printf '%s\n' "$*" >>"$SUMMARY"; }
 
 # Old tags, oldest version first, so the newest release is moved last.
-mapfile -t OLD_TAGS < <(git tag --list | grep -E "$TAG_RE" |
-  sed -E "s/$TAG_RE/\2\t&/" | sort -V -k1,1 | cut -f2 || true)
+# Portable on purpose (macOS ships bash 3.2 and BSD sed/sort): no mapfile,
+# no "\t" in sed replacements, no sort -V. awk prints "major minor patch tag"
+# and sort orders numerically on the first three fields.
+OLD_TAGS=()
+while IFS= read -r tag; do
+  [[ -n "$tag" ]] && OLD_TAGS+=("$tag")
+done < <(git tag --list | grep -E "$TAG_RE" |
+  awk '{ v = $0; sub(/^(obsidian-mcp-)?v/, "", v); split(v, p, /[.-]/); print p[1], p[2], p[3], $0 }' |
+  sort -k1,1n -k2,2n -k3,3n | awk '{ print $4 }' || true)
 
 new_name() { [[ "$1" =~ $TAG_RE ]] && printf '%s' "${BASH_REMATCH[2]}"; }
 
