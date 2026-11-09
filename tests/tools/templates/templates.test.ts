@@ -135,6 +135,7 @@ describe('templates module', () => {
         path: 'people/ada.md',
         templatePath: 'templates/person.md',
         frontmatter: { type: 'person', email: 'ada@example.com', eid: 42, tags: ['team'] },
+        modified: expect.any(String) as unknown,
       });
       expect(adapter.getFrontmatter('people/ada.md')).toEqual({
         type: 'person',
@@ -165,7 +166,11 @@ describe('templates module', () => {
         destPath: 'plain.md',
         frontmatter: {},
       });
-      expect(result.structuredContent).toEqual({ path: 'plain.md', templatePath: 'templates/plain.md' });
+      expect(result.structuredContent).toEqual({
+        path: 'plain.md',
+        templatePath: 'templates/plain.md',
+        modified: expect.any(String) as unknown,
+      });
       expect(await adapter.readFile('plain.md')).toBe('Body');
     });
 
@@ -206,6 +211,7 @@ describe('templates module', () => {
         path: 'plain.md',
         templatePath: 'templates/plain.md',
         frontmatter: { status: 'new' },
+        modified: expect.any(String) as unknown,
       });
     });
   });

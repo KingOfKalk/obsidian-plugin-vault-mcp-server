@@ -130,8 +130,16 @@ describe('tools through a real SDK client', () => {
 
 describe('write tools keep their text and add structuredContent (#388)', () => {
   const cases: Array<[string, string, Record<string, unknown>]> = [
-    ['vault_create', 'Created file: new/one.md', { path: 'new/one.md', created: true }],
-    ['vault_update', 'Updated file: README.md', { path: 'README.md', updated: true }],
+    [
+      'vault_create',
+      'Created file: new/one.md',
+      { path: 'new/one.md', created: true, modified: expect.any(String) as unknown },
+    ],
+    [
+      'vault_update',
+      'Updated file: README.md',
+      { path: 'README.md', updated: true, modified: expect.any(String) as unknown },
+    ],
     [
       'vault_append',
       'Appended to file: README.md',
@@ -168,7 +176,11 @@ describe('write tools keep their text and add structuredContent (#388)', () => {
       'Renamed folder: empty → renamed',
       { from: 'empty', to: 'renamed', linksUpdated: 0, updatedFiles: [], autoUpdateLinks: true },
     ],
-    ['vault_write_binary', 'Wrote binary file: bin/data.bin', { path: 'bin/data.bin', sizeBytes: 3 }],
+    [
+      'vault_write_binary',
+      'Wrote binary file: bin/data.bin',
+      { path: 'bin/data.bin', sizeBytes: 3, modified: expect.any(String) as unknown },
+    ],
     ['editor_insert', 'Text inserted', { line: 0, ch: 0 }],
     [
       'editor_replace',
@@ -192,6 +204,7 @@ describe('write tools keep their text and add structuredContent (#388)', () => {
         path: 'meetings/m1.md',
         templatePath: 'templates/meeting.md',
         frontmatter: { status: 'draft' },
+        modified: expect.any(String) as unknown,
       },
     ],
     [

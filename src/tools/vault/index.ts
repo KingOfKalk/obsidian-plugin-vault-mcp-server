@@ -229,12 +229,14 @@ const dailyNoteOutputSchema = {
 const writePath = z.string().describe('Vault-relative path that was written.');
 const alwaysTrue = z.boolean().describe('Always true on success.');
 
-const createdOutputSchema = { path: writePath, created: alwaysTrue };
-const updatedOutputSchema = { path: writePath, updated: alwaysTrue };
 /** New mtime after a write (#447); feeds the next call's expectedMtime. */
 const newModified = z
   .string()
   .describe('New last-modification timestamp (ISO-8601); usable as the next expectedMtime.');
+
+const createdOutputSchema = { path: writePath, created: alwaysTrue, modified: newModified };
+const createdFolderOutputSchema = { path: writePath, created: alwaysTrue };
+const updatedOutputSchema = { path: writePath, updated: alwaysTrue, modified: newModified };
 
 const appendedOutputSchema = { path: writePath, appended: alwaysTrue, modified: newModified };
 /**
@@ -320,6 +322,7 @@ const MTIME_CONFLICT_ERROR =
 const writeBinaryOutputSchema = {
   path: writePath,
   sizeBytes: z.number().describe('Number of bytes written.'),
+  modified: newModified,
 };
 
 const setFrontmatterOutputSchema = {
@@ -572,7 +575,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             errors: ['"Folder already exists" if the path is taken.'],
           }),
           schema: createFolderSchema,
-          outputSchema: createdOutputSchema,
+          outputSchema: createdFolderOutputSchema,
           handler: handlers.createFolder,
           annotations: annotations.additive,
         }),

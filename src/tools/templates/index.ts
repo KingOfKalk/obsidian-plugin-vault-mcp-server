@@ -12,6 +12,7 @@ import { validateVaultPath } from '../../utils/path-guard';
 import { FolderNotFoundError, handleToolError } from '../shared/errors';
 import { describeTool } from '../shared/describe';
 import { expandPlaceholders } from '../shared/placeholders';
+import { modifiedIso } from '../shared/modified';
 import { assertSafeFrontmatterKeys, frontmatterKeySchema } from '../shared/frontmatter';
 import {
   confirmWithStructured,
@@ -85,6 +86,9 @@ const createFromTemplateOutputSchema = {
     .record(z.string(), z.unknown())
     .optional()
     .describe('The new note\'s whole frontmatter after the frontmatter parameter was applied. Present only when frontmatter was given.'),
+  modified: z
+    .string()
+    .describe('Last-modification timestamp of the new file (ISO-8601); usable as the next expectedMtime.'),
 };
 
 interface TemplatesHandlers {
@@ -142,6 +146,7 @@ function createHandlers(adapter: ObsidianAdapter): TemplatesHandlers {
           return confirmWithStructured(`Created ${destPath} from template ${templatePath}`, {
             path: destPath,
             templatePath,
+            modified: await modifiedIso(adapter, destPath),
           });
         }
         let frontmatter: Record<string, unknown> = {};
@@ -155,7 +160,7 @@ function createHandlers(adapter: ObsidianAdapter): TemplatesHandlers {
         });
         return confirmWithStructured(
           `Created ${destPath} from template ${templatePath} (set frontmatter ${setKeys.join(', ')})`,
-          { path: destPath, templatePath, frontmatter },
+          { path: destPath, templatePath, frontmatter, modified: await modifiedIso(adapter, destPath) },
         );
       } catch (error) {
         return err(error instanceof Error ? error.message : String(error));

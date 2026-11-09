@@ -17,6 +17,7 @@ import { paginate, readPagination } from '../shared/pagination';
 import { confirmWithStructured, makeResponse, readResponseFormat } from '../shared/response';
 import { expandPlaceholders } from '../shared/placeholders';
 import { assertSafeFrontmatterKeys } from '../shared/frontmatter';
+import { modifiedIso } from '../shared/modified';
 import { BINARY_BYTE_LIMIT } from '../../constants';
 import type { InferredParams } from '../../registry/types';
 import type { SearchHandlers } from '../search/handlers';
@@ -123,13 +124,6 @@ function countOccurrences(haystack: string, needle: string): number {
     index = haystack.indexOf(needle, index + needle.length);
   }
   return count;
-}
-
-/** The file's mtime as an ISO-8601 string, or throw when it is gone. */
-async function modifiedIso(adapter: ObsidianAdapter, path: string): Promise<string> {
-  const stat = await adapter.stat(path);
-  if (!stat) throw new FileNotFoundError(path);
-  return new Date(stat.mtime).toISOString();
 }
 
 /**
@@ -442,7 +436,8 @@ export function createHandlers(
         const path = validateVaultPath(params.path, vaultPath);
         return await mutex.acquire(path, async () => {
           await adapter.createFile(path, params.content);
-          return confirmWithStructured(`Created file: ${path}`, { path, created: true });
+          const modified = await modifiedIso(adapter, path);
+          return confirmWithStructured(`Created file: ${path}`, { path, created: true, modified });
         });
       } catch (error) {
         return handleToolError(error);
@@ -509,7 +504,8 @@ export function createHandlers(
         return await mutex.acquire(path, async () => {
           await assertExpectedMtime(adapter, path, params.expectedMtime);
           await adapter.modifyFile(path, params.content);
-          return confirmWithStructured(`Updated file: ${path}`, { path, updated: true });
+          const modified = await modifiedIso(adapter, path);
+          return confirmWithStructured(`Updated file: ${path}`, { path, updated: true, modified });
         });
       } catch (error) {
         return handleToolError(error);
@@ -857,9 +853,11 @@ export function createHandlers(
             path,
             buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
           );
+          const modified = await modifiedIso(adapter, path);
           return confirmWithStructured(`Wrote binary file: ${path}`, {
             path,
             sizeBytes: buffer.byteLength,
+            modified,
           });
         });
       } catch (error) {

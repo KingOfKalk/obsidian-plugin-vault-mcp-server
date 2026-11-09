@@ -31,6 +31,7 @@ Errors:
 |---|---|---|
 | `path` | string | Vault-relative path that was written. |
 | `created` | boolean | Always true on success. |
+| `modified` | string | New last-modification timestamp (ISO-8601); usable as the next expectedMtime. |
 
 #### Example
 
@@ -51,7 +52,8 @@ Response (`structuredContent`):
 ```json
 {
   "path": "new/one.md",
-  "created": true
+  "created": true,
+  "modified": "2026-01-15T09:30:00.000Z"
 }
 ```
 
@@ -149,7 +151,7 @@ Errors:
 |---|---|---|---|
 | `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
 | `content` | string (≤5000000) | yes | Replacement content for the file |
-| `expectedMtime` | string (≤64) | no | Optional conflict check: the `modified` value from vault_read or vault_get_metadata (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
+| `expectedMtime` | string (≤64) | no | Optional conflict check: the latest `modified` value you got for this file, from a read (vault_read, vault_get_metadata) or a write (every vault write tool returns it) (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
 
 #### Output
 
@@ -157,6 +159,7 @@ Errors:
 |---|---|---|
 | `path` | string | Vault-relative path that was written. |
 | `updated` | boolean | Always true on success. |
+| `modified` | string | New last-modification timestamp (ISO-8601); usable as the next expectedMtime. |
 
 #### Example
 
@@ -177,7 +180,8 @@ Response (`structuredContent`):
 ```json
 {
   "path": "README.md",
-  "updated": true
+  "updated": true,
+  "modified": "2026-01-15T09:30:00.000Z"
 }
 ```
 
@@ -255,7 +259,7 @@ Errors:
 |---|---|---|---|
 | `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
 | `content` | string (1–5000000) | yes | Content to append to the end of the file |
-| `expectedMtime` | string (≤64) | no | Optional conflict check: the `modified` value from vault_read or vault_get_metadata (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
+| `expectedMtime` | string (≤64) | no | Optional conflict check: the latest `modified` value you got for this file, from a read (vault_read, vault_get_metadata) or a write (every vault write tool returns it) (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
 
 #### Output
 
@@ -323,7 +327,7 @@ Errors:
 | `newString` | string (≤5000000) | no | Single-edit form: replacement text (literal; may be empty to delete oldString). Give it with oldString. |
 | `replaceAll` | boolean | no (default `false`) | Single-edit form: replace every occurrence instead of requiring exactly one (default false). With edits, set replaceAll on each edit instead. |
 | `edits` | object[] | no | Multi-edit form, instead of oldString/newString: up to 100 { oldString, newString, replaceAll? } edits, all or nothing. Every edit is matched against the file as it was before the call (text inserted by one edit is never matched by another), and the matches of different edits must not overlap. If any edit fails, nothing is written. |
-| `expectedMtime` | string (≤64) | no | Optional conflict check: the `modified` value from vault_read or vault_get_metadata (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
+| `expectedMtime` | string (≤64) | no | Optional conflict check: the latest `modified` value you got for this file, from a read (vault_read, vault_get_metadata) or a write (every vault write tool returns it) (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
 
 #### Output
 
@@ -392,7 +396,7 @@ Errors:
 | `heading` | string (1–1024) | yes | Heading of the target section: its text without the # marks (e.g. "Log"), or with them to pin the level (e.g. "## Log"). Must match exactly one heading; headings in code blocks and frontmatter are ignored. |
 | `position` | enum: `start` \| `end` | no (default `end`) | "end" (default): after the last non-blank line of the section, nested subsections included. "start": right below the heading (after a blank line that follows it). |
 | `text` | string (1–5000000) | yes | Text to insert as whole lines; one trailing newline is ignored. Start it with a newline to leave a blank line before it. |
-| `expectedMtime` | string (≤64) | no | Optional conflict check: the `modified` value from vault_read or vault_get_metadata (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
+| `expectedMtime` | string (≤64) | no | Optional conflict check: the latest `modified` value you got for this file, from a read (vault_read, vault_get_metadata) or a write (every vault write tool returns it) (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
 
 #### Output
 
@@ -1011,7 +1015,7 @@ Errors:
 |---|---|---|---|
 | `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
 | `data` | string | yes | Base64-encoded binary content (no leading data: prefix) |
-| `expectedMtime` | string (≤64) | no | Optional conflict check: the `modified` value from vault_read or vault_get_metadata (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
+| `expectedMtime` | string (≤64) | no | Optional conflict check: the latest `modified` value you got for this file, from a read (vault_read, vault_get_metadata) or a write (every vault write tool returns it) (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
 
 #### Output
 
@@ -1019,6 +1023,7 @@ Errors:
 |---|---|---|
 | `path` | string | Vault-relative path that was written. |
 | `sizeBytes` | number | Number of bytes written. |
+| `modified` | string | New last-modification timestamp (ISO-8601); usable as the next expectedMtime. |
 
 #### Example
 
@@ -1039,7 +1044,8 @@ Response (`structuredContent`):
 ```json
 {
   "path": "bin/data.bin",
-  "sizeBytes": 3
+  "sizeBytes": 3,
+  "modified": "2026-01-15T09:30:00.000Z"
 }
 ```
 
@@ -1217,7 +1223,7 @@ Errors:
 | `path` | string (1–4096) | yes | File path relative to vault root (POSIX-style, no leading slash) |
 | `set` | object | yes | Frontmatter keys to set, mapped to JSON-compatible values (string, number, boolean, null, array or object). Existing keys are overwritten; keys not listed are left untouched. Pass {} to only remove keys. |
 | `remove` | string[] | no | Frontmatter keys to delete. Keys that are not present are ignored. |
-| `expectedMtime` | string (≤64) | no | Optional conflict check: the `modified` value from vault_read or vault_get_metadata (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
+| `expectedMtime` | string (≤64) | no | Optional conflict check: the latest `modified` value you got for this file, from a read (vault_read, vault_get_metadata) or a write (every vault write tool returns it) (ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written and the error reports the current mtime. |
 
 #### Output
 
