@@ -105,10 +105,8 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
             summary:
               'Case-insensitive substring search in the text of Markdown (.md) notes. Does not match file names or other file types.',
             returns:
-              'Pages over matching files (limit/offset; total and count are files). Each item has up to maxMatchesPerFile matching lines, ' +
-              'but the markdown text lists only paths and match counts: use responseFormat=json (or structuredContent) to see the lines.',
-            examples: ['Use when: "find everything mentioning Obsidian".'],
-            errors: ['"Query must not be empty" on empty input.'],
+              'Pages over matching files (total and count are files). Each item has up to maxMatchesPerFile matching lines, ' +
+              'but the markdown text lists only paths and match counts: use responseFormat=json (or structuredContent) for the lines.',
             seeAlso: ['vault_list_recursive — to find a file by its name.'],
           }),
           schema: searchFulltextSchema,
@@ -120,10 +118,8 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           name: 'search_tags',
           title: 'List tags',
           description: describeTool({
-            summary: 'List every tag used in the vault\'s Markdown notes (inline and frontmatter) with the files that use it (each file once) and its total occurrence count.',
-            seeAlso: [
-              'search_by_tag — when you want notes carrying a tag, not the list of tags.',
-            ],
+            summary: 'List every tag in the vault\'s Markdown notes (inline and frontmatter) with the files using it (each once) and its total occurrence count.',
+            seeAlso: ['search_by_tag — for the notes carrying a tag.'],
           }),
           schema: readOnlySchema,
           outputSchema: searchTagsOutputSchema,
@@ -135,9 +131,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Find resolved links',
           description: describeTool({
             summary: `Get the map of resolved links (targets that exist). ${WHOLE_VAULT}`,
-            seeAlso: [
-              'search_unresolved_links — when you want broken/dangling links instead.',
-            ],
+            seeAlso: ['search_unresolved_links — for broken links.'],
           }),
           schema: readOnlySchema,
           outputSchema: resolvedLinksOutputSchema,
@@ -149,10 +143,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Find unresolved links',
           description: describeTool({
             summary: `Get the map of unresolved links (link text that matches no file). ${WHOLE_VAULT}`,
-            examples: ['Use when: hunting for broken [[wikilinks]] to clean up.'],
-            seeAlso: [
-              'search_resolved_links — when you want only links that successfully resolve.',
-            ],
+            seeAlso: ['search_resolved_links — for links that resolve.'],
           }),
           schema: readOnlySchema,
           outputSchema: unresolvedLinksOutputSchema,
@@ -164,9 +155,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Find notes by tag',
           description: describeTool({
             summary: 'Find Markdown notes that carry a tag (inline #tag or frontmatter tags). Matching is exact and case-sensitive.',
-            seeAlso: [
-              'search_tags — when you want the list of tags in the vault, not notes.',
-            ],
+            seeAlso: ['search_tags — for the list of tags with their exact spellings.'],
           }),
           schema: searchByTagSchema,
           outputSchema: paginatedPathPageOutputSchema,

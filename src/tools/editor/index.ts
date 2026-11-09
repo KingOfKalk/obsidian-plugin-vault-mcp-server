@@ -91,13 +91,16 @@ const RANGE_NOTE =
 const RANGE_OUT_OF_RANGE_ERROR =
   '"Position is out of range" if fromLine is past the last line or toLine > line count (columns are not checked; a ch past the line end runs into the next line).';
 
+// "No active editor" is in the server instructions' editor line, sent
+// whenever an editor tool is enabled (#457), so the tools do not repeat it.
+
 const insertSchema = {
-  line: z.number().int().min(0).describe('Line (0-based)'),
-  ch: z.number().int().min(0).describe('Column within the line (0-based)'),
+  line: z.number().int().min(0).describe('Line (0-based).'),
+  ch: z.number().int().min(0).describe('Column (0-based).'),
   text: z
     .string()
     .max(5_000_000)
-    .describe('Text to insert at (line, ch); may contain newlines'),
+    .describe('Text to insert; may contain newlines.'),
 };
 
 const replaceSchema = {
@@ -105,14 +108,14 @@ const replaceSchema = {
   text: z
     .string()
     .max(5_000_000)
-    .describe('Replacement text for the range'),
+    .describe('Replacement text.'),
 };
 
 const deleteRangeSchema = { ...rangeFields };
 
 const setCursorSchema = {
-  line: z.number().int().min(0).describe('Line (0-based)'),
-  ch: z.number().int().min(0).describe('Column (0-based)'),
+  line: z.number().int().min(0).describe('Line (0-based).'),
+  ch: z.number().int().min(0).describe('Column (0-based).'),
 };
 
 const setSelectionSchema = { ...rangeFields };
@@ -371,11 +374,8 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           name: 'editor_get_content',
           title: 'Get active file content',
           description: describeTool({
-            summary: 'Get the full text content of the currently active editor.',
-            errors: ['"No active editor" if no markdown view is focused.'],
-            seeAlso: [
-              'vault_read — when reading any file by path, not just the active one.',
-            ],
+            summary: 'Get the full text of the active editor.',
+            seeAlso: ['vault_read — to read any file by path.'],
           }),
           schema: readOnlySchema,
           outputSchema: getContentOutputSchema,
@@ -388,9 +388,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary: 'Get the vault-relative path of the currently active file.',
             errors: ['"No active file" if no file is open.'],
-            seeAlso: [
-              'workspace_get_active_leaf — when you need the active pane/leaf (id and view type), not just the file path.',
-            ],
+            seeAlso: ['workspace_get_active_leaf — for the active leaf (id and view type), not just the path.'],
           }),
           schema: readOnlySchema,
           outputSchema: getActiveFileOutputSchema,
@@ -404,12 +402,11 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             summary: 'Insert text at a (line, ch) position in the active editor (not at the cursor). 0-based.',
             examples: ['Use when: inserting a heading at the top of the file (line 0, ch 0).'],
             errors: [
-              '"No active editor" if no markdown view is focused.',
-              '"Position is out of range" if line is greater than the line count (ch is not checked; past the line end it runs into the next line).',
+              '"Position is out of range" if line > line count (ch is not checked; past the line end it runs into the next line).',
             ],
             seeAlso: [
-              'editor_replace — when you want to overwrite an existing range, not insert at a point.',
-              'editor_delete — when you want to remove a range without writing anything in its place.',
+              'editor_replace — to overwrite a range.',
+              'editor_delete — to remove a range.',
             ],
           }),
           schema: insertSchema,
@@ -425,11 +422,11 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             examples: [
               'Use when: replacing "abc" that starts at column 4 of line 3 -> { fromLine: 3, fromCh: 4, toLine: 3, toCh: 7, text: "xyz" }',
             ],
-            errors: ['"No active editor" if no markdown view is focused.', RANGE_OUT_OF_RANGE_ERROR],
+            errors: [RANGE_OUT_OF_RANGE_ERROR],
             seeAlso: [
               'vault_replace — to change exact text in a file by content, with a conflict check.',
-              'editor_insert — when you want to add text at a single point without overwriting anything.',
-              'editor_delete — when you want to remove a range without writing anything in its place.',
+              'editor_insert — to add text at a point.',
+              'editor_delete — to remove a range.',
             ],
           }),
           schema: replaceSchema,
@@ -442,10 +439,10 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Delete range',
           description: describeTool({
             summary: `Delete a range of the active editor's text. ${RANGE_NOTE}`,
-            errors: ['"No active editor" if no markdown view is focused.', RANGE_OUT_OF_RANGE_ERROR],
+            errors: [RANGE_OUT_OF_RANGE_ERROR],
             seeAlso: [
-              'editor_insert — when you want to add text at a single point without overwriting anything.',
-              'editor_replace — when you want to overwrite an existing range, not just remove it.',
+              'editor_insert — to add text at a point.',
+              'editor_replace — to overwrite a range.',
             ],
           }),
           schema: deleteRangeSchema,
@@ -457,8 +454,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           name: 'editor_get_cursor',
           title: 'Get cursor position',
           description: describeTool({
-            summary: 'Get the current cursor position in the active editor.',
-            errors: ['"No active editor" if no markdown view is focused.'],
+            summary: 'Get the cursor position (0-based line, ch) in the active editor.',
           }),
           schema: readOnlySchema,
           outputSchema: getCursorOutputSchema,
@@ -470,13 +466,8 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Set cursor position',
           description: describeTool({
             summary: 'Move the cursor to a (line, ch) position in the active editor. 0-based.',
-            errors: [
-              '"No active editor" if no markdown view is focused.',
-              '"Position is out of range" if line is past the last line (ch is not checked).',
-            ],
-            seeAlso: [
-              'editor_set_selection — when you want to select a range, not collapse the caret to a point.',
-            ],
+            errors: ['"Position is out of range" if line is past the last line (ch is not checked).'],
+            seeAlso: ['editor_set_selection — to select a range.'],
           }),
           schema: setCursorSchema,
           outputSchema: positionOutputSchema,
@@ -487,7 +478,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           name: 'editor_get_selection',
           title: 'Get selection',
           description: describeTool({
-            summary: 'Get the current text selection in the active editor. With nothing selected, from equals to (the cursor) and text is "".',
+            summary: 'Get the selected text and its range (0-based) in the active editor. With nothing selected, from equals to (the cursor) and text is "".',
             errors: ['"No active editor or selection" if no editor is open.'],
           }),
           schema: readOnlySchema,
@@ -500,10 +491,8 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Set selection',
           description: describeTool({
             summary: `Select a range in the active editor. ${RANGE_NOTE}`,
-            errors: ['"No active editor" if no markdown view is focused.', RANGE_OUT_OF_RANGE_ERROR],
-            seeAlso: [
-              'editor_set_cursor — when you want to place the caret at a point, not select a range.',
-            ],
+            errors: [RANGE_OUT_OF_RANGE_ERROR],
+            seeAlso: ['editor_set_cursor — to place the caret at a point.'],
           }),
           schema: setSelectionSchema,
           outputSchema: rangeOutputSchema,
@@ -515,7 +504,6 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Get line count',
           description: describeTool({
             summary: 'Get the number of lines in the active editor.',
-            errors: ['"No active editor" if no markdown view is focused.'],
           }),
           schema: readOnlySchema,
           outputSchema: getLineCountOutputSchema,

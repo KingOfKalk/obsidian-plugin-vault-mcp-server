@@ -306,20 +306,32 @@ const insertOutputSchema = {
   modified: newModified,
 };
 
-/** Error lines shared by the tools that address a section by heading (#428). */
-const HEADING_NOT_FOUND_ERROR =
-  '"Heading not found" (with the available headings and their line numbers) if no heading matches.';
-const HEADING_AMBIGUOUS_ERROR =
-  '"Heading … is ambiguous" (with the matches and their line numbers) if more than one heading matches.';
+/** Error line shared by the tools that address a section by heading (#428). */
+const HEADING_ERRORS =
+  '"Heading not found" or "Heading … is ambiguous" (with the candidate headings and their line numbers) if none or several match.';
 
 /** Errors of the rename/move tools, as the adapter and Obsidian word them (#449). */
 const PATH_NOT_FOUND_ERROR = '"Path not found" if path does not exist.';
 const DESTINATION_EXISTS_ERROR =
   '"Destination file already exists!" if the new path is taken; nothing is moved.';
 
-/** Error line shared by the write tools that take `expectedMtime` (#406). */
-const MTIME_CONFLICT_ERROR =
-  '"File changed since expectedMtime" (with the current mtime) if expectedMtime is set and the file was modified since; nothing is written.';
+/**
+ * Error line of the tools that take a file path. The conflict error of
+ * `expectedMtime` is in that parameter's text (EXPECTED_MTIME_DESC), and
+ * the traversal error in the server instructions (#457).
+ */
+const FILE_NOT_FOUND_ERROR = '"File not found" if path does not exist.';
+
+/** Link handling of the rename/move tools (#449). */
+const LINK_UPDATE_RETURNS =
+  'Links to it (for a folder: to every file in it) are updated only if the user enabled "Automatically update internal links"; ' +
+  'no Obsidian prompt appears either way. linksUpdated and updatedFiles report the rewritten links, autoUpdateLinks the setting; ' +
+  'warning is set when other files link to it but were not updated.';
+
+/** Where a delete goes (#449). */
+const TRASH_RETURNS =
+  'It goes where the user\'s "Deleted files" setting says; trashedTo reports which: "system" (system trash), ' +
+  '"vault" (the vault\'s .trash folder), "permanent", or "unknown" if the setting cannot be read.';
 
 const writeBinaryOutputSchema = {
   path: writePath,
@@ -353,15 +365,11 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           name: 'vault_create',
           title: 'Create file',
           description: describeTool({
-            summary: 'Create a new file at a vault-relative path with text content. Missing parent folders are created.',
+            summary: 'Create a new text file. Missing parent folders are created.',
             examples: [
-              'Use when: creating notes/ideas.md with "# Ideas"',
-              'Don\'t use when: the file already exists — call vault_update instead.',
+              'Don\'t use when: the file exists — use vault_update.',
             ],
-            errors: [
-              '"File already exists" if the target path is taken.',
-              '"Path must not traverse outside the vault" on traversal attempts.',
-            ],
+            errors: ['"File already exists" if path is taken.'],
           }),
           schema: createFileSchema,
           outputSchema: createdOutputSchema,
@@ -372,24 +380,22 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           name: 'vault_read',
           title: 'Read file',
           description: describeTool({
-            summary: 'Read the UTF-8 content of a file by vault-relative path.',
+            summary: 'Read the UTF-8 content of a file.',
             returns:
               'Files over 24 000 characters come in windows: while hasMore is true, call again with offset=nextOffset. ' +
-              'With heading, only that section is returned (paged the same way). ' +
-              'With responseFormat=json a window can be shorter than length, so the escaped JSON still fits the response limit; always continue at nextOffset.',
+              'With heading, only that section (paged the same way). ' +
+              'With responseFormat=json a window can be shorter than length, so the escaped JSON fits the response limit; always continue at nextOffset.',
             examples: [
               'Use when: "show me the README" -> { path: "README.md" }',
               'Use when: continuing a large file -> { path: "big.md", offset: 24000 }',
-              'Use when: reading one section of a long note -> { path: "journal.md", heading: "## Log" }',
+              'Use when: reading one section -> { path: "journal.md", heading: "## Log" }',
             ],
             errors: [
-              '"File not found" if the path does not exist.',
-              '"Path must not traverse outside the vault" on traversal attempts.',
-              HEADING_NOT_FOUND_ERROR,
-              HEADING_AMBIGUOUS_ERROR,
+              FILE_NOT_FOUND_ERROR,
+              HEADING_ERRORS,
             ],
             seeAlso: [
-              'editor_get_content — when reading the file currently open in the editor (no path needed).',
+              'editor_get_content — for the file open in the editor (no path needed).',
             ],
           }),
           schema: readFileSchema,
@@ -403,11 +409,10 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary: 'Overwrite an existing file with new content.',
             examples: [
-              'Use when: replacing a draft with a final version.',
-              'Don\'t use when: you only need to append (use vault_append) or change one passage (use vault_replace).',
+              'Don\'t use when: appending (vault_append) or changing one passage (vault_replace).',
               'Don\'t use when: you read only part of a large file — writing that window back truncates the note.',
             ],
-            errors: ['"File not found" if the path does not exist.', MTIME_CONFLICT_ERROR],
+            errors: [FILE_NOT_FOUND_ERROR],
           }),
           schema: updateFileSchema,
           outputSchema: updatedOutputSchema,
@@ -418,10 +423,9 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           name: 'vault_delete',
           title: 'Delete file',
           description: describeTool({
-            summary: 'Delete a file by vault-relative path.',
-            returns: 'The file goes where the user\'s "Deleted files" setting says: system trash, the vault\'s .trash folder, or permanently. `trashedTo` reports which ("system", "vault", "permanent", or "unknown" if the setting cannot be read).',
-            examples: ['Use when: removing an outdated note.'],
-            errors: ['"File not found" if the path does not exist.'],
+            summary: 'Delete a file.',
+            returns: TRASH_RETURNS,
+            errors: [FILE_NOT_FOUND_ERROR],
           }),
           schema: deleteFileSchema,
           outputSchema: deletedOutputSchema,
@@ -434,11 +438,11 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary: 'Append content to the end of an existing file.',
             returns:
-              'If the file is not empty and does not end with a line break, and content does not start with one, ' +
+              'If the file is not empty, does not end with a line break and content does not start with one, ' +
               'one line break (the file\'s own LF or CRLF) is added first, so the content starts on a new line. ' +
-              'Returns the new modified timestamp.',
-            examples: ['Use when: adding a new bullet to a daily note -> { path: "daily/2026-01-02.md", content: "- call Ada" }'],
-            errors: ['"File not found" if the path does not exist.', MTIME_CONFLICT_ERROR],
+              'The result has the new modified timestamp.',
+            examples: ['Use when: adding a bullet to a daily note -> { path: "daily/2026-01-02.md", content: "- call Ada" }'],
+            errors: [FILE_NOT_FOUND_ERROR],
           }),
           schema: appendFileSchema,
           outputSchema: appendedOutputSchema,
@@ -451,25 +455,24 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary:
               'Replace an exact passage in a file without rewriting the rest. oldString must match exactly once unless replaceAll is true. ' +
-              'Pass edits instead of oldString/newString to make several replacements all or nothing.',
+              'Pass edits instead of oldString/newString for several replacements, all or nothing.',
             returns:
-              'Matching and writing happen in one atomic step. oldString is matched against the raw file text, ' +
-              'line endings included (in a CRLF file a line break is \\r\\n). With edits, every edit is checked against the file as it was before the call, and the result adds edits: [{ index, replacements }].',
+              'Matching and writing happen in one atomic step; on any error nothing is written. Matching uses the raw file text, ' +
+              'line endings included (in a CRLF file a line break is \\r\\n). With edits, the result adds edits: [{ index, replacements }].',
             examples: [
               'Use when: fixing one line in a large note -> { path: "notes/a.md", oldString: "status: draft", newString: "status: done" }',
               'Use when: renaming a term everywhere in one file -> { ..., replaceAll: true }',
-              'Use when: changing two sections at once -> { path: "notes/a.md", edits: [{ oldString: "## Agenda\\n- old", newString: "## Agenda\\n- new" }, { oldString: "- [ ] task", newString: "- [x] task" }] }',
-              'Don\'t use when: editing the open note by line/column position (use editor_replace).',
+              'Use when: changing two places at once -> { path: "notes/a.md", edits: [{ oldString: "## Agenda\\n- old", newString: "## Agenda\\n- new" }, { oldString: "- [ ] task", newString: "- [x] task" }] }',
+              'Don\'t use when: editing the open note by line/column (use editor_replace).',
             ],
             errors: [
-              '"File not found" if the path does not exist.',
-              '"oldString not found … (0 matches)" or "oldString is ambiguous … (N matches)"; nothing is written.',
-              '"edits[i].oldString not found/is ambiguous … (N matches)" or "edits[i] and edits[j] overlap"; nothing is written.',
-              '"Pass either oldString/newString or edits, not both" (or neither); nothing is written.',
-              MTIME_CONFLICT_ERROR,
+              FILE_NOT_FOUND_ERROR,
+              '"oldString not found … (0 matches)" or "oldString is ambiguous … (N matches)".',
+              '"edits[i].oldString not found/is ambiguous … (N matches)" or "edits[i] and edits[j] overlap".',
+              '"Pass either oldString/newString or edits, not both" (or neither).',
             ],
             seeAlso: [
-              'vault_update — when replacing the whole file.',
+              'vault_update — to replace the whole file.',
             ],
           }),
           schema: replaceInFileSchema,
@@ -485,21 +488,19 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
               'Insert text at the start or end of a Markdown section, addressed by its heading, without rewriting the rest of the file.',
             returns:
               'A section runs from its heading to the next heading of the same or a higher level (or the end of the file). ' +
-              'Finding the section and writing happen in one atomic step.',
+              'Finding the section and writing happen in one atomic step; on any error nothing is written.',
             examples: [
               'Use when: adding a log entry -> { path: "journal.md", heading: "## Log", text: "- 09:30 standup" }',
               'Use when: putting a note at the top of a section -> { path: "a.md", heading: "Notes", position: "start", text: "Important!" }',
               "Don't use when: the edit is not at a section boundary (use vault_replace).",
             ],
             errors: [
-              '"File not found" if the path does not exist.',
-              `${HEADING_NOT_FOUND_ERROR} Nothing is written.`,
-              `${HEADING_AMBIGUOUS_ERROR} Nothing is written.`,
-              MTIME_CONFLICT_ERROR,
+              FILE_NOT_FOUND_ERROR,
+              HEADING_ERRORS,
             ],
             seeAlso: [
-              'vault_read — with heading to read just that section first.',
-              'vault_append — when adding to the end of the file.',
+              'vault_read — with heading, to read just that section first.',
+              'vault_append — to add to the end of the file.',
             ],
           }),
           schema: insertSchema,
@@ -511,11 +512,11 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           name: 'vault_get_metadata',
           title: 'Get file metadata',
           description: describeTool({
-            summary: 'Get file stat metadata (size, creation date, modification date).',
+            summary: 'Get file stat metadata: size in bytes, creation and modification time.',
             examples: ['Use when: checking if a note has changed recently.'],
-            errors: ['"File not found" if the path does not exist.'],
+            errors: [FILE_NOT_FOUND_ERROR],
             seeAlso: [
-              'extras_get_date — when you need the current date in a specific format, not a file\'s timestamp.',
+              'extras_get_date — for the current date and time, not a file\'s timestamp.',
             ],
           }),
           schema: getMetadataSchema,
@@ -528,7 +529,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Rename file',
           description: describeTool({
             summary: 'Rename a file or folder within its current folder.',
-            returns: 'Links to the file (for a folder: to every file in it) are updated if the user enabled "Automatically update internal links"; with it off, links are not updated and no Obsidian prompt appears. `linksUpdated` and `updatedFiles` report the rewritten links, `autoUpdateLinks` the setting, and `warning` is set when other files link to it but were not updated.',
+            returns: LINK_UPDATE_RETURNS,
             examples: ['Use when: renaming "notes/draft.md" to "notes/final.md" -> { path: "notes/draft.md", newName: "final.md" }'],
             errors: [
               '"newName must not contain path separators" if newName has / or \\; "Invalid rename target" if it is blank or invalid.',
@@ -546,8 +547,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Move file',
           description: describeTool({
             summary: 'Move a file or folder to a new path (can change folder and name). Missing parent folders are created.',
-            returns: 'Links to the file (for a folder: to every file in it) are updated if the user enabled "Automatically update internal links"; with it off, links are not updated and no Obsidian prompt appears. `linksUpdated` and `updatedFiles` report the rewritten links, `autoUpdateLinks` the setting, and `warning` is set when other files link to it but were not updated.',
-            examples: ['Use when: archiving a note by moving it to "archive/<name>.md".'],
+            returns: LINK_UPDATE_RETURNS,
             errors: [PATH_NOT_FOUND_ERROR, DESTINATION_EXISTS_ERROR],
           }),
           schema: moveFileSchema,
@@ -560,7 +560,6 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Copy file',
           description: describeTool({
             summary: 'Copy a file to a new path, leaving the original in place. Missing parent folders are created.',
-            examples: ['Use when: duplicating a template before editing.'],
             errors: [
               '"File not found" if sourcePath does not exist or is a folder.',
               '"EEXIST: file already exists" if destPath is taken; nothing is copied.',
@@ -575,8 +574,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           name: 'vault_create_folder',
           title: 'Create folder',
           description: describeTool({
-            summary: 'Create a new folder at a vault-relative path.',
-            examples: ['Use when: creating a "projects" folder before adding notes.'],
+            summary: 'Create a new folder.',
             errors: ['"Folder already exists" if the path is taken.'],
           }),
           schema: createFolderSchema,
@@ -589,8 +587,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Delete folder',
           description: describeTool({
             summary: 'Delete a folder, optionally recursively.',
-            returns: 'The folder goes where the user\'s "Deleted files" setting says: system trash, the vault\'s .trash folder, or permanently. `trashedTo` reports which ("system", "vault", "permanent", or "unknown" if the setting cannot be read).',
-            examples: ['Use when: removing an empty "old-drafts" folder.'],
+            returns: TRASH_RETURNS,
             errors: [
               '"Folder not found" if path does not exist or is not a folder.',
               '"Folder "<path>" is not empty. Use recursive=true to delete." if it has contents and recursive is false.',
@@ -606,8 +603,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Rename folder',
           description: describeTool({
             summary: 'Rename or move a folder (a file works too). Missing parent folders of newPath are created.',
-            returns: 'Links into the folder are updated if the user enabled "Automatically update internal links"; with it off, links are not updated and no Obsidian prompt appears. `linksUpdated` and `updatedFiles` report the rewritten links, `autoUpdateLinks` the setting, and `warning` is set when other files link to it but were not updated.',
-            examples: ['Use when: renaming "WIP" to "Archive".'],
+            returns: LINK_UPDATE_RETURNS,
             errors: [PATH_NOT_FOUND_ERROR, DESTINATION_EXISTS_ERROR],
           }),
           schema: renameFolderSchema,
@@ -620,10 +616,9 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'List folder',
           description: describeTool({
             summary: 'List files and folders directly under a path (non-recursive), as full vault-relative paths.',
-            examples: ['Use when: inspecting the top level of the vault.'],
             errors: ['"Folder not found" if path does not exist.'],
             seeAlso: [
-              'vault_list_recursive — when you also need files in subfolders.',
+              'vault_list_recursive — to include subfolders.',
             ],
           }),
           schema: listFolderSchema,
@@ -638,12 +633,11 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             summary: 'List all files and folders under a path, recursively.',
             returns: 'Files are paged with limit/offset; folders are always listed in full.',
             examples: [
-              'Use when: building an index of a subfolder.',
               'Don\'t use when: the folder is very large — list a narrower subfolder.',
             ],
             errors: ['"Folder not found" if path does not exist.'],
             seeAlso: [
-              'vault_list — when you only need direct children of one folder.',
+              'vault_list — for the direct children of one folder only.',
             ],
           }),
           schema: listRecursiveSchema,
@@ -655,13 +649,12 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           name: 'vault_read_binary',
           title: 'Read binary file',
           description: describeTool({
-            summary: 'Read binary file contents as base64.',
+            summary: 'Read a binary file as base64.',
             returns:
               'The text is the bare base64 string of the whole file, never truncated: up to 1 MiB, about 1.4 million characters. ' +
               'Check the size with vault_get_metadata first.',
-            examples: ['Use when: embedding an image referenced from a note.'],
             errors: [
-              '"File not found" if path does not exist.',
+              FILE_NOT_FOUND_ERROR,
               '"Binary file too large" if the file exceeds 1 MiB.',
             ],
           }),
@@ -675,8 +668,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Write binary file',
           description: describeTool({
             summary: 'Create a binary file from base64, or overwrite it if it exists. Missing parent folders are created.',
-            examples: ['Use when: attaching a downloaded PDF to the vault.'],
-            errors: ['"Invalid base64 string" if data is not valid base64.', MTIME_CONFLICT_ERROR],
+            errors: ['"Invalid base64 string" if data is not valid base64.'],
           }),
           schema: writeBinarySchema,
           outputSchema: writeBinaryOutputSchema,
@@ -691,11 +683,11 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
               'Get one metadata aspect of a file: frontmatter, headings, ' +
               'outgoing links, embeds, backlinks, or block references.',
             examples: [
-              'Use when: "list the headings in README.md" → { path: "README.md", aspect: "headings" }.',
-              'Use when: "what links to this note?" → { path: "ideas.md", aspect: "backlinks" }.',
-              'Use when: "how is this note referenced?" → { path: "ideas.md", aspect: "backlinks", includeContext: true }.',
+              'Use when: "list the headings in README.md" → { path: "README.md", aspect: "headings" }',
+              'Use when: "what links to this note?" → { path: "ideas.md", aspect: "backlinks" }',
+              'Use when: "how is this note referenced?" → { ..., aspect: "backlinks", includeContext: true }',
             ],
-            errors: ['"File not found" if the path does not exist.'],
+            errors: [FILE_NOT_FOUND_ERROR],
           }),
           schema: getAspectSchema,
           outputSchema: getAspectOutputSchema,
@@ -708,19 +700,19 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary:
               "Resolve the daily note's path for today or date from the Daily notes core plugin settings and return the note if it exists. " +
-              'Does not open it in the editor. Nothing is created by default; pass create=true to create a missing note from the configured template.',
+              'Does not open it in the editor. Creates a missing note (from the configured template) only with create=true.',
             returns:
-              "In a new note {{date}} is the note's date (YYYY-MM-DD), {{time}} the local time (HH:mm) and {{title}} the file name without .md. " +
-              'A template with Templater syntax (<%) is copied unchanged; a configured template that is missing gives an empty note, without a warning.',
+              "In a new note {{date}} is the note's date (YYYY-MM-DD), {{time}} the local time (HH:mm), {{title}} the file name without .md. " +
+              'Templater syntax (<%) is copied unchanged; a configured template that is missing gives an empty note, without a warning.',
             examples: [
-              "Use when: starting a daily review and you need today's note, creating it if missing → { create: true }.",
-              'Use when: checking whether a past daily note exists → { date: "2026-01-02" }.',
-              "Don't use when: you want a weekly/monthly note (not supported by this tool).",
+              "Use when: you need today's note, creating it if missing → { create: true }",
+              'Use when: checking whether a past daily note exists → { date: "2026-01-02" }',
+              "Don't use when: you want a weekly/monthly note (not supported).",
             ],
             errors: [
-              '"Plugin API unavailable for daily-notes" when the daily-notes core plugin is disabled.',
-              '"date must be a valid calendar date" for malformed or out-of-calendar input.',
-              '"Path must not traverse outside the vault" if the configured format produces a traversing path.',
+              '"Plugin API unavailable for daily-notes" if the Daily notes core plugin is disabled.',
+              '"date must be a valid calendar date" for an out-of-calendar date such as 2026-02-30.',
+              '"Path must not traverse outside the vault" if the configured format leads outside the vault.',
             ],
           }),
           schema: dailyNoteSchema,
@@ -739,17 +731,16 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             examples: [
               'Use when: marking a note done -> { path: "projects/alpha.md", set: { status: "done" } }',
               'Use when: dropping a key -> { path: "projects/alpha.md", set: {}, remove: ["draft"] }',
-              'Don\'t use when: changing the note body — use vault_replace or vault_insert.',
+              'Don\'t use when: changing the note body (vault_replace, vault_insert).',
             ],
             errors: [
-              '"File not found" if the path does not exist.',
+              FILE_NOT_FOUND_ERROR,
               '"Frontmatter can only be set on Markdown (.md) files" for other file types.',
-              '"Keys cannot be both set and removed" if a key appears in set and remove.',
+              '"Keys cannot be both set and removed" if a key is in both.',
               '"Nothing to change" if set is empty and remove is missing or empty.',
-              MTIME_CONFLICT_ERROR,
             ],
             seeAlso: [
-              'vault_get_aspect — with aspect=frontmatter to read frontmatter without changing it.',
+              'vault_get_aspect — with aspect=frontmatter to read it without changing it.',
             ],
           }),
           schema: setFrontmatterSchema,

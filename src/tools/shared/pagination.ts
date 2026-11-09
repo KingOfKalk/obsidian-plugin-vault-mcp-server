@@ -14,13 +14,13 @@ export const paginationFields = {
     .min(1)
     .max(100)
     .default(20)
-    .describe('Maximum items to return (1..100, default 20).'),
+    .describe('Maximum items per page.'),
   offset: z
     .number()
     .int()
     .min(0)
     .default(0)
-    .describe('Number of items to skip before returning results (default 0).'),
+    .describe('Items to skip; pass nextOffset to get the next page.'),
 };
 
 export interface PaginationInput {

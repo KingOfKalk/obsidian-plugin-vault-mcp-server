@@ -18,6 +18,7 @@ import type { ObsidianAdapter } from '../obsidian/adapter';
 import type { McpPluginSettings } from '../types';
 import manifest from '../../manifest.json';
 import { createServerModule, SERVER_DISPLAY_NAME } from '../tools/server';
+import { PATH_RULE_HINT } from '../tools/shared/descriptions';
 
 /**
  * Tool-use hints injected into Claude's session-long system prompt via the
@@ -49,16 +50,14 @@ export function buildServerInstructions(
   }
   if (hasPrefix('editor_')) {
     hints.push(
-      '- `editor_*` tools operate on the **active** file only' +
-        (has('workspace_open_file')
-          ? ' — open one with `workspace_open_file` first if needed'
-          : '') +
-        '; no expectedMtime check.',
+      '- `editor_*` tools work on the **active** file only' +
+        (has('workspace_open_file') ? ' (open one with `workspace_open_file`)' : '') +
+        '; no expectedMtime check; most fail with "No active editor" if no Markdown view is focused.',
     );
   }
-  hints.push(
-    '- Paths are vault-relative with forward slashes, files with the extension (e.g. `notes/foo.md`); never absolute filesystem paths.',
-  );
+  // The full path rule; each path parameter carries only a short form
+  // (#457). Always sent, so it is there whenever a path tool is.
+  hints.push(PATH_RULE_HINT);
   if (has('vault_replace')) {
     // Which write tool to use (#449); vault_update on one read window
     // truncates a large note.

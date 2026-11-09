@@ -632,7 +632,7 @@ describe('search tools document shared args in inputSchema', () => {
       const schema = schemaFor(name);
       expect(schema.limit.description, name).toContain('Maximum items');
       expect(schema.offset.description, name).toContain('skip');
-      expect(schema.responseFormat.description, name).toContain('markdown');
+      expect(schema.responseFormat.description, name).toContain('json');
     }
   });
 

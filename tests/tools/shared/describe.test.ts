@@ -12,13 +12,21 @@ describe('describeTool', () => {
       examples: ['Use when: testing.'],
       errors: ['"boom" on failure.'],
     });
-    expect(out).toContain('Do a thing.');
-    expect(out).toContain('Returns:');
-    expect(out).toContain('  Plain text "ok".');
-    expect(out).toContain('Examples:');
-    expect(out).toContain('  - Use when: testing.');
-    expect(out).toContain('Errors:');
-    expect(out).toContain('  - "boom" on failure.');
+    expect(out).toBe(
+      ['Do a thing.', 'Returns: Plain text "ok".', 'Examples:', '- Use when: testing.', 'Errors:', '- "boom" on failure.'].join('\n'),
+    );
+  });
+
+  it('renders no blank lines and no indentation (#457)', () => {
+    const out = describeTool({
+      summary: 'Read.',
+      returns: 'x',
+      examples: ['Use when: a.'],
+      seeAlso: ['other_tool — b.'],
+      errors: ['"c".'],
+    });
+    expect(out).not.toContain('\n\n');
+    expect(out).not.toMatch(/\n /);
   });
 
   it('never renders an Args section (parameters are documented in inputSchema, #388)', () => {
@@ -38,7 +46,7 @@ describe('describeTool', () => {
       ],
     });
     expect(out).toContain('See also:');
-    expect(out).toContain('  - other_tool — when you want the other variant.');
+    expect(out).toContain('\n- other_tool — when you want the other variant.');
   });
 
   it('places See also between Examples and Errors', () => {

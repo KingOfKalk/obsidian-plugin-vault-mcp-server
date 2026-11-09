@@ -14,7 +14,7 @@ List every installed community plugin with its enabled flag.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -58,7 +58,7 @@ Check whether a plugin is installed and enabled.
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `pluginId` | string (1–200) | yes | Community plugin id (e.g. "dataview") |
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -96,18 +96,17 @@ Response (`structuredContent`):
 **Run Dataview query**
 
 Execute a Dataview DQL query and return the rendered markdown. List fields in TABLE cells come back as plain text ("a, b"), not HTML.
-
 Errors:
-  - "Plugin not installed or disabled: dataview" if Dataview is missing.
-  - "Plugin API unavailable for dataview" if Dataview is loaded but its API is not yet exposed.
-  - "Dataview query failed: <reason>" if the query parses but does not execute cleanly.
+- "Plugin not installed or disabled: dataview" if Dataview is missing.
+- "Plugin API unavailable for dataview" if Dataview is loaded but its API is not yet exposed.
+- "Dataview query failed: <reason>" if the query parses but does not execute cleanly.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `query` | string (1–10000) | yes | Dataview DQL query text. JavaScript queries are not executed by this tool — see plugin_dataview_describe_js_query. |
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -143,16 +142,15 @@ Response (`structuredContent`):
 **Describe Dataview JS query**
 
 Does not run anything: returns the given Dataview-JS source unchanged with a note that this server never executes Dataview-JS.
-
 See also:
-  - plugin_dataview_query — to run a Dataview DQL query.
+- plugin_dataview_query — to run a Dataview DQL query.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `query` | string (1–10000) | yes | Dataview-JS source; returned unchanged, never executed. |
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -194,7 +192,7 @@ Does not run anything: returns the given template path unchanged with a note tha
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `templatePath` | string (1–4096) | yes | Template path; returned unchanged, not checked or read. |
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -230,14 +228,10 @@ Response (`structuredContent`):
 **Execute command**
 
 Run an Obsidian command by id. Only ids the user put on the Execute Command Allowlist in the plugin settings run; the list is empty by default.
-
-Examples:
-  - Use when: triggering "editor:save-file" programmatically.
-
 Errors:
-  - "Command execution disabled" if the allowlist is empty; ask the user to add the command id in the plugin settings.
-  - "Command "<id>" is not on the executeCommand allowlist" if the id is not listed.
-  - "Command not found" if the id is listed but no such command exists.
+- "Command execution disabled" if the allowlist is empty; ask the user to add the id in the plugin settings.
+- "Command "<id>" is not on the executeCommand allowlist" if the id is not listed.
+- "Command not found" if the id is listed but no such command exists.
 
 #### Input
 

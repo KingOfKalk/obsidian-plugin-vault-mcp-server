@@ -8,19 +8,15 @@ Auto-generated schema reference for the `editor` module. See [../tools.generated
 
 **Get active file content**
 
-Get the full text content of the currently active editor.
-
+Get the full text of the active editor.
 See also:
-  - vault_read — when reading any file by path, not just the active one.
-
-Errors:
-  - "No active editor" if no markdown view is focused.
+- vault_read — to read any file by path.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -52,18 +48,16 @@ Response (`structuredContent`):
 **Get active file path**
 
 Get the vault-relative path of the currently active file.
-
 See also:
-  - workspace_get_active_leaf — when you need the active pane/leaf (id and view type), not just the file path.
-
+- workspace_get_active_leaf — for the active leaf (id and view type), not just the path.
 Errors:
-  - "No active file" if no file is open.
+- "No active file" if no file is open.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -95,25 +89,21 @@ Response (`structuredContent`):
 **Insert at position**
 
 Insert text at a (line, ch) position in the active editor (not at the cursor). 0-based.
-
 Examples:
-  - Use when: inserting a heading at the top of the file (line 0, ch 0).
-
+- Use when: inserting a heading at the top of the file (line 0, ch 0).
 See also:
-  - editor_replace — when you want to overwrite an existing range, not insert at a point.
-  - editor_delete — when you want to remove a range without writing anything in its place.
-
+- editor_replace — to overwrite a range.
+- editor_delete — to remove a range.
 Errors:
-  - "No active editor" if no markdown view is focused.
-  - "Position is out of range" if line is greater than the line count (ch is not checked; past the line end it runs into the next line).
+- "Position is out of range" if line > line count (ch is not checked; past the line end it runs into the next line).
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `line` | number (0–9007199254740991) | yes | Line (0-based) |
-| `ch` | number (0–9007199254740991) | yes | Column within the line (0-based) |
-| `text` | string (≤5000000) | yes | Text to insert at (line, ch); may contain newlines |
+| `line` | number (0–9007199254740991) | yes | Line (0-based). |
+| `ch` | number (0–9007199254740991) | yes | Column (0-based). |
+| `text` | string (≤5000000) | yes | Text to insert; may contain newlines. |
 
 #### Output
 
@@ -151,18 +141,14 @@ Response (`structuredContent`):
 **Replace range**
 
 Replace a range of the active editor's text. Range: from (fromLine, fromCh) up to but not including (toLine, toCh), 0-based.
-
 Examples:
-  - Use when: replacing "abc" that starts at column 4 of line 3 -> { fromLine: 3, fromCh: 4, toLine: 3, toCh: 7, text: "xyz" }
-
+- Use when: replacing "abc" that starts at column 4 of line 3 -> { fromLine: 3, fromCh: 4, toLine: 3, toCh: 7, text: "xyz" }
 See also:
-  - vault_replace — to change exact text in a file by content, with a conflict check.
-  - editor_insert — when you want to add text at a single point without overwriting anything.
-  - editor_delete — when you want to remove a range without writing anything in its place.
-
+- vault_replace — to change exact text in a file by content, with a conflict check.
+- editor_insert — to add text at a point.
+- editor_delete — to remove a range.
 Errors:
-  - "No active editor" if no markdown view is focused.
-  - "Position is out of range" if fromLine is past the last line or toLine > line count (columns are not checked; a ch past the line end runs into the next line).
+- "Position is out of range" if fromLine is past the last line or toLine > line count (columns are not checked; a ch past the line end runs into the next line).
 
 #### Input
 
@@ -172,7 +158,7 @@ Errors:
 | `fromCh` | number (0–9007199254740991) | yes | Start column (0-based); included. |
 | `toLine` | number (0–9007199254740991) | yes | End line (0-based); equals fromLine for a range within one line. |
 | `toCh` | number (0–9007199254740991) | yes | End column (0-based); not included. |
-| `text` | string (≤5000000) | yes | Replacement text for the range |
+| `text` | string (≤5000000) | yes | Replacement text. |
 
 #### Output
 
@@ -218,14 +204,11 @@ Response (`structuredContent`):
 **Delete range**
 
 Delete a range of the active editor's text. Range: from (fromLine, fromCh) up to but not including (toLine, toCh), 0-based.
-
 See also:
-  - editor_insert — when you want to add text at a single point without overwriting anything.
-  - editor_replace — when you want to overwrite an existing range, not just remove it.
-
+- editor_insert — to add text at a point.
+- editor_replace — to overwrite a range.
 Errors:
-  - "No active editor" if no markdown view is focused.
-  - "Position is out of range" if fromLine is past the last line or toLine > line count (columns are not checked; a ch past the line end runs into the next line).
+- "Position is out of range" if fromLine is past the last line or toLine > line count (columns are not checked; a ch past the line end runs into the next line).
 
 #### Input
 
@@ -278,16 +261,13 @@ Response (`structuredContent`):
 
 **Get cursor position**
 
-Get the current cursor position in the active editor.
-
-Errors:
-  - "No active editor" if no markdown view is focused.
+Get the cursor position (0-based line, ch) in the active editor.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -321,20 +301,17 @@ Response (`structuredContent`):
 **Set cursor position**
 
 Move the cursor to a (line, ch) position in the active editor. 0-based.
-
 See also:
-  - editor_set_selection — when you want to select a range, not collapse the caret to a point.
-
+- editor_set_selection — to select a range.
 Errors:
-  - "No active editor" if no markdown view is focused.
-  - "Position is out of range" if line is past the last line (ch is not checked).
+- "Position is out of range" if line is past the last line (ch is not checked).
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `line` | number (0–9007199254740991) | yes | Line (0-based) |
-| `ch` | number (0–9007199254740991) | yes | Column (0-based) |
+| `line` | number (0–9007199254740991) | yes | Line (0-based). |
+| `ch` | number (0–9007199254740991) | yes | Column (0-based). |
 
 #### Output
 
@@ -370,16 +347,15 @@ Response (`structuredContent`):
 
 **Get selection**
 
-Get the current text selection in the active editor. With nothing selected, from equals to (the cursor) and text is "".
-
+Get the selected text and its range (0-based) in the active editor. With nothing selected, from equals to (the cursor) and text is "".
 Errors:
-  - "No active editor or selection" if no editor is open.
+- "No active editor or selection" if no editor is open.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -421,13 +397,10 @@ Response (`structuredContent`):
 **Set selection**
 
 Select a range in the active editor. Range: from (fromLine, fromCh) up to but not including (toLine, toCh), 0-based.
-
 See also:
-  - editor_set_cursor — when you want to place the caret at a point, not select a range.
-
+- editor_set_cursor — to place the caret at a point.
 Errors:
-  - "No active editor" if no markdown view is focused.
-  - "Position is out of range" if fromLine is past the last line or toLine > line count (columns are not checked; a ch past the line end runs into the next line).
+- "Position is out of range" if fromLine is past the last line or toLine > line count (columns are not checked; a ch past the line end runs into the next line).
 
 #### Input
 
@@ -482,14 +455,11 @@ Response (`structuredContent`):
 
 Get the number of lines in the active editor.
 
-Errors:
-  - "No active editor" if no markdown view is focused.
-
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 

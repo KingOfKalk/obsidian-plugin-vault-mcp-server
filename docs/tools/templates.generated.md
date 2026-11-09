@@ -14,7 +14,7 @@ List the files directly inside the top-level folder named exactly "templates" (c
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -47,24 +47,22 @@ Response (`structuredContent`):
 
 **Create file from template**
 
-Create a file by expanding {{variable}} placeholders in a template, optionally setting frontmatter keys on the new note in the same call. Missing parent folders are created.
-
+Create a file by expanding {{variable}} placeholders in a template, optionally setting frontmatter keys on it in the same call. Missing parent folders are created.
 See also:
-  - template_expand — when you want the expanded template content returned inline, not written to a new vault file.
-
+- template_expand — to get the expanded text without writing a file.
 Errors:
-  - "File not found" if templatePath is missing.
-  - "File already exists" if destPath is taken.
-  - "Frontmatter can only be set on Markdown (.md) files" if frontmatter is given for a non-.md destPath.
+- "File not found" if templatePath is missing.
+- "File already exists" if destPath is taken.
+- "Frontmatter can only be set on Markdown (.md) files" if frontmatter is given for a non-.md destPath.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `templatePath` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
-| `destPath` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
-| `variables` | object | no | Values for {{name}} placeholders; they override the built-ins {{date}} (UTC date, YYYY-MM-DD), {{time}} (host-locale time) and {{title}} ("Untitled"). Unknown placeholders and Templater <% %> stay as written. |
-| `frontmatter` | object | no | Frontmatter keys to set on the new note, mapped to JSON-compatible values (string, number, boolean, null, array or object). Applied after the template is expanded: keys from the template are kept, keys given here overwrite them. Markdown (.md) destinations only. |
+| `templatePath` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. |
+| `destPath` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. |
+| `variables` | object | no | Values for {{name}} placeholders, overriding the built-ins {{date}} (UTC, YYYY-MM-DD), {{time}} (host-locale) and {{title}} ("Untitled"). Unknown placeholders and Templater <% %> stay as written. |
+| `frontmatter` | object | no | Keys to set on the new note, mapped to JSON-compatible values (string, number, boolean, null, array or object). Applied after expansion: template keys are kept, keys given here overwrite them. Markdown (.md) destinations only. |
 
 #### Output
 
@@ -112,18 +110,17 @@ Response (`structuredContent`):
 
 **Expand template inline**
 
-Expand {{variable}} placeholders in a supplied string without writing any file.
-
+Expand {{variable}} placeholders in a given string without writing any file.
 See also:
-  - template_create_from — when you want the expanded template written to a new vault file, not just returned as text.
+- template_create_from — to write the expanded template to a new file.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `template` | string (≤100000) | yes | Template text containing {{variable}} placeholders |
-| `variables` | object | no | Values for {{name}} placeholders; they override the built-ins {{date}} (UTC date, YYYY-MM-DD), {{time}} (host-locale time) and {{title}} ("Untitled"). Unknown placeholders and Templater <% %> stay as written. |
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `template` | string (≤100000) | yes | Template text with {{variable}} placeholders. |
+| `variables` | object | no | Values for {{name}} placeholders, overriding the built-ins {{date}} (UTC, YYYY-MM-DD), {{time}} (host-locale) and {{title}} ("Untitled"). Unknown placeholders and Templater <% %> stay as written. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 

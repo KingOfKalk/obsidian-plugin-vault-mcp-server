@@ -9,18 +9,14 @@ Auto-generated schema reference for the `extras` module. See [../tools.generated
 **Get current date**
 
 Get the current local datetime as an ISO-8601 string with timezone offset.
-
-Examples:
-  - Use when: stamping a daily note with the current local time.
-
 See also:
-  - vault_get_metadata — when you need a file's modified/created timestamp, not today's date.
+- vault_get_metadata — for a file's modified/created timestamp.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
