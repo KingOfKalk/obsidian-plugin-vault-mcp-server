@@ -14,8 +14,8 @@ Show a transient notice/toast in Obsidian.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `message` | string (1–1000) | yes | Notice text to show to the user |
-| `duration` | number (0–60000) | no | Milliseconds before the notice auto-dismisses (0 = sticky) |
+| `message` | string (1–1000) | yes | Notice text. |
+| `duration` | number (0–60000) | no | Milliseconds until the notice auto-dismisses (0 = sticky). |
 
 #### Output
 

@@ -338,8 +338,8 @@ Call `server_info` for agent-relevant changes (renamed parameters or fields, new
 This server exposes an Obsidian vault as MCP tools.
 
 - Find notes by content with `search_fulltext` (note text, not file names); by name with `vault_list_recursive`.
-- `editor_*` tools operate on the **active** file only — open one with `workspace_open_file` first if needed; no expectedMtime check.
-- Paths are vault-relative with forward slashes, files with the extension (e.g. `notes/foo.md`); never absolute filesystem paths.
+- `editor_*` tools work on the **active** file only (open one with `workspace_open_file`); no expectedMtime check; most fail with "No active editor" if no Markdown view is focused.
+- Paths: vault-relative, forward slashes, case-sensitive; files with the extension (e.g. `notes/foo.md`); a leading / is ignored. Never absolute filesystem paths; leaving the vault fails with "Path must not traverse outside the vault".
 - To edit a note, prefer `vault_replace` or `vault_insert`; `vault_update` only to rewrite a whole file read in one window.
 - Frontmatter, headings, links, embeds, backlinks, block refs: use `vault_get_aspect`, don't parse `vault_read` output.
 ```
@@ -380,7 +380,13 @@ clients and agents commonly trip over:
 
 - **Parameters are documented in the input schema.** Tool descriptions hold
   a summary, examples and error notes; each parameter's meaning lives in its
-  `description` inside `inputSchema` in `tools/list`.
+  `description` inside `inputSchema` in `tools/list`. Rules that many tools
+  share are written once in the server instructions instead of on every
+  tool: the full path rule (each path parameter only says "vault-relative,
+  with extension" and gives an example) and the "No active editor" error of
+  the `editor_*` tools. Ranges, defaults and limits that the input schema
+  states itself (`minimum`, `maximum`, `default`, `enum`) are not repeated
+  in the text.
 - **Unknown parameters are rejected.** A call with a parameter the tool does
   not declare fails with an error that names it and lists the valid ones,
   e.g. `Unknown parameter: new_name. Valid parameters: path, newName.`

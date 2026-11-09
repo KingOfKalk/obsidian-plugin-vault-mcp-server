@@ -8,19 +8,17 @@ Auto-generated schema reference for the `workspace` module. See [../tools.genera
 
 **Get active leaf**
 
-Get info about the currently-focused leaf (pane).
-
+Get the focused leaf (pane): its id, view type and file path.
 See also:
-  - editor_get_active_file — when you only need the active file's path, not the surrounding leaf metadata.
-
+- editor_get_active_file — for just the active file's path.
 Errors:
-  - "No active leaf" if no leaf is focused.
+- "No active leaf" if no leaf is focused.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -56,20 +54,17 @@ Response (`structuredContent`):
 **Open file in workspace**
 
 Open a file in the active leaf (replacing what it shows; a new tab if that leaf is pinned) and focus it, optionally in a given view mode.
-
 Examples:
-  - Use when: showing a note read-only -> { path: "notes/a.md", mode: "preview" }
-
+- Use when: showing a note read-only -> { path: "notes/a.md", mode: "preview" }
 Errors:
-  - "File not found" if the path does not exist.
-  - "Path must not traverse outside the vault" on traversal attempts.
+- "File not found" if path does not exist.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
-| `mode` | enum: `source` \| `preview` \| `live` | no | Optional view mode for a Markdown note: "source" (Source mode), "live" (Live Preview) or "preview" (Reading view). Without it, Obsidian's default view applies. |
+| `path` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. |
+| `mode` | enum: `source` \| `preview` \| `live` | no | View mode for a Markdown note: "source" (Source mode), "live" (Live Preview) or "preview" (Reading view); omit for Obsidian's default view. |
 
 #### Output
 
@@ -109,7 +104,7 @@ List the open leaves that show a file, with their leaf ids and file paths.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -146,15 +141,14 @@ Response (`structuredContent`):
 **Set active leaf**
 
 Focus a specific leaf by id.
-
 Errors:
-  - "Leaf not found" if the id does not match any leaf.
+- "Leaf not found" if the id does not match any leaf.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `leafId` | string (1–200) | yes | Leaf id returned by workspace_list_leaves |
+| `leafId` | string (1–200) | yes | Leaf id from workspace_list_leaves. |
 
 #### Output
 
@@ -193,7 +187,7 @@ Get Obsidian's raw workspace layout JSON (opaque, varies by Obsidian version, ca
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 

@@ -9,28 +9,19 @@ Auto-generated schema reference for the `search` module. See [../tools.generated
 **Full-text search**
 
 Case-insensitive substring search in the text of Markdown (.md) notes. Does not match file names or other file types.
-
-Returns:
-  Pages over matching files (limit/offset; total and count are files). Each item has up to maxMatchesPerFile matching lines, but the markdown text lists only paths and match counts: use responseFormat=json (or structuredContent) to see the lines.
-
-Examples:
-  - Use when: "find everything mentioning Obsidian".
-
+Returns: Pages over matching files (total and count are files). Each item has up to maxMatchesPerFile matching lines, but the markdown text lists only paths and match counts: use responseFormat=json (or structuredContent) for the lines.
 See also:
-  - vault_list_recursive — to find a file by its name.
-
-Errors:
-  - "Query must not be empty" on empty input.
+- vault_list_recursive — to find a file by its name.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `query` | string (1–500) | yes | Case-insensitive substring to find in the text of Markdown notes |
-| `maxMatchesPerFile` | number (1–100) | no (default `5`) | Maximum matching lines returned per file (1..100, default 5). matchCount always reports the full count. |
-| `limit` | number (1–100) | no (default `20`) | Maximum items to return (1..100, default 20). |
-| `offset` | number (0–9007199254740991) | no (default `0`) | Number of items to skip before returning results (default 0). |
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `query` | string (1–500) | yes | Case-insensitive substring to find. |
+| `maxMatchesPerFile` | number (1–100) | no (default `5`) | Maximum matching lines returned per file; matchCount always reports the full count. |
+| `limit` | number (1–100) | no (default `20`) | Maximum items per page. |
+| `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -94,16 +85,15 @@ Response (`structuredContent`):
 
 **List tags**
 
-List every tag used in the vault's Markdown notes (inline and frontmatter) with the files that use it (each file once) and its total occurrence count.
-
+List every tag in the vault's Markdown notes (inline and frontmatter) with the files using it (each once) and its total occurrence count.
 See also:
-  - search_by_tag — when you want notes carrying a tag, not the list of tags.
+- search_by_tag — for the notes carrying a tag.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -143,15 +133,14 @@ Response (`structuredContent`):
 **Find resolved links**
 
 Get the map of resolved links (targets that exist). Covers the whole vault in one response (no paging), so it can be large.
-
 See also:
-  - search_unresolved_links — when you want broken/dangling links instead.
+- search_unresolved_links — for broken links.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -193,18 +182,14 @@ Response (`structuredContent`):
 **Find unresolved links**
 
 Get the map of unresolved links (link text that matches no file). Covers the whole vault in one response (no paging), so it can be large.
-
-Examples:
-  - Use when: hunting for broken [[wikilinks]] to clean up.
-
 See also:
-  - search_resolved_links — when you want only links that successfully resolve.
+- search_resolved_links — for links that resolve.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -236,18 +221,17 @@ Response (`structuredContent`):
 **Find notes by tag**
 
 Find Markdown notes that carry a tag (inline #tag or frontmatter tags). Matching is exact and case-sensitive.
-
 See also:
-  - search_tags — when you want the list of tags in the vault, not notes.
+- search_tags — for the list of tags with their exact spellings.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `tag` | string (1–200) | yes | Tag with or without the leading # (e.g. "project"). Exact, case-sensitive match: "project" does not find "Project" or nested "project/alpha"; use search_tags for the exact spellings. |
-| `limit` | number (1–100) | no (default `20`) | Maximum items to return (1..100, default 20). |
-| `offset` | number (0–9007199254740991) | no (default `0`) | Number of items to skip before returning results (default 0). |
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `tag` | string (1–200) | yes | Tag with or without the leading # (e.g. "project"). "project" does not find "Project" or nested "project/alpha". |
+| `limit` | number (1–100) | no (default `20`) | Maximum items per page. |
+| `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -292,20 +276,19 @@ Response (`structuredContent`):
 **Find notes by frontmatter**
 
 Find Markdown notes whose YAML frontmatter has a key, optionally with a given value.
-
 Examples:
-  - Use when: "find all notes where status == done" -> { key: "status", value: "done" }
-  - Use when: "which notes have a status?" -> { key: "status" }
+- Use when: "find all notes where status == done" -> { key: "status", value: "done" }
+- Use when: "which notes have a status?" -> { key: "status" }
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `key` | string (1–200) | yes | Top-level frontmatter key (exact, case-sensitive). |
-| `value` | string (≤1000) | no | Value to match exactly, compared as text (the number 5 matches "5", the boolean true matches "true"). For a list property, a file matches if any element equals the value. Omit to match every file that has the key. |
-| `limit` | number (1–100) | no (default `20`) | Maximum items to return (1..100, default 20). |
-| `offset` | number (0–9007199254740991) | no (default `0`) | Number of items to skip before returning results (default 0). |
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
+| `value` | string (≤1000) | no | Value to match exactly, compared as text (5 matches "5", true matches "true"); for a list, any element may match. Omit to match every note with the key. |
+| `limit` | number (1–100) | no (default `20`) | Maximum items per page. |
+| `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
+| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 

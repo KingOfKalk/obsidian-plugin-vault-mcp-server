@@ -9,9 +9,8 @@ Auto-generated schema reference for the `server` module. See [../tools.generated
 **Get server info**
 
 Get the vault-mcp-server version (running: v0.0.0-docs), the enabled tool modules and agent-relevant changes per version (renamed parameters or output fields, new tools). Versions without an entry had no agent-relevant changes.
-
 Examples:
-  - Use when: a tool rejects a parameter or returns fields you did not expect, to check what changed.
+- Use when: a tool rejects a parameter or returns fields you did not expect, to check what changed.
 
 #### Input
 
@@ -67,7 +66,7 @@ Response (`structuredContent`):
         "The server instructions leave out hints about tools that are switched off.",
         "The tool list can change during a session: when the user switches a module or tool on or off, `tools/list` follows right away and the server sends `notifications/tools/list_changed`. Calls to a tool that was switched off fail with \"Tool <name> disabled\"; re-read `tools/list` after the notification.",
         "Tool descriptions corrected (behaviour unchanged): an editor range ends before (toLine, toCh), so a range within one line has toLine = fromLine; `vault_list` returns full vault-relative paths; `search_fulltext` searches Markdown note text only (not file names) and shows matching lines only in JSON /… [truncated, 244 more chars]",
-        "… 2 more items"
+        "… 3 more items"
       ]
     },
     {
