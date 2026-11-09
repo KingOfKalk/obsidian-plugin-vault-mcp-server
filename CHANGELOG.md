@@ -1,6 +1,10 @@
 # Changelog
 
-## [3.3.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v3.2.0...v3.3.0) (2026-11-09)
+> Release tags use the plain version (`3.3.0`) since 2026-11-09. Earlier tags
+> were renamed from `vX.Y.Z` (and `obsidian-mcp-v1.1.0`) to `X.Y.Z`; old links
+> containing `v` no longer resolve.
+
+## [3.3.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/3.2.0...3.3.0) (2026-11-09)
 
 
 ### Features
@@ -19,21 +23,21 @@
 
 * run lint, test and build jobs sequentially ([#415](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/415)) ([935eef9](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/935eef9a12287a2cb46e0bef79b33f06cb0f1f81))
 
-## [3.2.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v3.1.5...v3.2.0) (2026-11-09)
+## [3.2.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/3.1.5...3.2.0) (2026-11-09)
 
 
 ### Features
 
 * show the server version to the model via instructions and server_info ([#403](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/403)) ([6383f50](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/6383f5085ba30f33161977664fb2731dbf58cf41))
 
-## [3.1.5](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v3.1.4...v3.1.5) (2026-11-08)
+## [3.1.5](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/3.1.4...3.1.5) (2026-11-08)
 
 
 ### Bug Fixes
 
 * **tests:** give tool-example tests an explicit timeout ([#400](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/400)) ([4b18466](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/4b184660642aaf0c6b533661e950ec47c6e49eaf)), closes [#399](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/399)
 
-## [3.1.4](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v3.1.3...v3.1.4) (2026-11-08)
+## [3.1.4](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/3.1.3...3.1.4) (2026-11-08)
 
 
 ### Documentation
@@ -50,7 +54,7 @@
 
 * add LLM evaluation suite for the MCP tools ([#395](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/395)) ([6c12981](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/6c1298173656d6a22359aca05c1598e3801fe3be))
 
-## [3.1.3](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v3.1.2...v3.1.3) (2026-11-08)
+## [3.1.3](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/3.1.2...3.1.3) (2026-11-08)
 
 
 ### Bug Fixes
@@ -77,7 +81,7 @@
 * **deps:** migrate to MCP TypeScript SDK v2 ([#390](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/390)) ([a04d1c8](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/a04d1c875bb2c218c578c6a24eb5c9db874f3850))
 * remove unused screenshot pipeline ([#387](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/387)) ([fa24bb9](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/fa24bb92d262c9ad1c27838d1618935df185f940)), closes [#386](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/386)
 
-## [3.1.2](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v3.1.1...v3.1.2) (2026-09-25)
+## [3.1.2](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/3.1.1...3.1.2) (2026-09-25)
 
 
 ### Miscellaneous Chores
@@ -90,7 +94,7 @@
 * **deps-dev:** Bump vitest from 4.1.11 to 5.0.1 ([#371](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/371)) ([a5cb961](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/a5cb961a474e2576af8ed6132f3be1ddf88c14c0))
 * **deps:** Bump the production-deps group across 1 directory with 2 updates ([#368](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/368)) ([bf9cbdb](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/bf9cbdbaf987232297885c65adfd2fc1d721bb41))
 
-## [3.1.1](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v3.1.0...v3.1.1) (2026-08-25)
+## [3.1.1](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/3.1.0...3.1.1) (2026-08-25)
 
 
 ### Bug Fixes
@@ -123,7 +127,7 @@
 * **deps:** Bump actions/setup-node from 6 to 7 ([#347](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/347)) ([d17252f](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/d17252f9edbd42fb95af79be64cd651b70bb0cd3))
 * **deps:** Bump the production-deps group across 1 directory with 2 updates ([#350](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/350)) ([67a6783](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/67a6783e38b727609b09e6649d3aa62ae8e1dabf))
 
-## [3.1.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v3.0.0...v3.1.0) (2026-05-08)
+## [3.1.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/3.0.0...3.1.0) (2026-05-08)
 
 
 ### Features
@@ -135,7 +139,7 @@
 
 * **settings/mcp-config:** include type:"http" in client config snippet ([#328](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/328)) ([95ef012](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/95ef0126bea910d7767d80f4d642033352e806e1)), closes [#326](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/326)
 
-## [3.0.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/v2.7.1...v3.0.0) (2026-05-07)
+## [3.0.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/2.7.1...3.0.0) (2026-05-07)
 
 
 ### ⚠ BREAKING CHANGES
@@ -208,14 +212,14 @@
 * rename plugin id to vault-mcp-server ([#308](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/308)) ([cbfe8dd](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/cbfe8dd362641549f79b13d31e27fbf706f5ea40)), closes [#274](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/274)
 * **server/mcp:** unify error handling between input parsing and handler execution ([#275](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/275)) ([7dff1d7](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/7dff1d7a0f1e5631ceabd9d70e49efc9b79d7130)), closes [#257](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/257)
 
-## [2.7.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.7.0...v2.7.1) (2026-05-01)
+## [2.7.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/2.7.0...2.7.1) (2026-05-01)
 
 
 ### Miscellaneous Chores
 
 * **deps:** Bump zod from 4.3.6 to 4.4.1 ([#238](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/238)) ([30fd26d](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/30fd26d472c6860b26cd60b078113e7a583c79cf))
 
-## [2.7.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.6.0...v2.7.0) (2026-04-28)
+## [2.7.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/2.6.0...2.7.0) (2026-04-28)
 
 
 ### Features
@@ -232,7 +236,7 @@
 * **deps-dev:** Bump vitest from 4.1.4 to 4.1.5 ([#230](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/230)) ([ef8499e](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/ef8499ec95b4bfda06ae25a9a549a8211bb3e236))
 * **deps:** Bump googleapis/release-please-action from 4 to 5 ([#226](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/226)) ([d5c80e3](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/d5c80e32fb2e662fa595bf72dcfd999d045e0d03))
 
-## [2.6.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.5.0...v2.6.0) (2026-04-19)
+## [2.6.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/2.5.0...2.6.0) (2026-04-19)
 
 
 ### Features
@@ -287,21 +291,21 @@
 
 * **tests/settings:** add return types to local helpers ([#225](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/225)) ([c3ce6b1](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/c3ce6b16d7205a14510e0c751abdd329ba312cf9)), closes [#224](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/224)
 
-## [2.5.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.4.1...v2.5.0) (2026-04-18)
+## [2.5.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/2.4.1...2.5.0) (2026-04-18)
 
 
 ### Features
 
 * **registry:** add per-tool MCP annotations ([#191](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/191)) ([c97195f](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/c97195facd8c4a9c524c3b935ca860571c694d0a)), closes [#173](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/173)
 
-## [2.4.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.4.0...v2.4.1) (2026-04-18)
+## [2.4.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/2.4.0...2.4.1) (2026-04-18)
 
 
 ### Bug Fixes
 
 * **ci:** launch Obsidian binary directly in release screenshots ([#168](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/168)) ([7677fbc](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/7677fbc66584d76a99d30b246036e0ba0986919b)), closes [#166](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/166)
 
-## [2.4.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.3.0...v2.4.0) (2026-04-18)
+## [2.4.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/2.3.0...2.4.0) (2026-04-18)
 
 
 ### Features
@@ -316,7 +320,7 @@
 * **ci:** invoke Obsidian AppRun by absolute path in release screenshots ([#164](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/164)) ([ef4520b](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/ef4520be19b65c61e7585a18c14a3329e2710d5f)), closes [#159](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/159)
 * **ci:** make extracted Obsidian AppImage executable for runner user ([#154](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/154)) ([af12956](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/af12956e9cb147dcadf4a0c75ed37e107452194b))
 
-## [2.3.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.2.0...v2.3.0) (2026-04-18)
+## [2.3.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/2.2.0...2.3.0) (2026-04-18)
 
 
 ### Features
@@ -324,14 +328,14 @@
 * add toggle to require Bearer authentication (off by default) ([#147](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/147)) ([e66b044](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/e66b04448d7168dfd84f7c4e57886fd306272dea))
 * **diagnostics:** add debug info bundle and persistent log file ([#145](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/145)) ([d6292d8](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/d6292d844c8f3348771f1069c7a3150e71b1115e)), closes [#143](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/143)
 
-## [2.2.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.1.0...v2.2.0) (2026-04-17)
+## [2.2.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/2.1.0...2.2.0) (2026-04-17)
 
 
 ### Features
 
 * **i18n:** add multi-language support with English and German locales ([#141](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/141)) ([c416495](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/c4164951e0f5561c286bf54d3ebb059356955b8a)), closes [#114](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/114)
 
-## [2.1.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.0.2...v2.1.0) (2026-04-17)
+## [2.1.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/2.0.2...2.1.0) (2026-04-17)
 
 
 ### Features
@@ -345,21 +349,21 @@
 * **settings:** surface validation errors for invalid IP and port input ([#138](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/138)) ([3934c71](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/3934c710f805c81f1a599436e565eec0a8784d69)), closes [#134](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/134)
 * **ui:** swap ribbon icon glyph on server state change ([#139](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/139)) ([d64cc65](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/d64cc65b76bfb549ab270c4f3396076cd9a15161)), closes [#132](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/132)
 
-## [2.0.2](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.0.1...v2.0.2) (2026-04-17)
+## [2.0.2](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/2.0.1...2.0.2) (2026-04-17)
 
 
 ### Bug Fixes
 
 * **settings:** render extras as a flat group ([#123](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/123)) ([1817a9f](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/1817a9f34b2c04306be240936682189a92c0550c)), closes [#120](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/120)
 
-## [2.0.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v2.0.0...v2.0.1) (2026-04-17)
+## [2.0.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/2.0.0...2.0.1) (2026-04-17)
 
 
 ### Bug Fixes
 
 * **ci:** upload plugin assets before screenshot pipeline ([#121](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/121)) ([0fdbccf](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/0fdbccfea03e11f1c0dd30a1156b494b404c0d66)), closes [#119](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/119)
 
-## [2.0.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.6.0...v2.0.0) (2026-04-17)
+## [2.0.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/1.6.0...2.0.0) (2026-04-17)
 
 
 ### ⚠ BREAKING CHANGES
@@ -371,7 +375,7 @@
 * remove per-module read-only mode ([#116](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/116)) ([28aad6d](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/28aad6d5d24b4128f4b11f365886f7b76d7c3334))
 * **settings:** per-tool toggles for the Extras group ([#117](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/117)) ([5b5c190](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/5b5c190cd1db06004f4b0efb8f3bdd084c448f88)), closes [#115](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/115)
 
-## [1.6.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.5.1...v1.6.0) (2026-04-16)
+## [1.6.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/1.5.1...1.6.0) (2026-04-16)
 
 
 ### Features
@@ -384,14 +388,14 @@
 
 * **settings:** full-width MCP config textarea + icon buttons with tooltips ([#104](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/104)) ([328f678](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/328f67837c66919289d01b55c4a053499693fc52))
 
-## [1.5.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.5.0...v1.5.1) (2026-04-16)
+## [1.5.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/1.5.0...1.5.1) (2026-04-16)
 
 
 ### Bug Fixes
 
 * **settings:** group module + read-only toggles into a bordered card ([#97](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/97)) ([10faf56](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/10faf56ce12f945cbe4f64aef265d5aa92f3efe0)), closes [#96](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/96)
 
-## [1.5.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.4.1...v1.5.0) (2026-04-16)
+## [1.5.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/1.4.1...1.5.0) (2026-04-16)
 
 
 ### Features
@@ -407,28 +411,28 @@
 
 * **settings:** promote read-only module toggle to its own labelled sub-row ([#94](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/94)) ([ed48e60](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/ed48e603d3ab46546cbd4b6d458c95c0d083d76a)), closes [#87](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/87)
 
-## [1.4.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.4.0...v1.4.1) (2026-04-16)
+## [1.4.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/1.4.0...1.4.1) (2026-04-16)
 
 
 ### Bug Fixes
 
 * auto-register discovered tool modules on plugin load ([#80](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/80)) ([383c761](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/383c761e4479a0c902c1ae379668057a9925ed4d))
 
-## [1.4.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.3.1...v1.4.0) (2026-04-16)
+## [1.4.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/1.3.1...1.4.0) (2026-04-16)
 
 
 ### Features
 
 * **docker:** add CDP-based visual regression testing for the plugin UI ([#77](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/77)) ([f722027](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/f722027b10eb827c67b641d415fcecfa399a059d))
 
-## [1.3.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.3.0...v1.3.1) (2026-04-16)
+## [1.3.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/1.3.0...1.3.1) (2026-04-16)
 
 
 ### Bug Fixes
 
 * create per-session McpServer and transport pairs ([#75](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/75)) ([2e69c77](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/2e69c7784bdac9f73473a35bb472ca4d8772529a)), closes [#74](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/74)
 
-## [1.3.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.2.0...v1.3.0) (2026-04-16)
+## [1.3.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/1.2.0...1.3.0) (2026-04-16)
 
 
 ### Features
@@ -436,7 +440,7 @@
 * configurable MCP server IP address (CR17) ([#70](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/70)) ([af42c44](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/af42c442558886f39b6a62dc4406ceb15c4e9db9))
 * replace MCP config code block with textarea and action buttons ([#71](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/71)) ([5cc0a6b](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/5cc0a6b6e4d84fe26a1d4cdbe6595995e2937ad7))
 
-## [1.2.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.1.0...v1.2.0) (2026-04-16)
+## [1.2.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/1.1.0...1.2.0) (2026-04-16)
 
 
 ### Features
@@ -464,7 +468,7 @@
 * remove package name prefix from release titles ([#63](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/63)) ([e229c4d](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/e229c4d773783f41e2e1df690dd7bb4d624209fa))
 * sync manifest.json version with release tag to fix addon install ([#59](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/59)) ([e912029](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/e912029953686d2a33bf69a3a1849c006a1fcb62))
 
-## [1.1.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/obsidian-mcp-v1.0.1...obsidian-mcp-v1.1.0) (2026-04-16)
+## [1.1.0](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/1.0.1...1.1.0) (2026-04-16)
 
 
 ### Features
@@ -490,7 +494,7 @@
 * remove non-existent `dependencies` label from dependabot config ([#56](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/56)) ([25a3856](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/25a3856689de404eeb9a9102b1b9f802e69f44cc))
 * sync manifest.json version with release tag to fix addon install ([#59](https://github.com/KingOfKalk/obisdian-plugin-mcp/issues/59)) ([e912029](https://github.com/KingOfKalk/obisdian-plugin-mcp/commit/e912029953686d2a33bf69a3a1849c006a1fcb62))
 
-## [1.0.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/v1.0.0...v1.0.1) (2026-04-16)
+## [1.0.1](https://github.com/KingOfKalk/obisdian-plugin-mcp/compare/1.0.0...1.0.1) (2026-04-16)
 
 
 ### Bug Fixes
