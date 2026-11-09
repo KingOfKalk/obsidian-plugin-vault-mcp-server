@@ -254,6 +254,47 @@ describe('vault_get_aspect through a real SDK client', () => {
       const structured = result.structuredContent as { aspect: string; backlinks: string[] };
       expect(structured.aspect).toBe('backlinks');
       expect([...structured.backlinks].sort()).toEqual(['README.md', 'people/ada.md']);
+      expect(structured).not.toHaveProperty('backlinkContext');
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('returns backlinks with line context (#408)', async () => {
+    const h = await connect();
+    try {
+      const result = await call(h, 'vault_get_aspect', {
+        path: 'projects/alpha.md',
+        aspect: 'backlinks',
+        includeContext: true,
+      });
+      expect(result.isError, textOf(result)).not.toBe(true);
+      const structured = result.structuredContent as {
+        backlinkContext: Array<{ path: string; matches: Array<{ line: number; text: string }> }>;
+      };
+      const byPath = Object.fromEntries(structured.backlinkContext.map((b) => [b.path, b.matches]));
+      expect(byPath).toEqual({
+        'README.md': [{ line: 3, text: 'See [[projects/alpha]].' }],
+        'people/ada.md': [{ line: 3, text: 'Works on [[projects/alpha]].' }],
+      });
+    } finally {
+      await h.close();
+    }
+  });
+});
+
+describe('vault_daily_note through a real SDK client (#408)', () => {
+  it('create:false on a missing note returns exists:false and creates nothing', async () => {
+    const h = await connect();
+    try {
+      const result = await call(h, 'vault_daily_note', { date: '2030-01-01', create: false });
+      expect(result.isError, textOf(result)).not.toBe(true);
+      expect(result.structuredContent).toEqual({
+        path: 'daily/2030-01-01.md',
+        created: false,
+        exists: false,
+      });
+      expect(await h.adapter.exists('daily/2030-01-01.md')).toBe(false);
     } finally {
       await h.close();
     }

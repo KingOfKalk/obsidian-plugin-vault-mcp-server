@@ -46,6 +46,13 @@ export interface ObsidianAdapter {
   getLinks(path: string): Array<{ link: string; displayText?: string }>;
   getEmbeds(path: string): Array<{ link: string; displayText?: string }>;
   getBacklinks(path: string): string[];
+  /**
+   * For every file that links to `path` (same set and order as
+   * `getBacklinks`), the 0-based line numbers of the links/embeds in that
+   * file that resolve to `path`. A backlink whose links carry no line
+   * position (e.g. frontmatter links) gets an empty `lines` array.
+   */
+  getBacklinkLines(path: string): Array<{ path: string; lines: number[] }>;
   getResolvedLinks(): Record<string, Record<string, number>>;
   getUnresolvedLinks(): Record<string, Record<string, number>>;
   getAllFiles(): string[];
@@ -295,6 +302,29 @@ export class RealObsidianAdapter implements ObsidianAdapter {
       }
     }
     return backlinks;
+  }
+
+  getBacklinkLines(path: string): Array<{ path: string; lines: number[] }> {
+    const cacheApi = this.app.metadataCache;
+    return this.getBacklinks(path).map((sourcePath) => {
+      const source = this.app.vault.getAbstractFileByPath(sourcePath);
+      const cache = source instanceof TFile ? cacheApi.getFileCache(source) : null;
+      const refs: Array<{ link: string; position?: { start: { line: number }; end: { line: number } } }> = [
+        ...(cache?.links ?? []),
+        ...(cache?.embeds ?? []),
+      ];
+      const lines = new Set<number>();
+      for (const ref of refs) {
+        if (!ref.position) continue;
+        const linkpath = ref.link.split('#')[0];
+        const dest = cacheApi.getFirstLinkpathDest(linkpath, sourcePath);
+        if (dest?.path !== path) continue;
+        for (let l = ref.position.start.line; l <= ref.position.end.line; l++) {
+          lines.add(l);
+        }
+      }
+      return { path: sourcePath, lines: [...lines].sort((a, b) => a - b) };
+    });
   }
 
   getResolvedLinks(): Record<string, Record<string, number>> {

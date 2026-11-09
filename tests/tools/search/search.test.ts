@@ -316,6 +316,68 @@ describe('search handlers', () => {
       const data = JSON.parse(getText(result)) as { backlinks: string[] };
       expect(data.backlinks).toContain('source.md');
     });
+
+    it('leaves the payload unchanged without includeContext (#408)', async () => {
+      adapter.addFile('source.md', 'See [[target]].');
+      adapter.setMetadata('source.md', { links: [{ link: 'target' }] });
+      adapter.addFile('target.md', 'x');
+      const result = await handlers.searchBacklinks({ path: 'target.md' });
+      expect(result.structuredContent).toEqual({ path: 'target.md', backlinks: ['source.md'] });
+    });
+
+    it('adds line numbers and line text with includeContext (#408)', async () => {
+      adapter.addFile(
+        'source.md',
+        '# Source\n\nFirst [[target]] mention.\nnothing here\n- again ![[target#Part|alias]]\n',
+      );
+      adapter.setMetadata('source.md', { links: [{ link: 'target' }] });
+      adapter.addFile('other.md', 'Only [[target.md|t]]');
+      adapter.setMetadata('other.md', { links: [{ link: 'target.md' }] });
+      adapter.addFile('target.md', 'x');
+
+      const result = await handlers.searchBacklinks({
+        path: 'target.md',
+        includeContext: true,
+        responseFormat: 'json',
+      });
+      expect(result.structuredContent).toEqual({
+        path: 'target.md',
+        backlinks: ['source.md', 'other.md'],
+        backlinkContext: [
+          {
+            path: 'source.md',
+            matches: [
+              { line: 3, text: 'First [[target]] mention.' },
+              { line: 5, text: '- again ![[target#Part|alias]]' },
+            ],
+          },
+          { path: 'other.md', matches: [{ line: 1, text: 'Only [[target.md|t]]' }] },
+        ],
+      });
+    });
+
+    it('renders context lines in markdown (#408)', async () => {
+      adapter.addFile('source.md', 'intro\nSee [[target]] here');
+      adapter.setMetadata('source.md', { links: [{ link: 'target' }] });
+      adapter.addFile('target.md', 'x');
+      const result = await handlers.searchBacklinks({ path: 'target.md', includeContext: true });
+      const text = getText(result);
+      expect(text).toContain('- source.md');
+      expect(text).toContain('  - L2: See [[target]] here');
+    });
+
+    it('keeps a backlink with no positioned link as an empty match list (#408)', async () => {
+      // metadata says source links to target, but the body has no [[...]]
+      // (e.g. a frontmatter link, which has no line position).
+      adapter.addFile('source.md', 'no wikilink in body');
+      adapter.setMetadata('source.md', { links: [{ link: 'target' }] });
+      adapter.addFile('target.md', 'x');
+      const result = await handlers.searchBacklinks({ path: 'target.md', includeContext: true });
+      expect(result.structuredContent).toMatchObject({
+        backlinkContext: [{ path: 'source.md', matches: [] }],
+      });
+      expect(getText(result)).toContain('- source.md');
+    });
   });
 
   describe('searchByTag', () => {

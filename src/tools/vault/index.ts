@@ -138,6 +138,22 @@ const getAspectOutputSchema = {
     .array(z.string())
     .optional()
     .describe('aspect=backlinks: paths of files that link TO this file.'),
+  backlinkContext: z
+    .array(
+      z.object({
+        path: z.string().describe('Vault-relative path of the linking file.'),
+        matches: z
+          .array(
+            z.object({
+              line: z.number().describe('1-based line number of the line containing the link.'),
+              text: z.string().describe('Full text of that line.'),
+            }),
+          )
+          .describe('Lines in the linking file that link here; empty when the link has no line position (e.g. frontmatter).'),
+      }),
+    )
+    .optional()
+    .describe('aspect=backlinks with includeContext=true: where each backlink sits, one entry per path in backlinks.'),
   blockRefs: z
     .array(
       z.object({
@@ -171,8 +187,18 @@ const dailyNoteOutputSchema = {
   path: z.string().describe('Vault-relative path of the daily note.'),
   created: z
     .boolean()
-    .describe('True when the note was just created; false when it already existed.'),
-  content: z.string().describe('Full note content (template-expanded body when newly created).'),
+    .describe(
+      'True when the note was just created; false when it already existed or create=false left it missing.',
+    ),
+  exists: z
+    .boolean()
+    .describe('True when the note exists after the call; false only when create=false and the note is missing.'),
+  content: z
+    .string()
+    .optional()
+    .describe(
+      'Full note content (template-expanded body when newly created). Absent when exists=false.',
+    ),
 };
 
 /**
@@ -475,6 +501,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             examples: [
               'Use when: "list the headings in README.md" → { path: "README.md", aspect: "headings" }.',
               'Use when: "what links to this note?" → { path: "ideas.md", aspect: "backlinks" }.',
+              'Use when: "how is this note referenced?" → { path: "ideas.md", aspect: "backlinks", includeContext: true }.',
             ],
             errors: ['"File not found" if the path does not exist.'],
           }),
@@ -488,9 +515,10 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Open or create the daily note',
           description: describeTool({
             summary:
-              "Resolve today's daily-note path from the daily-notes core plugin's settings, creating the note from the configured template if it does not yet exist.",
+              "Resolve today's daily-note path from the daily-notes core plugin's settings, creating the note from the configured template if it does not yet exist. Pass create=false to look the note up without creating it.",
             examples: [
               "Use when: starting a daily review and you need today's note as context.",
+              'Use when: checking whether a past daily note exists → { date: "2026-01-02", create: false }.',
               "Don't use when: you want a weekly/monthly note (not supported by this tool).",
             ],
             errors: [

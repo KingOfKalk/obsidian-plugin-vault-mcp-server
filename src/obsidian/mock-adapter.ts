@@ -267,6 +267,29 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     return backlinks;
   }
 
+  /**
+   * Mock stand-in for the metadata cache's link positions: scan each
+   * backlink's content for `[[...]]` / `![[...]]` whose link path matches
+   * `path` by the same rule as `getBacklinks`.
+   */
+  getBacklinkLines(path: string): Array<{ path: string; lines: number[] }> {
+    const wikilink = /!?\[\[([^\]|#]*)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]/g;
+    return this.getBacklinks(path).map((sourcePath) => {
+      const content = this.files.get(sourcePath)?.content ?? '';
+      const lines: number[] = [];
+      content.split('\n').forEach((text, index) => {
+        for (const match of text.matchAll(wikilink)) {
+          const target = match[1].trim();
+          if (target === path || target + '.md' === path) {
+            lines.push(index);
+            break;
+          }
+        }
+      });
+      return { path: sourcePath, lines };
+    });
+  }
+
   getResolvedLinks(): Record<string, Record<string, number>> {
     const result: Record<string, Record<string, number>> = {};
     for (const [filePath, file] of this.files.entries()) {

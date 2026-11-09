@@ -177,6 +177,13 @@ describe('MockObsidianAdapter', () => {
     it('should throw FolderNotFoundError (typed) when listing a nonexistent folder', () => {
       expect(() => adapter.list('missing')).toThrow(FolderNotFoundError);
     });
+
+    it('getBacklinkLines returns 0-based lines of wikilinks to the target (#408)', () => {
+      adapter.addFile('t.md', 'x');
+      adapter.addFile('s.md', 'a [[t]]\nb\n[[t|alias]] and [[t#h]]\n[[other]]');
+      adapter.setMetadata('s.md', { links: [{ link: 't' }] });
+      expect(adapter.getBacklinkLines('t.md')).toEqual([{ path: 's.md', lines: [0, 2] }]);
+    });
   });
 
   describe('vault info', () => {

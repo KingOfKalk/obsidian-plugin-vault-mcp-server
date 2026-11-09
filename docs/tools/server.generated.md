@@ -55,6 +55,13 @@ Response (`structuredContent`):
   ],
   "changes": [
     {
+      "version": "3.3.0",
+      "notes": [
+        "`vault_daily_note` takes `create` (default true). With `create: false` a missing note is not created and the result is `{ path, created: false, exists: false }` without `content`. Every result now carries `exists`. The default may change to false in the next major release.",
+        "`vault_get_aspect` with `aspect: \"backlinks\"` takes `includeContext` (default false). When true the result adds `backlinkContext`: per linking file, the 1-based `line` and `text` of each line that links to the note."
+      ]
+    },
+    {
       "version": "3.2.0",
       "notes": [
         "New tool `server_info`: plugin version, enabled modules and this change list. The server instructions now start with the version."

@@ -25,7 +25,9 @@ export interface SearchHandlers {
   searchHeadings: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
   searchOutgoingLinks: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
   searchEmbeds: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
-  searchBacklinks: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
+  searchBacklinks: (
+    params: InferredParams<typeof filePathSchema> & { includeContext?: boolean },
+  ) => Promise<CallToolResult>;
   searchResolvedLinks: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
   searchUnresolvedLinks: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
   searchBlockReferences: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
@@ -39,6 +41,33 @@ function renderKeyValue(obj: Record<string, unknown>): string {
   const entries = Object.entries(obj);
   if (entries.length === 0) return '_No entries._';
   return entries.map(([k, v]) => `- **${k}**: ${String(v)}`).join('\n');
+}
+
+interface BacklinkContext {
+  path: string;
+  matches: Array<{ line: number; text: string }>;
+}
+
+/**
+ * Turn the adapter's 0-based backlink line numbers into 1-based line
+ * numbers plus the text of each line (#408). Lines past the end of the
+ * file (stale metadata cache) are dropped.
+ */
+async function readBacklinkContext(
+  adapter: ObsidianAdapter,
+  path: string,
+): Promise<BacklinkContext[]> {
+  const result: BacklinkContext[] = [];
+  for (const entry of adapter.getBacklinkLines(path)) {
+    const fileLines = entry.lines.length > 0
+      ? (await adapter.readFile(entry.path)).split('\n')
+      : [];
+    const matches = entry.lines
+      .filter((line) => line >= 0 && line < fileLines.length)
+      .map((line) => ({ line: line + 1, text: fileLines[line].replace(/\r$/, '') }));
+    result.push({ path: entry.path, matches });
+  }
+  return result;
 }
 
 function renderPathList(items: string[], empty = 'No matches.'): string {
@@ -241,22 +270,37 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
       }
     },
 
-    searchBacklinks(params): Promise<CallToolResult> {
+    async searchBacklinks(params): Promise<CallToolResult> {
       try {
         const path = validateVaultPath(params.path, vaultPath);
-        const backlinks = adapter.getBacklinks(path);
-        return Promise.resolve(
-          makeResponse(
-            { path, backlinks },
-            (v) =>
-              v.backlinks.length === 0
-                ? `**${v.path}** has no backlinks.`
-                : `**${v.path}** is linked from:\n${renderPathList(v.backlinks)}`,
+        if (params.includeContext === true) {
+          const backlinkContext = await readBacklinkContext(adapter, path);
+          return makeResponse(
+            { path, backlinks: backlinkContext.map((b) => b.path), backlinkContext },
+            (v) => {
+              if (v.backlinkContext.length === 0) return `**${v.path}** has no backlinks.`;
+              const blocks = v.backlinkContext.map((b) =>
+                [
+                  `- ${b.path}`,
+                  ...b.matches.map((m) => `  - L${String(m.line)}: ${m.text}`),
+                ].join('\n'),
+              );
+              return `**${v.path}** is linked from:\n${blocks.join('\n')}`;
+            },
             readResponseFormat(params),
-          ),
+          );
+        }
+        const backlinks = adapter.getBacklinks(path);
+        return makeResponse(
+          { path, backlinks },
+          (v) =>
+            v.backlinks.length === 0
+              ? `**${v.path}** has no backlinks.`
+              : `**${v.path}** is linked from:\n${renderPathList(v.backlinks)}`,
+          readResponseFormat(params),
         );
       } catch (error) {
-        return Promise.resolve(handleToolError(error));
+        return handleToolError(error);
       }
     },
 
