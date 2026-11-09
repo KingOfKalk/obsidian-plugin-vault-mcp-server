@@ -1,4 +1,8 @@
-import { McpServer, CallToolResult } from '@modelcontextprotocol/server';
+import {
+  McpServer,
+  type CallToolResult,
+  type RegisteredTool,
+} from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import { Logger } from '../utils/logger';
 import { ModuleRegistry } from '../registry/module-registry';
@@ -110,10 +114,16 @@ export function createMcpServer(
     },
     {
       capabilities,
+      // Built from the tools active at `initialize` (#447) and fixed for
+      // the session: sent once, so it reflects the state at connect time
+      // (#448).
       instructions: buildServerInstructions(
         version,
         registry.getActiveTools().map((tool) => tool.name),
       ),
+      // Toggling a module flips several tools in one synchronous burst; the
+      // SDK coalesces their list_changed notifications into one (#448).
+      debouncedNotificationMethods: ['notifications/tools/list_changed'],
     },
   );
 
@@ -193,6 +203,16 @@ export function toOutputSchema(
   return z.object(schema);
 }
 
+/**
+ * Register the tools and keep them in step with the registry for the
+ * lifetime of this server (one MCP session, #448).
+ *
+ * Module and tool switches reach an open session: a tool switched off is
+ * disabled (the SDK drops it from `tools/list` and rejects `tools/call` with
+ * "Tool … disabled"), a tool switched on is enabled or registered, and the
+ * SDK sends `notifications/tools/list_changed`. The registry subscription
+ * ends when the session's transport closes.
+ */
 function registerTools(
   server: McpServer,
   registry: ModuleRegistry,
@@ -205,24 +225,65 @@ function registerTools(
     version,
     getEnabledModules: () => registry.getEnabledModuleIds(),
   });
-  const tools = [...serverModule.tools(), ...registry.getActiveTools()];
-  for (const tool of tools) {
-    logger.debug(`Registering tool: ${tool.name}`);
-    server.registerTool(
-      tool.name,
-      {
-        title: tool.title,
-        description: tool.description,
-        // Strict object (not the raw shape): the SDK validates before our
-        // dispatcher runs, and a raw shape would make it strip unknown keys.
-        inputSchema: buildInputSchema(tool.schema),
-        outputSchema: toOutputSchema(tool.outputSchema),
-        annotations: tool.title
-          ? { ...tool.annotations, title: tool.title }
-          : tool.annotations,
-      },
-      createToolDispatcher(tool, logger),
-    );
+  const serverTools = serverModule.tools();
+  for (const tool of serverTools) {
+    registerTool(server, tool, logger);
   }
-  logger.info(`Registered ${String(tools.length)} tools from ${String(registry.getModules().filter((m) => m.enabled).length)} modules`);
+
+  // Handles of the registry's tools, enabled or not.
+  const handles = new Map<string, RegisteredTool>();
+  const sync = (): void => {
+    const active = registry.getActiveTools();
+    const activeNames = new Set(active.map((t) => t.name));
+    for (const tool of active) {
+      const handle = handles.get(tool.name);
+      if (handle === undefined) {
+        handles.set(tool.name, registerTool(server, tool, logger));
+      } else if (!handle.enabled) {
+        logger.debug(`Enabling tool: ${tool.name}`);
+        handle.enable();
+      }
+    }
+    for (const [name, handle] of handles) {
+      if (handle.enabled && !activeNames.has(name)) {
+        logger.debug(`Disabling tool: ${name}`);
+        handle.disable();
+      }
+    }
+  };
+
+  sync();
+  logger.info(`Registered ${String(serverTools.length + handles.size)} tools from ${String(registry.getModules().filter((m) => m.enabled).length)} modules`);
+
+  const unsubscribe = registry.onChange(sync);
+  // Protocol.onclose runs when the transport closes (session DELETE, idle
+  // sweep, server stop). Chain any handler that is already set.
+  const previousOnClose = server.server.onclose;
+  server.server.onclose = (): void => {
+    unsubscribe();
+    previousOnClose?.();
+  };
+}
+
+function registerTool(
+  server: McpServer,
+  tool: ToolDefinition,
+  logger: Logger,
+): RegisteredTool {
+  logger.debug(`Registering tool: ${tool.name}`);
+  return server.registerTool(
+    tool.name,
+    {
+      title: tool.title,
+      description: tool.description,
+      // Strict object (not the raw shape): the SDK validates before our
+      // dispatcher runs, and a raw shape would make it strip unknown keys.
+      inputSchema: buildInputSchema(tool.schema),
+      outputSchema: toOutputSchema(tool.outputSchema),
+      annotations: tool.title
+        ? { ...tool.annotations, title: tool.title }
+        : tool.annotations,
+    },
+    createToolDispatcher(tool, logger),
+  );
 }

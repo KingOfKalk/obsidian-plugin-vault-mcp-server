@@ -321,6 +321,16 @@ describe('ModuleRegistry', () => {
       registry.registerModule(createMockModule('vault', []));
       expect(handler).not.toHaveBeenCalled();
     });
+
+    it('counts subscribers, so open MCP sessions can be checked for leaks (#448)', () => {
+      expect(registry.changeHandlerCount).toBe(0);
+      const unsubscribeA = registry.onChange(vi.fn());
+      const unsubscribeB = registry.onChange(vi.fn());
+      expect(registry.changeHandlerCount).toBe(2);
+      unsubscribeA();
+      unsubscribeB();
+      expect(registry.changeHandlerCount).toBe(0);
+    });
   });
 
   describe('clear', () => {

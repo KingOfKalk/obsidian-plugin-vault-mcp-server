@@ -64,7 +64,8 @@ Response (`structuredContent`):
         "`vault_get_aspect` with `aspect: \"backlinks\"` fails with \"File not found\" for a missing path instead of returning no backlinks.",
         "`vault_rename` and `vault_move` on a folder count links to the files inside it in `linksUpdated` / `updatedFiles` and set `warning` like `vault_rename_folder`; the confirmation text says \"folder\".",
         "`vault_set_frontmatter` is annotated destructive (`destructiveHint: true`).",
-        "The server instructions leave out hints about tools that are switched off."
+        "The server instructions leave out hints about tools that are switched off.",
+        "The tool list can change during a session: when the user switches a module or tool on or off, `tools/list` follows right away and the server sends `notifications/tools/list_changed`. Calls to a tool that was switched off fail with \"Tool <name> disabled\"; re-read `tools/list` after the notification."
       ]
     },
     {

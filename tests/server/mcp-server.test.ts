@@ -69,8 +69,18 @@ vi.mock('@modelcontextprotocol/server', () => {
     registerTool(
       name: string,
       config: CapturedRegisterToolCall['config'],
-    ): void {
+    ): { enabled: boolean; enable(): void; disable(): void } {
       capturedRegisterToolCalls.push({ name, config });
+      const handle = {
+        enabled: true,
+        enable(): void {
+          handle.enabled = true;
+        },
+        disable(): void {
+          handle.enabled = false;
+        },
+      };
+      return handle;
     }
     registerResource(name: string, uriOrTemplate: unknown, metadata: Record<string, unknown>): void {
       capturedRegisterResourceCalls.push({ name, uriOrTemplate, metadata });
