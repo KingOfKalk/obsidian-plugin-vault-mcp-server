@@ -348,6 +348,7 @@ export class MockObsidianAdapter implements ObsidianAdapter {
   }
 
   getBacklinks(path: string): string[] {
+    this.requireFile(path);
     const backlinks: string[] = [];
     for (const [filePath, file] of this.files.entries()) {
       const links = file.metadata?.links ?? [];

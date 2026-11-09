@@ -68,6 +68,7 @@ export interface ObsidianAdapter {
   getHeadings(path: string): Array<{ heading: string; level: number }>;
   getLinks(path: string): Array<{ link: string; displayText?: string }>;
   getEmbeds(path: string): Array<{ link: string; displayText?: string }>;
+  /** Files that link to `path`. Throws "File not found" if it does not exist. */
   getBacklinks(path: string): string[];
   /**
    * For every file that links to `path` (same set and order as
@@ -372,6 +373,9 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   }
 
   getBacklinks(path: string): string[] {
+    // Like the other metadata getters: a mistyped path is "File not found",
+    // not "no backlinks" (#447).
+    this.getFile(path);
     const resolved = this.getResolvedLinks();
     const backlinks: string[] = [];
     for (const [sourcePath, links] of Object.entries(resolved)) {
