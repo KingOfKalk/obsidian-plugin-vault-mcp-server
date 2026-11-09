@@ -223,6 +223,15 @@ Paste it into:
 Each module is a collapsible card with one enable/disable toggle. Disabled
 modules are hidden from `tools/list`, so the client never sees them.
 
+Switches take effect right away, also for clients that are already
+connected: a tool you switch off disappears from `tools/list` and calls to it
+fail with "Tool … disabled"; a tool you switch on is listed and callable. The
+server tells connected clients with a `notifications/tools/list_changed`
+message. Clients that support it update their tool list immediately; others
+see the change after they reconnect. The server instructions (see
+[For developers / MCP client builders](#for-developers--mcp-client-builders))
+are sent once when a client connects and keep the state from that moment.
+
 | Module | Tools | Notes |
 |---|---|---|
 | Vault and File Operations | 21 | Create / read / update / delete files and folders, read one section, replace a passage or insert into a section, rename, move, copy, list, binary I/O, metadata, set frontmatter, daily note. |
@@ -327,6 +336,11 @@ This server exposes an Obsidian vault as MCP tools.
 - Paths are vault-relative with forward slashes (e.g. `notes/foo.md`); never absolute filesystem paths.
 - Frontmatter, headings, links, embeds, backlinks, and block refs are exposed via the `vault_get_aspect` tool (call it with the matching `aspect` enum value) — don't parse them out of `vault_read` output.
 ```
+
+The text is sent once per session, in the `initialize` response, so it
+reflects the state at connect time. Module and tool switches made later
+reach the session through `tools/list` and `notifications/tools/list_changed`,
+not through the instructions.
 
 Source of truth: [`src/server/mcp-server.ts`](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/blob/main/src/server/mcp-server.ts)
 (`SERVER_INSTRUCTIONS`). If you suspect drift between the quoted text above
@@ -701,7 +715,9 @@ again retries the start.
 - The module that ships the tool is disabled. Enable it under **Feature
   Modules**.
 - For Extras tools (e.g. `extras_get_date` (Get current date)), the per-tool toggle is off by default.
-- The client cached the previous `tools/list` response. Reconnect.
+- The client cached the previous `tools/list` response. The server announces
+  every switch with `notifications/tools/list_changed`, but not every client
+  reacts to it. Reconnect.
 
 ### A tool call fails with "Unknown parameter"
 

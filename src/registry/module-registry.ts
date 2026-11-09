@@ -191,6 +191,11 @@ export class ModuleRegistry {
     };
   }
 
+  /** Number of `onChange` subscribers (one per open MCP session, #448). */
+  get changeHandlerCount(): number {
+    return this.changeHandlers.size;
+  }
+
   clear(): void {
     this.modules.clear();
     this.notifyChange();

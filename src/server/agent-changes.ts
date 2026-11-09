@@ -18,6 +18,12 @@ export interface AgentChangeEntry {
 
 export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
   {
+    version: '4.0.2',
+    notes: [
+      'The tool list can change during a session: when the user switches a module or tool on or off, `tools/list` follows right away and the server sends `notifications/tools/list_changed`. Calls to a tool that was switched off fail with "Tool <name> disabled"; re-read `tools/list` after the notification.',
+    ],
+  },
+  {
     version: '4.0.1',
     notes: [
       '`search_by_tag` and `search_tags` include tags from the frontmatter (`tags` / `tag`, as a list or a comma/space separated string), not only inline `#tags`. `counts` counts frontmatter and inline occurrences; each file is still listed once per tag.',

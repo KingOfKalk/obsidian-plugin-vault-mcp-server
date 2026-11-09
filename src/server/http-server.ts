@@ -324,6 +324,12 @@ export class HttpMcpServer {
 
     const session = await this.createSession();
     await session.transport.handleRequest(req, res, parsedBody);
+    if (session.transport.sessionId === undefined) {
+      // The initialize request was rejected (e.g. an unsupported protocol
+      // version), so no session exists that could ever close this server.
+      // Close it now: it holds a registry subscription (#448).
+      await session.server.close();
+    }
   }
 
   private async createSession(): Promise<Session> {
