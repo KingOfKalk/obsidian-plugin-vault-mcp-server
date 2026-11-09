@@ -223,6 +223,10 @@ const dailyNoteOutputSchema = {
   exists: z
     .boolean()
     .describe('True when the note exists after the call; false when the note is missing and create was not true.'),
+  warning: z
+    .string()
+    .optional()
+    .describe('Set when the configured template file is missing and the note was created empty.'),
   content: z
     .string()
     .optional()
@@ -715,7 +719,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
               'Does not open it in the editor. Creates a missing note (from the configured template) only with create=true.',
             returns:
               "In a new note {{date}} is the note's date (YYYY-MM-DD), {{time}} the local time (HH:mm), {{title}} the file name without .md. " +
-              'Templater syntax (<%) is copied unchanged; a configured template that is missing gives an empty note, without a warning.',
+              'Templater syntax (<%) is copied unchanged; a configured template that is missing gives an empty note and a warning.',
             examples: [
               "Use when: you need today's note, creating it if missing → { create: true }",
               'Use when: checking whether a past daily note exists → { date: "2026-01-02" }',

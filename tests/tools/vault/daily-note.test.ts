@@ -120,16 +120,49 @@ describe('vault_daily_note handler', () => {
       expect(structured.content).toBe(tpBody);
     });
 
-    it('falls back to empty body when the configured template path is missing', async () => {
+    it('creates an empty note with a warning when the configured template is missing (#470)', async () => {
       adapter.setDailyNotesSettings({
         format: 'YYYY-MM-DD',
         folder: '',
         template: 'templates/missing.md',
       });
       const result = await handlers.dailyNote({ date: '2026-05-05', create: true });
-      const structured = result.structuredContent as { created: boolean; content: string };
+      expect(result.isError).toBeUndefined();
+      const structured = result.structuredContent as {
+        created: boolean;
+        content: string;
+        warning?: string;
+      };
       expect(structured.created).toBe(true);
       expect(structured.content).toBe('');
+      expect(structured.warning).toBe(
+        'Template templates/missing.md (Daily notes settings) not found; created an empty note.',
+      );
+      expect(await adapter.readFile('2026-05-05.md')).toBe('');
+      expect(getText(result)).toContain('Warning: Template templates/missing.md');
+    });
+
+    it('has no warning when no template is configured or it exists (#470)', async () => {
+      adapter.setDailyNotesSettings({ format: 'YYYY-MM-DD', folder: '', template: '' });
+      const none = await handlers.dailyNote({ date: '2026-05-05', create: true });
+      expect(none.structuredContent).not.toHaveProperty('warning');
+      adapter.addFolder('templates');
+      adapter.addFile('templates/daily.md', 'x');
+      adapter.setDailyNotesSettings({ format: 'YYYY-MM-DD', folder: '', template: 'templates/daily.md' });
+      const found = await handlers.dailyNote({ date: '2026-05-06', create: true });
+      expect(found.structuredContent).not.toHaveProperty('warning');
+      expect(getText(found)).not.toContain('Warning');
+    });
+
+    it('finds a template configured without .md, as Obsidian stores it (#470)', async () => {
+      adapter.setDailyNotesSettings({ format: 'YYYY-MM-DD', folder: '', template: 'templates/daily' });
+      adapter.addFolder('templates');
+      adapter.addFile('templates/daily.md', '# {{title}} {{time}}');
+      const result = await handlers.dailyNote({ date: '2026-05-05', create: true });
+      const structured = result.structuredContent as { content: string; warning?: string };
+      expect(structured.warning).toBeUndefined();
+      // A past date is created at local midnight.
+      expect(structured.content).toBe('# 2026-05-05 00:00');
     });
   });
 
