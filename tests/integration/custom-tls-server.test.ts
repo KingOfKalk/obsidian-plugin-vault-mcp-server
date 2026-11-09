@@ -18,7 +18,7 @@ function handshake(caCert: string): Promise<number> {
       {
         hostname: '127.0.0.1',
         port: TEST_PORT,
-        path: '/',
+        path: '/mcp',
         method: 'POST',
         ca: caCert,
         headers: {

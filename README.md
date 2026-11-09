@@ -60,7 +60,7 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 ### Claude Code
 
 ```bash
-claude mcp add obsidian --transport http --url http://127.0.0.1:28741 --header "Authorization: Bearer YOUR_ACCESS_KEY"
+claude mcp add obsidian --transport http --url http://127.0.0.1:28741/mcp --header "Authorization: Bearer YOUR_ACCESS_KEY"
 ```
 
 ## Configuration
