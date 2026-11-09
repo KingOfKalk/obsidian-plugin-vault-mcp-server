@@ -236,6 +236,18 @@ describe('createMcpServer', () => {
       expect(without).toContain('`editor_*`');
       expect(without).not.toContain('workspace_open_file');
     });
+
+    it('names the write tools and the file-name search only when they are on (#449)', async () => {
+      const { buildServerInstructions } = await import('../../src/server/mcp-server');
+      const all = buildServerInstructions('1.0.0');
+      expect(all).toContain('prefer `vault_replace` or `vault_insert`; `vault_update` only to rewrite');
+      expect(all).toContain('not file names); by name with `vault_list_recursive`');
+      const some = buildServerInstructions('1.0.0', ['search_fulltext', 'vault_replace']);
+      expect(some).toContain('prefer `vault_replace`.');
+      expect(some).not.toMatch(/vault_insert|vault_update|vault_list_recursive/);
+      const none = buildServerInstructions('1.0.0', ['vault_read']);
+      expect(none).not.toContain('vault_replace');
+    });
   });
 
   it('wraps raw-shape inputSchema/outputSchema in z.object for SDK v2, and leaves outputSchema undefined when absent', async () => {
@@ -696,7 +708,7 @@ describe('SERVER_INSTRUCTIONS', () => {
       '../../src/server/mcp-server'
     );
     // Hard cap so we notice if the string drifts toward bloat. Current
-    // length is ~700 chars including the version line (#402).
+    // length is ~790 chars including the version line (#402, #449).
     expect(SERVER_INSTRUCTIONS.length).toBeLessThanOrEqual(800);
   });
 

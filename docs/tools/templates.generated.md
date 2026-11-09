@@ -8,7 +8,7 @@ Auto-generated schema reference for the `templates` module. See [../tools.genera
 
 **List templates**
 
-List files in the vault's "templates" folder.
+List the files directly inside the top-level folder named exactly "templates" (case-sensitive; not recursive). The folder set in the Templates or Templater plugin is not used; use vault_list to look elsewhere.
 
 #### Input
 
@@ -20,7 +20,7 @@ List files in the vault's "templates" folder.
 
 | Field | Type | Description |
 |---|---|---|
-| `files` | string[] | Vault-relative paths of files in the "templates" folder. Empty when the folder is missing. |
+| `files` | string[] | Vault-relative paths of the files directly in the top-level "templates" folder; empty when that folder is missing. |
 
 #### Example
 
@@ -61,9 +61,9 @@ Errors:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `templatePath` | string (1–4096) | yes | Vault-relative path to the template source file |
-| `destPath` | string (1–4096) | yes | Vault-relative path for the new file |
-| `variables` | object | no | Template variables keyed by name (e.g. { title: "Today" }). date, time and title are built in; values given here override them. |
+| `templatePath` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
+| `destPath` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
+| `variables` | object | no | Values for {{name}} placeholders; they override the built-ins {{date}} (UTC date, YYYY-MM-DD), {{time}} (host-locale time) and {{title}} ("Untitled"). Unknown placeholders and Templater <% %> stay as written. |
 | `frontmatter` | object | no | Frontmatter keys to set on the new note, mapped to JSON-compatible values (string, number, boolean, null, array or object). Applied after the template is expanded: keys from the template are kept, keys given here overwrite them. Markdown (.md) destinations only. |
 
 #### Output
@@ -73,7 +73,7 @@ Errors:
 | `path` | string | Vault-relative path of the new file. |
 | `templatePath` | string | Vault-relative path of the template that was used. |
 | `frontmatter` | object | The new note's whole frontmatter after the frontmatter parameter was applied. Present only when frontmatter was given. |
-| `modified` | string | Last-modification timestamp of the new file (ISO-8601); usable as the next expectedMtime. |
+| `modified` | string | New last-modification time (ISO-8601); pass it as the next expectedMtime. |
 
 #### Example
 
@@ -122,14 +122,14 @@ See also:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `template` | string (≤100000) | yes | Template text containing {{variable}} placeholders |
-| `variables` | object | no | Template variables keyed by name. date, time and title are built in; values given here override them. |
+| `variables` | object | no | Values for {{name}} placeholders; they override the built-ins {{date}} (UTC date, YYYY-MM-DD), {{time}} (host-locale time) and {{title}} ("Untitled"). Unknown placeholders and Templater <% %> stay as written. |
 | `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
 
 | Field | Type | Description |
 |---|---|---|
-| `expanded` | string | Template text with all {{variable}} placeholders substituted. |
+| `expanded` | string | Template text with the known placeholders substituted; unknown ones stay as written. |
 
 #### Example
 

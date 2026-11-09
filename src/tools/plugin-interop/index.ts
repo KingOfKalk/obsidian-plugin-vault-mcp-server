@@ -49,7 +49,7 @@ const dataviewJsSchema = {
     .string()
     .min(1)
     .max(10_000)
-    .describe('Dataview-JS source. Returned verbatim — execution is the host client\'s responsibility.'),
+    .describe('Dataview-JS source; returned unchanged, never executed.'),
   ...responseFormatField,
 };
 
@@ -58,7 +58,7 @@ const templaterSchema = {
     .string()
     .min(1)
     .max(4096)
-    .describe('Vault-relative path to the Templater template'),
+    .describe('Template path; returned unchanged, not checked or read.'),
   ...responseFormatField,
 };
 
@@ -67,7 +67,7 @@ const executeCommandSchema = {
     .string()
     .min(1)
     .max(200)
-    .describe('Obsidian command id (e.g. "app:reload")'),
+    .describe('Obsidian command id (e.g. "editor:save-file"); must be on the user\'s allowlist.'),
 };
 
 /**
@@ -302,8 +302,9 @@ export function createPluginInteropModule(
           name: 'plugin_dataview_describe_js_query',
           title: 'Describe Dataview JS query',
           description: describeTool({
-            summary: 'Echo a Dataview-JS source for client-side execution. Returns the source and a note that the host must run it.',
-            returns: 'The server never evaluates Dataview-JS.',
+            summary:
+              'Does not run anything: returns the given Dataview-JS source unchanged with a note that this server never executes Dataview-JS.',
+            seeAlso: ['plugin_dataview_query — to run a Dataview DQL query.'],
           }),
           schema: dataviewJsSchema,
           outputSchema: pluginDescribeOutputSchema,
@@ -314,8 +315,9 @@ export function createPluginInteropModule(
           name: 'plugin_templater_describe_template',
           title: 'Describe Templater template',
           description: describeTool({
-            summary: 'Echo a Templater template path for client-side execution. Returns the path and a note that the host must run it via Templater.',
-            returns: 'The server never executes Templater itself.',
+            summary:
+              'Does not run anything: returns the given template path unchanged with a note that this server never executes Templater. ' +
+              'To read the template text, use vault_read.',
           }),
           schema: templaterSchema,
           outputSchema: pluginTemplaterDescribeOutputSchema,
@@ -326,9 +328,14 @@ export function createPluginInteropModule(
           name: 'plugin_execute_command',
           title: 'Execute command',
           description: describeTool({
-            summary: 'Execute any Obsidian command by its id.',
+            summary:
+              'Run an Obsidian command by id. Only ids the user put on the Execute Command Allowlist in the plugin settings run; the list is empty by default.',
             examples: ['Use when: triggering "editor:save-file" programmatically.'],
-            errors: ['"Command not found" if the id is not registered.'],
+            errors: [
+              '"Command execution disabled" if the allowlist is empty; ask the user to add the command id in the plugin settings.',
+              '"Command "<id>" is not on the executeCommand allowlist" if the id is not listed.',
+              '"Command not found" if the id is listed but no such command exists.',
+            ],
           }),
           schema: executeCommandSchema,
           outputSchema: executeCommandOutputSchema,

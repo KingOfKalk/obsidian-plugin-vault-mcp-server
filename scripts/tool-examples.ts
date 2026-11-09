@@ -139,7 +139,7 @@ export const SAMPLE_ARGS: Record<string, Record<string, unknown>> = {
   plugin_dataview_query: { query: 'LIST' },
   plugin_dataview_describe_js_query: { query: 'dv.list([1])' },
   plugin_templater_describe_template: { templatePath: 'templates/meeting.md' },
-  plugin_execute_command: { commandId: 'app:reload' },
+  plugin_execute_command: { commandId: 'editor:save-file' },
   extras_get_date: {},
   server_info: {},
 };
@@ -178,7 +178,7 @@ export async function connectSeededServer(options: ConnectOptions = {}): Promise
   const logger = new QuietLogger('test', { debugMode: false, accessKey: '' });
   const registry = new ModuleRegistry(logger);
   for (const m of discoverModules(adapter, {
-    getExecuteCommandAllowlist: () => ['app:reload'],
+    getExecuteCommandAllowlist: () => ['editor:save-file'],
   })) {
     registry.registerModule(m);
   }

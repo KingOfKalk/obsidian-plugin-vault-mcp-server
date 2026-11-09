@@ -209,8 +209,8 @@ describe('write tools keep their text and add structuredContent (#388)', () => {
     ],
     [
       'plugin_execute_command',
-      'Executed command: app:reload',
-      { commandId: 'app:reload', executed: true },
+      'Executed command: editor:save-file',
+      { commandId: 'editor:save-file', executed: true },
     ],
   ];
 

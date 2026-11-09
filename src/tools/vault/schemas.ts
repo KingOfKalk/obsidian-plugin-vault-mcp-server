@@ -3,18 +3,15 @@ import { base64Schema } from '../../utils/validation';
 import { paginationFields } from '../shared/pagination';
 import { responseFormatField } from '../shared/response';
 import { frontmatterKeySchema } from '../shared/frontmatter';
+import {
+  ENTRY_PATH_DESC,
+  EXPECTED_MTIME_DESC,
+  FILE_PATH_DESC,
+  FOLDER_PATH_DESC,
+  vaultPathField,
+} from '../shared/descriptions';
 
-const path = z
-  .string()
-  .min(1)
-  .max(4096)
-  .describe('File path relative to vault root (POSIX-style, no leading slash)');
-
-const folderPath = z
-  .string()
-  .min(1)
-  .max(4096)
-  .describe('Folder path relative to vault root');
+const path = vaultPathField(FILE_PATH_DESC);
 
 /**
  * Parse an `expectedMtime` value into epoch milliseconds: an ISO-8601
@@ -39,12 +36,7 @@ const expectedMtime = z
     'expectedMtime must be an ISO-8601 timestamp or epoch milliseconds',
   )
   .optional()
-  .describe(
-    'Optional conflict check: the latest `modified` value you got for this file, from a read ' +
-      '(vault_read, vault_get_metadata) or a write (every vault write tool returns it) ' +
-      '(ISO-8601, or epoch milliseconds). If the file was modified since, nothing is written ' +
-      'and the error reports the current mtime.',
-  );
+  .describe(EXPECTED_MTIME_DESC);
 
 export const createFileSchema = {
   path,
@@ -196,7 +188,8 @@ export const insertSchema = {
     .default('end')
     .describe(
       '"end" (default): after the last non-blank line of the section, nested subsections included. ' +
-        '"start": right below the heading (after a blank line that follows it).',
+        '"start": before the first non-blank line below the heading (blank lines after the heading stay above the text; ' +
+        'in an empty section, right below the heading).',
     ),
   text: z
     .string()
@@ -214,11 +207,7 @@ export const getMetadataSchema = {
 };
 
 export const renameFileSchema = {
-  path: z
-    .string()
-    .min(1)
-    .max(4096)
-    .describe('Current file path to rename'),
+  path: vaultPathField(ENTRY_PATH_DESC),
   newName: z
     .string()
     .min(1)
@@ -227,50 +216,36 @@ export const renameFileSchema = {
       /^[^/\\\x00]+$/,
       'newName must not contain path separators or null bytes',
     )
-    .describe('New file name (basename) within the same folder; must not contain / or \\'),
+    .describe(
+      'New name for the last path segment, extension included (e.g. "final.md", not "final"); the folder stays the same. No / or \\.',
+    ),
 };
 
 export const moveFileSchema = {
-  path: z
-    .string()
-    .min(1)
-    .max(4096)
-    .describe('Current file path'),
-  newPath: z
-    .string()
-    .min(1)
-    .max(4096)
-    .describe('New vault-relative path; can change the folder, the file name, or both'),
+  path: vaultPathField(ENTRY_PATH_DESC),
+  newPath: vaultPathField(ENTRY_PATH_DESC),
 };
 
 export const copyFileSchema = {
-  sourcePath: z
-    .string()
-    .min(1)
-    .max(4096)
-    .describe('Source file path'),
-  destPath: z
-    .string()
-    .min(1)
-    .max(4096)
-    .describe('Destination file path'),
+  sourcePath: vaultPathField(FILE_PATH_DESC),
+  destPath: vaultPathField(FILE_PATH_DESC),
 };
 
 export const createFolderSchema = {
-  path: folderPath.describe('Folder path to create'),
+  path: vaultPathField(FOLDER_PATH_DESC),
 };
 
 export const deleteFolderSchema = {
-  path: folderPath.describe('Folder path to delete'),
+  path: vaultPathField(FOLDER_PATH_DESC),
   recursive: z
     .boolean()
     .default(false)
-    .describe('Delete non-empty folders recursively'),
+    .describe('Also delete everything inside (default false: only an empty folder is deleted).'),
 };
 
 export const renameFolderSchema = {
-  path: folderPath.describe('Current folder path'),
-  newPath: folderPath.describe('New folder path'),
+  path: vaultPathField(FOLDER_PATH_DESC),
+  newPath: vaultPathField(FOLDER_PATH_DESC),
 };
 
 /**
@@ -281,14 +256,14 @@ const listFolderPath = z.string().max(4096);
 
 export const listFolderSchema = {
   path: listFolderPath.describe(
-    'Folder path to list (non-recursive). Use "" (or "/" or ".") for the vault root.',
+    'Vault-relative folder path to list (non-recursive), e.g. "projects". Use "" (or "/" or ".") for the vault root.',
   ),
   ...responseFormatField,
 };
 
 export const listRecursiveSchema = {
   path: listFolderPath.describe(
-    'Folder path to list recursively. Use "" (or "/" or ".") for the vault root.',
+    'Vault-relative folder path to list recursively, e.g. "projects". Use "" (or "/" or ".") for the vault root.',
   ),
   ...paginationFields,
   ...responseFormatField,
@@ -303,7 +278,9 @@ export const writeBinarySchema = {
   path,
   data: base64Schema
     .refine((val) => val.length > 0, 'Base64 content must not be empty')
-    .describe('Base64-encoded binary content (no leading data: prefix)'),
+    .describe(
+      'Standard base64 (A-Z a-z 0-9 + /, = padding) on one line: no whitespace or line breaks, no data: prefix, no base64url.',
+    ),
   expectedMtime,
 };
 
@@ -315,11 +292,7 @@ export const writeBinarySchema = {
  * tool-list refresh.
  */
 export const getAspectSchema = {
-  path: z
-    .string()
-    .min(1)
-    .max(4096)
-    .describe('Vault-relative path to the file.'),
+  path,
   aspect: z
     .enum([
       'frontmatter',
@@ -330,7 +303,7 @@ export const getAspectSchema = {
       'block_references',
     ])
     .describe(
-      'Which metadata aspect to return: frontmatter, headings, outgoing_links ([[...]] links), ' +
+      'Which metadata aspect to return: frontmatter, headings, outgoing_links ([[...]] and [text](note.md) links), ' +
         'embeds (![[...]]), backlinks (files linking TO this file) or block_references (^block-ids). ' +
         'The result carries the matching field (frontmatter, headings, links, embeds, backlinks or blockRefs).',
     ),

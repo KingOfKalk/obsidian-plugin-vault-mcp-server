@@ -39,24 +39,38 @@ export function buildServerInstructions(
 
   const hints: string[] = [];
   if (has('search_fulltext')) {
+    // search_fulltext searches note text, not file names (#449).
     hints.push(
-      "- Prefer `search_fulltext` (or other `search_*` tools) before `vault_read` when you don't already know the file path.",
+      '- Find notes by content with `search_fulltext` (note text, not file names)' +
+        (has('vault_list_recursive') ? '; by name with `vault_list_recursive`.' : '.'),
     );
   }
   if (hasPrefix('editor_')) {
     hints.push(
       '- `editor_*` tools operate on the **active** file only' +
         (has('workspace_open_file')
-          ? ' — open one with `workspace_open_file` first if needed.'
-          : '.'),
+          ? ' — open one with `workspace_open_file` first if needed'
+          : '') +
+        '; no expectedMtime check.',
     );
   }
   hints.push(
-    '- Paths are vault-relative with forward slashes (e.g. `notes/foo.md`); never absolute filesystem paths.',
+    '- Paths are vault-relative with forward slashes, files with the extension (e.g. `notes/foo.md`); never absolute filesystem paths.',
   );
+  if (has('vault_replace')) {
+    // Which write tool to use (#449); vault_update on one read window
+    // truncates a large note.
+    hints.push(
+      '- To edit a note, prefer `vault_replace`' +
+        (has('vault_insert') ? ' or `vault_insert`' : '') +
+        (has('vault_update')
+          ? '; `vault_update` only to rewrite a whole file read in one window.'
+          : '.'),
+    );
+  }
   if (has('vault_get_aspect')) {
     hints.push(
-      "- Frontmatter, headings, links, embeds, backlinks, and block refs are exposed via the `vault_get_aspect` tool (call it with the matching `aspect` enum value) — don't parse them out of `vault_read` output.",
+      "- Frontmatter, headings, links, embeds, backlinks, block refs: use `vault_get_aspect`, don't parse `vault_read` output.",
     );
   }
 

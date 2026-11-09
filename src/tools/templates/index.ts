@@ -11,6 +11,12 @@ import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateVaultPath } from '../../utils/path-guard';
 import { FolderNotFoundError, handleToolError } from '../shared/errors';
 import { describeTool } from '../shared/describe';
+import {
+  FILE_PATH_DESC,
+  TEMPLATE_VARIABLES_DESC,
+  NEW_MODIFIED_DESC,
+  vaultPathField,
+} from '../shared/descriptions';
 import { expandPlaceholders } from '../shared/placeholders';
 import { modifiedIso } from '../shared/modified';
 import { assertSafeFrontmatterKeys, frontmatterKeySchema } from '../shared/frontmatter';
@@ -28,20 +34,12 @@ const listTemplatesSchema = {
 };
 
 const createFromTemplateSchema = {
-  templatePath: z
-    .string()
-    .min(1)
-    .max(4096)
-    .describe('Vault-relative path to the template source file'),
-  destPath: z
-    .string()
-    .min(1)
-    .max(4096)
-    .describe('Vault-relative path for the new file'),
+  templatePath: vaultPathField(FILE_PATH_DESC),
+  destPath: vaultPathField(FILE_PATH_DESC),
   variables: z
     .record(z.string(), z.string())
     .optional()
-    .describe('Template variables keyed by name (e.g. { title: "Today" }). date, time and title are built in; values given here override them.'),
+    .describe(TEMPLATE_VARIABLES_DESC),
   frontmatter: z
     .record(frontmatterKeySchema, z.unknown())
     .optional()
@@ -59,7 +57,7 @@ const expandVariablesSchema = {
   variables: z
     .record(z.string(), z.string())
     .optional()
-    .describe('Template variables keyed by name. date, time and title are built in; values given here override them.'),
+    .describe(TEMPLATE_VARIABLES_DESC),
   ...responseFormatField,
 };
 
@@ -70,13 +68,13 @@ const expandVariablesSchema = {
 const templateListOutputSchema = {
   files: z
     .array(z.string())
-    .describe('Vault-relative paths of files in the "templates" folder. Empty when the folder is missing.'),
+    .describe('Vault-relative paths of the files directly in the top-level "templates" folder; empty when that folder is missing.'),
 };
 
 const templateExpandOutputSchema = {
   expanded: z
     .string()
-    .describe('Template text with all {{variable}} placeholders substituted.'),
+    .describe('Template text with the known placeholders substituted; unknown ones stay as written.'),
 };
 
 const createFromTemplateOutputSchema = {
@@ -86,9 +84,7 @@ const createFromTemplateOutputSchema = {
     .record(z.string(), z.unknown())
     .optional()
     .describe('The new note\'s whole frontmatter after the frontmatter parameter was applied. Present only when frontmatter was given.'),
-  modified: z
-    .string()
-    .describe('Last-modification timestamp of the new file (ISO-8601); usable as the next expectedMtime.'),
+  modified: z.string().describe(NEW_MODIFIED_DESC),
 };
 
 interface TemplatesHandlers {
@@ -191,7 +187,9 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
           name: 'template_list',
           title: 'List templates',
           description: describeTool({
-            summary: 'List files in the vault\'s "templates" folder.',
+            summary:
+              'List the files directly inside the top-level folder named exactly "templates" (case-sensitive; not recursive). ' +
+              'The folder set in the Templates or Templater plugin is not used; use vault_list to look elsewhere.',
           }),
           schema: listTemplatesSchema,
           outputSchema: templateListOutputSchema,

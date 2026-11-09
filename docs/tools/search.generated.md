@@ -8,13 +8,16 @@ Auto-generated schema reference for the `search` module. See [../tools.generated
 
 **Full-text search**
 
-Case-insensitive substring search across all vault file contents.
+Case-insensitive substring search in the text of Markdown (.md) notes. Does not match file names or other file types.
 
 Returns:
-  limit/offset page over files; matching lines per file are capped by maxMatchesPerFile.
+  Pages over matching files (limit/offset; total and count are files). Each item has up to maxMatchesPerFile matching lines, but the markdown text lists only paths and match counts: use responseFormat=json (or structuredContent) to see the lines.
 
 Examples:
   - Use when: "find everything mentioning Obsidian".
+
+See also:
+  - vault_list_recursive — to find a file by its name.
 
 Errors:
   - "Query must not be empty" on empty input.
@@ -23,7 +26,7 @@ Errors:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `query` | string (1–500) | yes | Case-insensitive substring to search for across file contents |
+| `query` | string (1–500) | yes | Case-insensitive substring to find in the text of Markdown notes |
 | `maxMatchesPerFile` | number (1–100) | no (default `5`) | Maximum matching lines returned per file (1..100, default 5). matchCount always reports the full count. |
 | `limit` | number (1–100) | no (default `20`) | Maximum items to return (1..100, default 20). |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Number of items to skip before returning results (default 0). |
@@ -34,9 +37,9 @@ Errors:
 | Field | Type | Description |
 |---|---|---|
 | `total` | number | Total number of matched files before pagination. |
-| `count` | number | Number of matches in this page. |
+| `count` | number | Number of files in this page. |
 | `offset` | number | Offset of the first item in this page. |
-| `items` | object[] | Matches in this page. |
+| `items` | object[] | Matching files in this page. |
 | `hasMore` | boolean | True when more results are available past this page. |
 | `nextOffset` | number | Offset to use in the next request when hasMore is true. |
 
@@ -91,7 +94,7 @@ Response (`structuredContent`):
 
 **List tags**
 
-List every tag used anywhere in the vault with the files that use it (each file once) and its total occurrence count.
+List every tag used in the vault's Markdown notes (inline and frontmatter) with the files that use it (each file once) and its total occurrence count.
 
 See also:
   - search_by_tag — when you want notes carrying a tag, not the list of tags.
@@ -139,7 +142,7 @@ Response (`structuredContent`):
 
 **Find resolved links**
 
-Get the vault-wide map of resolved links (targets that exist).
+Get the map of resolved links (targets that exist). Covers the whole vault in one response (no paging), so it can be large.
 
 See also:
   - search_unresolved_links — when you want broken/dangling links instead.
@@ -154,7 +157,7 @@ See also:
 
 | Field | Type | Description |
 |---|---|---|
-| `links` | object | Map of source file path to map of target file path to reference count. |
+| `links` | object | Map of source note path to { target file path: link count }. |
 
 #### Example
 
@@ -189,7 +192,7 @@ Response (`structuredContent`):
 
 **Find unresolved links**
 
-Get the vault-wide map of unresolved links (targets that do not exist).
+Get the map of unresolved links (link text that matches no file). Covers the whole vault in one response (no paging), so it can be large.
 
 Examples:
   - Use when: hunting for broken [[wikilinks]] to clean up.
@@ -207,7 +210,7 @@ See also:
 
 | Field | Type | Description |
 |---|---|---|
-| `links` | object | Map of source file path to map of target file path to reference count. |
+| `links` | object | Map of source note path to { link text that matches no file, as written (e.g. "Missing Note"): count }. |
 
 #### Example
 
@@ -232,7 +235,7 @@ Response (`structuredContent`):
 
 **Find notes by tag**
 
-Find files tagged with a given tag (with or without leading #).
+Find Markdown notes that carry a tag (inline #tag or frontmatter tags). Matching is exact and case-sensitive.
 
 See also:
   - search_tags — when you want the list of tags in the vault, not notes.
@@ -241,7 +244,7 @@ See also:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `tag` | string (1–200) | yes | Tag to search for, with or without leading # (e.g. "project" or "#project") |
+| `tag` | string (1–200) | yes | Tag with or without the leading # (e.g. "project"). Exact, case-sensitive match: "project" does not find "Project" or nested "project/alpha"; use search_tags for the exact spellings. |
 | `limit` | number (1–100) | no (default `20`) | Maximum items to return (1..100, default 20). |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Number of items to skip before returning results (default 0). |
 | `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
@@ -288,7 +291,7 @@ Response (`structuredContent`):
 
 **Find notes by frontmatter**
 
-Find files whose YAML frontmatter has a key, optionally with a given value.
+Find Markdown notes whose YAML frontmatter has a key, optionally with a given value.
 
 Examples:
   - Use when: "find all notes where status == done" -> { key: "status", value: "done" }
@@ -298,8 +301,8 @@ Examples:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `key` | string (1–200) | yes | Frontmatter property key to match |
-| `value` | string (≤1000) | no | Value to match exactly (compared as stringified). For a list property, a file matches if any element equals the value. Omit to match every file that has the key. |
+| `key` | string (1–200) | yes | Top-level frontmatter key (exact, case-sensitive). |
+| `value` | string (≤1000) | no | Value to match exactly, compared as text (the number 5 matches "5", the boolean true matches "true"). For a list property, a file matches if any element equals the value. Omit to match every file that has the key. |
 | `limit` | number (1–100) | no (default `20`) | Maximum items to return (1..100, default 20). |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Number of items to skip before returning results (default 0). |
 | `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |

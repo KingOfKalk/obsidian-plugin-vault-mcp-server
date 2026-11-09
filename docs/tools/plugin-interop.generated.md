@@ -142,16 +142,16 @@ Response (`structuredContent`):
 
 **Describe Dataview JS query**
 
-Echo a Dataview-JS source for client-side execution. Returns the source and a note that the host must run it.
+Does not run anything: returns the given Dataview-JS source unchanged with a note that this server never executes Dataview-JS.
 
-Returns:
-  The server never evaluates Dataview-JS.
+See also:
+  - plugin_dataview_query — to run a Dataview DQL query.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `query` | string (1–10000) | yes | Dataview-JS source. Returned verbatim — execution is the host client's responsibility. |
+| `query` | string (1–10000) | yes | Dataview-JS source; returned unchanged, never executed. |
 | `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
@@ -187,16 +187,13 @@ Response (`structuredContent`):
 
 **Describe Templater template**
 
-Echo a Templater template path for client-side execution. Returns the path and a note that the host must run it via Templater.
-
-Returns:
-  The server never executes Templater itself.
+Does not run anything: returns the given template path unchanged with a note that this server never executes Templater. To read the template text, use vault_read.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `templatePath` | string (1–4096) | yes | Vault-relative path to the Templater template |
+| `templatePath` | string (1–4096) | yes | Template path; returned unchanged, not checked or read. |
 | `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
@@ -232,19 +229,21 @@ Response (`structuredContent`):
 
 **Execute command**
 
-Execute any Obsidian command by its id.
+Run an Obsidian command by id. Only ids the user put on the Execute Command Allowlist in the plugin settings run; the list is empty by default.
 
 Examples:
   - Use when: triggering "editor:save-file" programmatically.
 
 Errors:
-  - "Command not found" if the id is not registered.
+  - "Command execution disabled" if the allowlist is empty; ask the user to add the command id in the plugin settings.
+  - "Command "<id>" is not on the executeCommand allowlist" if the id is not listed.
+  - "Command not found" if the id is listed but no such command exists.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `commandId` | string (1–200) | yes | Obsidian command id (e.g. "app:reload") |
+| `commandId` | string (1–200) | yes | Obsidian command id (e.g. "editor:save-file"); must be on the user's allowlist. |
 
 #### Output
 
@@ -261,7 +260,7 @@ Request (`tools/call` params):
 {
   "name": "plugin_execute_command",
   "arguments": {
-    "commandId": "app:reload"
+    "commandId": "editor:save-file"
   }
 }
 ```
@@ -270,7 +269,7 @@ Response (`structuredContent`):
 
 ```json
 {
-  "commandId": "app:reload",
+  "commandId": "editor:save-file",
   "executed": true
 }
 ```

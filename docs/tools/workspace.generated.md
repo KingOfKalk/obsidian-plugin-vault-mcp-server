@@ -68,7 +68,7 @@ Errors:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `path` | string (1–4096) | yes | Vault-relative file path to open |
+| `path` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. Forward slashes, case-sensitive; leading / ignored; must stay in the vault. |
 | `mode` | enum: `source` \| `preview` \| `live` | no | Optional view mode for a Markdown note: "source" (Source mode), "live" (Live Preview) or "preview" (Reading view). Without it, Obsidian's default view applies. |
 
 #### Output
@@ -103,7 +103,7 @@ Response (`structuredContent`):
 
 **List open leaves**
 
-List every open leaf and the file it holds.
+List the open leaves that show a file, with their leaf ids and file paths.
 
 #### Input
 
@@ -187,7 +187,7 @@ Response (`structuredContent`):
 
 **Get workspace layout**
 
-Get a summary of the current workspace layout.
+Get Obsidian's raw workspace layout JSON (opaque, varies by Obsidian version, can be large; not truncated).
 
 #### Input
 
