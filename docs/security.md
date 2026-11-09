@@ -35,6 +35,7 @@ All file operations validate paths to ensure they stay within the vault director
 - Backslash paths (`\`)
 - Null bytes
 - Percent-encoded traversal sequences (`%2e`, `%2f`, `%5c`)
+- Paths inside the vault's config folder (`app.vault.configDir`, usually `.obsidian`), compared case-insensitively after normalisation, for reads and writes and for the destinations of rename, move and copy. The folder holds plugin code and this plugin's `data.json` with the access key. Listings and the `obsidian://vault/index` resource leave it out.
 
 ## CORS
 
