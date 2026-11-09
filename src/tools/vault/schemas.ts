@@ -360,8 +360,8 @@ export const dailyNoteSchema = {
     .boolean()
     .optional()
     .describe(
-      'Create the note from the template when it is missing (default true). ' +
-        'Set false to only look the note up: a missing note then returns exists=false and nothing is created.',
+      'Create the note from the template when it is missing (default false). ' +
+        'Without create=true the tool only looks the note up: a missing note returns exists=false and nothing is created.',
     ),
   ...responseFormatField,
 };

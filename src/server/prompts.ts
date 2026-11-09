@@ -127,7 +127,11 @@ export function createDailyNoteHandler(): (args: DailyNoteArgs) => Promise<GetPr
       throw new Error('date must be YYYY-MM-DD');
     }
     const dateClause = args.date ? ` for \`${args.date}\`` : '';
-    const dateArg = args.date ? ` with \`date: "${args.date}"\`` : '';
+    // The prompt promises create-if-missing, so it asks for create: true
+    // explicitly; vault_daily_note only looks the note up by default (#432).
+    const dateArg = args.date
+      ? ` with \`date: "${args.date}", create: true\``
+      : ' with `create: true`';
     return userTextMessage(
       `Open the daily note${dateClause}. First call \`vault_daily_note\`${dateArg} — it returns the note's \`path\`, \`content\`, and a \`created\` flag (true when a new note was just created from the configured template). Then call \`workspace_open_file\` with the returned \`path\` so the note becomes the active leaf. If \`created\` is \`true\`, mention to the user that a fresh daily note was just created.`,
     );

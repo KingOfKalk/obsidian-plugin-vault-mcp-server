@@ -1127,11 +1127,11 @@ Response (`structuredContent`):
 
 **Open or create the daily note**
 
-Resolve today's daily-note path from the daily-notes core plugin's settings, creating the note from the configured template if it does not yet exist. Pass create=false to look the note up without creating it.
+Resolve today's daily-note path from the daily-notes core plugin's settings and return the note if it exists. Nothing is created by default; pass create=true to create a missing note from the configured template.
 
 Examples:
-  - Use when: starting a daily review and you need today's note as context.
-  - Use when: checking whether a past daily note exists → { date: "2026-01-02", create: false }.
+  - Use when: starting a daily review and you need today's note, creating it if missing → { create: true }.
+  - Use when: checking whether a past daily note exists → { date: "2026-01-02" }.
   - Don't use when: you want a weekly/monthly note (not supported by this tool).
 
 Errors:
@@ -1144,7 +1144,7 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `date` | string | no | Optional ISO date (YYYY-MM-DD). Omit for today (local time). |
-| `create` | boolean | no | Create the note from the template when it is missing (default true). Set false to only look the note up: a missing note then returns exists=false and nothing is created. |
+| `create` | boolean | no | Create the note from the template when it is missing (default false). Without create=true the tool only looks the note up: a missing note returns exists=false and nothing is created. |
 | `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | Output format: "markdown" for humans (default), "json" for machines. |
 
 #### Output
@@ -1152,8 +1152,8 @@ Errors:
 | Field | Type | Description |
 |---|---|---|
 | `path` | string | Vault-relative path of the daily note. |
-| `created` | boolean | True when the note was just created; false when it already existed or create=false left it missing. |
-| `exists` | boolean | True when the note exists after the call; false only when create=false and the note is missing. |
+| `created` | boolean | True when the note was just created; false when it already existed or was missing and create was not true. |
+| `exists` | boolean | True when the note exists after the call; false when the note is missing and create was not true. |
 | `content` | string | Full note content (template-expanded body when newly created). Absent when exists=false. |
 
 #### Example
@@ -1164,7 +1164,8 @@ Request (`tools/call` params):
 {
   "name": "vault_daily_note",
   "arguments": {
-    "date": "2026-11-08"
+    "date": "2026-11-08",
+    "create": true
   }
 }
 ```

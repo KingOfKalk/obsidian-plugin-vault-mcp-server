@@ -877,10 +877,11 @@ export function createHandlers(
             readResponseFormat(params),
           );
         }
-        if (params.create === false) {
+        // Lookup by default (#432): only create when explicitly asked.
+        if (params.create !== true) {
           return makeResponse(
             { path, created: false, exists: false },
-            (v) => `${v.path} does not exist (not created because create=false).`,
+            (v) => `${v.path} does not exist (pass create=true to create it).`,
             readResponseFormat(params),
           );
         }

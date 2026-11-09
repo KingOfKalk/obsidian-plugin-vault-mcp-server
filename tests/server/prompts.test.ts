@@ -222,6 +222,16 @@ describe('daily-note handler', () => {
     expect(text.toLowerCase()).toContain('daily note');
   });
 
+  it('asks vault_daily_note to create the note when missing (#432)', async () => {
+    const handler = createDailyNoteHandler();
+    const today = await handler({});
+    const todayText = (today.messages[0].content as { type: 'text'; text: string }).text;
+    expect(todayText).toContain('`create: true`');
+    const dated = await handler({ date: '2026-05-05' });
+    const datedText = (dated.messages[0].content as { type: 'text'; text: string }).text;
+    expect(datedText).toContain('`date: "2026-05-05", create: true`');
+  });
+
   it('threads the date argument into the message text', async () => {
     const handler = createDailyNoteHandler();
     const result = await handler({ date: '2026-05-05' });
