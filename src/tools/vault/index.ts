@@ -742,7 +742,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           schema: setFrontmatterSchema,
           outputSchema: setFrontmatterOutputSchema,
           handler: handlers.setFrontmatter,
-          annotations: annotations.additiveIdempotent,
+          annotations: annotations.destructiveIdempotent,
         }),
       ];
     },

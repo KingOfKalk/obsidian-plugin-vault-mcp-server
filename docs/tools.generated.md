@@ -46,7 +46,7 @@ Schemas → [docs/tools/vault.generated.md](tools/vault.generated.md)
 | `vault_write_binary` | Write binary file |  | ✓ |
 | `vault_get_aspect` | Get file aspect | ✓ |  |
 | `vault_daily_note` | Open or create the daily note |  |  |
-| `vault_set_frontmatter` | Set frontmatter |  |  |
+| `vault_set_frontmatter` | Set frontmatter |  | ✓ |
 
 ### Editor Operations (`editor`)
 

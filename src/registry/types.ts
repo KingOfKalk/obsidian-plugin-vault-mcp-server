@@ -110,12 +110,6 @@ export const annotations = {
     idempotentHint: false,
     openWorldHint: false,
   },
-  additiveIdempotent: {
-    readOnlyHint: false,
-    destructiveHint: false,
-    idempotentHint: true,
-    openWorldHint: false,
-  },
   destructive: {
     readOnlyHint: false,
     destructiveHint: true,

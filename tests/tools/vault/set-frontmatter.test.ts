@@ -293,11 +293,13 @@ describe('vault_set_frontmatter registration', () => {
     .tools()
     .find((t) => t.name === 'vault_set_frontmatter');
 
-  it('is registered with write, non-destructive, idempotent, closed-world annotations', () => {
+  // Destructive (#447): set overwrites existing values and remove deletes
+  // keys, so clients must not skip their confirmation for it.
+  it('is registered with write, destructive, idempotent, closed-world annotations', () => {
     expect(tool).toBeDefined();
     expect(tool?.annotations).toEqual({
       readOnlyHint: false,
-      destructiveHint: false,
+      destructiveHint: true,
       idempotentHint: true,
       openWorldHint: false,
     });
