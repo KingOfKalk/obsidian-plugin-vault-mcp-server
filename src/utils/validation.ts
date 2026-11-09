@@ -48,10 +48,14 @@ export const contentSchema = z.string();
 
 export const base64Schema = z
   .string()
-  .refine(
-    (val) => /^[A-Za-z0-9+/]*={0,2}$/.test(val),
-    'Invalid base64 string',
-  );
+  .refine((val) => /^[A-Za-z0-9+/]*={0,2}$/.test(val), {
+    // Say why when whitespace is the cause: a trailing newline from a
+    // shell or file read is the usual mistake (#463).
+    error: (issue) =>
+      typeof issue.input === 'string' && /\s/.test(issue.input)
+        ? 'Invalid base64 string: it contains whitespace or a line break (often a trailing newline). Remove all whitespace and send it on one line.'
+        : 'Invalid base64 string',
+  });
 
 /** Free-text query bounded to something a human could plausibly enter. */
 export const searchQuerySchema = z
