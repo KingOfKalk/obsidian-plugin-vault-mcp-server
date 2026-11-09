@@ -121,23 +121,65 @@ export const appendFileSchema = {
   expectedMtime,
 };
 
-export const replaceInFileSchema = {
-  path,
-  oldString: z
-    .string()
-    .min(1)
-    .max(5_000_000)
-    .describe(
-      'Exact text to find (literal, case-sensitive, no regex). Must occur exactly once unless replaceAll is true.',
-    ),
-  newString: z
-    .string()
-    .max(5_000_000)
-    .describe('Replacement text (literal; may be empty to delete oldString).'),
+/** Most edits one `vault_replace` call may carry (#429). */
+export const MAX_REPLACE_EDITS = 100;
+
+const replaceOldString = z.string().min(1).max(5_000_000);
+const replaceNewString = z.string().max(5_000_000);
+
+/**
+ * One entry of `vault_replace`'s `edits` array (#429). Strict, so a typo
+ * such as `old_string` inside an edit is rejected instead of ignored.
+ */
+const replaceEdit = z.strictObject({
+  oldString: replaceOldString.describe(
+    'Exact text to find (literal, case-sensitive, no regex). Must occur exactly once unless replaceAll is true.',
+  ),
+  newString: replaceNewString.describe(
+    'Replacement text (literal; may be empty to delete oldString).',
+  ),
   replaceAll: z
     .boolean()
     .default(false)
-    .describe('Replace every occurrence instead of requiring exactly one (default false).'),
+    .describe("Replace every occurrence of this edit's oldString (default false)."),
+});
+
+/**
+ * Input schema for `vault_replace`. Takes either the single-edit form
+ * (`oldString` + `newString`) or `edits` (#429). A raw shape cannot
+ * express "exactly one of", so the handler enforces it.
+ */
+export const replaceInFileSchema = {
+  path,
+  oldString: replaceOldString
+    .optional()
+    .describe(
+      'Single-edit form: exact text to find (literal, case-sensitive, no regex). ' +
+        'Must occur exactly once unless replaceAll is true. Give it with newString, or use edits instead.',
+    ),
+  newString: replaceNewString
+    .optional()
+    .describe(
+      'Single-edit form: replacement text (literal; may be empty to delete oldString). Give it with oldString.',
+    ),
+  replaceAll: z
+    .boolean()
+    .default(false)
+    .describe(
+      'Single-edit form: replace every occurrence instead of requiring exactly one (default false). ' +
+        'With edits, set replaceAll on each edit instead.',
+    ),
+  edits: z
+    .array(replaceEdit)
+    .min(1)
+    .max(MAX_REPLACE_EDITS)
+    .optional()
+    .describe(
+      'Multi-edit form, instead of oldString/newString: up to 100 { oldString, newString, replaceAll? } edits, ' +
+        'all or nothing. Every edit is matched against the file as it was before the call (text inserted by one edit ' +
+        'is never matched by another), and the matches of different edits must not overlap. ' +
+        'If any edit fails, nothing is written.',
+    ),
   expectedMtime,
 };
 
@@ -343,4 +385,5 @@ export const setFrontmatterSchema = {
     .max(1000)
     .optional()
     .describe('Frontmatter keys to delete. Keys that are not present are ignored.'),
+  expectedMtime,
 };
