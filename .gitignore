@@ -24,3 +24,8 @@ Thumbs.db
 
 # Obsidian plugin dev
 data.json
+
+# E2E (headless Obsidian, #441): downloaded Obsidian builds and wdio logs
+.obsidian-cache/
+tests/vault/.obsidian/
+*.log

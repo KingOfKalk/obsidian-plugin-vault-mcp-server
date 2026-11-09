@@ -2,7 +2,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['dist/', 'main.js', 'node_modules/', 'esbuild.config.mjs', 'eslint.config.mjs', 'vitest.config.ts'],
+    ignores: ['dist/', 'main.js', 'node_modules/', 'esbuild.config.mjs', 'eslint.config.mjs', 'vitest.config.ts', 'wdio.conf.mts', '.obsidian-cache/'],
   },
   ...tseslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
@@ -11,7 +11,8 @@ export default tseslint.config(
       ecmaVersion: 'latest',
       sourceType: 'module',
       parserOptions: {
-        project: './tsconfig.json',
+        // e2e/ has its own tsconfig (WebdriverIO + Mocha globals, #441).
+        project: ['./tsconfig.json', './e2e/tsconfig.json'],
       },
     },
     rules: {
