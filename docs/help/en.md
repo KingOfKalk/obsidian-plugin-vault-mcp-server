@@ -24,6 +24,7 @@ connect to the server and read or modify your vault programmatically.
 - **Desktop only** (Node-only APIs are required)
 - **Default endpoint**: `http://localhost:28741/mcp` (or `http://127.0.0.1:28741/mcp` if `localhost` doesn't resolve in your setup)
 - **Auth**: HTTP Bearer token, on by default
+- **Sessions**: up to 32 at once; a session idle for 10 minutes is closed
 - **Transport**: Streamable HTTP (MCP SDK 1.x)
 
 ---
@@ -733,6 +734,22 @@ protection and isn't configurable.
   immediately, so once you fix the token, the next request succeeds.
 - If you keep hitting this after fixing the token, an old client or
   background process is probably still using the wrong key — close it.
+
+### My client says "404 Not Found" / "The MCP endpoint is /mcp"
+
+The client uses a URL path the server doesn't serve. The MCP endpoint is
+`/mcp`, e.g. `http://127.0.0.1:28741/mcp`. Copy the URL from **Settings →
+MCP Server → Server URL** or the **MCP Client Configuration** snippet.
+The bare `http://127.0.0.1:28741` (path `/`) also still works; any other
+path, such as `/api/mcp` or `/sse`, gets `404`.
+
+### My client says "Session not found"
+
+The server closed the client's session. This happens after 10 minutes
+without a request, when the server restarts, and when more than 32
+sessions are open: a new session then closes the one that has been
+unused the longest. MCP clients normally start a new session on their
+own; if yours doesn't, reconnect it (for example `/mcp` in Claude Code).
 
 ### My client says "403 Forbidden" / "Origin not allowlisted" / "Host not allowlisted"
 
