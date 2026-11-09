@@ -375,7 +375,8 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             summary: 'Read the UTF-8 content of a file by vault-relative path.',
             returns:
               'Files over 24 000 characters come in windows: while hasMore is true, call again with offset=nextOffset. ' +
-              'With heading, only that section is returned (paged the same way).',
+              'With heading, only that section is returned (paged the same way). ' +
+              'With responseFormat=json a window can be shorter than length, so the escaped JSON still fits the response limit; always continue at nextOffset.',
             examples: [
               'Use when: "show me the README" -> { path: "README.md" }',
               'Use when: continuing a large file -> { path: "big.md", offset: 24000 }',

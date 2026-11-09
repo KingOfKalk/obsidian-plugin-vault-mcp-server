@@ -64,7 +64,7 @@ Response (`structuredContent`):
 Read the UTF-8 content of a file by vault-relative path.
 
 Returns:
-  Files over 24 000 characters come in windows: while hasMore is true, call again with offset=nextOffset. With heading, only that section is returned (paged the same way).
+  Files over 24 000 characters come in windows: while hasMore is true, call again with offset=nextOffset. With heading, only that section is returned (paged the same way). With responseFormat=json a window can be shorter than length, so the escaped JSON still fits the response limit; always continue at nextOffset.
 
 Examples:
   - Use when: "show me the README" -> { path: "README.md" }
@@ -122,11 +122,11 @@ Response (`structuredContent`):
 ```json
 {
   "path": "projects/alpha.md",
-  "content": "---\nstatus: active\n---\n# Alpha\n\n## Goals\nShip it. ^goal-1\n",
   "totalLength": 58,
   "offset": 0,
   "hasMore": false,
-  "modified": "2026-01-10T08:15:00.000Z"
+  "modified": "2026-01-10T08:15:00.000Z",
+  "content": "---\nstatus: active\n---\n# Alpha\n\n## Goals\nShip it. ^goal-1\n"
 }
 ```
 

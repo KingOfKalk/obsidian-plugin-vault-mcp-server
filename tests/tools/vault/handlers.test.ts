@@ -575,6 +575,78 @@ describe('vault handlers truncation and size limits', () => {
       });
     });
 
+    // #447: JSON escaping (\n -> \\n, \" , \u0001 -> \\u0001) can grow a
+    // full window past the response limit. The JSON text used to be cut,
+    // losing hasMore/nextOffset/modified and leaving invalid JSON.
+    describe('responseFormat json (#447)', () => {
+      interface ReadPayload {
+        path: string;
+        content: string;
+        totalLength: number;
+        offset: number;
+        hasMore: boolean;
+        nextOffset?: number;
+        modified: string;
+      }
+
+      it.each([
+        ['newlines', 'a\n'.repeat(15_000)],
+        ['quotes', '"'.repeat(30_000)],
+        ['control characters', '\u0001'.repeat(30_000)],
+      ])('keeps the JSON text valid and complete for content full of %s', async (_name, big) => {
+        adapter.addFile('big.md', big);
+        const result = await handlers.readFile({ path: 'big.md', responseFormat: 'json' });
+        const text = getText(result);
+        expect(text.length).toBeLessThanOrEqual(25_000);
+        expect(text).not.toContain('[TRUNCATED');
+        const parsed = JSON.parse(text) as ReadPayload;
+        expect(parsed).toEqual(result.structuredContent);
+        expect(parsed.hasMore).toBe(true);
+        expect(parsed.nextOffset).toBe(parsed.content.length);
+        expect(parsed.modified).toEqual(expect.any(String));
+        expect(parsed.totalLength).toBe(big.length);
+      });
+
+      it('puts content last so the metadata comes first', async () => {
+        adapter.addFile('a.md', 'body');
+        const result = await handlers.readFile({ path: 'a.md', responseFormat: 'json' });
+        expect(Object.keys(JSON.parse(getText(result)) as object)).toEqual([
+          'path',
+          'totalLength',
+          'offset',
+          'hasMore',
+          'modified',
+          'content',
+        ]);
+      });
+
+      it('can read a whole escape-heavy file chunk by chunk', async () => {
+        const big = 'x\n"\t'.repeat(20_000);
+        adapter.addFile('big.md', big);
+        let offset = 0;
+        let collected = '';
+        for (let guard = 0; guard < 50; guard++) {
+          const result = await handlers.readFile({ path: 'big.md', offset, responseFormat: 'json' });
+          const parsed = JSON.parse(getText(result)) as ReadPayload;
+          collected += parsed.content;
+          if (!parsed.hasMore) break;
+          offset = parsed.nextOffset ?? 0;
+        }
+        expect(collected).toBe(big);
+      });
+
+      it('leaves a window that fits unchanged', async () => {
+        adapter.addFile('abc.md', 'abcdefghij');
+        const result = await handlers.readFile({
+          path: 'abc.md',
+          offset: 2,
+          length: 3,
+          responseFormat: 'json',
+        });
+        expect(JSON.parse(getText(result))).toMatchObject({ content: 'cde', nextOffset: 5 });
+      });
+    });
+
     it('does not split a surrogate pair at the end of a window', async () => {
       adapter.addFile('emoji.md', 'a\u{1F600}b');
       const result = await handlers.readFile({ path: 'emoji.md', length: 2 });

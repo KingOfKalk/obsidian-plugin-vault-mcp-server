@@ -18,7 +18,7 @@ import { confirmWithStructured, makeResponse, readResponseFormat } from '../shar
 import { expandPlaceholders } from '../shared/placeholders';
 import { assertSafeFrontmatterKeys } from '../shared/frontmatter';
 import { modifiedIso } from '../shared/modified';
-import { BINARY_BYTE_LIMIT } from '../../constants';
+import { BINARY_BYTE_LIMIT, CHARACTER_LIMIT } from '../../constants';
 import type { InferredParams } from '../../registry/types';
 import type { SearchHandlers } from '../search/handlers';
 import { READ_MAX_LENGTH, parseExpectedMtime } from './schemas';
@@ -306,6 +306,41 @@ function sliceReadWindow(
   };
 }
 
+/** `vault_read`'s structured result; `content` is serialised last. */
+interface ReadPayload {
+  path: string;
+  heading?: string;
+  line?: number;
+  totalLength: number;
+  offset: number;
+  hasMore: boolean;
+  nextOffset?: number;
+  modified: string;
+  content: string;
+}
+
+/**
+ * Shrink a `vault_read` window until its pretty-printed JSON fits in
+ * CHARACTER_LIMIT (#447). Escaping (`\n` -> `\\n`, `"` -> `\\"`, control
+ * characters -> `\\u00XX`) can make a full window's JSON larger than the
+ * limit; cutting the text afterwards left invalid JSON without the paging
+ * fields. Each round drops at least as many characters as the JSON is
+ * over, since every character serialises to one or more.
+ */
+function fitJsonWindow(
+  payload: ReadPayload,
+  build: (length: number) => ReadPayload,
+): ReadPayload {
+  let current = payload;
+  let size = JSON.stringify(current, null, 2).length;
+  while (size > CHARACTER_LIMIT && current.content.length > 1) {
+    const length = Math.max(1, current.content.length - (size - CHARACTER_LIMIT));
+    current = build(length);
+    size = JSON.stringify(current, null, 2).length;
+  }
+  return current;
+}
+
 /**
  * Check a vault_set_frontmatter request before touching the file: at least
  * one key to change, no key both set and removed, no prototype keys.
@@ -459,33 +494,37 @@ export function createHandlers(
             line: section.start + 1,
           };
         }
-        const window = sliceReadWindow(
-          fullContent,
-          params.offset ?? 0,
-          params.length ?? READ_MAX_LENGTH,
-        );
-        const payload = {
-          path,
-          ...sectionFields,
-          content: window.content,
-          totalLength: fullContent.length,
-          offset: window.offset,
-          hasMore: window.hasMore,
-          ...(window.hasMore ? { nextOffset: window.end } : {}),
-          modified,
+        const format = readResponseFormat(params);
+        const buildPayload = (length: number): ReadPayload => {
+          const w = sliceReadWindow(fullContent, params.offset ?? 0, length);
+          // Metadata first, content last (#447): whatever happens to the
+          // text, the paging fields are never behind the long content.
+          return {
+            path,
+            ...sectionFields,
+            totalLength: fullContent.length,
+            offset: w.offset,
+            hasMore: w.hasMore,
+            ...(w.hasMore ? { nextOffset: w.end } : {}),
+            modified,
+            content: w.content,
+          };
         };
+        let payload = buildPayload(params.length ?? READ_MAX_LENGTH);
+        if (format === 'json') payload = fitJsonWindow(payload, buildPayload);
+        const windowEnd = payload.offset + payload.content.length;
         const result = makeResponse(
           payload,
           (v) =>
             v.hasMore
-              ? `${v.content}\n\n[TRUNCATED: Showing characters ${String(v.offset)}-${String(window.end)} of ${String(v.totalLength)}. Call vault_read again with offset=${String(window.end)} to continue.]`
+              ? `${v.content}\n\n[TRUNCATED: Showing characters ${String(v.offset)}-${String(windowEnd)} of ${String(v.totalLength)}. Call vault_read again with offset=${String(windowEnd)} to continue.]`
               : v.content,
-          readResponseFormat(params),
+          format,
         );
         const firstBlock = result.content[0];
         const text = firstBlock.type === 'text' ? firstBlock.text : '';
-        // Safety net for the JSON rendering, whose escaping can push a
-        // full-size window past the limit.
+        // Safety net only: the markdown window plus its footer fits, and
+        // fitJsonWindow sizes the JSON window to fit.
         const truncated = truncateText(text, {
           hint: 'Call vault_read with a smaller length, or continue with offset.',
         });
