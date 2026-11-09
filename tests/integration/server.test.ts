@@ -102,33 +102,33 @@ describe('Integration: HTTP Server Authentication', () => {
   });
 
   it('should reject requests without Authorization header', async () => {
-    const res = await makeRequest('POST', '/');
+    const res = await makeRequest('POST', '/mcp');
     expect(res.status).toBe(401);
   });
 
   it('should reject requests with invalid token', async () => {
-    const res = await makeRequest('POST', '/', {
+    const res = await makeRequest('POST', '/mcp', {
       Authorization: 'Bearer wrong-key',
     });
     expect(res.status).toBe(401);
   });
 
   it('should reject requests with malformed auth header', async () => {
-    const res = await makeRequest('POST', '/', {
+    const res = await makeRequest('POST', '/mcp', {
       Authorization: 'Basic abc123',
     });
     expect(res.status).toBe(401);
   });
 
   it('should handle CORS preflight', async () => {
-    const res = await makeRequest('OPTIONS', '/');
+    const res = await makeRequest('OPTIONS', '/mcp');
     expect(res.status).toBe(204);
     expect(res.headers['access-control-allow-origin']).toBeDefined();
     expect(res.headers['access-control-allow-methods']).toBeDefined();
   });
 
   it('should include CORS headers in authenticated responses', async () => {
-    const res = await makeRequest('POST', '/', {
+    const res = await makeRequest('POST', '/mcp', {
       Authorization: `Bearer ${ACCESS_KEY}`,
     });
     expect(res.headers['access-control-allow-origin']).toBeDefined();
@@ -146,7 +146,7 @@ describe('Integration: HTTP Server Authentication', () => {
         clientInfo: { name: 'test-client', version: '1.0.0' },
       },
     });
-    const res = await makeRequest('POST', '/', {
+    const res = await makeRequest('POST', '/mcp', {
       Authorization: `Bearer ${ACCESS_KEY}`,
       Accept: 'application/json, text/event-stream',
     }, body);
@@ -178,7 +178,7 @@ describe('Integration: HTTP Server Authentication', () => {
           clientInfo: { name: clientName, version: '1.0.0' },
         },
       });
-      return makeRequest('POST', '/', {
+      return makeRequest('POST', '/mcp', {
         Authorization: `Bearer ${ACCESS_KEY}`,
         Accept: 'application/json, text/event-stream',
       }, body);
@@ -201,7 +201,7 @@ describe('Integration: HTTP Server Authentication', () => {
       method: 'tools/list',
       params: {},
     });
-    const res = await makeRequest('POST', '/', {
+    const res = await makeRequest('POST', '/mcp', {
       Authorization: `Bearer ${ACCESS_KEY}`,
       Accept: 'application/json, text/event-stream',
     }, body);
@@ -217,7 +217,7 @@ describe('Integration: HTTP Server Authentication', () => {
       method: 'tools/list',
       params: {},
     });
-    const res = await makeRequest('POST', '/', {
+    const res = await makeRequest('POST', '/mcp', {
       Authorization: `Bearer ${ACCESS_KEY}`,
       Accept: 'application/json, text/event-stream',
       'Mcp-Session-Id': 'nonexistent-session-id',

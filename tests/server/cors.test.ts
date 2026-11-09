@@ -41,10 +41,20 @@ describe('applyCorsHeaders', () => {
     expect(headerMap.get('Access-Control-Allow-Origin')).toBe('http://localhost');
     expect(headerMap.get('Access-Control-Allow-Methods')).toBe('GET, POST, DELETE, OPTIONS');
     expect(headerMap.get('Access-Control-Allow-Headers')).toBe(
-      'Content-Type, Authorization, Mcp-Session-Id',
+      'Content-Type, Authorization, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID',
     );
     expect(headerMap.get('Access-Control-Max-Age')).toBe('86400');
-    expect(headerMap.get('Access-Control-Expose-Headers')).toBe('Mcp-Session-Id');
+    expect(headerMap.get('Access-Control-Expose-Headers')).toBe(
+      'Mcp-Session-Id, Mcp-Protocol-Version, WWW-Authenticate',
+    );
+    expect(headerMap.get('Vary')).toBe('Origin');
+  });
+
+  it('echoes a validated request origin instead of the configured one', () => {
+    const { res, setHeaderCalls } = createMockResponse();
+    applyCorsHeaders(res, DEFAULT_CORS_OPTIONS, 'http://127.0.0.1:5173');
+    const headerMap = new Map(setHeaderCalls);
+    expect(headerMap.get('Access-Control-Allow-Origin')).toBe('http://127.0.0.1:5173');
   });
 
   it('should use custom options when provided', () => {

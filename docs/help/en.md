@@ -22,8 +22,9 @@ Any MCP-capable client (Claude Desktop, Claude Code, Codex, custom agents) can
 connect to the server and read or modify your vault programmatically.
 
 - **Desktop only** (Node-only APIs are required)
-- **Default endpoint**: `http://localhost:28741/mcp` (or `http://127.0.0.1:28741/mcp` if `localhost` doesn't resolve in your setup)
+- **Default endpoint**: `http://localhost:28741/mcp` (or `http://127.0.0.1:28741/mcp` if `localhost` doesn't resolve in your setup). `/mcp` is the only path that serves MCP; every other path gets `404`.
 - **Auth**: HTTP Bearer token, on by default
+- **Sessions**: up to 32 at once; a session idle for 10 minutes is closed
 - **Transport**: Streamable HTTP (MCP SDK 1.x)
 
 ---
@@ -768,6 +769,27 @@ protection and isn't configurable.
   immediately, so once you fix the token, the next request succeeds.
 - If you keep hitting this after fixing the token, an old client or
   background process is probably still using the wrong key — close it.
+
+### My client says "404 Not Found" / "The MCP endpoint is /mcp"
+
+The client uses a URL path the server doesn't serve. The MCP endpoint is
+`/mcp`, e.g. `http://127.0.0.1:28741/mcp`. Copy the URL from **Settings →
+MCP Server → Server URL** or the **MCP Client Configuration** snippet.
+Every other path gets `404`, including the bare root
+(`http://127.0.0.1:28741` or `http://127.0.0.1:28741/`), `/mcp/` with a
+trailing slash, `/api/mcp` and `/sse`.
+
+If you configured the bare root (an older README example did this, and
+older plugin versions accepted any path), add `/mcp` to the URL in your
+client's configuration, e.g. `http://127.0.0.1:28741/mcp`.
+
+### My client says "Session not found"
+
+The server closed the client's session. This happens after 10 minutes
+without a request, when the server restarts, and when more than 32
+sessions are open: a new session then closes the one that has been
+unused the longest. MCP clients normally start a new session on their
+own; if yours doesn't, reconnect it (for example `/mcp` in Claude Code).
 
 ### My client says "403 Forbidden" / "Origin not allowlisted" / "Host not allowlisted"
 

@@ -85,14 +85,14 @@ describe('Integration: HTTPS server', () => {
   });
 
   it('rejects requests over HTTPS without Authorization', async () => {
-    const res = await makeRequest('POST', '/', caCert);
+    const res = await makeRequest('POST', '/mcp', caCert);
     expect(res.status).toBe(401);
   });
 
   it('accepts Bearer-authenticated requests over HTTPS', async () => {
     const res = await makeRequest(
       'POST',
-      '/',
+      '/mcp',
       caCert,
       { Authorization: `Bearer ${ACCESS_KEY}` },
       JSON.stringify({}),
@@ -108,7 +108,7 @@ describe('Integration: HTTPS server', () => {
         {
           hostname: '127.0.0.1',
           port: TEST_PORT,
-          path: '/',
+          path: '/mcp',
           method: 'GET',
         },
         () => resolve(),

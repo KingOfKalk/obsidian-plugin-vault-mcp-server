@@ -81,6 +81,26 @@ describe('authenticateRequest', () => {
       expect(result.error).toContain('not configured');
     });
 
+    it.each(['bearer', 'BEARER', 'bEaReR'])(
+      'accepts the %s scheme (RFC 7235: schemes are case-insensitive)',
+      (scheme) => {
+        const req = createMockRequest({ authorization: `${scheme} ${accessKey}` });
+        expect(authenticateRequest(req, accessKey, true).authenticated).toBe(true);
+      },
+    );
+
+    it('rejects a wrong token with a lowercase scheme', () => {
+      const req = createMockRequest({ authorization: 'bearer wrong-key' });
+      const result = authenticateRequest(req, accessKey, true);
+      expect(result.authenticated).toBe(false);
+      expect(result.error).toBe('Invalid access key');
+    });
+
+    it('rejects a different scheme', () => {
+      const req = createMockRequest({ authorization: `Basic ${accessKey}` });
+      expect(authenticateRequest(req, accessKey, true).authenticated).toBe(false);
+    });
+
     it('should reject token with extra spaces', () => {
       const req = createMockRequest({ authorization: `Bearer  ${accessKey}` });
       const result = authenticateRequest(req, accessKey, true);
