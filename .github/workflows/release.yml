@@ -11,6 +11,9 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-26.04
+    outputs:
+      prs_created: ${{ steps.release.outputs.prs_created }}
+      pr: ${{ steps.release.outputs.pr }}
 
     steps:
       - uses: googleapis/release-please-action@v5
@@ -38,18 +41,6 @@ jobs:
         if: ${{ steps.release.outputs.release_created }}
         run: echo "/* vault-mcp-server styles */" > styles.css
 
-      - name: Update versions.json
-        if: ${{ steps.release.outputs.release_created }}
-        run: |
-          VERSION="${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.${{ steps.release.outputs.patch }}"
-          MIN_APP_VERSION=$(node -p "require('./manifest.json').minAppVersion")
-          node -e "
-            const fs = require('fs');
-            const versions = JSON.parse(fs.readFileSync('versions.json', 'utf8'));
-            versions['${VERSION}'] = '${MIN_APP_VERSION}';
-            fs.writeFileSync('versions.json', JSON.stringify(versions, null, '\t') + '\n');
-          "
-
       - name: Build plugin zip
         if: ${{ steps.release.outputs.release_created }}
         env:
@@ -72,3 +63,40 @@ jobs:
             styles.css \
             versions.json \
             "vault-mcp-server-${VERSION}.zip"
+
+  # Adds the release PR's version to versions.json on the release branch, so
+  # the entry is part of the release commit and the release uploads the
+  # committed file (#421). release-please rewrites the branch whenever the PR
+  # changes and reports it in `prs_created`, so this runs after every PR
+  # update and is a no-op when the entry is already there. The push uses
+  # GITHUB_TOKEN, so it does not trigger CI on the release PR.
+  versions-json:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.prs_created == 'true' }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ fromJSON(needs.release-please.outputs.pr).headBranchName }}
+
+      - name: Add version to versions.json
+        run: |
+          node -e '
+            const fs = require("fs");
+            const { version, minAppVersion } = JSON.parse(fs.readFileSync("manifest.json", "utf8"));
+            const versions = JSON.parse(fs.readFileSync("versions.json", "utf8"));
+            versions[version] = minAppVersion;
+            fs.writeFileSync("versions.json", JSON.stringify(versions, null, "\t") + "\n");
+          '
+          if git diff --quiet -- versions.json; then
+            echo "versions.json is up to date"
+            exit 0
+          fi
+          VERSION=$(node -p 'require("./manifest.json").version')
+          echo "Adding ${VERSION} to versions.json"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: add ${VERSION} to versions.json" -- versions.json
+          git push
