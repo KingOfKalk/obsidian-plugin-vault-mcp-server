@@ -283,6 +283,18 @@ describe('ModuleRegistry', () => {
       });
       expect(registry.isToolEnabled('extras', 'get_date')).toBe(false);
     });
+
+    it('getEnabledModuleIds lists enabled modules and extras only while a tool is on (#402)', () => {
+      registry.registerModule(createMockModule('vault', [createMockTool('a', true)]));
+      registry.registerModule(createMockModule('editor', [createMockTool('b', true)]));
+      registry.registerModule(
+        createExtrasModule('extras', [createMockTool('get_date', true)]),
+      );
+      registry.disableModule('editor');
+      expect(registry.getEnabledModuleIds()).toEqual(['vault']);
+      registry.setToolEnabled('extras', 'get_date', true);
+      expect(registry.getEnabledModuleIds()).toEqual(['vault', 'extras']);
+    });
   });
 
   describe('onChange', () => {

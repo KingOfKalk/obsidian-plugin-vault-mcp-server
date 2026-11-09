@@ -29,6 +29,7 @@ describe('eval harness', () => {
     const expected = discoverModules(new MockObsidianAdapter())
       .flatMap((m) => m.tools())
       .map((t) => t.name)
+      .concat('server_info') // always on, outside the registry (#402)
       .sort();
     const harness = await startHarness();
     const client = await connectClient(harness);

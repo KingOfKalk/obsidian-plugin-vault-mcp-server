@@ -14,8 +14,9 @@ This file is regenerated from the tool registry and committed so CI can detect d
 | `templates` | Templates and Content Generation | 3 | template_list, template_create_from, template_expand |
 | `plugin-interop` | Plugin Interop | 6 | plugin_list, plugin_check, plugin_dataview_query, plugin_dataview_describe_js_query, plugin_templater_describe_template, plugin_execute_command |
 | `extras` | Extras | 1 | extras_get_date |
+| `server` | Server | 1 | server_info |
 
-**Total tools:** 50 across 8 modules.
+**Total tools:** 51 across 9 modules.
 
 ## Tools by module
 
@@ -124,3 +125,11 @@ Schemas → [docs/tools/extras.generated.md](tools/extras.generated.md)
 | Name | Title | readOnly | destructive |
 |---|---|---|---|
 | `extras_get_date` | Get current date | ✓ |  |
+
+### Server (`server`)
+
+Schemas → [docs/tools/server.generated.md](tools/server.generated.md)
+
+| Name | Title | readOnly | destructive |
+|---|---|---|---|
+| `server_info` | Get server info | ✓ |  |

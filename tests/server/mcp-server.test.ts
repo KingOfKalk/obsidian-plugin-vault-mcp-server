@@ -198,7 +198,8 @@ describe('createMcpServer', () => {
 
     createMcpServer(registry, new MockObsidianAdapter(), DEFAULT_SETTINGS, makeLogger());
 
-    expect(capturedRegisterToolCalls).toHaveLength(2);
+    // The two stub tools plus the always-on server_info (#402).
+    expect(capturedRegisterToolCalls).toHaveLength(3);
 
     const withOutput = capturedRegisterToolCalls.find(
       (c) => c.name === 'tool_with_output',
@@ -553,6 +554,56 @@ describe('createToolDispatcher', () => {
   });
 });
 
+describe('server version for the model (#402)', () => {
+  beforeEach(() => {
+    capturedConstructorArgs.length = 0;
+    capturedRegisterToolCalls.length = 0;
+  });
+
+  it('SERVER_INSTRUCTIONS starts with the manifest version and points at server_info', async () => {
+    const { SERVER_INSTRUCTIONS } = await import('../../src/server/mcp-server');
+    const [first, second] = SERVER_INSTRUCTIONS.split('\n');
+    expect(first).toBe(`vault-mcp-server v${manifest.version}`);
+    expect(second).toContain('server_info');
+  });
+
+  it('uses an injected version for the handshake, instructions and server_info description', async () => {
+    const { createMcpServer } = await import('../../src/server/mcp-server');
+    const registry = new ModuleRegistry(makeLogger());
+
+    createMcpServer(registry, new MockObsidianAdapter(), DEFAULT_SETTINGS, makeLogger(), {
+      version: '9.8.7',
+    });
+
+    expect(capturedConstructorArgs[0].serverInfo.version).toBe('9.8.7');
+    expect(capturedConstructorArgs[0].options.instructions?.startsWith('vault-mcp-server v9.8.7\n')).toBe(true);
+    const info = capturedRegisterToolCalls.find((c) => c.name === 'server_info');
+    expect(info?.config.description).toContain('v9.8.7');
+    expect(info?.config.annotations).toMatchObject({
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    });
+  });
+
+  it('registers server_info even when every module is disabled', async () => {
+    const { createMcpServer } = await import('../../src/server/mcp-server');
+    const registry = new ModuleRegistry(makeLogger());
+    const stub: ToolModule = {
+      metadata: { id: 'stub', name: 'Stub', description: 'test' },
+      tools: () => [],
+    };
+    registry.registerModule(stub);
+    registry.disableModule('stub');
+
+    createMcpServer(registry, new MockObsidianAdapter(), DEFAULT_SETTINGS, makeLogger());
+
+    expect(capturedRegisterToolCalls.map((c) => c.name)).toEqual(['server_info']);
+    const description = capturedRegisterToolCalls[0].config.description ?? '';
+    expect(description).toContain(`v${manifest.version}`);
+  });
+});
+
 describe('SERVER_INSTRUCTIONS', () => {
   it('is a non-empty string', async () => {
     const { SERVER_INSTRUCTIONS } = await import(
@@ -567,7 +618,7 @@ describe('SERVER_INSTRUCTIONS', () => {
       '../../src/server/mcp-server'
     );
     // Hard cap so we notice if the string drifts toward bloat. Current
-    // length is ~560 chars, well below the cap.
+    // length is ~700 chars including the version line (#402).
     expect(SERVER_INSTRUCTIONS.length).toBeLessThanOrEqual(800);
   });
 

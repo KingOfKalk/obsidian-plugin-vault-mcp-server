@@ -471,6 +471,81 @@ function collectPropertyNames(schema: unknown, path: string, out: string[]): voi
   }
 }
 
+describe('server_info (#402)', () => {
+  it('returns name, version, enabledModules and changes', async () => {
+    const h = await connect({ version: '1.2.3' });
+    try {
+      const { tools } = await h.client.listTools();
+      const listed = tools.find((t) => t.name === 'server_info');
+      expect(listed?.description).toContain('v1.2.3');
+      expect(h.client.getInstructions()?.split('\n')[0]).toBe('vault-mcp-server v1.2.3');
+
+      const result = await call(h, 'server_info', {});
+      expect(result.isError).not.toBe(true);
+      const sc = result.structuredContent as {
+        name: string;
+        version: string;
+        enabledModules: string[];
+        changes: Array<{ version: string; notes: string[] }>;
+      };
+      expect(sc.name).toBe('vault-mcp-server');
+      expect(sc.version).toBe('1.2.3');
+      expect(sc.enabledModules).toEqual([
+        'vault',
+        'editor',
+        'search',
+        'workspace',
+        'ui',
+        'templates',
+        'plugin-interop',
+        'extras',
+      ]);
+      expect(sc.changes.length).toBeGreaterThan(0);
+      for (const entry of sc.changes) {
+        expect(entry.version).toMatch(/^\d+\.\d+\.\d+$/);
+        expect(entry.notes.length).toBeGreaterThan(0);
+      }
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('enabledModules follows module toggles and server_info stays available', async () => {
+    const h = await connect({
+      moduleStates: {
+        vault: { enabled: false },
+        editor: { enabled: false },
+        search: { enabled: false },
+        workspace: { enabled: false },
+        ui: { enabled: false },
+        templates: { enabled: false },
+        'plugin-interop': { enabled: false },
+        extras: { enabled: true, toolStates: {} },
+      },
+    });
+    try {
+      const { tools } = await h.client.listTools();
+      expect(tools.map((t) => t.name)).toEqual(['server_info']);
+      const result = await call(h, 'server_info', {});
+      expect((result.structuredContent as { enabledModules: string[] }).enabledModules).toEqual(
+        [],
+      );
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('rejects arguments', async () => {
+    const h = await connect();
+    try {
+      const result = await call(h, 'server_info', { verbose: true });
+      expect(result.isError).toBe(true);
+    } finally {
+      await h.close();
+    }
+  });
+});
+
 describe('naming convention guard (#392)', () => {
   const CAMEL_CASE = /^[a-z][a-zA-Z0-9]*$/;
 
