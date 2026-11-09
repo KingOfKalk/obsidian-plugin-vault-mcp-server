@@ -64,7 +64,8 @@ Response (`structuredContent`):
         "`search_by_frontmatter`: a list property matches when any element equals `value`.",
         "New tool `vault_replace`: replace an exact passage in a file (`oldString` must match once unless `replaceAll`); returns `replacements` and the new `modified`.",
         "`vault_update`, `vault_append`, `vault_replace` and `vault_write_binary` take optional `expectedMtime`; if the file changed since, nothing is written and the error reports the current mtime.",
-        "`vault_read` structured output now includes `modified` (ISO-8601) to pass back as `expectedMtime`."
+        "`vault_read` structured output now includes `modified` (ISO-8601) to pass back as `expectedMtime`.",
+        "New tool `vault_set_frontmatter`: set (`set`) and delete (`remove`) frontmatter keys of a Markdown note via Obsidian, without rewriting the file. Returns `{ path, frontmatter }`."
       ]
     },
     {

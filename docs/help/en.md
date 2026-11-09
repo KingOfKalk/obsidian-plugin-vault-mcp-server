@@ -201,7 +201,7 @@ modules are hidden from `tools/list`, so the client never sees them.
 
 | Module | Tools | Notes |
 |---|---|---|
-| Vault and File Operations | 19 | Create / read / update / delete files and folders, replace a passage in a file, rename, move, copy, list, binary I/O, metadata, daily note. |
+| Vault and File Operations | 20 | Create / read / update / delete files and folders, replace a passage in a file, rename, move, copy, list, binary I/O, metadata, set frontmatter, daily note. |
 | Search and Metadata | 6 | Full-text search, list tags, find notes by tag / frontmatter, find resolved / unresolved links. |
 | Editor Operations | 10 | Read/insert/replace/delete text in the active editor, cursor and selection management. |
 | Workspace and Navigation | 5 | Inspect / open / focus leaves, read the layout. |
@@ -379,6 +379,17 @@ clients and agents commonly trip over:
 - **No absolute paths in errors.** Error messages never show where your vault
   lives on disk: paths inside the vault appear vault-relative (for example
   `projects/plan.md`), other filesystem paths appear as `<path>`.
+- **Changing frontmatter.** `vault_set_frontmatter` sets and removes
+  frontmatter keys of a Markdown note without touching the rest of the file:
+  `{ "path": "notes/a.md", "set": { "status": "done" }, "remove": ["draft"] }`.
+  Values can be any JSON value (text, number, true/false, null, list or
+  object). Obsidian writes the YAML itself, so key order and formatting are
+  kept, and the frontmatter block is created if the note has none. Keys you
+  do not list stay as they are; removing a key that is not there is not an
+  error. The result's `structuredContent` holds the `path` and the whole
+  `frontmatter` after the change. The call fails if the file does not
+  exist, is not a `.md` file, if a key is in both `set` and `remove`, or if
+  there is nothing to change (pass `"set": {}` to only remove keys).
 - **Structured output on every tool.** All tools declare an `outputSchema`
   and return `structuredContent`. Write tools keep their plain-text
   confirmation (for example `Created file: notes/a.md`) and add a small

@@ -46,6 +46,14 @@ export interface ObsidianAdapter {
   // Metadata operations
   getFileContent(path: string): Promise<string>;
   getFrontmatter(path: string): Record<string, unknown> | null;
+  /**
+   * Atomically read, modify and save a note's YAML frontmatter. `fn`
+   * receives the parsed frontmatter object (empty when the note has none)
+   * and mutates it in place. The real adapter delegates to Obsidian's
+   * `fileManager.processFrontMatter()`, which writes the YAML, keeps key
+   * order and creates the block if missing.
+   */
+  processFrontMatter(path: string, fn: (frontmatter: Record<string, unknown>) => void): Promise<void>;
   getTags(path: string): string[];
   getAllTags(): Record<string, string[]>;
   getHeadings(path: string): Array<{ heading: string; level: number }>;
@@ -252,6 +260,14 @@ export class RealObsidianAdapter implements ObsidianAdapter {
     const file = this.getFile(path);
     const cache = this.app.metadataCache.getFileCache(file);
     return (cache?.frontmatter as Record<string, unknown>) ?? null;
+  }
+
+  async processFrontMatter(
+    path: string,
+    fn: (frontmatter: Record<string, unknown>) => void,
+  ): Promise<void> {
+    const file = this.getFile(path);
+    await this.app.fileManager.processFrontMatter(file, fn);
   }
 
   getTags(path: string): string[] {
