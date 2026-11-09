@@ -201,7 +201,7 @@ modules are hidden from `tools/list`, so the client never sees them.
 
 | Module | Tools | Notes |
 |---|---|---|
-| Vault and File Operations | 20 | Create / read / update / delete files and folders, replace a passage in a file, rename, move, copy, list, binary I/O, metadata, set frontmatter, daily note. |
+| Vault and File Operations | 21 | Create / read / update / delete files and folders, read one section, replace a passage or insert into a section, rename, move, copy, list, binary I/O, metadata, set frontmatter, daily note. |
 | Search and Metadata | 6 | Full-text search, list tags, find notes by tag / frontmatter, find resolved / unresolved links. |
 | Editor Operations | 10 | Read/insert/replace/delete text in the active editor, cursor and selection management. |
 | Workspace and Navigation | 5 | Inspect / open / focus leaves, read the layout. |
@@ -353,14 +353,36 @@ clients and agents commonly trip over:
   unique, or pass `replaceAll: true` to replace every occurrence. The edit
   runs through Obsidian's atomic `vault.process()`. `structuredContent` is
   `{ path, replacements, modified }`.
+- **Working with one section (`heading`).** A section runs from its
+  heading line to the next heading of the same or a higher level (fewer
+  `#`), or to the end of the file, so nested subsections belong to it.
+  `heading` is the heading text without the `#` marks (`"Log"`), or with
+  them to pick a level (`"## Log"`). Only `#`-style headings count; headings
+  inside fenced code blocks and in the frontmatter are ignored. The heading
+  must match exactly one heading: otherwise the call fails, listing the
+  available headings (or the matches) with their line numbers.
+  - `vault_read` with `heading` returns only that section, heading line
+    included. `structuredContent` adds `heading` (as written, e.g.
+    `"## Log"`) and `line` (1-based line of the heading); `offset`,
+    `length`, `totalLength` and `nextOffset` then count within the section.
+  - `vault_insert` takes `path`, `heading`, `text` and `position` (`"end"`,
+    the default, or `"start"`). `end` puts the text right after the
+    section's last non-blank line, so blank lines before the next heading
+    stay; `start` puts it right below the heading (after a blank line that
+    follows the heading). The text goes in as whole lines, one trailing
+    newline is ignored, and the file's line endings are kept; start the
+    text with a newline to leave a blank line before it. The edit runs
+    through `vault.process()` and accepts `expectedMtime`.
+    `structuredContent` is `{ path, heading, position, line, modified }`,
+    where `line` is the first inserted line.
 - **Detecting concurrent edits (`expectedMtime`).** `vault_update`,
-  `vault_append`, `vault_replace` and `vault_write_binary` accept an
+  `vault_append`, `vault_replace`, `vault_insert` and `vault_write_binary` accept an
   optional `expectedMtime`. Pass the `modified` value from `vault_read` or
   `vault_get_metadata` (an ISO-8601 timestamp; epoch milliseconds also
   work). If the file was changed since, for example because you typed in
   it in Obsidian, the call fails with `File changed since expectedMtime`,
   names the file's current modification time, and writes nothing. Re-read
-  the file and retry. `vault_replace` returns the new `modified`, so
+  the file and retry. `vault_replace` and `vault_insert` return the new `modified`, so
   several edits in a row can chain it. Without `expectedMtime` the tools
   write unconditionally, as before.
 - **Full-text search results per file.** `search_fulltext` returns at most
@@ -632,6 +654,16 @@ breaks included) and occur exactly once. With 0 matches, re-read the file
 and copy the passage verbatim. With more than one match, include more
 surrounding text, or pass `replaceAll: true` if every occurrence should
 change. Nothing is written when the call fails.
+
+### `vault_insert` or `vault_read` fails with "Heading not found" or "is ambiguous"
+
+`heading` must match exactly one `#`-style heading of the note, ignoring
+headings in code blocks and frontmatter. "Heading not found" lists the
+headings the note has, with line numbers: copy the text from there. "Is
+ambiguous" lists the matching headings: if they have different levels, add
+the `#` marks (`"## Log"` instead of `"Log"`); if they are identical, rename
+one of them or use `vault_replace`. `vault_insert` writes nothing when it
+fails.
 
 ### `vault_get_aspect` fails with "Cannot read properties of undefined (reading '_zod')"
 
