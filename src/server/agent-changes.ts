@@ -18,6 +18,12 @@ export interface AgentChangeEntry {
 
 export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
   {
+    version: '3.3.0',
+    notes: [
+      'New tool `vault_set_frontmatter`: set (`set`) and delete (`remove`) frontmatter keys of a Markdown note via Obsidian, without rewriting the file. Returns `{ path, frontmatter }`.',
+    ],
+  },
+  {
     version: '3.2.0',
     notes: [
       'New tool `server_info`: plugin version, enabled modules and this change list. The server instructions now start with the version.',

@@ -216,3 +216,25 @@ export const dailyNoteSchema = {
     .describe('Optional ISO date (YYYY-MM-DD). Omit for today (local time).'),
   ...responseFormatField,
 };
+
+const frontmatterKey = z.string().min(1).max(1024);
+
+/**
+ * Input schema for `vault_set_frontmatter` (#407). `set` values are
+ * free-form JSON (string, number, boolean, null, array or object), so they
+ * are typed as `unknown`; Obsidian serialises them to YAML.
+ */
+export const setFrontmatterSchema = {
+  path,
+  set: z
+    .record(frontmatterKey, z.unknown())
+    .describe(
+      'Frontmatter keys to set, mapped to JSON-compatible values (string, number, boolean, null, array or object). ' +
+        'Existing keys are overwritten; keys not listed are left untouched. Pass {} to only remove keys.',
+    ),
+  remove: z
+    .array(frontmatterKey)
+    .max(1000)
+    .optional()
+    .describe('Frontmatter keys to delete. Keys that are not present are ignored.'),
+};

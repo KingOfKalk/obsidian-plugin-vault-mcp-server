@@ -6,6 +6,9 @@ import {
   ObsidianAdapter,
 } from './adapter';
 import { FolderNotFoundError } from '../tools/shared/errors';
+// Dev-only dependency: the mock adapter is used by tests, scripts and
+// evals, never imported by src/main.ts, so `yaml` stays out of main.js.
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 interface MockFileMetadata {
   frontmatter?: Record<string, unknown>;
@@ -13,6 +16,30 @@ interface MockFileMetadata {
   headings?: Array<{ heading: string; level: number }>;
   links?: Array<{ link: string; displayText?: string }>;
   embeds?: Array<{ link: string; displayText?: string }>;
+}
+
+/**
+ * Split a note into its leading `---` YAML frontmatter block and the body.
+ * Returns `yaml: null` when the note has no frontmatter block.
+ */
+function splitFrontmatter(content: string): { yaml: string | null; body: string } {
+  const lines = content.split('\n');
+  if (lines[0]?.trimEnd() !== '---') return { yaml: null, body: content };
+  const end = lines.findIndex((line, i) => i > 0 && line.trimEnd() === '---');
+  if (end === -1) return { yaml: null, body: content };
+  return {
+    yaml: lines.slice(1, end).join('\n'),
+    body: lines.slice(end + 1).join('\n'),
+  };
+}
+
+function parseFrontmatterBlock(yaml: string): Record<string, unknown> {
+  const parsed: unknown = parseYaml(yaml);
+  if (parsed === null || parsed === undefined) return {};
+  if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('Frontmatter is not a YAML mapping');
+  }
+  return parsed as Record<string, unknown>;
 }
 
 interface MockFile {
@@ -218,6 +245,36 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     const file = this.files.get(path);
     if (!file) return null;
     return file.metadata?.frontmatter ?? null;
+  }
+
+  /**
+   * Mock of Obsidian's `fileManager.processFrontMatter()`: parses the YAML
+   * block in the file content (falling back to metadata set through
+   * `setMetadata` when the content has none), lets `fn` mutate it, writes
+   * the YAML back and keeps `metadata.frontmatter` in sync. An emptied
+   * frontmatter removes the block.
+   */
+  async processFrontMatter(
+    path: string,
+    fn: (frontmatter: Record<string, unknown>) => void,
+  ): Promise<void> {
+    const file = this.files.get(path);
+    if (!file) throw new Error(`File not found: ${path}`);
+    const { yaml, body } = splitFrontmatter(file.content);
+    const frontmatter =
+      yaml !== null
+        ? parseFrontmatterBlock(yaml)
+        : structuredClone(file.metadata?.frontmatter ?? {});
+    fn(frontmatter);
+    const hasKeys = Object.keys(frontmatter).length > 0;
+    const content = hasKeys ? `---\n${stringifyYaml(frontmatter)}---\n${body}` : body;
+    file.content = content;
+    file.stat.mtime = Date.now();
+    file.stat.size = content.length;
+    file.metadata = {
+      ...file.metadata,
+      frontmatter: hasKeys ? structuredClone(frontmatter) : undefined,
+    };
   }
 
   getTags(path: string): string[] {
