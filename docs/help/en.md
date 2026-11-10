@@ -839,6 +839,17 @@ clients and agents commonly trip over:
   Backlinks come in pages of 50 (see "Large results come in pages").
   A path that does not exist fails with `File not found` for every aspect;
   before 4.1.0 `backlinks` answered "has no backlinks" instead.
+- **Where links and embeds point.** `vault_get_aspect` with
+  `aspect: "outgoing_links"` or `aspect: "embeds"` returns each link as
+  written in `link` (for example `Field Protocol#Calibration`), plus
+  `path`, the file Obsidian opens for it (for example
+  `reference/Field Protocol.md`), and `subpath`, the `#Heading` or
+  `#^block` part when the link has one. The agent can pass `path` straight
+  to `vault_read`, without searching for the file first. `path` is `null`
+  when the link points to no file, or to a file in the config folder.
+  When two files have the same name, `path` is the one Obsidian picks: the
+  file under the linking note's folder first, else the one with the
+  shortest path. Since 5.1.0.
 - **Opening a note in a view mode.** `workspace_open_file` opens the file
   in the active tab (a new tab if that tab is pinned) and focuses it. Pass
   `mode` to choose the view of a Markdown note: `"source"` (Source mode),
