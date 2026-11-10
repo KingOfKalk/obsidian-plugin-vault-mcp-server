@@ -111,7 +111,7 @@ const en = {
   heading_mcp_client_config: 'MCP Client Configuration',
   setting_client_config_name: 'Client configuration',
   setting_client_config_desc:
-    'Copy the JSON snippet for your MCP client and paste it into the mcpServers section of its config (Claude Desktop, Claude Code, …).',
+    'Copy the JSON snippet for your MCP client and paste it into the mcpServers section of its config (Claude Desktop, Claude Code, …). It contains your access key: keep it out of git, e.g. with ${VAR} in the .mcp.json of Claude Code (see the manual).',
   tooltip_copy_config: 'Copy configuration',
   notice_config_copied: 'MCP client configuration copied to clipboard',
 

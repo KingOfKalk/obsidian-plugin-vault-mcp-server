@@ -278,7 +278,9 @@ steps once after install:
    click the copy button — the snippet is generated live from your current
    address, port, auth, and key. Paste it into your client's `mcpServers`
    config (e.g. Claude Desktop's `claude_desktop_config.json`, or Claude
-   Code's `mcp.json`).
+   Code's `.mcp.json`). The snippet contains your access key: if the config
+   file lives in a git repository, read the access key from an environment
+   variable instead (see [Keep the access key out of git](#keep-the-access-key-out-of-git)).
 
 That's it. The client should see the tools advertised by your enabled
 modules.
@@ -348,8 +350,44 @@ current settings:
 Paste it into:
 
 - **Claude Desktop** → `claude_desktop_config.json`, under `mcpServers`.
-- **Claude Code** → `~/.claude/mcp.json` (or per-project `.claude/mcp.json`).
+- **Claude Code** → `.mcp.json` in the project root (project scope), or add it
+  with `claude mcp add` (stored in `~/.claude.json`).
 - Any other MCP client that supports Streamable HTTP transport.
+
+#### Keep the access key out of git
+
+The copied snippet holds the access key as plain text. A project's
+`.mcp.json` is usually committed, so don't paste the key there. Claude Code
+expands `${VAR}` (and `${VAR:-default}`) in a server's `url` and `headers`,
+so the file can name an environment variable instead:
+
+```json
+{
+  "mcpServers": {
+    "obsidian": {
+      "type": "http",
+      "url": "http://127.0.0.1:28741/mcp",
+      "headers": {
+        "Authorization": "Bearer ${OBSIDIAN_MCP_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+Set the variable in the shell that starts Claude Code, e.g.
+`export OBSIDIAN_MCP_TOKEN='<your access key>'` in your shell profile or an
+untracked, git-ignored env file.
+
+- Use a variable name of your own. Claude Code reads its own and other known
+  credential variables (such as `ANTHROPIC_AUTH_TOKEN`) as empty in a remote
+  server's `headers`, so the request arrives without a key and fails with
+  `401`.
+- Variable expansion is a feature of the client, not of this plugin. Check
+  your client's documentation before using `${VAR}` elsewhere; a client
+  without it sends the literal text `${OBSIDIAN_MCP_TOKEN}`.
+- Never commit a file that holds the key itself. If you did, rotate the key
+  (**Generate** next to **Access Key**).
 
 ### 4. Feature Modules
 
@@ -1032,6 +1070,9 @@ the right header. Check:
   exactly. Use the **Copy** button — never type it by hand.
 - Re-copy the **MCP Client Configuration** snippet after generating a new
   key; the snippet is rebuilt from the live key.
+- If the config reads the key from `${VAR}`, the variable is set in the
+  environment that starts the client, and its name isn't one the client
+  blanks (see [Keep the access key out of git](#keep-the-access-key-out-of-git)).
 
 ### My client says "429 Too Many Requests"
 

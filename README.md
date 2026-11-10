@@ -63,6 +63,24 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 claude mcp add obsidian --transport http --url http://127.0.0.1:28741/mcp --header "Authorization: Bearer YOUR_ACCESS_KEY"
 ```
 
+To share a project's `.mcp.json` without the key in git, let Claude Code read it from an environment variable (`export OBSIDIAN_MCP_TOKEN=...`):
+
+```json
+{
+  "mcpServers": {
+    "obsidian": {
+      "type": "http",
+      "url": "http://127.0.0.1:28741/mcp",
+      "headers": {
+        "Authorization": "Bearer ${OBSIDIAN_MCP_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+See [Keep the access key out of git](docs/help/en.md#keep-the-access-key-out-of-git) in the manual.
+
 ## Configuration
 
 | Setting | Default | Description |
