@@ -32,7 +32,7 @@ import { safeHandlers } from '../shared/handler';
 import { BINARY_BYTE_LIMIT } from '../../constants';
 import { getMimeType, isTextMime, vaultUri } from '../../server/resources';
 import type { InferredParams } from '../../registry/types';
-import type { SearchHandlers } from '../search/handlers';
+import { createAspectHandlers } from './aspect';
 import { READ_MAX_LENGTH, parseExpectedMtime } from './schemas';
 import {
   findSection,
@@ -149,38 +149,6 @@ export function appendText(existing: string, content: string): string {
     existing.length > 0 && !existing.endsWith('\n') && !/^\r?\n/.test(content);
   if (!needsBreak) return existing + content;
   return existing + (existing.includes('\r\n') ? '\r\n' : '\n') + content;
-}
-
-async function dispatchAspect(
-  searchHandlers: SearchHandlers,
-  aspect:
-    | 'frontmatter'
-    | 'headings'
-    | 'outgoing_links'
-    | 'embeds'
-    | 'backlinks'
-    | 'block_references',
-  params: {
-    path: string;
-    includeContext?: boolean;
-    limit?: number;
-    offset?: number;
-  },
-): Promise<CallToolResult> {
-  switch (aspect) {
-    case 'frontmatter':
-      return searchHandlers.searchFrontmatter(params);
-    case 'headings':
-      return searchHandlers.searchHeadings(params);
-    case 'outgoing_links':
-      return searchHandlers.searchOutgoingLinks(params);
-    case 'embeds':
-      return searchHandlers.searchEmbeds(params);
-    case 'backlinks':
-      return searchHandlers.searchBacklinks(params);
-    case 'block_references':
-      return searchHandlers.searchBlockReferences(params);
-  }
 }
 
 function decorateAspect(inner: CallToolResult, aspect: string, path: string): CallToolResult {
@@ -407,10 +375,10 @@ export interface VaultHandlers {
 export function createHandlers(
   adapter: ObsidianAdapter,
   mutex: WriteMutex,
-  searchHandlers: SearchHandlers,
 ): VaultHandlers {
   const vaultPath = adapter.getVaultPath();
   const configDir = adapter.getConfigDir();
+  const aspects = createAspectHandlers(adapter);
 
   /**
    * A write under the path's lock (#406): check `expectedMtime`, run
@@ -740,7 +708,7 @@ export function createHandlers(
 
     async getAspect(params): Promise<CallToolResult> {
       const { aspect, path } = params;
-      const inner = await dispatchAspect(searchHandlers, aspect, params);
+      const inner = await aspects[aspect](params);
       return decorateAspect(inner, aspect, path);
     },
 

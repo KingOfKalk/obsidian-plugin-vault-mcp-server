@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/server';
 import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
 import { createHandlers, WriteMutex } from '../../../src/tools/vault/handlers';
-import { createSearchHandlers } from '../../../src/tools/search/handlers';
 import { createVaultModule } from '../../../src/tools/vault/index';
 import { buildInputSchema } from '../../../src/registry/input-schema';
 import { insertSchema, readFileSchema } from '../../../src/tools/vault/schemas';
@@ -340,7 +339,7 @@ describe('vault_insert and vault_read with heading (#428)', () => {
 
   beforeEach(() => {
     adapter = new MockObsidianAdapter();
-    handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
+    handlers = createHandlers(adapter, new WriteMutex());
   });
 
   describe('insert', () => {

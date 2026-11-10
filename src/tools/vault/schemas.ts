@@ -3,6 +3,7 @@ import { base64Schema } from '../../utils/validation';
 import { paginationFields } from '../shared/pagination';
 import { READ_MAX_LENGTH, windowLengthField, windowOffsetField } from '../shared/window';
 import { frontmatterKeySchema } from '../shared/frontmatter';
+import { ASPECTS } from './aspect';
 import {
   ENTRY_PATH_DESC,
   EXPECTED_MTIME_DESC,
@@ -270,14 +271,7 @@ export const writeBinarySchema = {
 export const getAspectSchema = {
   path,
   aspect: z
-    .enum([
-      'frontmatter',
-      'headings',
-      'outgoing_links',
-      'embeds',
-      'backlinks',
-      'block_references',
-    ])
+    .enum(ASPECTS)
     .describe(
       'frontmatter, headings, outgoing_links ([[...]] and [text](note.md) links), embeds (![[...]]), ' +
         'backlinks (files linking TO this file) or block_references (^block-ids). ' +

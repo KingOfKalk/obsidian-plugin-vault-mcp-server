@@ -2,10 +2,10 @@ import { z } from 'zod';
 import { ToolModule, ToolDefinition, annotations, defineTool } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { createHandlers, WriteMutex } from './handlers';
-import { createSearchHandlers } from '../search/handlers';
 import { describeTool } from '../shared/describe';
 import { MODIFIED_DESC, NEW_MODIFIED_DESC } from '../shared/descriptions';
 import { pageOutputFields } from '../shared/pagination';
+import { ASPECTS } from './aspect';
 import {
   createFileSchema,
   readFileSchema,
@@ -105,14 +105,7 @@ const linkItem = z.object({
 
 const getAspectOutputSchema = {
   aspect: z
-    .enum([
-      'frontmatter',
-      'headings',
-      'outgoing_links',
-      'embeds',
-      'backlinks',
-      'block_references',
-    ])
+    .enum(ASPECTS)
     .describe('The aspect that was returned; selects which field below is set.'),
   path: z.string().describe('Vault-relative path that was inspected.'),
   frontmatter: z
@@ -311,8 +304,7 @@ const setFrontmatterOutputSchema = {
 
 export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
   const mutex = new WriteMutex();
-  const searchHandlers = createSearchHandlers(adapter);
-  const handlers = createHandlers(adapter, mutex, searchHandlers);
+  const handlers = createHandlers(adapter, mutex);
 
   return {
     metadata: {
