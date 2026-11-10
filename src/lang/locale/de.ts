@@ -110,7 +110,7 @@ const de: Partial<Record<keyof typeof en, string>> = {
   heading_mcp_client_config: 'MCP-Client-Konfiguration',
   setting_client_config_name: 'Client-Konfiguration',
   setting_client_config_desc:
-    'Kopiere das JSON-Snippet für deinen MCP-Client und füge es in den mcpServers-Abschnitt seiner Konfiguration ein (Claude Desktop, Claude Code, …).',
+    'Kopiere das JSON-Snippet für deinen MCP-Client und füge es in den mcpServers-Abschnitt seiner Konfiguration ein (Claude Desktop, Claude Code, …). Es enthält deinen Zugriffsschlüssel: halte ihn aus Git heraus, z. B. mit ${VAR} in der .mcp.json von Claude Code (siehe Handbuch).',
   tooltip_copy_config: 'Konfiguration kopieren',
   notice_config_copied: 'MCP-Client-Konfiguration in die Zwischenablage kopiert',
 

@@ -3,6 +3,8 @@ import { buildMcpConfigJson } from '../src/settings/mcp-config-section';
 import { DEFAULT_SETTINGS } from '../src/types';
 import type { McpPluginSettings } from '../src/types';
 import type McpPlugin from '../src/main';
+import en from '../src/lang/locale/en';
+import de from '../src/lang/locale/de';
 
 interface ParsedSnippet {
   obsidian: { type?: string; url?: string; headers?: Record<string, string> };
@@ -78,5 +80,15 @@ describe('buildMcpConfigJson', () => {
     const parsed = parseSnippet(snippet);
 
     expect(parsed.obsidian.url).toBe('http://192.168.1.10:28741/mcp');
+  });
+});
+
+describe('client config description (#516)', () => {
+  it.each([
+    ['en', en],
+    ['de', de],
+  ])('%s points to ${VAR} in .mcp.json to keep the key out of git', (_name, locale) => {
+    expect(locale.setting_client_config_desc).toContain('${VAR}');
+    expect(locale.setting_client_config_desc).toContain('.mcp.json');
   });
 });

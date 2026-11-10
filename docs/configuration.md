@@ -111,7 +111,9 @@ pickers for the cert and key. Both paths are validated on load via
 
 Read-only section that exposes a "Copy" button. Copies a JSON fragment
 shaped for `mcpServers`-style client configuration (URL plus a Bearer
-header when auth is on). Not a persisted setting.
+header when auth is on). Not a persisted setting. The fragment holds the
+access key as plain text; for a committed Claude Code `.mcp.json`, use
+`${VAR}` expansion instead (see the manual, "Keep the access key out of git").
 
 ## Feature Modules
 
