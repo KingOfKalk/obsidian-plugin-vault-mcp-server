@@ -4,12 +4,12 @@
     "toolCount": 51,
     "totals": {
       "instructions": 997,
-      "toolsList": 59582,
+      "toolsList": 59720,
       "modelView": 42035,
       "toolDescriptions": 17263,
       "inputSchemas": 21182,
       "inputSchemaDescriptions": 8851,
-      "outputSchemas": 10774,
+      "outputSchemas": 10912,
       "promptsList": 1425
     },
     "modules": {
@@ -20,7 +20,7 @@
       },
       "vault": {
         "tools": 20,
-        "toolsList": 31075,
+        "toolsList": 31213,
         "modelView": 23449
       },
       "editor": {
@@ -152,7 +152,7 @@
       },
       "vault_get_aspect": {
         "module": "vault",
-        "toolsList": 2994,
+        "toolsList": 3132,
         "modelView": 1610
       },
       "vault_daily_note": {
@@ -321,12 +321,12 @@
     "toolCount": 33,
     "totals": {
       "instructions": 816,
-      "toolsList": 45244,
+      "toolsList": 45382,
       "modelView": 32664,
       "toolDescriptions": 13276,
       "inputSchemas": 17029,
       "inputSchemaDescriptions": 7731,
-      "outputSchemas": 8223,
+      "outputSchemas": 8361,
       "promptsList": 1425
     }
   }
