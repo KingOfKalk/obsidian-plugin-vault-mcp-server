@@ -139,10 +139,10 @@ and scripts that call them. `server_info` lists the changes under version
     file lists and the separate `counts` map are gone (on a large vault
     the old result reached about 300,000 characters). Tags are sorted by
     name, a nested tag right after its parent, and paged with `limit` and
-    `offset` (100 per page by default) with `total`, `hasMore` and
-    `nextOffset`. **What to do:** call `search_by_tag` for the files of a
-    tag; on a vault with more than 100 tags, call again with `nextOffset`
-    while `hasMore` is true.
+    `offset` (50 per page by default since 5.1, 100 in 5.0) with `total`,
+    `hasMore` and `nextOffset`. **What to do:** call `search_by_tag` for
+    the files of a tag; call again with `nextOffset` while `hasMore` is
+    true.
   - **`plugin_dataview_describe_js_query` and
     `plugin_templater_describe_template` are gone.** They ran nothing and
     only returned what they were given. DataviewJS and Templater code is
@@ -577,19 +577,27 @@ clients and agents commonly trip over:
   the same way since 4.1.0 (`offset`, `length`, `totalLength`, `hasMore`,
   `nextOffset`); before, it returned the whole note.
 - **Large results come in pages.** No tool answer is longer than 25 000
-  characters. Since 4.1.0 these tools page their results with `limit` and
-  `offset` and return `total`, `hasMore` and `nextOffset`; while `hasMore`
-  is `true`, call again with `offset: <nextOffset>`:
+  characters. Paged tools take `limit` and `offset` and return `total`,
+  `hasMore` and `nextOffset`; while `hasMore` is `true`, call again with
+  `offset: <nextOffset>`. Since 5.1 every paged tool has the same page
+  size: `limit` defaults to 50 and is at most 100, and each paged tool's
+  description says so in a `Paging:` line. The paged tools are
+  `search_fulltext`, `search_tags`, `search_by_tag`,
+  `search_by_frontmatter`, `search_resolved_links`,
+  `search_unresolved_links`, `vault_list`, `vault_list_recursive` and
+  `vault_get_aspect` with `aspect: "backlinks"`. Before 5.1 the defaults
+  differed: 20 for `search_by_tag`, `search_by_frontmatter`,
+  `search_fulltext` and `vault_list_recursive`, 100 for `vault_list` and
+  `search_tags`. Pass `limit: 100` for fewer calls on a large folder.
   - `search_resolved_links` and `search_unresolved_links` page over the
-    notes that hold links (default 50 per page, at most 100). Pass `path`
-    to get one note's links. `search_unresolved_links` leaves out notes
-    without broken links. Before 4.1.0 both returned the whole vault in one
-    answer.
+    notes that hold links. Pass `path` to get one note's links.
+    `search_unresolved_links` leaves out notes without broken links.
+    Before 4.1.0 both returned the whole vault in one answer.
   - `vault_get_aspect` with `aspect: "backlinks"` pages over the linking
-    files (default 50); with `includeContext: true` only the files of the
-    page are read.
+    files; with `includeContext: true` only the files of the page are
+    read.
   - `vault_list` pages over the folder's entries, folders first, then
-    files (default 100, so most folders still come back whole).
+    files.
   - `vault_list_recursive` pages folders too: each page holds the folders
     and files from `offset` on, and `folderTotal` counts all folders.
     Before 4.1.0 every page repeated all folders.
@@ -758,7 +766,7 @@ clients and agents commonly trip over:
   files (a file using the tag several times counts once) and its number
   of occurrences (every use counts), not the files themselves; use
   `search_by_tag` for those, which lists each file once. The tags are
-  sorted by name and come in pages of 100 by default: pass `nextOffset`
+  sorted by name and come in pages of 50 by default: pass `nextOffset`
   as `offset` while `hasMore` is true. Before 5.0 `search_tags` listed the
   files of every tag.
 - **Frontmatter tags count.** `search_tags` and `search_by_tag` see the

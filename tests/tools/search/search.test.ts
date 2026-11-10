@@ -395,11 +395,11 @@ describe('search handlers', () => {
       expect(seen).toEqual(all);
     });
 
-    it('defaults to pages of 100 tags', async () => {
+    it('defaults to pages of 50 tags (#490)', async () => {
       adapter.addFile('a.md', 'content');
       adapter.setMetadata('a.md', { tags: Array.from({ length: 150 }, (_, i) => `#t${String(i)}`) });
       const data = tagsOf(await handlers.searchTags({}));
-      expect(data).toMatchObject({ total: 150, count: 100, hasMore: true, nextOffset: 100 });
+      expect(data).toMatchObject({ total: 150, count: 50, hasMore: true, nextOffset: 50 });
     });
   });
 

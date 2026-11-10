@@ -18,6 +18,12 @@ export interface AgentChangeEntry {
 
 export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
   {
+    version: '5.1.0',
+    notes: [
+      'Every paged tool has the same page size: `limit` defaults to 50 (max 100) in `search_fulltext`, `search_tags`, `search_by_tag`, `search_by_frontmatter`, `search_resolved_links`, `search_unresolved_links`, `vault_list`, `vault_list_recursive` and `vault_get_aspect` backlinks. Before, it was 20 for `search_by_tag`, `search_by_frontmatter`, `search_fulltext` and `vault_list_recursive`, and 100 for `vault_list` and `search_tags`. Their descriptions state the rule in a `Paging:` line; while `hasMore` is true, call again with `offset` = `nextOffset`.',
+    ],
+  },
+  {
     version: '5.0.0',
     notes: [
       'Breaking: document tools return plain text. `vault_read`, `vault_daily_note`, `editor_get_content`, `template_expand` and `plugin_dataview_query` return one text block: `key: value` header lines (e.g. `path`, `modified`, `totalLength`, `offset`, `hasMore`, `nextOffset`), a blank line, then the raw text, not JSON-escaped. They have no `structuredContent` or `outputSchema` any more; read `modified` and `nextOffset` from the header.',

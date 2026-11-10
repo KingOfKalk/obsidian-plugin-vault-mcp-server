@@ -2,37 +2,42 @@ import { z } from 'zod';
 import type { CallToolResult } from '@modelcontextprotocol/server';
 import { CHARACTER_LIMIT } from '../../constants';
 
-const DEFAULT_LIMIT_VALUE = 20;
+/** Default page size of every paged tool (#490). */
+export const DEFAULT_PAGE_LIMIT = 50;
+
+/** Largest page a paged tool accepts. */
+export const MAX_PAGE_LIMIT = 100;
 
 /**
- * Shared Zod fragment for `limit`/`offset` pagination inputs.
- * - `limit` caps at 100 and defaults to 20 — enough for a useful page without
- *   blowing past CHARACTER_LIMIT.
+ * The paging rule, stated in the description of every paged tool by
+ * `describeTool({ paging })` so agents see the default without reading the
+ * schema (#490). Keep it short: it is paid on every paged tool.
+ */
+export const PAGING_RULE = `limit default ${String(DEFAULT_PAGE_LIMIT)}, max ${String(MAX_PAGE_LIMIT)}; next page: offset=nextOffset.`;
+
+/**
+ * Shared Zod fragment for `limit`/`offset` pagination inputs, the same for
+ * every paged tool (#490).
+ * - `limit` caps at 100 and defaults to 50. A page never exceeds
+ *   CHARACTER_LIMIT either way: it holds fewer items instead (#464).
  * - `offset` starts at 0 and can advance arbitrarily far as long as the
  *   underlying dataset is walkable.
  */
-export function paginationFieldsWithDefault(defaultLimit: number): {
-  limit: z.ZodDefault<z.ZodNumber>;
-  offset: z.ZodDefault<z.ZodNumber>;
-} {
-  return {
-    limit: z
-      .number()
-      .int()
-      .min(1)
-      .max(100)
-      .default(defaultLimit)
-      .describe('Maximum items per page.'),
-    offset: z
-      .number()
-      .int()
-      .min(0)
-      .default(0)
-      .describe('Items to skip; pass nextOffset to get the next page.'),
-  };
-}
-
-export const paginationFields = paginationFieldsWithDefault(DEFAULT_LIMIT_VALUE);
+export const paginationFields = {
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_PAGE_LIMIT)
+    .default(DEFAULT_PAGE_LIMIT)
+    .describe('Maximum items per page.'),
+  offset: z
+    .number()
+    .int()
+    .min(0)
+    .default(0)
+    .describe('Items to skip; pass nextOffset to get the next page.'),
+};
 
 /**
  * Output-schema fields of a page (#464), for tools whose items sit in a
@@ -99,14 +104,11 @@ export function paginate<T>(
  */
 const DEFAULT_OFFSET = 0;
 
-export function readPagination(
-  params: Record<string, unknown>,
-  defaultLimit = DEFAULT_LIMIT_VALUE,
-): PaginationInput {
+export function readPagination(params: Record<string, unknown>): PaginationInput {
   const limit =
     typeof params.limit === 'number' && Number.isFinite(params.limit)
       ? params.limit
-      : defaultLimit;
+      : DEFAULT_PAGE_LIMIT;
   const offset =
     typeof params.offset === 'number' && Number.isFinite(params.offset)
       ? params.offset

@@ -1,8 +1,11 @@
+import { PAGING_RULE } from './pagination';
+
 /**
  * Build a consistent tool description in the mcp-builder format:
  *
  *   <summary>
  *   Returns: <what the result means, beyond its shape>
+ *   Paging: <what is paged>; limit default 50, max 100; …
  *   Examples:
  *   - Use when: ...
  *   - Don't use when: ...
@@ -28,6 +31,11 @@
 export interface ToolDoc {
   summary: string;
   returns?: string;
+  /**
+   * Set on every paged tool (#490): renders `Paging: <what is paged, if
+   * given>; <PAGING_RULE>`, so all paged tools state the same rule.
+   */
+  paging?: string;
   examples?: string[];
   seeAlso?: string[];
   errors?: string[];
@@ -38,6 +46,11 @@ export function describeTool(doc: ToolDoc): string {
 
   if (doc.returns !== undefined) {
     lines.push(`Returns: ${doc.returns.trim()}`);
+  }
+
+  if (doc.paging !== undefined) {
+    const what = doc.paging.trim();
+    lines.push(`Paging: ${what === '' ? '' : `${what}; `}${PAGING_RULE}`);
   }
 
   const list = (heading: string, items: string[] | undefined): void => {
