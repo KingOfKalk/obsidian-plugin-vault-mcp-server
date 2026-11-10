@@ -189,11 +189,11 @@ const solutions: Array<() => Promise<string>> = [
     const blockEmbeds = (await aspectLinks(kickoff ?? '', 'embeds')).filter((e) => e.link.includes('#^'));
     expect(blockEmbeds).toHaveLength(1);
     const [note, block] = blockEmbeds[0].link.split('#^');
-    const { blockRefs } = await data<{ blockRefs: Array<{ id: string; line: string }> }>('vault_get_aspect', {
+    const { blockRefs } = await data<{ blockRefs: Array<{ id: string; text: string }> }>('vault_get_aspect', {
       path: await notePath(note),
       aspect: 'block_references',
     });
-    const line = blockRefs.find((b) => b.id === block)?.line ?? '';
+    const line = blockRefs.find((b) => b.id === block)?.text ?? '';
     const amount = /([\d,]+)\s*EUR/.exec(line);
     return (amount?.[1] ?? '').replace(/,/g, '');
   },

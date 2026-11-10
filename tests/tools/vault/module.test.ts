@@ -272,7 +272,7 @@ describe('vault read tools — outputSchema declarations', () => {
         expected: {
           aspect: 'block_references',
           path: 'a.md',
-          blockRefs: [{ id: 'anchor', line: 'A line ^anchor' }],
+          blockRefs: [{ id: 'anchor', text: 'A line ^anchor' }],
         },
       },
     ];
@@ -403,7 +403,7 @@ describe('vault_get_aspect dispatcher', () => {
     expect(blocks.structuredContent).toEqual({
       aspect: 'block_references',
       path: 'a.md',
-      blockRefs: [{ id: 'anchor', line: 'A line ^anchor' }],
+      blockRefs: [{ id: 'anchor', text: 'A line ^anchor' }],
     });
   });
 

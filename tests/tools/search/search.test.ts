@@ -692,6 +692,15 @@ describe('search handlers', () => {
       expect(data.blockRefs[0].id).toBe('block-1');
       expect(data.blockRefs[1].id).toBe('ref-2');
     });
+
+    it('returns the text of the line as text, not line (#468)', async () => {
+      adapter.addFile('test.md', 'Intro\n  Indented block ^b1  \n');
+      const result = await handlers.searchBlockReferences({ path: 'test.md' });
+      expect(result.structuredContent).toEqual({
+        path: 'test.md',
+        blockRefs: [{ id: 'b1', text: 'Indented block ^b1' }],
+      });
+    });
   });
 });
 

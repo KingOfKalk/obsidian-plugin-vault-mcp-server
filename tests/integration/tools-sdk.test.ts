@@ -491,9 +491,10 @@ describe('vault_daily_note through a real SDK client (#408)', () => {
       });
       expect(refs.structuredContent).toMatchObject({
         aspect: 'block_references',
-        blockRefs: [{ id: 'goal-1' }],
+        blockRefs: [{ id: 'goal-1', text: expect.stringContaining('^goal-1') as unknown }],
       });
-      expect(JSON.parse(textOf(refs))).toMatchObject({ aspect: 'block_references' });
+      expect((refs.structuredContent as { blockRefs: object[] }).blockRefs[0]).not.toHaveProperty('line');
+      expect(JSON.parse(textOf(refs))).toEqual(refs.structuredContent);
     } finally {
       await h.close();
     }

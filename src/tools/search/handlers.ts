@@ -330,9 +330,10 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
             .filter((line) => /\^[\w-]+\s*$/.test(line))
             .map((line) => {
               const match = /\^([\w-]+)\s*$/.exec(line);
-              return match ? { id: match[1], line: line.trim() } : null;
+              // `text`, not `line`: it is the line's text, not a number (#468).
+              return match ? { id: match[1], text: line.trim() } : null;
             })
-            .filter((ref): ref is { id: string; line: string } => ref !== null);
+            .filter((ref): ref is { id: string; text: string } => ref !== null);
           return dataResponse({ path, blockRefs });
         });
       } catch (error) {

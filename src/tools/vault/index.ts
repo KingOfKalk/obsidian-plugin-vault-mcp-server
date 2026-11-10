@@ -158,9 +158,7 @@ const getAspectOutputSchema = {
     .array(
       z.object({
         id: z.string().describe('Block-reference id (without the leading ^).'),
-        line: z
-          .string()
-          .describe('Text of the line that ends with the block id (trimmed); not a line number.'),
+        text: z.string().describe('Text of the line that ends with the block id (trimmed).'),
       }),
     )
     .optional()
