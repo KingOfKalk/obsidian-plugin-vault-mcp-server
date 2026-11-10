@@ -354,6 +354,7 @@ Errors:
 | `heading` | string (1–1024) | yes | Section heading: text without the # marks (e.g. "Log"), or with them to pin the level ("## Log"); a [[note#heading]] anchor also works. Must match exactly one heading; headings in code blocks and frontmatter are ignored. |
 | `position` | enum: `start` \| `end` | no (default `end`) | "end": after the last non-blank line of the section, nested subsections included. "start": before the first non-blank line below the heading (blank lines after the heading stay above the text; in an empty section, right below the heading). |
 | `text` | string (1–5000000) | yes | Inserted as whole lines; one trailing newline is ignored. Start it with a newline to leave a blank line before it. |
+| `replacePlaceholder` | boolean | no (default `false`) | If the section's only non-blank line (subsections included) is an empty list item ("-", "*", "+", "1.", "- [ ]"), replace that line with text instead of keeping it; position is then ignored. |
 | `expectedMtime` | string (≤64) | no | Conflict check: the latest `modified` of this file (from vault_read, vault_get_metadata or a write result; ISO-8601 or epoch ms). On a mismatch nothing is written and "File changed since expectedMtime" gives the current mtime. |
 
 #### Output
@@ -364,6 +365,7 @@ Errors:
 | `heading` | string | The matched heading as written, e.g. "## Log". |
 | `position` | enum: `start` \| `end` | Where the text went in the section. |
 | `line` | number | 1-based line number where the inserted text starts. |
+| `replacedPlaceholder` | boolean | Present when replacePlaceholder replaced an empty item. |
 | `modified` | string | New last-modification time (ISO-8601); pass it as the next expectedMtime. |
 
 #### Example
