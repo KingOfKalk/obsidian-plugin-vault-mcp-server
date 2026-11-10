@@ -5,13 +5,12 @@ import {
   ToolDefinition,
   annotations,
   defineTool,
-  type InferredParams,
 } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateToolPath } from '../../utils/path-guard';
 import { errorResult } from '../shared/errors';
 import { describeTool } from '../shared/describe';
-import { safeHandlers } from '../shared/handler';
+import { safeHandler } from '../shared/handler';
 import { filePathSchema, noParamsSchema } from '../shared/schemas';
 import { dataResponse } from '../shared/response';
 import { resultTextLength } from '../shared/pagination';
@@ -132,49 +131,9 @@ const setActiveLeafOutputSchema = {
   leafId: z.string().describe('Id of the leaf that is now active.'),
 };
 
-interface WorkspaceHandlers {
-  getActiveLeaf: (params: InferredParams<typeof noParamsSchema>) => Promise<CallToolResult>;
-  openFile: (params: InferredParams<typeof openFileSchema>) => Promise<CallToolResult>;
-  listLeaves: (params: InferredParams<typeof noParamsSchema>) => Promise<CallToolResult>;
-  setActiveLeaf: (params: InferredParams<typeof setActiveLeafSchema>) => Promise<CallToolResult>;
-  getLayout: (params: InferredParams<typeof noParamsSchema>) => Promise<CallToolResult>;
-}
-
-function createHandlers(adapter: ObsidianAdapter): WorkspaceHandlers {
+export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
   const vaultPath = adapter.getVaultPath();
   const configDir = adapter.getConfigDir();
-  return safeHandlers<WorkspaceHandlers>({
-    getActiveLeaf: (): CallToolResult => {
-      const info = adapter.getActiveLeafInfo();
-      if (!info) return errorResult('No active leaf');
-      return dataResponse(info);
-    },
-    async openFile(params): Promise<CallToolResult> {
-      const path = validateToolPath(params.path, vaultPath, configDir);
-      await adapter.openFile(path, params.mode);
-      return dataResponse({
-        path,
-        ...(params.mode !== undefined ? { mode: params.mode } : {}),
-      });
-    },
-    listLeaves: (): CallToolResult => {
-      const files = adapter.getOpenFiles();
-      return dataResponse({ leaves: files });
-    },
-    setActiveLeaf: (params): CallToolResult => {
-      const ok = adapter.setActiveLeaf(params.leafId);
-      return ok
-        ? dataResponse({ leafId: params.leafId })
-        : errorResult('Leaf not found');
-    },
-    getLayout: (): CallToolResult => {
-      return layoutResponse(adapter.getWorkspaceLayout());
-    },
-  });
-}
-
-export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
-  const h = createHandlers(adapter);
   return {
     metadata: { id: 'workspace', name: 'Workspace and Navigation', description: 'Manage panes, open files, and navigate the workspace', defaultEnabled: false },
     tools(): ToolDefinition[] {
@@ -189,7 +148,11 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
           }),
           schema: noParamsSchema,
           outputSchema: getActiveLeafOutputSchema,
-          handler: h.getActiveLeaf,
+          handler: safeHandler((): CallToolResult => {
+            const info = adapter.getActiveLeafInfo();
+            if (!info) return errorResult('No active leaf');
+            return dataResponse(info);
+          }),
           annotations: annotations.read,
         }),
         defineTool({
@@ -204,7 +167,14 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
           }),
           schema: openFileSchema,
           outputSchema: openFileOutputSchema,
-          handler: h.openFile,
+          handler: safeHandler(async (params): Promise<CallToolResult> => {
+            const path = validateToolPath(params.path, vaultPath, configDir);
+            await adapter.openFile(path, params.mode);
+            return dataResponse({
+              path,
+              ...(params.mode !== undefined ? { mode: params.mode } : {}),
+            });
+          }),
           annotations: annotations.additive,
         }),
         defineTool({
@@ -215,7 +185,10 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
           }),
           schema: noParamsSchema,
           outputSchema: listLeavesOutputSchema,
-          handler: h.listLeaves,
+          handler: safeHandler((): CallToolResult => {
+            const files = adapter.getOpenFiles();
+            return dataResponse({ leaves: files });
+          }),
           annotations: annotations.read,
         }),
         defineTool({
@@ -227,7 +200,12 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
           }),
           schema: setActiveLeafSchema,
           outputSchema: setActiveLeafOutputSchema,
-          handler: h.setActiveLeaf,
+          handler: safeHandler((params): CallToolResult => {
+            const ok = adapter.setActiveLeaf(params.leafId);
+            return ok
+              ? dataResponse({ leafId: params.leafId })
+              : errorResult('Leaf not found');
+          }),
           annotations: annotations.additive,
         }),
         defineTool({
@@ -238,7 +216,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
           }),
           schema: noParamsSchema,
           outputSchema: getLayoutOutputSchema,
-          handler: h.getLayout,
+          handler: safeHandler(() => layoutResponse(adapter.getWorkspaceLayout())),
           annotations: annotations.read,
         }),
       ];

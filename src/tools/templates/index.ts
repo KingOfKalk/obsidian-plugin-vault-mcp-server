@@ -5,13 +5,12 @@ import {
   ToolDefinition,
   annotations,
   defineTool,
-  type InferredParams,
 } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateToolPath } from '../../utils/path-guard';
 import { FolderNotFoundError } from '../shared/errors';
 import { describeTool } from '../shared/describe';
-import { safeHandlers } from '../shared/handler';
+import { safeHandler } from '../shared/handler';
 import { noParamsSchema } from '../shared/schemas';
 import {
   FILE_PATH_DESC,
@@ -80,68 +79,9 @@ const createFromTemplateOutputSchema = {
   modified: z.string().describe(NEW_MODIFIED_DESC),
 };
 
-interface TemplatesHandlers {
-  listTemplates: (params: InferredParams<typeof noParamsSchema>) => Promise<CallToolResult>;
-  createFromTemplate: (params: InferredParams<typeof createFromTemplateSchema>) => Promise<CallToolResult>;
-  expandVariables: (params: InferredParams<typeof expandVariablesSchema>) => Promise<CallToolResult>;
-}
-
-function createHandlers(adapter: ObsidianAdapter): TemplatesHandlers {
+export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
   const vaultPath = adapter.getVaultPath();
   const configDir = adapter.getConfigDir();
-
-  return safeHandlers<TemplatesHandlers>({
-    listTemplates: (): CallToolResult => {
-      const folder = validateToolPath(templatesFolder(adapter), vaultPath, configDir);
-      let files: string[];
-      try {
-        files = adapter.listRecursive(folder).files;
-      } catch (error) {
-        if (!(error instanceof FolderNotFoundError)) throw error;
-        files = [];
-      }
-      return dataResponse({ folder, files });
-    },
-    async createFromTemplate(params): Promise<CallToolResult> {
-      const templatePath = validateToolPath(params.templatePath, vaultPath, configDir);
-      const destPath = validateToolPath(params.destPath, vaultPath, configDir);
-      const variables = params.variables ?? {};
-      const set = params.frontmatter ?? {};
-      const setKeys = Object.keys(set);
-      if (setKeys.length > 0) {
-        assertMarkdownPath(destPath);
-        assertSafeFrontmatterKeys(setKeys);
-      }
-      const templateContent = await adapter.readFile(templatePath);
-      const expanded = expandPlaceholders(templateContent, variables, {
-        title: noteTitle(destPath),
-      });
-      await adapter.createFile(destPath, expanded);
-      if (setKeys.length === 0) {
-        return dataResponse({
-          path: destPath,
-          templatePath,
-          modified: await modifiedIso(adapter, destPath),
-        });
-      }
-      const frontmatter = await applyFrontmatter(adapter, destPath, set);
-      return dataResponse({
-        path: destPath,
-        templatePath,
-        frontmatter,
-        modified: await modifiedIso(adapter, destPath),
-      });
-    },
-    expandVariables: (params): CallToolResult => {
-      const variables = params.variables ?? {};
-      const expanded = expandPlaceholders(params.template, variables);
-      return documentResponse({}, expanded);
-    },
-  });
-}
-
-export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
-  const h = createHandlers(adapter);
   return {
     metadata: { id: 'templates', name: 'Templates and Content Generation', description: 'List, create from, and expand templates' },
     tools(): ToolDefinition[] {
@@ -156,7 +96,17 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
           }),
           schema: noParamsSchema,
           outputSchema: templateListOutputSchema,
-          handler: h.listTemplates,
+          handler: safeHandler((): CallToolResult => {
+            const folder = validateToolPath(templatesFolder(adapter), vaultPath, configDir);
+            let files: string[];
+            try {
+              files = adapter.listRecursive(folder).files;
+            } catch (error) {
+              if (!(error instanceof FolderNotFoundError)) throw error;
+              files = [];
+            }
+            return dataResponse({ folder, files });
+          }),
           annotations: annotations.read,
         }),
         defineTool({
@@ -173,7 +123,36 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
           }),
           schema: createFromTemplateSchema,
           outputSchema: createFromTemplateOutputSchema,
-          handler: h.createFromTemplate,
+          handler: safeHandler(async (params): Promise<CallToolResult> => {
+            const templatePath = validateToolPath(params.templatePath, vaultPath, configDir);
+            const destPath = validateToolPath(params.destPath, vaultPath, configDir);
+            const variables = params.variables ?? {};
+            const set = params.frontmatter ?? {};
+            const setKeys = Object.keys(set);
+            if (setKeys.length > 0) {
+              assertMarkdownPath(destPath);
+              assertSafeFrontmatterKeys(setKeys);
+            }
+            const templateContent = await adapter.readFile(templatePath);
+            const expanded = expandPlaceholders(templateContent, variables, {
+              title: noteTitle(destPath),
+            });
+            await adapter.createFile(destPath, expanded);
+            if (setKeys.length === 0) {
+              return dataResponse({
+                path: destPath,
+                templatePath,
+                modified: await modifiedIso(adapter, destPath),
+              });
+            }
+            const frontmatter = await applyFrontmatter(adapter, destPath, set);
+            return dataResponse({
+              path: destPath,
+              templatePath,
+              frontmatter,
+              modified: await modifiedIso(adapter, destPath),
+            });
+          }),
           annotations: annotations.additive,
         }),
         defineTool({
@@ -184,7 +163,11 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
             seeAlso: ['template_create_from — to write the expanded template to a new file.'],
           }),
           schema: expandVariablesSchema,
-          handler: h.expandVariables,
+          handler: safeHandler((params): CallToolResult => {
+            const variables = params.variables ?? {};
+            const expanded = expandPlaceholders(params.template, variables);
+            return documentResponse({}, expanded);
+          }),
           annotations: annotations.read,
         }),
       ];

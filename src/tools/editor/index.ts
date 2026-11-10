@@ -5,12 +5,11 @@ import {
   ToolDefinition,
   annotations,
   defineTool,
-  type InferredParams,
 } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { errorResult } from '../shared/errors';
 import { describeTool } from '../shared/describe';
-import { safeHandlers } from '../shared/handler';
+import { safeHandler } from '../shared/handler';
 import { noParamsSchema, textInput } from '../shared/schemas';
 import { dataResponse, documentResponse } from '../shared/response';
 import {
@@ -185,91 +184,7 @@ function withEditor(
   return edit() ? dataResponse(result) : errorResult(NO_ACTIVE_EDITOR);
 }
 
-interface EditorHandlers {
-  getContent: (params: InferredParams<typeof getContentSchema>) => Promise<CallToolResult>;
-  getActivePath: (params: InferredParams<typeof noParamsSchema>) => Promise<CallToolResult>;
-  insert: (params: InferredParams<typeof insertSchema>) => Promise<CallToolResult>;
-  replace: (params: InferredParams<typeof replaceSchema>) => Promise<CallToolResult>;
-  deleteRange: (params: InferredParams<typeof rangeSchema>) => Promise<CallToolResult>;
-  getCursor: (params: InferredParams<typeof noParamsSchema>) => Promise<CallToolResult>;
-  setCursor: (params: InferredParams<typeof pointSchema>) => Promise<CallToolResult>;
-  getSelection: (params: InferredParams<typeof noParamsSchema>) => Promise<CallToolResult>;
-  setSelection: (params: InferredParams<typeof rangeSchema>) => Promise<CallToolResult>;
-  getLineCount: (params: InferredParams<typeof noParamsSchema>) => Promise<CallToolResult>;
-}
-
-function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
-  return safeHandlers<EditorHandlers>({
-    getContent: (params): CallToolResult => {
-      const text = adapter.getActiveFileContent();
-      if (text === null) return errorResult(NO_ACTIVE_EDITOR);
-      const w = sliceTextWindow(text, params.offset ?? 0, params.length ?? READ_MAX_LENGTH);
-      return documentResponse(
-        windowMeta(w, text.length),
-        windowBody('editor_get_content', w, text.length),
-      );
-    },
-    getActivePath: (): CallToolResult => {
-      const path = adapter.getActiveFilePath();
-      if (path === null) return errorResult('No active file');
-      return dataResponse({ path });
-    },
-    insert: (params): CallToolResult =>
-      withEditor(
-        adapter,
-        [{ line: params.line, allowEnd: true }],
-        () => adapter.insertTextAt(params.line, params.ch, params.text),
-        { line: params.line, ch: params.ch },
-      ),
-    replace: (params): CallToolResult =>
-      withEditor(
-        adapter,
-        rangeLines(params),
-        () =>
-          adapter.replaceRange(params.fromLine, params.fromCh, params.toLine, params.toCh, params.text),
-        rangeOf(params),
-      ),
-    deleteRange: (params): CallToolResult =>
-      withEditor(
-        adapter,
-        rangeLines(params),
-        () => adapter.deleteRange(params.fromLine, params.fromCh, params.toLine, params.toCh),
-        rangeOf(params),
-      ),
-    getCursor: (): CallToolResult => {
-      const pos = adapter.getCursorPosition();
-      if (!pos) return errorResult(NO_ACTIVE_EDITOR);
-      return dataResponse({ line: pos.line, ch: pos.ch });
-    },
-    setCursor: (params): CallToolResult =>
-      withEditor(
-        adapter,
-        [{ line: params.line, allowEnd: false }],
-        () => adapter.setCursorPosition(params.line, params.ch),
-        { line: params.line, ch: params.ch },
-      ),
-    getSelection: (): CallToolResult => {
-      const sel = adapter.getSelection();
-      if (!sel) return errorResult(`No active editor or selection. ${NO_EDITOR_HINT}`);
-      return dataResponse({ from: sel.from, to: sel.to, text: sel.text });
-    },
-    setSelection: (params): CallToolResult =>
-      withEditor(
-        adapter,
-        rangeLines(params),
-        () => adapter.setSelection(params.fromLine, params.fromCh, params.toLine, params.toCh),
-        rangeOf(params),
-      ),
-    getLineCount: (): CallToolResult => {
-      const count = adapter.getActiveLineCount();
-      if (count === null) return errorResult(NO_ACTIVE_EDITOR);
-      return dataResponse({ lineCount: count });
-    },
-  });
-}
-
 export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
-  const h = createHandlers(adapter);
   return {
     metadata: { id: 'editor', name: 'Editor Operations', description: 'Access and manipulate the active editor', defaultEnabled: false },
     tools(): ToolDefinition[] {
@@ -283,7 +198,15 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             seeAlso: ['vault_read — to read any file by path.'],
           }),
           schema: getContentSchema,
-          handler: h.getContent,
+          handler: safeHandler((params): CallToolResult => {
+            const text = adapter.getActiveFileContent();
+            if (text === null) return errorResult(NO_ACTIVE_EDITOR);
+            const w = sliceTextWindow(text, params.offset ?? 0, params.length ?? READ_MAX_LENGTH);
+            return documentResponse(
+              windowMeta(w, text.length),
+              windowBody('editor_get_content', w, text.length),
+            );
+          }),
           annotations: annotations.read,
         }),
         defineTool({
@@ -296,7 +219,11 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           }),
           schema: noParamsSchema,
           outputSchema: getActiveFileOutputSchema,
-          handler: h.getActivePath,
+          handler: safeHandler((): CallToolResult => {
+            const path = adapter.getActiveFilePath();
+            if (path === null) return errorResult('No active file');
+            return dataResponse({ path });
+          }),
           annotations: annotations.read,
         }),
         defineTool({
@@ -315,7 +242,14 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           }),
           schema: insertSchema,
           outputSchema: positionOutputSchema,
-          handler: h.insert,
+          handler: safeHandler((params): CallToolResult =>
+            withEditor(
+              adapter,
+              [{ line: params.line, allowEnd: true }],
+              () => adapter.insertTextAt(params.line, params.ch, params.text),
+              { line: params.line, ch: params.ch },
+            ),
+          ),
           annotations: annotations.additive,
         }),
         defineTool({
@@ -335,7 +269,15 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           }),
           schema: replaceSchema,
           outputSchema: rangeOutputSchema,
-          handler: h.replace,
+          handler: safeHandler((params): CallToolResult =>
+            withEditor(
+              adapter,
+              rangeLines(params),
+              () =>
+                adapter.replaceRange(params.fromLine, params.fromCh, params.toLine, params.toCh, params.text),
+              rangeOf(params),
+            ),
+          ),
           annotations: annotations.destructive,
         }),
         defineTool({
@@ -351,7 +293,14 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           }),
           schema: rangeSchema,
           outputSchema: rangeOutputSchema,
-          handler: h.deleteRange,
+          handler: safeHandler((params): CallToolResult =>
+            withEditor(
+              adapter,
+              rangeLines(params),
+              () => adapter.deleteRange(params.fromLine, params.fromCh, params.toLine, params.toCh),
+              rangeOf(params),
+            ),
+          ),
           annotations: annotations.destructive,
         }),
         defineTool({
@@ -362,7 +311,11 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           }),
           schema: noParamsSchema,
           outputSchema: getCursorOutputSchema,
-          handler: h.getCursor,
+          handler: safeHandler((): CallToolResult => {
+            const pos = adapter.getCursorPosition();
+            if (!pos) return errorResult(NO_ACTIVE_EDITOR);
+            return dataResponse({ line: pos.line, ch: pos.ch });
+          }),
           annotations: annotations.read,
         }),
         defineTool({
@@ -375,7 +328,14 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           }),
           schema: pointSchema,
           outputSchema: positionOutputSchema,
-          handler: h.setCursor,
+          handler: safeHandler((params): CallToolResult =>
+            withEditor(
+              adapter,
+              [{ line: params.line, allowEnd: false }],
+              () => adapter.setCursorPosition(params.line, params.ch),
+              { line: params.line, ch: params.ch },
+            ),
+          ),
           annotations: annotations.additive,
         }),
         defineTool({
@@ -387,7 +347,11 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           }),
           schema: noParamsSchema,
           outputSchema: getSelectionOutputSchema,
-          handler: h.getSelection,
+          handler: safeHandler((): CallToolResult => {
+            const sel = adapter.getSelection();
+            if (!sel) return errorResult(`No active editor or selection. ${NO_EDITOR_HINT}`);
+            return dataResponse({ from: sel.from, to: sel.to, text: sel.text });
+          }),
           annotations: annotations.read,
         }),
         defineTool({
@@ -400,7 +364,14 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           }),
           schema: rangeSchema,
           outputSchema: rangeOutputSchema,
-          handler: h.setSelection,
+          handler: safeHandler((params): CallToolResult =>
+            withEditor(
+              adapter,
+              rangeLines(params),
+              () => adapter.setSelection(params.fromLine, params.fromCh, params.toLine, params.toCh),
+              rangeOf(params),
+            ),
+          ),
           annotations: annotations.additive,
         }),
         defineTool({
@@ -411,7 +382,11 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           }),
           schema: noParamsSchema,
           outputSchema: getLineCountOutputSchema,
-          handler: h.getLineCount,
+          handler: safeHandler((): CallToolResult => {
+            const count = adapter.getActiveLineCount();
+            if (count === null) return errorResult(NO_ACTIVE_EDITOR);
+            return dataResponse({ lineCount: count });
+          }),
           annotations: annotations.read,
         }),
       ];
