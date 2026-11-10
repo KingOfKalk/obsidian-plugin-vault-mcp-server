@@ -1,6 +1,7 @@
 import { expect } from '@wdio/globals';
 import type { Client } from '@modelcontextprotocol/client';
 import {
+  callDocument,
   callTool,
   connectClient,
   readFromDisk,
@@ -79,16 +80,14 @@ describe('vault_insert and vault_read with heading', function () {
   });
 
   it('reads one section, ignoring headings in code blocks', async function () {
-    const section = await callTool<{ heading: string; line: number; content: string }>(
-      client,
-      'vault_read',
-      { path: 'sections/Journal.md', heading: 'Notes' },
-    );
-    expect(section).toMatchObject({
-      heading: '## Notes',
-      line: 6,
-      content: '## Notes\n\n- one\n\n### Detail\ndetail text\n\n```md\n## Not a heading\n```\n\n',
+    const section = await callDocument(client, 'vault_read', {
+      path: 'sections/Journal.md',
+      heading: 'Notes',
     });
+    expect(section.meta).toMatchObject({ heading: '## Notes', line: '6' });
+    expect(section.body).toBe(
+      '## Notes\n\n- one\n\n### Detail\ndetail text\n\n```md\n## Not a heading\n```\n\n',
+    );
   });
 
   it('fails on an unknown heading and leaves the file untouched', async function () {

@@ -6,12 +6,11 @@ import { CHARACTER_LIMIT } from '../../constants';
 import { FileNotFoundError, handleToolError } from '../shared/errors';
 import {
   fitPage,
-  pageFooter,
   paginate,
   readPagination,
   type PaginatedResponse,
 } from '../shared/pagination';
-import { makeResponse, readResponseFormat } from '../shared/response';
+import { dataResponse } from '../shared/response';
 import type { InferredParams } from '../../registry/types';
 import type { ToolContext } from '../../registry/tool-context';
 import { LINKS_PAGE_LIMIT } from './schemas';
@@ -50,12 +49,6 @@ export interface SearchHandlers {
 
 const DEFAULT_MAX_MATCHES_PER_FILE = 5;
 
-function renderKeyValue(obj: Record<string, unknown>): string {
-  const entries = Object.entries(obj);
-  if (entries.length === 0) return '_No entries._';
-  return entries.map(([k, v]) => `- **${k}**: ${String(v)}`).join('\n');
-}
-
 interface BacklinkContext {
   path: string;
   matches: Array<{ line: number; text: string }>;
@@ -83,56 +76,6 @@ async function readBacklinkContext(
   return result;
 }
 
-function renderPathList(items: string[], empty = 'No matches.'): string {
-  if (items.length === 0) return empty;
-  return items.map((p) => `- ${p}`).join('\n');
-}
-
-/** Longest matching line shown in `search_fulltext`'s markdown text. */
-const MAX_MATCH_LINE_CHARS = 200;
-
-/**
- * One `search_fulltext` hit in markdown: the path and match count, then
- * each shown line with its 1-based line number, cut at
- * MAX_MATCH_LINE_CHARS, and how many matching lines were left out (#463).
- */
-function renderFulltextItem(
-  item: { path: string; matches: string[]; matchCount: number },
-  lineNumbers: number[],
-): string {
-  const noun = item.matchCount === 1 ? 'match' : 'matches';
-  const out = [`- ${item.path} (${String(item.matchCount)} ${noun})`];
-  item.matches.forEach((raw, i) => {
-    const line = raw.replace(/\r$/, '');
-    const text =
-      line.length > MAX_MATCH_LINE_CHARS ? `${line.slice(0, MAX_MATCH_LINE_CHARS)}…` : line;
-    const number = lineNumbers[i] === undefined ? '' : `${String(lineNumbers[i])}: `;
-    out.push(`  - ${number}${text}`);
-  });
-  const hidden = item.matchCount - item.matches.length;
-  if (hidden > 0) out.push(`  - … ${String(hidden)} more`);
-  return out.join('\n');
-}
-
-function renderPaginatedPaths(
-  page: {
-    total: number;
-    count: number;
-    items: string[];
-    hasMore: boolean;
-    nextOffset?: number;
-  },
-  /** Text after the noun, kept verbatim (e.g. `tagged #project`). */
-  label: string,
-): string {
-  // Pluralise the noun only, never the label: the label echoes a tag or
-  // value that must stay exact (#463).
-  const noun = page.total === 1 ? 'file' : 'files';
-  const header = `**${String(page.total)} ${noun} ${label}**`;
-  const body = renderPathList(page.items);
-  return `${header}\n\n${body}${pageFooter(page)}`;
-}
-
 type LinkMap = Record<string, Record<string, number>>;
 type LinkMapEntry = [string, Record<string, number>];
 
@@ -155,20 +98,6 @@ function toLinkMapPage(page: PaginatedResponse<LinkMapEntry>): LinkMapPage {
     hasMore: page.hasMore,
     ...(page.hasMore ? { nextOffset: page.nextOffset } : {}),
   };
-}
-
-function renderLinkMap(v: LinkMapPage, empty: string): string {
-  const entries = Object.entries(v.links);
-  if (entries.length === 0) return v.total === 0 ? empty : 'No sources past this offset.';
-  const body = entries
-    .map(([src, targets]) => {
-      const targetLines = Object.entries(targets).map(
-        ([tgt, count]) => `  - ${tgt} (×${String(count)})`,
-      );
-      return [`- **${src}**`, ...targetLines].join('\n');
-    })
-    .join('\n');
-  return `${body}${pageFooter(v)}`;
 }
 
 /** Room for the `aspect` field vault_get_aspect adds to the JSON text. */
@@ -213,17 +142,10 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
 
   function fitLinkMap(
     entries: LinkMapEntry[],
-    params: { limit?: number; offset?: number; responseFormat?: 'markdown' | 'json' },
-    empty: string,
+    params: { limit?: number; offset?: number },
   ): CallToolResult {
     const page = paginate(entries, readPagination(params, LINKS_PAGE_LIMIT));
-    return fitPage(page, (p) =>
-      makeResponse(
-        toLinkMapPage(p),
-        (v) => renderLinkMap(v, empty),
-        readResponseFormat(params),
-      ),
-    );
+    return fitPage(page, (p) => dataResponse(toLinkMapPage(p)));
   }
 
   return {
@@ -233,10 +155,12 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
         const allFiles = adapter.getAllFiles();
         const total = allFiles.length;
         const maxMatchesPerFile = params.maxMatchesPerFile ?? DEFAULT_MAX_MATCHES_PER_FILE;
-        const matched: Array<{ path: string; matches: string[]; matchCount: number }> = [];
-        // 1-based line numbers of `matches`, for the markdown text only:
-        // structuredContent keeps its documented shape (#463).
-        const lineNumbers = new Map<string, number[]>();
+        const matched: Array<{
+          path: string;
+          matches: string[];
+          lines: number[];
+          matchCount: number;
+        }> = [];
 
         let lastPct = -1;
         for (let i = 0; i < total; i++) {
@@ -254,10 +178,10 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
             const shown = hits.slice(0, maxMatchesPerFile);
             matched.push({
               path,
-              matches: shown.map((index) => lines[index]),
+              matches: shown.map((index) => lines[index].replace(/\r$/, '')),
+              lines: shown.map((index) => index + 1),
               matchCount: hits.length,
             });
-            lineNumbers.set(path, shown.map((index) => index + 1));
           }
           if (ctx) {
             const pct = Math.floor(((i + 1) / total) * 100);
@@ -275,19 +199,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
         const page = paginate(matched, readPagination(params));
         // Fewer files instead of cut text (#464): nextOffset then points
         // at the first file left out, and the JSON text stays valid.
-        return fitPage(page, (p) =>
-          makeResponse(
-            p,
-            (v) => {
-              if (v.items.length === 0) return 'No matches.';
-              const lines = v.items.map((m) =>
-                renderFulltextItem(m, lineNumbers.get(m.path) ?? []),
-              );
-              return `**${String(v.total)} result${v.total === 1 ? '' : 's'}**\n\n${lines.join('\n')}${pageFooter(v)}`;
-            },
-            readResponseFormat(params),
-          ),
-        );
+        return fitPage(page, (p) => dataResponse(p));
       } catch (error) {
         return handleToolError(error);
       }
@@ -298,19 +210,14 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
         const path = validateToolPath(params.path, vaultPath, configDir);
         const frontmatter = adapter.getFrontmatter(path) ?? {};
         return Promise.resolve(
-          makeResponse(
-            { path, frontmatter },
-            (v) =>
-              `**${v.path}** frontmatter:\n${renderKeyValue(v.frontmatter)}`,
-            readResponseFormat(params),
-          ),
+          dataResponse({ path, frontmatter }),
         );
       } catch (error) {
         return Promise.resolve(handleToolError(error));
       }
     },
 
-    searchTags(params): Promise<CallToolResult> {
+    searchTags(): Promise<CallToolResult> {
       try {
         const tags: Record<string, string[]> = {};
         const counts: Record<string, number> = {};
@@ -319,20 +226,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
           counts[tag] = usage.count;
         }
         return Promise.resolve(
-          makeResponse(
-            { tags, counts },
-            (v) => {
-              const entries = Object.entries(v.tags);
-              if (entries.length === 0) return 'No tags in this vault.';
-              return entries
-                .map(([tag, files]) => {
-                  const count = v.counts[tag] ?? files.length;
-                  return `- **${tag}** — ${String(files.length)} file${files.length === 1 ? '' : 's'}, ${String(count)} occurrence${count === 1 ? '' : 's'}`;
-                })
-                .join('\n');
-            },
-            readResponseFormat(params),
-          ),
+          dataResponse({ tags, counts }),
         );
       } catch (error) {
         return Promise.resolve(handleToolError(error));
@@ -344,17 +238,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
         const path = validateToolPath(params.path, vaultPath, configDir);
         const headings = adapter.getHeadings(path);
         return Promise.resolve(
-          makeResponse(
-            { path, headings },
-            (v) => {
-              if (v.headings.length === 0) return `**${v.path}** has no headings.`;
-              const lines = v.headings.map(
-                (h) => `${'#'.repeat(h.level)} ${h.heading}`,
-              );
-              return `**${v.path}**\n\n${lines.join('\n')}`;
-            },
-            readResponseFormat(params),
-          ),
+          dataResponse({ path, headings }),
         );
       } catch (error) {
         return Promise.resolve(handleToolError(error));
@@ -366,17 +250,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
         const path = validateToolPath(params.path, vaultPath, configDir);
         const links = adapter.getLinks(path);
         return Promise.resolve(
-          makeResponse(
-            { path, links },
-            (v) => {
-              if (v.links.length === 0) return `**${v.path}** has no outgoing links.`;
-              const lines = v.links.map(
-                (l) => `- ${l.displayText ? `[${l.displayText}](${l.link})` : l.link}`,
-              );
-              return `**${v.path}** links to:\n${lines.join('\n')}`;
-            },
-            readResponseFormat(params),
-          ),
+          dataResponse({ path, links }),
         );
       } catch (error) {
         return Promise.resolve(handleToolError(error));
@@ -388,15 +262,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
         const path = validateToolPath(params.path, vaultPath, configDir);
         const embeds = adapter.getEmbeds(path);
         return Promise.resolve(
-          makeResponse(
-            { path, embeds },
-            (v) => {
-              if (v.embeds.length === 0) return `**${v.path}** has no embeds.`;
-              const lines = v.embeds.map((e) => `- ${e.link}`);
-              return `**${v.path}** embeds:\n${lines.join('\n')}`;
-            },
-            readResponseFormat(params),
-          ),
+          dataResponse({ path, embeds }),
         );
       } catch (error) {
         return Promise.resolve(handleToolError(error));
@@ -406,7 +272,6 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
     async searchBacklinks(params): Promise<CallToolResult> {
       try {
         const path = validateToolPath(params.path, vaultPath, configDir);
-        const format = readResponseFormat(params);
         const pagination = readPagination(params, LINKS_PAGE_LIMIT);
         // vault_get_aspect adds `"aspect": …` to the JSON text afterwards.
         const limit = CHARACTER_LIMIT - ASPECT_HEADROOM;
@@ -414,39 +279,22 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
           // Read only the linking files of this page (#464).
           const page = paginate(adapter.getBacklinkLines(path), pagination);
           const context = await readBacklinkContext(adapter, page.items);
-          return fitPage({ ...page, items: context }, (p) =>
-            makeResponse(
-              {
+          return fitPage(
+            { ...page, items: context },
+            (p) =>
+              dataResponse({
                 path,
                 backlinks: p.items.map((b) => b.path),
                 backlinkContext: p.items,
                 ...backlinkPageFields(p),
-              },
-              (v) => {
-                if (v.total === 0) return `**${v.path}** has no backlinks.`;
-                const blocks = v.backlinkContext.map((b) =>
-                  [
-                    `- ${b.path}`,
-                    ...b.matches.map((m) => `  - L${String(m.line)}: ${m.text}`),
-                  ].join('\n'),
-                );
-                return `**${v.path}** is linked from:\n${blocks.join('\n')}${pageFooter(p)}`;
-              },
-              format,
-            ),
+              }),
             limit,
           );
         }
         const page = paginate(adapter.getBacklinks(path), pagination);
-        return fitPage(page, (p) =>
-          makeResponse(
-            { path, backlinks: p.items, ...backlinkPageFields(p) },
-            (v) =>
-              v.total === 0
-                ? `**${v.path}** has no backlinks.`
-                : `**${v.path}** is linked from:\n${renderPathList(v.backlinks)}${pageFooter(p)}`,
-            format,
-          ),
+        return fitPage(
+          page,
+          (p) => dataResponse({ path, backlinks: p.items, ...backlinkPageFields(p) }),
           limit,
         );
       } catch (error) {
@@ -457,7 +305,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
     async searchResolvedLinks(params): Promise<CallToolResult> {
       try {
         const entries = await linkMapEntries(adapter.getResolvedLinks(), params, false);
-        return fitLinkMap(entries, params, 'No resolved links in this vault.');
+        return fitLinkMap(entries, params);
       } catch (error) {
         return handleToolError(error);
       }
@@ -467,7 +315,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
       try {
         // A source without broken links carries no information (#464).
         const entries = await linkMapEntries(adapter.getUnresolvedLinks(), params, true);
-        return fitLinkMap(entries, params, 'No unresolved links in this vault.');
+        return fitLinkMap(entries, params);
       } catch (error) {
         return handleToolError(error);
       }
@@ -485,15 +333,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
               return match ? { id: match[1], line: line.trim() } : null;
             })
             .filter((ref): ref is { id: string; line: string } => ref !== null);
-          return makeResponse(
-            { path, blockRefs },
-            (v) => {
-              if (v.blockRefs.length === 0) return `**${v.path}** has no block references.`;
-              const lines = v.blockRefs.map((b) => `- **^${b.id}** — ${b.line}`);
-              return `**${v.path}** block references:\n${lines.join('\n')}`;
-            },
-            readResponseFormat(params),
-          );
+          return dataResponse({ path, blockRefs });
         });
       } catch (error) {
         return Promise.resolve(handleToolError(error));
@@ -503,16 +343,11 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
     searchByTag(params): Promise<CallToolResult> {
       try {
         const tag = params.tag;
-        const normalizedTag = tag.startsWith('#') ? tag : `#${tag}`;
         // Case-insensitive, nested tags included (#470).
         const files = filesWithTag(adapter.getAllTags(), tag);
         const page = paginate(files, readPagination(params));
         return Promise.resolve(
-          makeResponse(
-            page,
-            (v) => renderPaginatedPaths(v, `tagged ${normalizedTag}`),
-            readResponseFormat(params),
-          ),
+          dataResponse(page),
         );
       } catch (error) {
         return Promise.resolve(handleToolError(error));
@@ -534,13 +369,8 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
           }
         }
         const page = paginate(matching, readPagination(params));
-        const label = value === undefined ? `with ${key}` : `with ${key}=${value}`;
         return Promise.resolve(
-          makeResponse(
-            page,
-            (v) => renderPaginatedPaths(v, label),
-            readResponseFormat(params),
-          ),
+          dataResponse(page),
         );
       } catch (error) {
         return Promise.resolve(handleToolError(error));

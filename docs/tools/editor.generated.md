@@ -9,6 +9,7 @@ Auto-generated schema reference for the `editor` module. See [../tools.generated
 **Get active file content**
 
 Get the text of the active editor, in windows of up to length characters (offset/nextOffset).
+Returns: Text: "key: value" header lines (totalLength, offset, hasMore, nextOffset), a blank line, the raw text.
 See also:
 - vault_read — to read any file by path.
 
@@ -18,17 +19,10 @@ See also:
 |---|---|---|---|
 | `offset` | number (0–9007199254740991) | no (default `0`) | Character offset to start at; pass nextOffset from the previous call to continue. |
 | `length` | number (1–24000) | no | Maximum characters to return (default 24000). Notes that fit are returned whole. |
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
-| Field | Type | Description |
-|---|---|---|
-| `totalLength` | number | Length of the whole editor text in characters. |
-| `offset` | number | Character offset where this window starts. |
-| `hasMore` | boolean | True when the text continues past this window. |
-| `nextOffset` | number | Offset to pass in the next call when hasMore is true. |
-| `content` | string | Text of the active editor in the requested window (the whole text when it fits). |
+_No `structuredContent` declared — returns plain text or binary._
 
 #### Example
 
@@ -41,15 +35,23 @@ Request (`tools/call` params):
 }
 ```
 
-Response (`structuredContent`):
+Response (`content`):
 
-```json
-{
-  "totalLength": 58,
-  "offset": 0,
-  "hasMore": false,
-  "content": "---\nstatus: active\n---\n# Alpha\n\n## Goals\nShip it. ^goal-1\n"
-}
+Text block:
+
+```text
+totalLength: 58
+offset: 0
+hasMore: false
+
+---
+status: active
+---
+# Alpha
+
+## Goals
+Ship it. ^goal-1
+
 ```
 
 ### editor_get_active_file
@@ -64,9 +66,7 @@ Errors:
 
 #### Input
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
+_No input parameters._
 
 #### Output
 
@@ -274,9 +274,7 @@ Get the cursor position (0-based line, ch) in the active editor.
 
 #### Input
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
+_No input parameters._
 
 #### Output
 
@@ -362,9 +360,7 @@ Errors:
 
 #### Input
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
+_No input parameters._
 
 #### Output
 
@@ -466,9 +462,7 @@ Get the number of lines in the active editor.
 
 #### Input
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
+_No input parameters._
 
 #### Output
 

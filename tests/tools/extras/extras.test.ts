@@ -42,7 +42,9 @@ describe('Extras module', () => {
 
     const content = result.content[0] as TextContent;
     expect(content.type).toBe('text');
-    expect(content.text).toMatch(ISO_WITH_OFFSET);
+    const { iso } = JSON.parse(content.text) as { iso: string };
+    expect(iso).toMatch(ISO_WITH_OFFSET);
+    expect(result.structuredContent).toEqual({ iso });
   });
 
   it('extras_get_date encodes the current local UTC offset in the ISO string', async () => {
@@ -54,7 +56,7 @@ describe('Extras module', () => {
     const after = new Date().getTimezoneOffset();
 
     const content = result.content[0] as TextContent;
-    const iso = content.text;
+    const { iso } = JSON.parse(content.text) as { iso: string };
     const offsetToken = iso.slice(-6);
     const sign = offsetToken.startsWith('+') ? 1 : -1;
     const [hh, mm] = offsetToken.slice(1).split(':');
@@ -86,7 +88,7 @@ describe('extras read tools — outputSchema declarations', () => {
     const tool = createExtrasModule(adapter).tools().find((t) => t.name === 'extras_get_date')!;
     const schema = getStructured(tool);
 
-    const result = await tool.handler({ responseFormat: 'json' });
+    const result = await tool.handler({});
     const parsed = schema.parse(result.structuredContent);
     expect(typeof parsed.iso).toBe('string');
     expect(parsed.iso).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{2}:\d{2}$/);

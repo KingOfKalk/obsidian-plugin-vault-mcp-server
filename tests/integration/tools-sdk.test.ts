@@ -13,10 +13,12 @@ import { describe, it, expect } from 'vitest';
 import type { CallToolResult } from '@modelcontextprotocol/server';
 import { discoverModules } from '../../src/tools';
 import {
+  DOT_PNG_BASE64,
   SAMPLE_ARGS,
   connectSeededServer as connect,
   type Harness,
 } from '../../scripts/tool-examples';
+import { parseDocument, windowOf } from '../helpers/result';
 
 function textOf(result: CallToolResult): string {
   const first = result.content[0];
@@ -128,78 +130,190 @@ describe('tools through a real SDK client', () => {
   }
 });
 
-describe('write tools keep their text and add structuredContent (#388)', () => {
-  const cases: Array<[string, string, Record<string, unknown>]> = [
+/**
+ * The two result formats (#467). Document tools return plain text (a
+ * `key: value` header, a blank line, the raw text) and no
+ * structuredContent; vault_read_binary returns binary content blocks; every
+ * other tool is a data tool whose one text block is its structuredContent
+ * as compact JSON.
+ */
+const DOCUMENT_TOOLS = [
+  'vault_read',
+  'vault_daily_note',
+  'editor_get_content',
+  'template_expand',
+  'plugin_dataview_query',
+];
+const BINARY_TOOLS = ['vault_read_binary'];
+
+describe('result formats through a real SDK client (#467)', () => {
+  it('declares an outputSchema on exactly the data tools', async () => {
+    const h = await connect();
+    try {
+      const { tools } = await h.client.listTools();
+      const withoutSchema = tools.filter((t) => t.outputSchema === undefined).map((t) => t.name);
+      expect(withoutSchema.sort()).toEqual([...DOCUMENT_TOOLS, ...BINARY_TOOLS].sort());
+    } finally {
+      await h.close();
+    }
+  });
+
+  for (const [name, args] of Object.entries(SAMPLE_ARGS)) {
+    if (DOCUMENT_TOOLS.includes(name) || BINARY_TOOLS.includes(name)) continue;
+    it(`${name} sends its structuredContent as compact JSON text`, async () => {
+      const h = await connect();
+      try {
+        const result = await call(h, name, args);
+        expect(result.isError, textOf(result)).not.toBe(true);
+        expect(result.content).toEqual([
+          { type: 'text', text: JSON.stringify(result.structuredContent) },
+        ]);
+      } finally {
+        await h.close();
+      }
+    });
+  }
+
+  for (const name of DOCUMENT_TOOLS) {
+    it(`${name} sends one plain text block and no structuredContent`, async () => {
+      const h = await connect();
+      try {
+        const result = await call(h, name, SAMPLE_ARGS[name]);
+        expect(result.isError, textOf(result)).not.toBe(true);
+        expect(result.structuredContent).toBeUndefined();
+        expect(result.content).toHaveLength(1);
+        expect(result.content[0].type).toBe('text');
+      } finally {
+        await h.close();
+      }
+    });
+  }
+
+  it('vault_read returns the header and the raw note, never JSON-escaped', async () => {
+    const h = await connect();
+    try {
+      const result = await call(h, 'vault_read', { path: 'projects/alpha.md' });
+      expect(textOf(result)).toBe(
+        'path: projects/alpha.md\nmodified: 2026-01-10T08:15:00.000Z\n' +
+          'totalLength: 58\noffset: 0\nhasMore: false\n\n' +
+          '---\nstatus: active\n---\n# Alpha\n\n## Goals\nShip it. ^goal-1\n',
+      );
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('vault_read pages a large note through the header', async () => {
+    const h = await connect();
+    try {
+      const big = Array.from({ length: 3000 }, (_, i) => `line "${String(i)}"\t\\`).join('\n');
+      h.adapter.addFile('big.md', big);
+      let offset = 0;
+      let collected = '';
+      for (let guard = 0; guard < 10; guard++) {
+        const w = windowOf(await call(h, 'vault_read', { path: 'big.md', offset }));
+        collected += w.content;
+        if (!w.hasMore) break;
+        offset = w.nextOffset ?? 0;
+      }
+      expect(collected).toBe(big);
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('vault_read_binary returns an image block for a PNG, without base64 text', async () => {
+    const h = await connect();
+    try {
+      const result = await call(h, 'vault_read_binary', { path: 'img.png' });
+      expect(result.isError, textOf(result)).not.toBe(true);
+      expect(result.structuredContent).toBeUndefined();
+      expect(result.content).toEqual([
+        { type: 'text', text: 'path: img.png\nmimeType: image/png\nsizeBytes: 70\ncontent: image' },
+        { type: 'image', data: DOT_PNG_BASE64, mimeType: 'image/png' },
+      ]);
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('vault_read_binary returns other types as an embedded resource', async () => {
+    const h = await connect();
+    try {
+      const result = await call(h, 'vault_read_binary', { path: 'README.md' });
+      expect(result.content[1]).toEqual({
+        type: 'resource',
+        resource: {
+          uri: 'obsidian://vault/README.md',
+          mimeType: 'text/markdown',
+          blob: Buffer.from('# Vault\n\nSee [[projects/alpha]].\n').toString('base64'),
+        },
+      });
+    } finally {
+      await h.close();
+    }
+  });
+});
+
+describe('write tools return their data as JSON text and structuredContent (#388, #467)', () => {
+  const cases: Array<[string, Record<string, unknown>]> = [
     [
       'vault_create',
-      'Created file: new/one.md',
       { path: 'new/one.md', created: true, modified: expect.any(String) as unknown },
     ],
     [
       'vault_update',
-      'Updated file: README.md',
       { path: 'README.md', updated: true, modified: expect.any(String) as unknown },
     ],
     [
       'vault_append',
-      'Appended to file: README.md',
       { path: 'README.md', appended: true, modified: expect.any(String) as unknown },
     ],
     [
       'vault_delete',
-      'Deleted file: people/ada.md (moved to the system trash)',
       { path: 'people/ada.md', deleted: true, trashedTo: 'system' },
     ],
     [
       'vault_rename',
-      'Renamed file: people/ada.md → people/ada-lovelace.md',
       { from: 'people/ada.md', to: 'people/ada-lovelace.md', linksUpdated: 0, updatedFiles: [], autoUpdateLinks: true },
     ],
     [
       'vault_move',
-      'Moved file: people/ada.md → archive/ada.md',
       { from: 'people/ada.md', to: 'archive/ada.md', linksUpdated: 0, updatedFiles: [], autoUpdateLinks: true },
     ],
     [
       'vault_copy',
-      'Copied file: README.md → README-copy.md',
       { from: 'README.md', to: 'README-copy.md' },
     ],
-    ['vault_create_folder', 'Created folder: brand-new', { path: 'brand-new', created: true }],
+    ['vault_create_folder', { path: 'brand-new', created: true }],
     [
       'vault_delete_folder',
-      'Deleted folder: empty (moved to the system trash)',
       { path: 'empty', deleted: true, recursive: false, trashedTo: 'system' },
     ],
     [
       'vault_rename_folder',
-      'Renamed folder: empty → renamed',
       { from: 'empty', to: 'renamed', linksUpdated: 0, updatedFiles: [], autoUpdateLinks: true },
     ],
     [
       'vault_write_binary',
-      'Wrote binary file: bin/data.bin',
       { path: 'bin/data.bin', sizeBytes: 3, modified: expect.any(String) as unknown },
     ],
-    ['editor_insert', 'Text inserted', { line: 0, ch: 0 }],
+    ['editor_insert', { line: 0, ch: 0 }],
     [
       'editor_replace',
-      'Text replaced',
       { from: { line: 0, ch: 0 }, to: { line: 0, ch: 3 } },
     ],
-    ['editor_delete', 'Text deleted', { from: { line: 0, ch: 0 }, to: { line: 0, ch: 1 } }],
-    ['editor_set_cursor', 'Cursor set', { line: 1, ch: 0 }],
+    ['editor_delete', { from: { line: 0, ch: 0 }, to: { line: 0, ch: 1 } }],
+    ['editor_set_cursor', { line: 1, ch: 0 }],
     [
       'editor_set_selection',
-      'Selection set',
       { from: { line: 0, ch: 0 }, to: { line: 1, ch: 0 } },
     ],
-    ['workspace_open_file', 'Opened: README.md', { path: 'README.md' }],
-    ['workspace_set_active_leaf', 'Active leaf set', { leafId: 'leaf-1' }],
-    ['ui_notice', 'Notice shown', { shown: true }],
+    ['workspace_open_file', { path: 'README.md' }],
+    ['workspace_set_active_leaf', { leafId: 'leaf-1' }],
+    ['ui_notice', { shown: true }],
     [
       'template_create_from',
-      'Created meetings/m1.md from template templates/meeting.md (set frontmatter status)',
       {
         path: 'meetings/m1.md',
         templatePath: 'templates/meeting.md',
@@ -209,7 +323,6 @@ describe('write tools keep their text and add structuredContent (#388)', () => {
     ],
     [
       'plugin_execute_command',
-      'Executed command: editor:save-file',
       { commandId: 'editor:save-file', executed: true },
     ],
   ];
@@ -218,13 +331,15 @@ describe('write tools keep their text and add structuredContent (#388)', () => {
     expect(cases.map(([name]) => name).sort()).toEqual([...WRITE_TOOLS_WITH_OUTPUT].sort());
   });
 
-  for (const [name, text, structured] of cases) {
+  for (const [name, structured] of cases) {
     it(name, async () => {
       const h = await connect();
       try {
         const result = await call(h, name, SAMPLE_ARGS[name]);
-        expect(textOf(result)).toBe(text);
         expect(result.structuredContent).toEqual(structured);
+        expect(result.content).toEqual([
+          { type: 'text', text: JSON.stringify(result.structuredContent) },
+        ]);
       } finally {
         await h.close();
       }
@@ -318,10 +433,11 @@ describe('vault_daily_note through a real SDK client (#408)', () => {
     try {
       const result = await call(h, 'vault_daily_note', { date: '2030-01-01', create: false });
       expect(result.isError, textOf(result)).not.toBe(true);
-      expect(result.structuredContent).toEqual({
+      expect(result.structuredContent).toBeUndefined();
+      expect(parseDocument(result).meta).toEqual({
         path: 'daily/2030-01-01.md',
-        created: false,
-        exists: false,
+        exists: 'false',
+        created: 'false',
       });
       expect(await h.adapter.exists('daily/2030-01-01.md')).toBe(false);
     } finally {
@@ -334,10 +450,10 @@ describe('vault_daily_note through a real SDK client (#408)', () => {
     try {
       const result = await call(h, 'vault_daily_note', { date: '2030-01-02' });
       expect(result.isError, textOf(result)).not.toBe(true);
-      expect(result.structuredContent).toEqual({
+      expect(parseDocument(result).meta).toEqual({
         path: 'daily/2030-01-02.md',
-        created: false,
-        exists: false,
+        exists: 'false',
+        created: 'false',
       });
       expect(await h.adapter.exists('daily/2030-01-02.md')).toBe(false);
     } finally {
@@ -350,10 +466,10 @@ describe('vault_daily_note through a real SDK client (#408)', () => {
     try {
       const result = await call(h, 'vault_daily_note', { date: '2030-01-03', create: true });
       expect(result.isError, textOf(result)).not.toBe(true);
-      expect(result.structuredContent).toMatchObject({
+      expect(parseDocument(result).meta).toMatchObject({
         path: 'daily/2030-01-03.md',
-        created: true,
-        exists: true,
+        created: 'true',
+        exists: 'true',
       });
       expect(await h.adapter.exists('daily/2030-01-03.md')).toBe(true);
     } finally {
@@ -377,7 +493,6 @@ describe('vault_daily_note through a real SDK client (#408)', () => {
       const refs = await call(h, 'vault_get_aspect', {
         path: 'projects/alpha.md',
         aspect: 'block_references',
-        responseFormat: 'json',
       });
       expect(refs.structuredContent).toMatchObject({
         aspect: 'block_references',
@@ -558,9 +673,9 @@ describe('trimmed schemas in tools/list (#451)', () => {
       for (const tool of withOutput) {
         expect(tool.outputSchema?.type, tool.name).toBe('object');
       }
-      const result = await call(h, 'vault_read', SAMPLE_ARGS.vault_read);
+      const result = await call(h, 'vault_get_metadata', SAMPLE_ARGS.vault_get_metadata);
       expect(result.structuredContent).not.toHaveProperty('result');
-      expect(result.structuredContent).toHaveProperty('path', 'projects/alpha.md');
+      expect(result.structuredContent).toHaveProperty('path', 'README.md');
     } finally {
       await h.close();
     }
@@ -595,7 +710,7 @@ describe('trimmed schemas in tools/list (#451)', () => {
         }
         deliver(message, extra);
       };
-      await expect(call(h, 'vault_read', SAMPLE_ARGS.vault_read)).rejects.toThrow(
+      await expect(call(h, 'vault_get_metadata', SAMPLE_ARGS.vault_get_metadata)).rejects.toThrow(
         /structured content/i,
       );
     } finally {
@@ -615,13 +730,12 @@ describe('response_format is no longer accepted (#432)', () => {
       });
       expect(result.isError).toBe(true);
       expect(textOf(result)).toContain('Unknown parameter: response_format');
-      expect(textOf(result)).toContain('responseFormat');
     } finally {
       await h.close();
     }
   });
 
-  it('still accepts responseFormat', async () => {
+  it('rejects responseFormat, removed in 5.0.0 (#467)', async () => {
     const h = await connect();
     try {
       const result = await call(h, 'vault_get_aspect', {
@@ -629,25 +743,21 @@ describe('response_format is no longer accepted (#432)', () => {
         aspect: 'headings',
         responseFormat: 'json',
       });
-      expect(result.isError, textOf(result)).not.toBe(true);
-      expect(JSON.parse(textOf(result))).toMatchObject({ aspect: 'headings' });
+      expect(result.isError).toBe(true);
+      expect(textOf(result)).toContain('Unknown parameter: responseFormat');
     } finally {
       await h.close();
     }
   });
 
-  it('keeps response_format out of tools/list', async () => {
+  it('keeps response_format and responseFormat out of tools/list', async () => {
     const h = await connect();
     try {
       const { tools } = await h.client.listTools();
-      const withFormat = tools.filter(
-        (t) => t.inputSchema.properties?.responseFormat !== undefined,
-      );
-      expect(withFormat.length).toBeGreaterThan(0);
       for (const tool of tools) {
-        expect(tool.inputSchema.properties ?? {}, tool.name).not.toHaveProperty(
-          'response_format',
-        );
+        const properties = tool.inputSchema.properties ?? {};
+        expect(properties, tool.name).not.toHaveProperty('response_format');
+        expect(properties, tool.name).not.toHaveProperty('responseFormat');
       }
     } finally {
       await h.close();
@@ -737,8 +847,7 @@ describe('server_info (#402)', () => {
       expect(listed?.description).toContain(
         'Versions without an entry had no agent-relevant changes.',
       );
-      const text = result.content[0].type === 'text' ? result.content[0].text : '';
-      expect(text).toContain('Versions without an entry had no agent-relevant changes.');
+      expect(JSON.parse(textOf(result))).toEqual(result.structuredContent);
     } finally {
       await h.close();
     }

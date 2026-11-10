@@ -106,27 +106,19 @@ describe('vault read tools — outputSchema declarations', () => {
     return tool;
   }
 
-  it('vault_read declares outputSchema and structuredContent parses against it', async () => {
-    const tool = findTool('vault_read');
-    const schema = getStructured(tool);
+  it('document and binary tools declare no outputSchema (#467)', () => {
+    for (const name of ['vault_read', 'vault_daily_note', 'vault_read_binary']) {
+      expect(findTool(name).outputSchema, name).toBeUndefined();
+    }
+  });
 
+  it('every other vault tool declares an outputSchema (#467)', () => {
     const adapter = new MockObsidianAdapter();
-    adapter.addFile('test.md', '# Hello', { mtime: 2000 });
-    const handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
-
-    const result = await handlers.readFile({
-      path: 'test.md',
-      responseFormat: 'json',
-    });
-    const parsed = schema.parse(result.structuredContent);
-    expect(parsed).toEqual({
-      path: 'test.md',
-      content: '# Hello',
-      totalLength: 7,
-      offset: 0,
-      hasMore: false,
-      modified: '1970-01-01T00:00:02.000Z',
-    });
+    const data = createVaultModule(adapter)
+      .tools()
+      .filter((t) => !['vault_read', 'vault_daily_note', 'vault_read_binary'].includes(t.name));
+    expect(data).toHaveLength(18);
+    for (const tool of data) expect(tool.outputSchema, tool.name).toBeDefined();
   });
 
   it('vault_get_metadata declares outputSchema and structuredContent parses against it', async () => {
@@ -139,7 +131,6 @@ describe('vault read tools — outputSchema declarations', () => {
 
     const result = await handlers.getMetadata({
       path: 'note.md',
-      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent) as {
       path: string;
@@ -165,7 +156,6 @@ describe('vault read tools — outputSchema declarations', () => {
 
     const result = await handlers.listFolder({
       path: 'notes',
-      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent) as {
       files: string[];
@@ -189,7 +179,6 @@ describe('vault read tools — outputSchema declarations', () => {
     const result = await handlers.listRecursive({
       path: 'lots',
       limit: 2,
-      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent) as {
       total: number;
@@ -217,7 +206,6 @@ describe('vault read tools — outputSchema declarations', () => {
 
     const result = await handlers.listRecursive({
       path: 'few',
-      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent) as {
       hasMore: boolean;
@@ -225,43 +213,6 @@ describe('vault read tools — outputSchema declarations', () => {
     };
     expect(parsed.hasMore).toBe(false);
     expect(parsed.nextOffset).toBeUndefined();
-  });
-
-  it('vault_read_binary declares outputSchema and structuredContent parses against it', async () => {
-    const tool = findTool('vault_read_binary');
-    const schema = getStructured(tool);
-
-    const adapter = new MockObsidianAdapter();
-    adapter.addFile('img.png', '');
-    await adapter.writeBinary('img.png', new Uint8Array([0xff, 0xd8, 0xff]).buffer);
-    const handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
-
-    const result = await handlers.readBinary({
-      path: 'img.png',
-      responseFormat: 'json',
-    });
-    const parsed = schema.parse(result.structuredContent);
-    expect(parsed).toEqual({
-      path: 'img.png',
-      data: '/9j/',
-      encoding: 'base64',
-      sizeBytes: 3,
-    });
-  });
-
-  it('vault_read_binary plain-text rendering still returns the bare base64 string', async () => {
-    const adapter = new MockObsidianAdapter();
-    adapter.addFile('img.png', '');
-    await adapter.writeBinary('img.png', new Uint8Array([0xff, 0xd8, 0xff]).buffer);
-    const handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
-
-    // Default responseFormat ('markdown'); no callsite churn for existing
-    // callers — the rendered text remains the bare base64 string.
-    const result = await handlers.readBinary({ path: 'img.png' });
-    expect(result.content[0].type).toBe('text');
-    if (result.content[0].type === 'text') {
-      expect(result.content[0].text).toBe('/9j/');
-    }
   });
 
   it('vault_get_aspect declares a discriminated outputSchema and parses each variant', async () => {
@@ -331,7 +282,6 @@ describe('vault read tools — outputSchema declarations', () => {
       const result = await handlers.getAspect({
         path: 'a.md',
         aspect,
-        responseFormat: 'json',
       });
       const parsed = schema.parse(result.structuredContent);
       expect(parsed).toEqual(expected);
@@ -369,27 +319,6 @@ describe('vault read tools — outputSchema declarations', () => {
     expect(headings.structuredContent).toEqual({ aspect: 'headings', path: 'a.md', headings: [] });
   });
 
-  it('vault_daily_note outputSchema parses existing, created and missing variants (#408)', async () => {
-    const schema = getStructured(findTool('vault_daily_note'));
-    const adapter = new MockObsidianAdapter();
-    adapter.setDailyNotesSettings({ format: 'YYYY-MM-DD', folder: '', template: '' });
-    const handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
-
-    const missing = await handlers.dailyNote({ date: '2026-02-03' });
-    expect(schema.parse(missing.structuredContent)).toEqual({
-      path: '2026-02-03.md',
-      created: false,
-      exists: false,
-    });
-    const created = await handlers.dailyNote({ date: '2026-02-03', create: true });
-    expect(schema.parse(created.structuredContent)).toMatchObject({ created: true, exists: true });
-    const existing = await handlers.dailyNote({ date: '2026-02-03' });
-    expect(schema.parse(existing.structuredContent)).toMatchObject({
-      created: false,
-      exists: true,
-      content: '',
-    });
-  });
 });
 
 describe('vault tools document shared args in inputSchema', () => {
@@ -404,16 +333,16 @@ describe('vault tools document shared args in inputSchema', () => {
     return tool.schema as unknown as Record<string, { description?: string }>;
   }
 
-  it('vault_list_recursive exposes described pagination and responseFormat fields', () => {
+  it('vault_list_recursive exposes described pagination fields', () => {
     const schema = schemaFor('vault_list_recursive');
     expect(schema.limit.description).toContain('Maximum items');
     expect(schema.offset.description).toContain('skip');
-    expect(schema.responseFormat.description).toContain('json');
   });
 
-  it('read-only tools expose a described responseFormat field', () => {
-    for (const name of ['vault_read', 'vault_get_metadata', 'vault_list']) {
-      expect(schemaFor(name).responseFormat.description).toContain('json');
+  it('no tool takes responseFormat any more (#467)', () => {
+    const adapter = new MockObsidianAdapter();
+    for (const tool of createVaultModule(adapter).tools()) {
+      expect(Object.keys(tool.schema), tool.name).not.toContain('responseFormat');
     }
   });
 });
@@ -434,35 +363,35 @@ describe('vault_get_aspect dispatcher', () => {
     const searchHandlers = createSearchHandlers(adapter);
     const handlers = createHandlers(adapter, new WriteMutex(), searchHandlers);
 
-    const fm = await handlers.getAspect({ path: 'a.md', aspect: 'frontmatter', responseFormat: 'json' });
+    const fm = await handlers.getAspect({ path: 'a.md', aspect: 'frontmatter' });
     expect(fm.structuredContent).toEqual({
       aspect: 'frontmatter',
       path: 'a.md',
       frontmatter: { tag: 'x' },
     });
 
-    const headings = await handlers.getAspect({ path: 'a.md', aspect: 'headings', responseFormat: 'json' });
+    const headings = await handlers.getAspect({ path: 'a.md', aspect: 'headings' });
     expect(headings.structuredContent).toEqual({
       aspect: 'headings',
       path: 'a.md',
       headings: [{ heading: 'H', level: 1 }],
     });
 
-    const out = await handlers.getAspect({ path: 'a.md', aspect: 'outgoing_links', responseFormat: 'json' });
+    const out = await handlers.getAspect({ path: 'a.md', aspect: 'outgoing_links' });
     expect(out.structuredContent).toEqual({
       aspect: 'outgoing_links',
       path: 'a.md',
       links: [{ link: 'b' }],
     });
 
-    const emb = await handlers.getAspect({ path: 'a.md', aspect: 'embeds', responseFormat: 'json' });
+    const emb = await handlers.getAspect({ path: 'a.md', aspect: 'embeds' });
     expect(emb.structuredContent).toEqual({
       aspect: 'embeds',
       path: 'a.md',
       embeds: [{ link: 'img.png' }],
     });
 
-    const back = await handlers.getAspect({ path: 'a.md', aspect: 'backlinks', responseFormat: 'json' });
+    const back = await handlers.getAspect({ path: 'a.md', aspect: 'backlinks' });
     expect(back.structuredContent).toEqual({
       aspect: 'backlinks',
       path: 'a.md',
@@ -471,7 +400,7 @@ describe('vault_get_aspect dispatcher', () => {
       hasMore: false,
     });
 
-    const blocks = await handlers.getAspect({ path: 'a.md', aspect: 'block_references', responseFormat: 'json' });
+    const blocks = await handlers.getAspect({ path: 'a.md', aspect: 'block_references' });
     expect(blocks.structuredContent).toEqual({
       aspect: 'block_references',
       path: 'a.md',

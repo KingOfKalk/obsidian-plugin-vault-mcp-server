@@ -10,18 +10,13 @@ import {
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { handleToolError } from '../shared/errors';
 import { describeTool } from '../shared/describe';
-import {
-  confirmWithStructured,
-  makeResponse,
-  readResponseFormat,
-  responseFormatField,
-} from '../shared/response';
+import { dataResponse, documentResponse } from '../shared/response';
 import {
   READ_MAX_LENGTH,
-  fitJsonWindow,
   sliceTextWindow,
-  windowFooter,
+  windowBody,
   windowLengthField,
+  windowMeta,
   windowOffsetField,
 } from '../shared/window';
 
@@ -65,13 +60,12 @@ function assertEditorPosition(
 // via `typeof <schema>` for automatic parameter typing through
 // `InferredParams<Shape>`.
 
-const readOnlySchema = { ...responseFormatField };
+const readOnlySchema = {};
 
 /** `editor_get_content`: a character window like `vault_read` (#464). */
 const getContentSchema = {
   offset: windowOffsetField,
   length: windowLengthField('Notes'),
-  ...responseFormatField,
 };
 
 /**
@@ -141,32 +135,10 @@ const setCursorSchema = {
 const setSelectionSchema = { ...rangeFields };
 
 /**
- * Output schemas for the editor read tools that emit `structuredContent`
- * (Batch C of #248). Each shape mirrors what the corresponding handler in
- * this file puts on `result.structuredContent`.
+ * Output schemas of the editor data tools (#467): each shape mirrors what
+ * the handler puts on `structuredContent`, which is also the JSON text.
+ * editor_get_content is a document tool and has none.
  */
-const getContentOutputSchema = {
-  totalLength: z.number().describe('Length of the whole editor text in characters.'),
-  offset: z.number().describe('Character offset where this window starts.'),
-  hasMore: z.boolean().describe('True when the text continues past this window.'),
-  nextOffset: z
-    .number()
-    .optional()
-    .describe('Offset to pass in the next call when hasMore is true.'),
-  content: z
-    .string()
-    .describe('Text of the active editor in the requested window (the whole text when it fits).'),
-};
-
-/** `editor_get_content`'s structured result; `content` is serialised last. */
-interface ContentPayload {
-  totalLength: number;
-  offset: number;
-  hasMore: boolean;
-  nextOffset?: number;
-  content: string;
-}
-
 const getActiveFileOutputSchema = {
   path: z.string().describe('Vault-relative path of the active file.'),
 };
@@ -240,40 +212,19 @@ function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
     getContent: (params): Promise<CallToolResult> => {
       const text = adapter.getActiveFileContent();
       if (text === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
-      const format = readResponseFormat(params);
-      const build = (length: number): ContentPayload => {
-        const w = sliceTextWindow(text, params.offset ?? 0, length);
-        return {
-          totalLength: text.length,
-          offset: w.offset,
-          hasMore: w.hasMore,
-          ...(w.hasMore ? { nextOffset: w.end } : {}),
-          content: w.content,
-        };
-      };
-      let payload = build(params.length ?? READ_MAX_LENGTH);
-      if (format === 'json') payload = fitJsonWindow(payload, build);
-      const end = payload.offset + payload.content.length;
+      const w = sliceTextWindow(text, params.offset ?? 0, params.length ?? READ_MAX_LENGTH);
       return Promise.resolve(
-        makeResponse(
-          payload,
-          (v) =>
-            v.hasMore
-              ? `${v.content}${windowFooter('editor_get_content', v.offset, end, v.totalLength)}`
-              : v.content,
-          format,
+        documentResponse(
+          windowMeta(w, text.length),
+          windowBody('editor_get_content', w, text.length),
         ),
       );
     },
-    getActivePath: (params): Promise<CallToolResult> => {
+    getActivePath: (): Promise<CallToolResult> => {
       const path = adapter.getActiveFilePath();
       if (path === null) return Promise.resolve(err('No active file'));
       return Promise.resolve(
-        makeResponse(
-          { path },
-          (v) => v.path,
-          readResponseFormat(params),
-        ),
+        dataResponse({ path }),
       );
     },
     insert: (params): Promise<CallToolResult> => {
@@ -291,7 +242,7 @@ function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
       const ok = adapter.insertTextAt(params.line, params.ch, params.text);
       return Promise.resolve(
         ok
-          ? confirmWithStructured('Text inserted', { line: params.line, ch: params.ch })
+          ? dataResponse({ line: params.line, ch: params.ch })
           : err(NO_ACTIVE_EDITOR),
       );
     },
@@ -316,7 +267,7 @@ function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
         params.text,
       );
       return Promise.resolve(
-        ok ? confirmWithStructured('Text replaced', rangeOf(params)) : err(NO_ACTIVE_EDITOR),
+        ok ? dataResponse(rangeOf(params)) : err(NO_ACTIVE_EDITOR),
       );
     },
     deleteRange: (params): Promise<CallToolResult> => {
@@ -339,18 +290,14 @@ function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
         params.toCh,
       );
       return Promise.resolve(
-        ok ? confirmWithStructured('Text deleted', rangeOf(params)) : err(NO_ACTIVE_EDITOR),
+        ok ? dataResponse(rangeOf(params)) : err(NO_ACTIVE_EDITOR),
       );
     },
-    getCursor: (params): Promise<CallToolResult> => {
+    getCursor: (): Promise<CallToolResult> => {
       const pos = adapter.getCursorPosition();
       if (!pos) return Promise.resolve(err(NO_ACTIVE_EDITOR));
       return Promise.resolve(
-        makeResponse(
-          pos,
-          (v) => `line ${String(v.line)}, ch ${String(v.ch)}`,
-          readResponseFormat(params),
-        ),
+        dataResponse({ line: pos.line, ch: pos.ch }),
       );
     },
     setCursor: (params): Promise<CallToolResult> => {
@@ -366,20 +313,15 @@ function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
       const ok = adapter.setCursorPosition(params.line, params.ch);
       return Promise.resolve(
         ok
-          ? confirmWithStructured('Cursor set', { line: params.line, ch: params.ch })
+          ? dataResponse({ line: params.line, ch: params.ch })
           : err(NO_ACTIVE_EDITOR),
       );
     },
-    getSelection: (params): Promise<CallToolResult> => {
+    getSelection: (): Promise<CallToolResult> => {
       const sel = adapter.getSelection();
       if (!sel) return Promise.resolve(err(`No active editor or selection. ${NO_EDITOR_HINT}`));
       return Promise.resolve(
-        makeResponse(
-          sel,
-          (v) =>
-            `${String(v.from.line)}:${String(v.from.ch)} → ${String(v.to.line)}:${String(v.to.ch)}\n\n${v.text}`,
-          readResponseFormat(params),
-        ),
+        dataResponse({ from: sel.from, to: sel.to, text: sel.text }),
       );
     },
     setSelection: (params): Promise<CallToolResult> => {
@@ -402,18 +344,14 @@ function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
         params.toCh,
       );
       return Promise.resolve(
-        ok ? confirmWithStructured('Selection set', rangeOf(params)) : err(NO_ACTIVE_EDITOR),
+        ok ? dataResponse(rangeOf(params)) : err(NO_ACTIVE_EDITOR),
       );
     },
-    getLineCount: (params): Promise<CallToolResult> => {
+    getLineCount: (): Promise<CallToolResult> => {
       const count = adapter.getActiveLineCount();
       if (count === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
       return Promise.resolve(
-        makeResponse(
-          { lineCount: count },
-          (v) => String(v.lineCount),
-          readResponseFormat(params),
-        ),
+        dataResponse({ lineCount: count }),
       );
     },
   };
@@ -430,10 +368,10 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Get active file content',
           description: describeTool({
             summary: 'Get the text of the active editor, in windows of up to length characters (offset/nextOffset).',
+            returns: 'Text: "key: value" header lines (totalLength, offset, hasMore, nextOffset), a blank line, the raw text.',
             seeAlso: ['vault_read — to read any file by path.'],
           }),
           schema: getContentSchema,
-          outputSchema: getContentOutputSchema,
           handler: h.getContent,
           annotations: annotations.read,
         }),

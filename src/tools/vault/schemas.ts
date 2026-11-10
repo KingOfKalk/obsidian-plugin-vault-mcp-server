@@ -3,7 +3,6 @@ import { base64Schema } from '../../utils/validation';
 import { paginationFields, paginationFieldsWithDefault } from '../shared/pagination';
 import { LINKS_PAGE_LIMIT } from '../search/schemas';
 import { READ_MAX_LENGTH, windowLengthField, windowOffsetField } from '../shared/window';
-import { responseFormatField } from '../shared/response';
 import { frontmatterKeySchema } from '../shared/frontmatter';
 import {
   ENTRY_PATH_DESC,
@@ -73,7 +72,6 @@ export const readFileSchema = {
     ),
   offset: windowOffsetField,
   length: windowLengthField('Files'),
-  ...responseFormatField,
 };
 
 export const updateFileSchema = {
@@ -182,7 +180,6 @@ export const insertSchema = {
 
 export const getMetadataSchema = {
   path,
-  ...responseFormatField,
 };
 
 export const renameFileSchema = {
@@ -238,7 +235,6 @@ export const listFolderSchema = {
     'Vault-relative folder path, e.g. "projects"; "" (or "/" or ".") for the vault root.',
   ),
   ...paginationFieldsWithDefault(LIST_PAGE_LIMIT),
-  ...responseFormatField,
 };
 
 export const listRecursiveSchema = {
@@ -246,12 +242,10 @@ export const listRecursiveSchema = {
     'Vault-relative folder path, e.g. "projects"; "" (or "/" or ".") for the vault root.',
   ),
   ...paginationFields,
-  ...responseFormatField,
 };
 
 export const readBinarySchema = {
   path,
-  ...responseFormatField,
 };
 
 export const writeBinarySchema = {
@@ -298,7 +292,6 @@ export const getAspectSchema = {
     'aspect=backlinks only: maximum linking files per page.',
   ),
   offset: paginationFields.offset,
-  ...responseFormatField,
 };
 
 /**
@@ -318,9 +311,8 @@ export const dailyNoteSchema = {
     .boolean()
     .optional()
     .describe(
-      'Create the note from the template if missing (default false). Without it, a missing note returns exists=false.',
+      'Create the note from the template if missing (default false). Without it, a missing note returns exists: false.',
     ),
-  ...responseFormatField,
 };
 
 

@@ -54,7 +54,7 @@ describe('vault_replace with edits (#429)', () => {
       ],
       modified: new Date(stat!.mtime).toISOString(),
     });
-    expect(getText(result)).toBe('Replaced 2 occurrences in plan.md (2 edits)');
+    expect(JSON.parse(getText(result))).toEqual(result.structuredContent);
   });
 
   it('writes the file exactly once', async () => {
@@ -101,7 +101,7 @@ describe('vault_replace with edits (#429)', () => {
       path: 'a.md',
       edits: [{ oldString: 'hello', newString: 'bye' }],
     });
-    expect(getText(result)).toBe('Replaced 1 occurrence in a.md (1 edit)');
+    expect(JSON.parse(getText(result))).toEqual(result.structuredContent);
   });
 
   it('matches every edit against the original content, not earlier output', async () => {
@@ -339,7 +339,7 @@ describe('vault_replace with edits (#429)', () => {
       newString: '2',
     });
     expect(result.structuredContent).not.toHaveProperty('edits');
-    expect(getText(result)).toBe('Replaced 1 occurrence in a.md');
+    expect(JSON.parse(getText(result))).toEqual(result.structuredContent);
   });
 
   it('multi-edit structuredContent parses against the declared outputSchema', async () => {

@@ -62,7 +62,6 @@ describe('search handlers', () => {
       adapter.addFile('notes/c.md', 'Nothing here');
       const result = await handlers.searchFulltext({
         query: 'World',
-        responseFormat: 'json',
       });
       const page = JSON.parse(getText(result)) as {
         total: number;
@@ -75,12 +74,13 @@ describe('search handlers', () => {
       expect(result.structuredContent).toMatchObject({ total: 2 });
     });
 
-    it('renders markdown by default and always attaches structuredContent', async () => {
+    it('returns the page as compact JSON text and structuredContent (#467)', async () => {
       adapter.addFile('test.md', 'Hello WORLD');
       const result = await handlers.searchFulltext({ query: 'world' });
-      expect(getText(result)).toContain('**1 result**');
-      expect(getText(result)).toContain('test.md');
-      expect(result.structuredContent).toMatchObject({ total: 1 });
+      expect(getText(result)).toBe(
+        '{"total":1,"count":1,"offset":0,"items":[{"path":"test.md","matches":["Hello WORLD"],"lines":[1],"matchCount":1}],"hasMore":false}',
+      );
+      expect(JSON.parse(getText(result))).toEqual(result.structuredContent);
     });
 
     it('returns fewer files instead of cutting the json text (#464)', async () => {
@@ -90,7 +90,6 @@ describe('search handlers', () => {
       for (let f = 0; f < 50; f++) adapter.addFile(`big-${String(f)}.md`, bigMatches);
       const result = await handlers.searchFulltext({
         query: 'match',
-        responseFormat: 'json',
         limit: 100,
         maxMatchesPerFile: 100,
       });
@@ -118,35 +117,27 @@ describe('search handlers', () => {
       expect(many?.matchCount).toBe(2000);
       expect(one?.matches).toEqual(['a single hit']);
       expect(one?.matchCount).toBe(1);
-      expect(getText(result)).toContain('many.md (2000 matches)');
     });
 
-    it('shows the matching lines with line numbers in markdown (#463)', async () => {
+    it('returns the matching lines with their 1-based line numbers (#463, #467)', async () => {
       adapter.addFile('projects/Atlas.md', '# Atlas\nno\nthe atlas launch\r\nother');
       const result = await handlers.searchFulltext({ query: 'atlas' });
-      expect(getText(result)).toBe(
-        '**1 result**\n\n- projects/Atlas.md (2 matches)\n  - 1: # Atlas\n  - 3: the atlas launch',
-      );
-      // structuredContent keeps its shape: plain lines, no numbers.
       expect(result.structuredContent).toMatchObject({
-        items: [{ path: 'projects/Atlas.md', matches: ['# Atlas', 'the atlas launch\r'], matchCount: 2 }],
+        items: [
+          {
+            path: 'projects/Atlas.md',
+            matches: ['# Atlas', 'the atlas launch'],
+            lines: [1, 3],
+            matchCount: 2,
+          },
+        ],
       });
     });
 
-    it('says how many matching lines the markdown left out (#463)', async () => {
-      const lines = Array.from({ length: 8 }, (_, i) => `hit ${String(i)}`).join('\n');
-      adapter.addFile('many.md', lines);
-      const text = getText(await handlers.searchFulltext({ query: 'hit', maxMatchesPerFile: 2 }));
-      expect(text).toContain('- many.md (8 matches)\n  - 1: hit 0\n  - 2: hit 1\n  - … 6 more');
-      expect(text).not.toContain('hit 2');
-    });
-
-    it('cuts long matching lines at 200 characters in markdown (#463)', async () => {
+    it('keeps long matching lines whole', async () => {
       const long = `needle ${'x'.repeat(300)}`;
       adapter.addFile('long.md', long);
       const result = await handlers.searchFulltext({ query: 'needle' });
-      expect(getText(result)).toContain(`  - 1: ${long.slice(0, 200)}…`);
-      expect(getText(result)).not.toContain(long);
       const page = result.structuredContent as { items: Array<{ matches: string[] }> };
       expect(page.items[0].matches[0]).toBe(long);
     });
@@ -271,7 +262,6 @@ describe('search handlers', () => {
       adapter.setMetadata('test.md', { frontmatter: { title: 'My Note', tags: ['project'] } });
       const result = await handlers.searchFrontmatter({
         path: 'test.md',
-        responseFormat: 'json',
       });
       const data = JSON.parse(getText(result)) as {
         path: string;
@@ -294,7 +284,7 @@ describe('search handlers', () => {
       adapter.setMetadata('a.md', { tags: ['#project', '#work'] });
       adapter.addFile('b.md', 'content');
       adapter.setMetadata('b.md', { tags: ['#project'] });
-      const result = await handlers.searchTags({ responseFormat: 'json' });
+      const result = await handlers.searchTags({});
       const data = JSON.parse(getText(result)) as { tags: Record<string, string[]> };
       expect(data.tags['#project']).toHaveLength(2);
       expect(data.tags['#work']).toHaveLength(1);
@@ -305,7 +295,7 @@ describe('search handlers', () => {
       adapter.setMetadata('a.md', { tags: ['#project', '#work', '#project'] });
       adapter.addFile('b.md', 'content');
       adapter.setMetadata('b.md', { tags: ['#project'] });
-      const result = await handlers.searchTags({ responseFormat: 'json' });
+      const result = await handlers.searchTags({});
       const data = JSON.parse(getText(result)) as {
         tags: Record<string, string[]>;
         counts: Record<string, number>;
@@ -317,7 +307,7 @@ describe('search handlers', () => {
     it('search_by_tag lists a file with a repeated tag once (#431)', async () => {
       adapter.addFile('a.md', 'content');
       adapter.setMetadata('a.md', { tags: ['#project', '#project'] });
-      const result = await handlers.searchByTag({ tag: 'project', responseFormat: 'json' });
+      const result = await handlers.searchByTag({ tag: 'project' });
       const data = JSON.parse(getText(result)) as { items: string[]; total: number };
       expect(data.items).toEqual(['a.md']);
       expect(data.total).toBe(1);
@@ -331,7 +321,7 @@ describe('search handlers', () => {
         frontmatter: { tag: '#Project' },
         tags: ['#Project', '#inline'],
       });
-      const result = await handlers.searchTags({ responseFormat: 'json' });
+      const result = await handlers.searchTags({});
       const data = JSON.parse(getText(result)) as {
         tags: Record<string, string[]>;
         counts: Record<string, number>;
@@ -352,7 +342,7 @@ describe('search handlers', () => {
       });
       adapter.addFile('b.md', 'content');
       adapter.setMetadata('b.md', { tags: ['#Project', '#PROJECT', '#project/alpha'] });
-      const result = await handlers.searchTags({ responseFormat: 'json' });
+      const result = await handlers.searchTags({});
       const data = JSON.parse(getText(result)) as {
         tags: Record<string, string[]>;
         counts: Record<string, number>;
@@ -379,7 +369,6 @@ describe('search handlers', () => {
       });
       const result = await handlers.searchHeadings({
         path: 'test.md',
-        responseFormat: 'json',
       });
       const data = JSON.parse(getText(result)) as {
         headings: Array<{ heading: string; level: number }>;
@@ -397,7 +386,6 @@ describe('search handlers', () => {
       });
       const result = await handlers.searchOutgoingLinks({
         path: 'test.md',
-        responseFormat: 'json',
       });
       const data = JSON.parse(getText(result)) as {
         links: Array<{ link: string }>;
@@ -416,7 +404,6 @@ describe('search handlers', () => {
       adapter.addFile('target.md', 'target content');
       const result = await handlers.searchBacklinks({
         path: 'target.md',
-        responseFormat: 'json',
       });
       const data = JSON.parse(getText(result)) as { backlinks: string[] };
       expect(data.backlinks).toContain('source.md');
@@ -459,7 +446,6 @@ describe('search handlers', () => {
       const result = await handlers.searchBacklinks({
         path: 'target.md',
         includeContext: true,
-        responseFormat: 'json',
       });
       expect(result.structuredContent).toEqual({
         path: 'target.md',
@@ -479,16 +465,6 @@ describe('search handlers', () => {
       });
     });
 
-    it('renders context lines in markdown (#408)', async () => {
-      adapter.addFile('source.md', 'intro\nSee [[target]] here');
-      adapter.setMetadata('source.md', { links: [{ link: 'target' }] });
-      adapter.addFile('target.md', 'x');
-      const result = await handlers.searchBacklinks({ path: 'target.md', includeContext: true });
-      const text = getText(result);
-      expect(text).toContain('- source.md');
-      expect(text).toContain('  - L2: See [[target]] here');
-    });
-
     it('keeps a backlink with no positioned link as an empty match list (#408)', async () => {
       // metadata says source links to target, but the body has no [[...]]
       // (e.g. a frontmatter link, which has no line position).
@@ -499,7 +475,7 @@ describe('search handlers', () => {
       expect(result.structuredContent).toMatchObject({
         backlinkContext: [{ path: 'source.md', matches: [] }],
       });
-      expect(getText(result)).toContain('- source.md');
+      expect(JSON.parse(getText(result))).toEqual(result.structuredContent);
     });
   });
 
@@ -511,7 +487,6 @@ describe('search handlers', () => {
       adapter.setMetadata('b.md', { tags: ['#personal'] });
       const result = await handlers.searchByTag({
         tag: '#project',
-        responseFormat: 'json',
       });
       const page = JSON.parse(getText(result)) as { items: string[] };
       expect(page.items).toEqual(['a.md']);
@@ -522,7 +497,6 @@ describe('search handlers', () => {
       adapter.setMetadata('a.md', { tags: ['#project'] });
       const result = await handlers.searchByTag({
         tag: 'project',
-        responseFormat: 'json',
       });
       const page = JSON.parse(getText(result)) as { items: string[] };
       expect(page.items).toEqual(['a.md']);
@@ -540,7 +514,7 @@ describe('search handlers', () => {
       });
       adapter.addFile('none.md', 'content');
       adapter.setMetadata('none.md', { frontmatter: { title: 'Project' } });
-      const result = await handlers.searchByTag({ tag: 'Project', responseFormat: 'json' });
+      const result = await handlers.searchByTag({ tag: 'Project' });
       const page = JSON.parse(getText(result)) as { items: string[]; total: number };
       expect(page.items).toEqual(['both.md', 'list.md', 'string.md']);
       expect(page.total).toBe(3);
@@ -554,7 +528,7 @@ describe('search handlers', () => {
       adapter.addFile('lower.md', 'content');
       adapter.setMetadata('lower.md', { tags: ['#project'] });
       for (const tag of ['project', '#PROJECT', 'Project']) {
-        const result = await handlers.searchByTag({ tag, responseFormat: 'json' });
+        const result = await handlers.searchByTag({ tag });
         const page = JSON.parse(getText(result)) as { items: string[] };
         expect(page.items).toEqual(['fm.md', 'lower.md', 'upper.md']);
       }
@@ -569,13 +543,13 @@ describe('search handlers', () => {
       adapter.setMetadata('deep.md', { frontmatter: { tags: 'project/alpha/beta' } });
       adapter.addFile('prefix.md', 'content');
       adapter.setMetadata('prefix.md', { tags: ['#projects', '#myproject/alpha'] });
-      const all = await handlers.searchByTag({ tag: 'project', responseFormat: 'json' });
+      const all = await handlers.searchByTag({ tag: 'project' });
       expect((JSON.parse(getText(all)) as { items: string[] }).items).toEqual([
         'child.md',
         'deep.md',
         'parent.md',
       ]);
-      const nested = await handlers.searchByTag({ tag: '#project/ALPHA/', responseFormat: 'json' });
+      const nested = await handlers.searchByTag({ tag: '#project/ALPHA/' });
       expect((JSON.parse(getText(nested)) as { items: string[] }).items).toEqual([
         'child.md',
         'deep.md',
@@ -586,14 +560,14 @@ describe('search handlers', () => {
       adapter.addFile('a.md', 'content');
       adapter.setMetadata('a.md', { tags: ['#project', '#project/alpha'] });
       const result = await handlers.searchByTag({ tag: 'project' });
-      expect(getText(result)).toContain('**1 file tagged #project**');
+      expect(JSON.parse(getText(result))).toEqual(result.structuredContent);
       expect(result.structuredContent).toMatchObject({ items: ['a.md'], total: 1 });
     });
 
     it('finds nothing for a bare #', async () => {
       adapter.addFile('a.md', 'content');
       adapter.setMetadata('a.md', { tags: ['#project'] });
-      const result = await handlers.searchByTag({ tag: '#', responseFormat: 'json' });
+      const result = await handlers.searchByTag({ tag: '#' });
       expect((JSON.parse(getText(result)) as { total: number }).total).toBe(0);
     });
   });
@@ -607,7 +581,6 @@ describe('search handlers', () => {
       const result = await handlers.searchByFrontmatter({
         key: 'status',
         value: 'done',
-        responseFormat: 'json',
       });
       const page = JSON.parse(getText(result)) as { items: string[] };
       expect(page.items).toEqual(['a.md']);
@@ -624,7 +597,6 @@ describe('search handlers', () => {
       const result = await handlers.searchByFrontmatter({ key: 'status' });
       const page = result.structuredContent as { items: string[] };
       expect(page.items.sort()).toEqual(['a.md', 'b.md']);
-      expect(getText(result)).toContain('with status');
     });
 
     it('still compares the value when it is given, including an empty string', async () => {
@@ -661,100 +633,49 @@ describe('search handlers', () => {
     });
   });
 
-  describe('markdown rendering (default format)', () => {
-    it('searchFrontmatter renders the property list', async () => {
-      adapter.addFile('a.md', 'x');
-      adapter.setMetadata('a.md', { frontmatter: { title: 'T', status: 'done' } });
-      const result = await handlers.searchFrontmatter({ path: 'a.md' });
-      expect(getText(result)).toContain('**a.md** frontmatter');
-      expect(getText(result)).toContain('**title**: T');
-    });
-
-    it('searchTags renders tag counts', async () => {
-      adapter.addFile('a.md', 'x');
-      adapter.setMetadata('a.md', { tags: ['#foo', '#bar'] });
-      const result = await handlers.searchTags({});
-      expect(getText(result)).toContain('**#foo**');
-    });
-
-    it('searchTags renders file and occurrence counts', async () => {
-      adapter.addFile('a.md', 'x');
-      adapter.setMetadata('a.md', { tags: ['#foo', '#foo'] });
-      adapter.addFile('b.md', 'x');
-      adapter.setMetadata('b.md', { tags: ['#foo', '#bar'] });
-      const result = await handlers.searchTags({});
-      expect(getText(result)).toContain('- **#foo** — 2 files, 3 occurrences');
-      expect(getText(result)).toContain('- **#bar** — 1 file, 1 occurrence');
-    });
-
-    it('searchHeadings renders as a nested outline', async () => {
-      adapter.addFile('a.md', '# h1\n## h2');
+  describe('JSON text of every search tool (#467)', () => {
+    it('mirrors structuredContent exactly', async () => {
+      adapter.addFile('a.md', '# h1\nsee [[b]] ^blk');
       adapter.setMetadata('a.md', {
-        headings: [
-          { heading: 'h1', level: 1 },
-          { heading: 'h2', level: 2 },
-        ],
+        frontmatter: { status: 'active' },
+        tags: ['#project'],
+        headings: [{ heading: 'h1', level: 1 }],
+        links: [{ link: 'b' }],
       });
-      const result = await handlers.searchHeadings({ path: 'a.md' });
-      expect(getText(result)).toContain('# h1');
-      expect(getText(result)).toContain('## h2');
+      adapter.addFile('b.md', 'x');
+      const results = [
+        await handlers.searchFulltext({ query: 'see' }),
+        await handlers.searchFrontmatter({ path: 'a.md' }),
+        await handlers.searchTags({}),
+        await handlers.searchHeadings({ path: 'a.md' }),
+        await handlers.searchOutgoingLinks({ path: 'a.md' }),
+        await handlers.searchEmbeds({ path: 'a.md' }),
+        await handlers.searchBacklinks({ path: 'b.md' }),
+        await handlers.searchBacklinks({ path: 'b.md', includeContext: true }),
+        await handlers.searchResolvedLinks({}),
+        await handlers.searchUnresolvedLinks({}),
+        await handlers.searchBlockReferences({ path: 'a.md' }),
+        await handlers.searchByTag({ tag: 'project' }),
+        await handlers.searchByFrontmatter({ key: 'status', value: 'active' }),
+      ];
+      for (const result of results) {
+        expect(result.isError).toBeUndefined();
+        expect(result.content).toHaveLength(1);
+        expect(getText(result)).toBe(JSON.stringify(result.structuredContent));
+      }
     });
 
-    it('searchBacklinks renders a bullet list of sources', async () => {
-      adapter.addFile('src.md', 'x');
-      adapter.setMetadata('src.md', { links: [{ link: 'target.md' }] });
-      adapter.addFile('target.md', 'x');
-      const result = await handlers.searchBacklinks({ path: 'target.md' });
-      expect(getText(result)).toContain('src.md');
-    });
-
-    it('searchByTag renders the paginated envelope in markdown', async () => {
+    it('echoes no tag or value back, so nothing can be mangled (#463)', async () => {
       adapter.addFile('a.md', 'x');
       adapter.setMetadata('a.md', { tags: ['#project'] });
       const result = await handlers.searchByTag({ tag: 'project' });
-      expect(getText(result)).toContain('**1 file tagged #project**');
-      expect(getText(result)).toContain('- a.md');
-    });
-
-    it('searchByTag pluralises the noun, not the tag (#463)', async () => {
-      for (const p of ['a.md', 'b.md', 'c.md']) {
-        adapter.addFile(p, 'x');
-        adapter.setMetadata(p, { tags: ['#project'] });
-      }
-      const result = await handlers.searchByTag({ tag: 'project' });
-      expect(getText(result)).toContain('**3 files tagged #project**');
-      expect(getText(result)).not.toContain('#projects');
-    });
-
-    it('searchByTag with no match says "0 files" and keeps the tag', async () => {
-      const result = await handlers.searchByTag({ tag: 'project' });
-      expect(getText(result)).toContain('**0 files tagged #project**');
-    });
-
-    it('searchByFrontmatter keeps key=value verbatim for one result (#463)', async () => {
-      adapter.addFile('a.md', 'x');
-      adapter.setMetadata('a.md', { frontmatter: { status: 'active' } });
-      const result = await handlers.searchByFrontmatter({ key: 'status', value: 'active' });
-      expect(getText(result)).toContain('**1 file with status=active**');
-    });
-
-    it('searchByFrontmatter pluralises the noun, not the value (#463)', async () => {
-      for (const p of ['a.md', 'b.md']) {
-        adapter.addFile(p, 'x');
-        adapter.setMetadata(p, { frontmatter: { status: 'active' } });
-      }
-      const result = await handlers.searchByFrontmatter({ key: 'status', value: 'active' });
-      expect(getText(result)).toContain('**2 files with status=active**');
-      expect(getText(result)).not.toContain('actives');
-    });
-
-    it('searchByFrontmatter without a value pluralises the noun only', async () => {
-      for (const p of ['a.md', 'b.md']) {
-        adapter.addFile(p, 'x');
-        adapter.setMetadata(p, { frontmatter: { status: 'x' } });
-      }
-      const result = await handlers.searchByFrontmatter({ key: 'status' });
-      expect(getText(result)).toContain('**2 files with status**');
+      expect(result.structuredContent).toEqual({
+        total: 1,
+        count: 1,
+        offset: 0,
+        items: ['a.md'],
+        hasMore: false,
+      });
     });
   });
 
@@ -763,7 +684,6 @@ describe('search handlers', () => {
       adapter.addFile('test.md', 'Some content ^block-1\nMore text\nAnother block ^ref-2');
       const result = await handlers.searchBlockReferences({
         path: 'test.md',
-        responseFormat: 'json',
       });
       const data = JSON.parse(getText(result)) as {
         blockRefs: Array<{ id: string }>;
@@ -787,22 +707,22 @@ describe('search tools document shared args in inputSchema', () => {
     return tool.schema as unknown as Record<string, { description?: string }>;
   }
 
-  it('paginated search tools expose described limit, offset and responseFormat', () => {
+  it('paginated search tools expose described limit and offset', () => {
     for (const name of ['search_fulltext', 'search_by_tag', 'search_by_frontmatter']) {
       const schema = schemaFor(name);
       expect(schema.limit.description, name).toContain('Maximum items');
       expect(schema.offset.description, name).toContain('skip');
-      expect(schema.responseFormat.description, name).toContain('json');
+      expect(schema, name).not.toHaveProperty('responseFormat');
     }
   });
 
-  it('search_tags exposes only responseFormat', () => {
-    expect(Object.keys(schemaFor('search_tags'))).toEqual(['responseFormat']);
+  it('search_tags takes no parameters', () => {
+    expect(Object.keys(schemaFor('search_tags'))).toEqual([]);
   });
 
   it('link maps take path, limit and offset (#464)', () => {
     for (const name of ['search_resolved_links', 'search_unresolved_links']) {
-      expect(Object.keys(schemaFor(name))).toEqual(['path', 'limit', 'offset', 'responseFormat']);
+      expect(Object.keys(schemaFor(name))).toEqual(['path', 'limit', 'offset']);
     }
   });
 });
@@ -847,7 +767,6 @@ describe('search read tools — outputSchema declarations', () => {
 
     const result = await handlers.searchFulltext({
       query: 'World',
-      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.total).toBe(2);
@@ -870,7 +789,6 @@ describe('search read tools — outputSchema declarations', () => {
     const result = await handlers.searchFulltext({
       query: 'World',
       limit: 2,
-      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.total).toBe(5);
@@ -888,7 +806,7 @@ describe('search read tools — outputSchema declarations', () => {
     adapter.setMetadata('a.md', { tags: ['#project'] });
     const handlers = createSearchHandlers(adapter);
 
-    const result = await handlers.searchTags({ responseFormat: 'json' });
+    const result = await handlers.searchTags({});
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.tags).toEqual({ '#project': ['a.md'] });
     expect(parsed.counts).toEqual({ '#project': 1 });
@@ -905,7 +823,6 @@ describe('search read tools — outputSchema declarations', () => {
     const handlers = createSearchHandlers(adapter);
 
     const result = await handlers.searchResolvedLinks({
-      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.links).toEqual({ 'a.md': { 'b.md': 1 } });
@@ -921,7 +838,6 @@ describe('search read tools — outputSchema declarations', () => {
     const handlers = createSearchHandlers(adapter);
 
     const result = await handlers.searchUnresolvedLinks({
-      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.links).toEqual({ 'a.md': { missing: 1 } });
@@ -938,7 +854,6 @@ describe('search read tools — outputSchema declarations', () => {
 
     const result = await handlers.searchByTag({
       tag: 'project',
-      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.total).toBe(1);
@@ -961,7 +876,6 @@ describe('search read tools — outputSchema declarations', () => {
     const result = await handlers.searchByTag({
       tag: 'project',
       limit: 2,
-      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.total).toBe(5);
@@ -982,7 +896,6 @@ describe('search read tools — outputSchema declarations', () => {
     const result = await handlers.searchByFrontmatter({
       key: 'status',
       value: 'done',
-      responseFormat: 'json',
     });
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.total).toBe(1);
@@ -1009,7 +922,7 @@ describe('link maps: paging and path (#464)', () => {
     adapter.setMetadata('clean.md', { links: [{ link: 'target' }] });
   });
 
-  it('pages over sources with limit/offset and a markdown footer', async () => {
+  it('pages over sources with limit/offset', async () => {
     const first = await handlers.searchResolvedLinks({ limit: 2, offset: 0 });
     expect(first.structuredContent).toEqual({
       links: { 'a.md': { 'target.md': 1 }, 'b.md': { 'target.md': 1 } },
@@ -1019,7 +932,6 @@ describe('link maps: paging and path (#464)', () => {
       hasMore: true,
       nextOffset: 2,
     });
-    expect(getText(first)).toContain('_Showing 2 of 4 — next offset: 2_');
     const last = await handlers.searchResolvedLinks({ limit: 2, offset: 2 });
     expect(Object.keys((last.structuredContent as { links: object }).links)).toEqual([
       'c.md',
@@ -1043,7 +955,7 @@ describe('link maps: paging and path (#464)', () => {
     });
     const clean = await handlers.searchUnresolvedLinks({ path: 'clean.md' });
     expect((clean.structuredContent as { total: number }).total).toBe(0);
-    expect(getText(clean)).toBe('No unresolved links in this vault.');
+    expect(JSON.parse(getText(clean))).toMatchObject({ links: {}, total: 0 });
   });
 
   it('reports a missing path as "File not found"', async () => {
@@ -1052,14 +964,14 @@ describe('link maps: paging and path (#464)', () => {
     expect(getText(result)).toContain('File not found: nope.md');
   });
 
-  it('says so when the offset is past the last source', async () => {
+  it('returns an empty page when the offset is past the last source', async () => {
     const result = await handlers.searchResolvedLinks({ offset: 10 });
-    expect(getText(result)).toBe('No sources past this offset.');
+    expect(result.structuredContent).toMatchObject({ links: {}, total: 4, count: 0, hasMore: false });
   });
 
-  it('shows a source without resolved targets as a header only', async () => {
+  it('keeps a source without resolved targets as an empty map', async () => {
     adapter.setMetadata('clean.md', { links: [{ link: 'missing' }] });
     const result = await handlers.searchResolvedLinks({ path: 'clean.md' });
-    expect(getText(result)).toBe('- **clean.md**');
+    expect(result.structuredContent).toMatchObject({ links: { 'clean.md': {} } });
   });
 });

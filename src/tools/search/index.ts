@@ -13,10 +13,9 @@ import {
 import { pageOutputFields } from '../shared/pagination';
 
 /**
- * Output schemas for the search tools that emit `structuredContent`. Each
- * shape mirrors what the corresponding handler in `./handlers.ts` puts on
- * `result.structuredContent` — declaring them lets modern MCP clients
- * validate / introspect the typed payload (Batch B of #248).
+ * Output schemas of the search tools, all data tools (#467). Each shape
+ * mirrors what the handler in `./handlers.ts` puts on `structuredContent`,
+ * which is also the JSON text of the result.
  */
 const searchFulltextOutputSchema = {
   total: z.number().describe('Total number of matched files before pagination.'),
@@ -28,7 +27,10 @@ const searchFulltextOutputSchema = {
         path: z.string().describe('Vault-relative path of the matching file.'),
         matches: z
           .array(z.string())
-          .describe('Full text of the lines that contain the query (no line numbers), at most maxMatchesPerFile.'),
+          .describe('Full text of the lines that contain the query, at most maxMatchesPerFile.'),
+        lines: z
+          .array(z.number())
+          .describe('1-based line number of each entry in matches, in the same order.'),
         matchCount: z
           .number()
           .describe('Total number of matching lines in the file (not capped).'),
@@ -110,8 +112,8 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
             summary:
               'Case-insensitive substring search in the text of Markdown (.md) notes. Does not match file names or other file types.',
             returns:
-              'Pages over matching files (total and count are files). Each item has up to maxMatchesPerFile matching lines; ' +
-              'the markdown text shows them as "<line>: <text>" (1-based, cut at 200 characters).',
+              'Pages over matching files (total and count are files). Each item has up to maxMatchesPerFile matching lines ' +
+              'and their 1-based line numbers.',
             seeAlso: ['vault_list_recursive — to find a file by its name.'],
           }),
           schema: searchFulltextSchema,

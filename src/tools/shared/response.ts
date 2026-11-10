@@ -1,81 +1,56 @@
-import { z } from 'zod';
-import { CallToolResult } from '@modelcontextprotocol/server';
+import type { CallToolResult } from '@modelcontextprotocol/server';
 
 /**
- * Output format for tool responses.
- * - `markdown` (default): human-readable text block
- * - `json`: machine-readable JSON block (pretty-printed)
+ * Tool result formats (#467). Every successful tool result is one of two
+ * kinds; errors stay plain text with `isError: true` (see errors.ts).
  *
- * All tools that accept this field also emit `structuredContent` so modern
- * MCP clients can consume the typed payload alongside the rendered text.
- */
-export const ResponseFormat = z.enum(['markdown', 'json']);
-export type ResponseFormat = z.infer<typeof ResponseFormat>;
-
-export const responseFormatField = {
-  responseFormat: ResponseFormat.default('markdown').describe(
-    '"json" returns the full result as JSON.',
-  ),
-};
-
-/**
- * Produce a CallToolResult containing both a human-readable text block and
- * a machine-readable `structuredContent`. The helper picks between a caller-
- * supplied markdown renderer and a pretty JSON rendering based on `format`.
+ * - **Data tools** (lists, search, metadata, aspects, write confirmations,
+ *   `server_info`, …) declare an `outputSchema` and return the payload as
+ *   `structuredContent`, with the same payload serialised as compact JSON
+ *   in the one text block, as the MCP spec recommends. A client that shows
+ *   the model only `structuredContent`, or only the text, sees the same
+ *   data either way.
+ * - **Document tools** (`vault_read`, `editor_get_content`, …) have no
+ *   `outputSchema` and no `structuredContent`. The text block is a short
+ *   `key: value` header, a blank line, then the raw document text, never
+ *   JSON-escaped. Clients that prefer `structuredContent` when it is
+ *   present then fall back to this text, so the document stays readable.
  *
- * The structured payload is always carried on `structuredContent` — that
- * field is ignored by clients that don't understand it, so adding it is
- * backwards-compatible.
+ * Both kinds put everything in a single text block: some clients pass only
+ * the first text block to the model.
  */
-export function makeResponse<T>(
-  structured: T,
-  renderMarkdown: (v: T) => string,
-  format: ResponseFormat = 'markdown',
-): CallToolResult {
-  const text =
-    format === 'json'
-      ? JSON.stringify(structured, null, 2)
-      : renderMarkdown(structured);
-  return {
-    content: [{ type: 'text' as const, text }],
-    structuredContent: toStructuredContent(structured),
-  };
-}
 
 /**
- * Result for write tools: the existing plain-text confirmation, plus a small
- * structured payload so agents can chain calls without parsing the text.
- * The text is unchanged whatever `responseFormat` would say — write tools
- * don't take that parameter.
+ * Result of a data tool: `structured` as `structuredContent`, and the same
+ * value as compact JSON text. `structured` must match the tool's
+ * `outputSchema`.
  */
-export function confirmWithStructured(
-  text: string,
-  structured: Record<string, unknown>,
-): CallToolResult {
+export function dataResponse<T extends object>(structured: T): CallToolResult {
   return {
-    content: [{ type: 'text' as const, text }],
+    content: [{ type: 'text' as const, text: JSON.stringify(structured) }],
     structuredContent: structured,
   };
 }
 
+/** Header fields of a document result; `undefined` values are left out. */
+export type DocumentMeta = Record<string, string | number | boolean | undefined>;
+
 /**
- * Coerce an arbitrary value into a safe `Record<string, unknown>` for the
- * `structuredContent` slot. Arrays are wrapped as `{ items: [...] }`, scalars
- * as `{ value }`, so callers never have to worry about the shape here.
+ * The text of a document result: one `key: value` line per defined field,
+ * a blank line, then `body` unchanged. Without fields it is just `body`.
+ * Line breaks inside a value are replaced by spaces, so the first blank
+ * line always ends the header.
  */
-export function toStructuredContent(value: unknown): Record<string, unknown> {
-  if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-    return value as Record<string, unknown>;
+export function documentText(meta: DocumentMeta, body: string): string {
+  const lines: string[] = [];
+  for (const [key, value] of Object.entries(meta)) {
+    if (value === undefined) continue;
+    lines.push(`${key}: ${String(value).replace(/\r?\n|\r/g, ' ')}`);
   }
-  if (Array.isArray(value)) {
-    return { items: value };
-  }
-  return { value };
+  return lines.length === 0 ? body : `${lines.join('\n')}\n\n${body}`;
 }
 
-export function readResponseFormat(
-  params: Record<string, unknown>,
-): ResponseFormat {
-  const raw = params.responseFormat;
-  return raw === 'json' ? 'json' : 'markdown';
+/** Result of a document tool: {@link documentText} only, no `structuredContent`. */
+export function documentResponse(meta: DocumentMeta, body: string): CallToolResult {
+  return { content: [{ type: 'text' as const, text: documentText(meta, body) }] };
 }

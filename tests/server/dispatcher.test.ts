@@ -238,10 +238,18 @@ describe('createToolDispatcher safety net (#464)', () => {
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('"demo_tool" returned'));
   });
 
-  it('leaves an uncapped tool and a small result alone', async () => {
-    const dispatch = createToolDispatcher(bigTool({ uncapped: true }), makeLogger());
-    const result = await dispatch({ path: 'a.md' }, makeExtra() as never);
-    expect(result.content[0]).toEqual({ type: 'text', text: huge });
+  it('does not count image data against the limit (#467)', async () => {
+    const image = { type: 'image' as const, data: huge, mimeType: 'image/png' };
+    const tool = makeTool({
+      handler: vi.fn(async () =>
+        Promise.resolve({ content: [{ type: 'text' as const, text: 'path: a.png' }, image] }),
+      ),
+    });
+    const result = await createToolDispatcher(tool, makeLogger())({ path: 'a.md' }, makeExtra() as never);
+    expect(result.content).toEqual([{ type: 'text', text: 'path: a.png' }, image]);
+  });
+
+  it('leaves a small result alone', async () => {
     const small = await createToolDispatcher(makeTool(), makeLogger())(
       { path: 'a.md' },
       makeExtra() as never,

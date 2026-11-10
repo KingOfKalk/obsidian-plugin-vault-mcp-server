@@ -14,9 +14,7 @@ See also:
 
 #### Input
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
+_No input parameters._
 
 #### Output
 

@@ -3,6 +3,7 @@ import { CallToolResult } from '@modelcontextprotocol/server';
 import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
 import { createHandlers, WriteMutex } from '../../../src/tools/vault/handlers';
 import { createSearchHandlers } from '../../../src/tools/search/handlers';
+import { jsonOf, parseDocument, windowOf } from '../../helpers/result';
 
 function getText(result: CallToolResult): string {
   const item = result.content[0];
@@ -25,7 +26,8 @@ describe('vault handlers', () => {
     it('should create a file', async () => {
       const result = await handlers.createFile({ path: 'test.md', content: '# Hello' });
       expect(result.isError).toBeUndefined();
-      expect(getText(result)).toContain('Created file');
+      expect(jsonOf(result)).toEqual(result.structuredContent);
+      expect(result.structuredContent).toMatchObject({ path: 'test.md', created: true });
       const content = await adapter.readFile('test.md');
       expect(content).toBe('# Hello');
     });
@@ -47,7 +49,10 @@ describe('vault handlers', () => {
     it('should read a file', async () => {
       adapter.addFile('test.md', '# Hello World');
       const result = await handlers.readFile({ path: 'test.md' });
-      expect(getText(result)).toBe('# Hello World');
+      const doc = parseDocument(result);
+      expect(doc.body).toBe('# Hello World');
+      expect(doc.meta).toMatchObject({ path: 'test.md', totalLength: '13', hasMore: 'false' });
+      expect(result.structuredContent).toBeUndefined();
     });
 
     it('should return error for nonexistent file', async () => {
@@ -141,18 +146,10 @@ describe('vault handlers', () => {
   });
 
   describe('getMetadata', () => {
-    it('renders markdown by default with size and dates', async () => {
-      adapter.addFile('test.md', 'content', { ctime: 1000, mtime: 2000 });
-      const result = await handlers.getMetadata({ path: 'test.md' });
-      expect(getText(result)).toContain('**test.md**');
-      expect(getText(result)).toContain('size: 7 bytes');
-    });
-
-    it('should return file metadata (json format)', async () => {
+    it('should return file metadata as JSON text and structuredContent', async () => {
       adapter.addFile('test.md', 'content', { ctime: 1000, mtime: 2000 });
       const result = await handlers.getMetadata({
         path: 'test.md',
-        responseFormat: 'json',
       });
       const data = JSON.parse(getText(result)) as Record<string, unknown>;
       expect(data.path).toBe('test.md');
@@ -171,7 +168,7 @@ describe('vault handlers', () => {
       adapter.addFile('notes/old.md', 'content');
       const result = await handlers.renameFile({ path: 'notes/old.md', newName: 'new.md' });
       expect(result.isError).toBeUndefined();
-      expect(getText(result)).toContain('Renamed');
+      expect(jsonOf(result)).toMatchObject({ from: 'notes/old.md', to: 'notes/new.md' });
       const content = await adapter.readFile('notes/new.md');
       expect(content).toBe('content');
     });
@@ -263,7 +260,7 @@ describe('vault handlers', () => {
       adapter.addFolder('new');
       const result = await handlers.moveFile({ path: 'old/test.md', newPath: 'new/test.md' });
       expect(result.isError).toBeUndefined();
-      expect(getText(result)).toContain('Moved');
+      expect(jsonOf(result)).toMatchObject({ from: 'old/test.md', to: 'new/test.md' });
     });
 
     it('should reject path traversal in move', async () => {
@@ -325,30 +322,13 @@ describe('vault handlers', () => {
     });
   });
 
-  describe('listFolder markdown rendering', () => {
-    it('renders markdown by default with folders and files sections', async () => {
-      adapter.addFolder('notes');
-      adapter.addFile('notes/a.md', 'a');
-      const result = await handlers.listFolder({ path: 'notes' });
-      expect(getText(result)).toContain('**notes**');
-      expect(getText(result)).toContain('Files:');
-    });
-
-    it('renders an empty-folder message when nothing to list', async () => {
-      adapter.addFolder('empty');
-      const result = await handlers.listFolder({ path: 'empty' });
-      expect(getText(result)).toContain('`empty` is empty.');
-    });
-  });
-
   describe('listFolder', () => {
-    it('should list folder contents (json format)', async () => {
+    it('should list folder contents', async () => {
       adapter.addFolder('notes');
       adapter.addFile('notes/a.md', 'a');
       adapter.addFile('notes/b.md', 'b');
       const result = await handlers.listFolder({
         path: 'notes',
-        responseFormat: 'json',
       });
       const data = JSON.parse(getText(result)) as { files: string[]; folders: string[] };
       expect(data.files).toHaveLength(2);
@@ -356,28 +336,14 @@ describe('vault handlers', () => {
     });
   });
 
-  describe('listRecursive markdown rendering', () => {
-    it('renders a recursive listing with pagination hint', async () => {
-      adapter.addFolder('lots');
-      for (let i = 0; i < 5; i++) {
-        adapter.addFile(`lots/f-${String(i)}.md`, 'x');
-      }
-      const result = await handlers.listRecursive({ path: 'lots', limit: 2 });
-      const text = getText(result);
-      expect(text).toContain('**lots**');
-      expect(text).toContain('next offset: 2');
-    });
-  });
-
   describe('listRecursive', () => {
-    it('should list folder contents recursively with pagination metadata (json format)', async () => {
+    it('should list folder contents recursively with pagination metadata', async () => {
       adapter.addFolder('notes');
       adapter.addFolder('notes/sub');
       adapter.addFile('notes/a.md', 'a');
       adapter.addFile('notes/sub/b.md', 'b');
       const result = await handlers.listRecursive({
         path: 'notes',
-        responseFormat: 'json',
       });
       const data = JSON.parse(getText(result)) as {
         folders: string[];
@@ -400,7 +366,6 @@ describe('vault handlers', () => {
         path: 'lots',
         limit: 3,
         offset: 5,
-        responseFormat: 'json',
       });
       const page = JSON.parse(getText(result)) as {
         total: number;
@@ -423,7 +388,51 @@ describe('vault handlers', () => {
       const data = new Uint8Array([72, 101, 108, 108, 111]).buffer; // "Hello"
       await adapter.writeBinary('test.bin', data);
       const result = await handlers.readBinary({ path: 'test.bin' });
-      expect(getText(result)).toBe(Buffer.from('Hello').toString('base64'));
+      expect(result.structuredContent).toBeUndefined();
+      expect(result.content).toEqual([
+        {
+          type: 'text',
+          text: 'path: test.bin\nmimeType: application/octet-stream\nsizeBytes: 5\ncontent: resource',
+        },
+        {
+          type: 'resource',
+          resource: {
+            uri: 'obsidian://vault/test.bin',
+            mimeType: 'application/octet-stream',
+            blob: Buffer.from('Hello').toString('base64'),
+          },
+        },
+      ]);
+    });
+
+    it('returns an image block for an image, without repeating the data', async () => {
+      const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47]).buffer;
+      await adapter.writeBinary('img/dot.png', png);
+      const result = await handlers.readBinary({ path: 'img/dot.png' });
+      expect(result.structuredContent).toBeUndefined();
+      expect(result.content).toEqual([
+        { type: 'text', text: 'path: img/dot.png\nmimeType: image/png\nsizeBytes: 4\ncontent: image' },
+        { type: 'image', data: Buffer.from(png).toString('base64'), mimeType: 'image/png' },
+      ]);
+    });
+
+    it('returns an audio block for audio', async () => {
+      await adapter.writeBinary('a/b.mp3', new Uint8Array([1, 2]).buffer);
+      const result = await handlers.readBinary({ path: 'a/b.mp3' });
+      expect(result.content[1]).toEqual({ type: 'audio', data: 'AQI=', mimeType: 'audio/mpeg' });
+    });
+
+    it('returns SVG and other text types as a resource with a percent-encoded URI', async () => {
+      await adapter.writeBinary('my pics/logo #1.svg', new Uint8Array([60, 115]).buffer);
+      const result = await handlers.readBinary({ path: 'my pics/logo #1.svg' });
+      expect(result.content[1]).toEqual({
+        type: 'resource',
+        resource: {
+          uri: 'obsidian://vault/my%20pics/logo%20%231.svg',
+          mimeType: 'image/svg+xml',
+          blob: 'PHM=',
+        },
+      });
     });
   });
 
@@ -496,36 +505,28 @@ describe('vault handlers truncation and size limits', () => {
   });
 
   describe('readFile paging (#388)', () => {
-    it('returns a small file unchanged when only path is given', async () => {
+    it('returns a small file whole when only path is given', async () => {
       adapter.addFile('small.md', '# Small');
       const result = await handlers.readFile({ path: 'small.md' });
-      expect(getText(result)).toBe('# Small');
-      expect(result.structuredContent).toEqual({
-        path: 'small.md',
-        content: '# Small',
-        totalLength: 7,
-        offset: 0,
-        hasMore: false,
-        modified: expect.any(String) as unknown,
-      });
+      const doc = parseDocument(result);
+      expect(doc.body).toBe('# Small');
+      expect(Object.keys(doc.meta)).toEqual(['path', 'modified', 'totalLength', 'offset', 'hasMore']);
+      expect(doc.meta).toMatchObject({ path: 'small.md', totalLength: '7', offset: '0', hasMore: 'false' });
+      expect(Number.isNaN(Date.parse(doc.meta.modified))).toBe(false);
+      expect(result.structuredContent).toBeUndefined();
     });
 
     it('returns the first chunk of a large file and points at the next offset', async () => {
       const big = 'a'.repeat(30_000) + 'b'.repeat(30_000);
       adapter.addFile('big.md', big);
       const result = await handlers.readFile({ path: 'big.md' });
-      const structured = result.structuredContent as {
-        content: string;
-        totalLength: number;
-        hasMore: boolean;
-        nextOffset: number;
-      };
-      expect(structured.totalLength).toBe(60_000);
-      expect(structured.hasMore).toBe(true);
-      expect(structured.content.length).toBe(structured.nextOffset);
+      const w = windowOf(result);
+      expect(w.totalLength).toBe(60_000);
+      expect(w.hasMore).toBe(true);
+      expect(w.content.length).toBe(w.nextOffset);
       const text = getText(result);
       expect(text.length).toBeLessThanOrEqual(25_000);
-      expect(text).toContain(`offset=${String(structured.nextOffset)}`);
+      expect(text).toContain(`offset=${String(w.nextOffset)}`);
       expect(text).not.toContain('editor_');
     });
 
@@ -535,15 +536,10 @@ describe('vault handlers truncation and size limits', () => {
       let offset = 0;
       let collected = '';
       for (let guard = 0; guard < 20; guard++) {
-        const result = await handlers.readFile({ path: 'big.md', offset });
-        const s = result.structuredContent as {
-          content: string;
-          hasMore: boolean;
-          nextOffset?: number;
-        };
-        collected += s.content;
-        if (!s.hasMore) break;
-        offset = s.nextOffset ?? 0;
+        const w = windowOf(await handlers.readFile({ path: 'big.md', offset }));
+        collected += w.content;
+        if (!w.hasMore) break;
+        offset = w.nextOffset ?? 0;
       }
       expect(collected).toBe(big);
     });
@@ -551,16 +547,8 @@ describe('vault handlers truncation and size limits', () => {
     it('honours offset and length', async () => {
       adapter.addFile('abc.md', 'abcdefghij');
       const result = await handlers.readFile({ path: 'abc.md', offset: 2, length: 3 });
-      expect(result.structuredContent).toEqual({
-        path: 'abc.md',
-        content: 'cde',
-        totalLength: 10,
-        offset: 2,
-        hasMore: true,
-        nextOffset: 5,
-        modified: expect.any(String) as unknown,
-      });
-      expect(getText(result)).toContain('cde');
+      const w = windowOf(result);
+      expect(w).toMatchObject({ content: 'cde', totalLength: 10, offset: 2, hasMore: true, nextOffset: 5 });
       expect(getText(result)).toContain('offset=5');
     });
 
@@ -568,91 +556,52 @@ describe('vault handlers truncation and size limits', () => {
       adapter.addFile('abc.md', 'abc');
       const result = await handlers.readFile({ path: 'abc.md', offset: 10 });
       expect(result.isError).not.toBe(true);
-      expect(result.structuredContent).toMatchObject({
-        content: '',
-        totalLength: 3,
-        hasMore: false,
-      });
+      expect(windowOf(result)).toMatchObject({ content: '', totalLength: 3, hasMore: false });
     });
 
-    // #447: JSON escaping (\n -> \\n, \" , \u0001 -> \\u0001) can grow a
-    // full window past the response limit. The JSON text used to be cut,
-    // losing hasMore/nextOffset/modified and leaving invalid JSON.
-    describe('responseFormat json (#447)', () => {
-      interface ReadPayload {
-        path: string;
-        content: string;
-        totalLength: number;
-        offset: number;
-        hasMore: boolean;
-        nextOffset?: number;
-        modified: string;
+    // #467: the text is never JSON-escaped, so a window of quotes, newlines
+    // or control characters is as long as `length`, and reassembles exactly.
+    it.each([
+      ['newlines', 'a\n'.repeat(15_000)],
+      ['quotes', '"'.repeat(30_000)],
+      ['control characters', '\u0001'.repeat(30_000)],
+    ])('returns a full raw window for content full of %s', async (_name, big) => {
+      adapter.addFile('big.md', big);
+      const result = await handlers.readFile({ path: 'big.md' });
+      const text = getText(result);
+      expect(text.length).toBeLessThanOrEqual(25_000);
+      const w = windowOf(result);
+      expect(w.content).toBe(big.slice(0, 24_000));
+      expect(w.nextOffset).toBe(24_000);
+      expect(w.totalLength).toBe(big.length);
+    });
+
+    it('can read a whole escape-heavy file chunk by chunk', async () => {
+      const big = 'x\n"\t\\'.repeat(20_000);
+      adapter.addFile('big.md', big);
+      let offset = 0;
+      let collected = '';
+      for (let guard = 0; guard < 50; guard++) {
+        const w = windowOf(await handlers.readFile({ path: 'big.md', offset }));
+        collected += w.content;
+        if (!w.hasMore) break;
+        offset = w.nextOffset ?? 0;
       }
+      expect(collected).toBe(big);
+    });
 
-      it.each([
-        ['newlines', 'a\n'.repeat(15_000)],
-        ['quotes', '"'.repeat(30_000)],
-        ['control characters', '\u0001'.repeat(30_000)],
-      ])('keeps the JSON text valid and complete for content full of %s', async (_name, big) => {
-        adapter.addFile('big.md', big);
-        const result = await handlers.readFile({ path: 'big.md', responseFormat: 'json' });
-        const text = getText(result);
-        expect(text.length).toBeLessThanOrEqual(25_000);
-        expect(text).not.toContain('[TRUNCATED');
-        const parsed = JSON.parse(text) as ReadPayload;
-        expect(parsed).toEqual(result.structuredContent);
-        expect(parsed.hasMore).toBe(true);
-        expect(parsed.nextOffset).toBe(parsed.content.length);
-        expect(parsed.modified).toEqual(expect.any(String));
-        expect(parsed.totalLength).toBe(big.length);
-      });
-
-      it('puts content last so the metadata comes first', async () => {
-        adapter.addFile('a.md', 'body');
-        const result = await handlers.readFile({ path: 'a.md', responseFormat: 'json' });
-        expect(Object.keys(JSON.parse(getText(result)) as object)).toEqual([
-          'path',
-          'totalLength',
-          'offset',
-          'hasMore',
-          'modified',
-          'content',
-        ]);
-      });
-
-      it('can read a whole escape-heavy file chunk by chunk', async () => {
-        const big = 'x\n"\t'.repeat(20_000);
-        adapter.addFile('big.md', big);
-        let offset = 0;
-        let collected = '';
-        for (let guard = 0; guard < 50; guard++) {
-          const result = await handlers.readFile({ path: 'big.md', offset, responseFormat: 'json' });
-          const parsed = JSON.parse(getText(result)) as ReadPayload;
-          collected += parsed.content;
-          if (!parsed.hasMore) break;
-          offset = parsed.nextOffset ?? 0;
-        }
-        expect(collected).toBe(big);
-      });
-
-      it('leaves a window that fits unchanged', async () => {
-        adapter.addFile('abc.md', 'abcdefghij');
-        const result = await handlers.readFile({
-          path: 'abc.md',
-          offset: 2,
-          length: 3,
-          responseFormat: 'json',
-        });
-        expect(JSON.parse(getText(result))).toMatchObject({ content: 'cde', nextOffset: 5 });
-      });
+    it('keeps a file that starts with frontmatter intact after the header', async () => {
+      adapter.addFile('fm.md', '---\ntitle: x\n---\n\nbody');
+      const doc = parseDocument(await handlers.readFile({ path: 'fm.md' }));
+      expect(doc.body).toBe('---\ntitle: x\n---\n\nbody');
+      expect(doc.meta.path).toBe('fm.md');
     });
 
     it('does not split a surrogate pair at the end of a window', async () => {
       adapter.addFile('emoji.md', 'a\u{1F600}b');
-      const result = await handlers.readFile({ path: 'emoji.md', length: 2 });
-      const s = result.structuredContent as { content: string; nextOffset: number };
-      expect(s.content).toBe('a');
-      expect(s.nextOffset).toBe(1);
+      const w = windowOf(await handlers.readFile({ path: 'emoji.md', length: 2 }));
+      expect(w.content).toBe('a');
+      expect(w.nextOffset).toBe(1);
     });
   });
 

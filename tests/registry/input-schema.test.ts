@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 import { buildInputSchema } from '../../src/registry/input-schema';
-import { responseFormatField } from '../../src/tools/shared/response';
-
+// A tool with a parameter named responseFormat (no real tool has one since
+// #467): the alias response_format must still be rejected as unknown.
 const shape = {
   path: z.string(),
-  ...responseFormatField,
+  responseFormat: z.enum(['markdown', 'json']).default('markdown'),
 };
 
 describe('buildInputSchema without the response_format alias (#432)', () => {

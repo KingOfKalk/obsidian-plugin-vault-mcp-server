@@ -9,13 +9,9 @@ import {
 } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { describeTool } from '../shared/describe';
-import {
-  makeResponse,
-  readResponseFormat,
-  responseFormatField,
-} from '../shared/response';
+import { dataResponse } from '../shared/response';
 
-const getDateSchema = { ...responseFormatField };
+const getDateSchema = {};
 
 /**
  * Output schema for the `extras_get_date` tool that emits `structuredContent`
@@ -57,14 +53,10 @@ function formatIsoWithOffset(now: Date): string {
 
 function createHandlers(_adapter: ObsidianAdapter): ExtrasHandlers {
   return {
-    getDate: (params): Promise<CallToolResult> => {
+    getDate: (): Promise<CallToolResult> => {
       const iso = formatIsoWithOffset(new Date());
       return Promise.resolve(
-        makeResponse(
-          { iso },
-          (v) => v.iso,
-          readResponseFormat(params),
-        ),
+        dataResponse({ iso }),
       );
     },
   };

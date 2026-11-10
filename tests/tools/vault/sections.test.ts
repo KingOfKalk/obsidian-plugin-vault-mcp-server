@@ -15,6 +15,7 @@ import {
   parseHeadings,
   splitLines,
 } from '../../../src/tools/vault/sections';
+import { parseDocument, windowOf } from '../../helpers/result';
 
 function getText(result: CallToolResult): string {
   const item = result.content[0];
@@ -251,7 +252,7 @@ describe('vault_insert and vault_read with heading (#428)', () => {
         line: 17,
         modified: new Date(stat!.mtime).toISOString(),
       });
-      expect(getText(result)).toBe('Inserted into "## Log" (end) in j.md at line 17');
+      expect(JSON.parse(getText(result))).toEqual(result.structuredContent);
     });
 
     it('defaults position to end', async () => {
@@ -346,24 +347,18 @@ describe('vault_insert and vault_read with heading (#428)', () => {
       const result = await handlers.readFile({ path: 'j.md', heading: 'Notes' });
       expect(result.isError).toBeUndefined();
       const section = '## Notes\n\n- one\n- two\n\n### Detail\ndetail text\n\n';
-      expect(getText(result)).toBe(section);
-      expect(result.structuredContent).toEqual({
-        path: 'j.md',
-        heading: '## Notes',
-        line: 7,
-        content: section,
-        totalLength: section.length,
-        offset: 0,
-        hasMore: false,
-        modified: MTIME_ISO,
-      });
+      expect(getText(result)).toBe(
+        `path: j.md\nheading: ## Notes\nline: 7\nmodified: ${MTIME_ISO}\n` +
+          `totalLength: ${String(section.length)}\noffset: 0\nhasMore: false\n\n${section}`,
+      );
+      expect(result.structuredContent).toBeUndefined();
     });
 
     it('pages within the section', async () => {
       const body = 'x'.repeat(30);
       adapter.addFile('p.md', `# Intro\nhi\n## Big\n${body}\n## After\nz\n`);
       const first = await handlers.readFile({ path: 'p.md', heading: 'Big', length: 20 });
-      expect(first.structuredContent).toMatchObject({
+      expect(windowOf(first)).toMatchObject({
         content: `## Big\n${'x'.repeat(13)}`,
         totalLength: 38,
         offset: 0,
@@ -377,7 +372,7 @@ describe('vault_insert and vault_read with heading (#428)', () => {
         offset: 20,
         length: 20,
       });
-      expect(second.structuredContent).toMatchObject({
+      expect(windowOf(second)).toMatchObject({
         content: `${'x'.repeat(17)}\n`,
         offset: 20,
         hasMore: false,
@@ -402,9 +397,10 @@ describe('vault_insert and vault_read with heading (#428)', () => {
     it('is unchanged without heading', async () => {
       adapter.addFile('a.md', '# A\nbody', { mtime: MTIME });
       const result = await handlers.readFile({ path: 'a.md' });
-      expect(result.structuredContent).not.toHaveProperty('heading');
-      expect(result.structuredContent).not.toHaveProperty('line');
-      expect(getText(result)).toBe('# A\nbody');
+      const doc = parseDocument(result);
+      expect(doc.meta).not.toHaveProperty('heading');
+      expect(doc.meta).not.toHaveProperty('line');
+      expect(doc.body).toBe('# A\nbody');
     });
   });
 
@@ -449,8 +445,6 @@ describe('vault_insert and vault_read with heading (#428)', () => {
       adapter.addFile('a.md', '## A\nx\n');
       const inserted = await handlers.insert({ path: 'a.md', heading: 'A', text: 'y' });
       expect(() => shape('vault_insert').parse(inserted.structuredContent)).not.toThrow();
-      const read = await handlers.readFile({ path: 'a.md', heading: 'A' });
-      expect(() => shape('vault_read').parse(read.structuredContent)).not.toThrow();
     });
   });
 });

@@ -41,8 +41,11 @@ export interface ToolDefinition<
   description: string;
   schema: Shape;
   /**
-   * Optional schema describing the `structuredContent` payload the handler
-   * emits. `toOutputSchema` in `src/server/mcp-server.ts` normalises it for
+   * Schema of the `structuredContent` payload the handler emits. Data
+   * tools set it; document tools (plain text) and binary tools leave it
+   * undefined (#467), see src/tools/shared/response.ts.
+   *
+   * `toOutputSchema` in `src/server/mcp-server.ts` normalises it for
    * `McpServer.registerTool`: a raw Zod shape (the common case) is wrapped
    * in `z.object()`, and a `z.ZodObject` is forwarded unchanged for the rare
    * case that needs object-level options, e.g. `z.looseObject({})` for an
@@ -55,21 +58,14 @@ export interface ToolDefinition<
    * When the output varies by input, use one object with a discriminator
    * enum and optional per-variant fields instead.
    *
-   * Tools that don't emit a `structuredContent` slot (e.g. binary payloads)
-   * MUST leave this undefined — the MCP SDK requires that any call
+   * Tools that don't emit a `structuredContent` slot (document and binary
+   * tools) MUST leave this undefined — the MCP SDK requires that any call
    * returning a tool with `outputSchema` declared also carry
    * `structuredContent` matching that schema.
    */
   outputSchema?: z.ZodRawShape | z.ZodObject;
   handler: TypedHandler<Shape>;
   annotations: ToolAnnotations;
-  /**
-   * Set to `true` only for a tool whose text is meant to exceed
-   * CHARACTER_LIMIT and bounds it itself (`vault_read_binary`, capped by
-   * BINARY_BYTE_LIMIT). Every other tool's text is capped by the
-   * dispatcher's safety net (#464).
-   */
-  uncapped?: boolean;
   /**
    * Runtime availability, separate from the user's module and tool
    * switches (#469). Returns false while the tool cannot work, e.g. its

@@ -9,7 +9,7 @@ Auto-generated schema reference for the `search` module. See [../tools.generated
 **Full-text search**
 
 Case-insensitive substring search in the text of Markdown (.md) notes. Does not match file names or other file types.
-Returns: Pages over matching files (total and count are files). Each item has up to maxMatchesPerFile matching lines; the markdown text shows them as "<line>: <text>" (1-based, cut at 200 characters).
+Returns: Pages over matching files (total and count are files). Each item has up to maxMatchesPerFile matching lines and their 1-based line numbers.
 See also:
 - vault_list_recursive — to find a file by its name.
 
@@ -21,7 +21,6 @@ See also:
 | `maxMatchesPerFile` | number (1–100) | no (default `5`) | Maximum matching lines returned per file; matchCount always reports the full count. |
 | `limit` | number (1–100) | no (default `20`) | Maximum items per page. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -60,6 +59,9 @@ Response (`structuredContent`):
       "matches": [
         "See [[projects/alpha]]."
       ],
+      "lines": [
+        3
+      ],
       "matchCount": 1
     },
     {
@@ -67,12 +69,18 @@ Response (`structuredContent`):
       "matches": [
         "# Alpha"
       ],
+      "lines": [
+        4
+      ],
       "matchCount": 1
     },
     {
       "path": "people/ada.md",
       "matches": [
         "Works on [[projects/alpha]]."
+      ],
+      "lines": [
+        3
       ],
       "matchCount": 1
     }
@@ -91,9 +99,7 @@ See also:
 
 #### Input
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
+_No input parameters._
 
 #### Output
 
@@ -143,7 +149,6 @@ See also:
 | `path` | string (1–4096) | no | Only this note's links. Omit for the whole vault. |
 | `limit` | number (1–100) | no (default `50`) | Maximum items per page. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -204,7 +209,6 @@ See also:
 | `path` | string (1–4096) | no | Only this note's links. Omit for the whole vault. |
 | `limit` | number (1–100) | no (default `50`) | Maximum items per page. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -255,7 +259,6 @@ See also:
 | `tag` | string (1–200) | yes | Tag with or without the leading # (e.g. "project" also finds "#Project" and "#project/alpha"). |
 | `limit` | number (1–100) | no (default `20`) | Maximum items per page. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 
@@ -312,7 +315,6 @@ Examples:
 | `value` | string (≤1000) | no | Value to match exactly, compared as text (5 matches "5", true matches "true"); for a list, any element may match. Omit to match every note with the key. |
 | `limit` | number (1–100) | no (default `20`) | Maximum items per page. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
-| `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |
 
 #### Output
 

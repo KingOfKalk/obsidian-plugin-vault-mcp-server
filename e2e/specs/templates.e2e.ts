@@ -1,6 +1,6 @@
 import { browser, expect } from '@wdio/globals';
 import type { Client } from '@modelcontextprotocol/client';
-import { callTool, connectClient, startMcpServer, writeNotes } from '../helpers';
+import { callDocument, callTool, connectClient, startMcpServer, writeNotes } from '../helpers';
 
 /** The `options` object of a core plugin, as Obsidian keeps it in memory. */
 type CoreOptions = Record<string, unknown>;
@@ -133,24 +133,16 @@ describe('daily note: configured template', function () {
   });
 
   it('returns a warning when the template file is missing', async function () {
-    const result = await callTool<{ path: string; created: boolean; warning?: string; content: string }>(
-      client,
-      'vault_daily_note',
-      { date: '2020-01-01', create: true },
-    );
-    expect(result.created).toBe(true);
-    expect(result.content).toBe('');
-    expect(result.warning).toContain('Meta/Missing');
+    const result = await callDocument(client, 'vault_daily_note', { date: '2020-01-01', create: true });
+    expect(result.meta.created).toBe('true');
+    expect(result.body).toBe('');
+    expect(result.meta.warning).toContain('Meta/Missing');
   });
 
   it('expands a template configured without .md', async function () {
     await setCoreOption('daily-notes', 'template', 'Meta/Daily template');
-    const result = await callTool<{ path: string; warning?: string; content: string }>(
-      client,
-      'vault_daily_note',
-      { date: '2020-01-02', create: true },
-    );
-    expect(result.warning).toBeUndefined();
-    expect(result.content).toBe('Day 2020-01-02\n');
+    const result = await callDocument(client, 'vault_daily_note', { date: '2020-01-02', create: true });
+    expect(result.meta.warning).toBeUndefined();
+    expect(result.body).toBe('Day 2020-01-02\n');
   });
 });

@@ -11,6 +11,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { CallToolResult } from '@modelcontextprotocol/server';
 import { CHARACTER_LIMIT } from '../../src/constants';
 import { connectSeededServer, type Harness } from '../../scripts/tool-examples';
+import { parseDocument, windowOf } from '../helpers/result';
 
 const NOTES = 3000;
 const FLAT_FILES = 1500;
@@ -82,12 +83,12 @@ async function call(name: string, args: Record<string, unknown>): Promise<CallTo
   return result;
 }
 
-/** A JSON-mode call: the text parses and matches structuredContent. */
+/** A data tool call: the text parses and matches structuredContent (#467). */
 async function callJson(
   name: string,
   args: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
-  const result = await call(name, { ...args, responseFormat: 'json' });
+  const result = await call(name, args);
   const parsed = JSON.parse(textOf(result)) as Record<string, unknown>;
   expect(parsed).toEqual(result.structuredContent);
   return parsed;
@@ -163,10 +164,10 @@ describe('large vault: backlinks (#464)', () => {
     expect(new Set(items).size).toBe(alphaBacklinks);
   });
 
-  it('defaults to 50 linking files and shows the next offset in markdown', async () => {
-    const result = await call('vault_get_aspect', { path: 'projects/alpha.md', aspect: 'backlinks' });
-    expect((result.structuredContent as { backlinks: string[] }).backlinks).toHaveLength(50);
-    expect(textOf(result)).toContain(`_Showing 50 of ${String(alphaBacklinks)} — next offset: 50_`);
+  it('defaults to 50 linking files and points at the next offset', async () => {
+    const result = await callJson('vault_get_aspect', { path: 'projects/alpha.md', aspect: 'backlinks' });
+    expect(result.backlinks).toHaveLength(50);
+    expect(result).toMatchObject({ total: alphaBacklinks, hasMore: true, nextOffset: 50 });
   });
 });
 
@@ -195,24 +196,17 @@ describe('large vault: folder listings (#464)', () => {
 });
 
 describe('large vault: windows and caps (#464)', () => {
-  it.each(['markdown', 'json'])('editor_get_content windows reassemble the text (%s)', async (format) => {
+  it('editor_get_content windows reassemble the text', async () => {
     let offset = 0;
     let text = '';
     for (;;) {
-      const result = await call('editor_get_content', { offset, responseFormat: format });
-      const page = result.structuredContent as {
-        content: string;
-        totalLength: number;
-        hasMore: boolean;
-        nextOffset?: number;
-      };
-      if (format === 'json') expect(JSON.parse(textOf(result))).toEqual(page);
+      const result = await call('editor_get_content', { offset });
+      expect(result.structuredContent).toBeUndefined();
+      const page = windowOf(result);
       expect(page.totalLength).toBe(editorText.length);
       text += page.content;
       if (!page.hasMore) break;
-      if (format === 'markdown') {
-        expect(textOf(result)).toContain(`Call editor_get_content again with offset=${String(page.nextOffset)}`);
-      }
+      expect(textOf(result)).toContain(`Call editor_get_content again with offset=${String(page.nextOffset)}`);
       offset = page.nextOffset ?? 0;
     }
     expect(text).toBe(editorText);
@@ -220,13 +214,15 @@ describe('large vault: windows and caps (#464)', () => {
 
   it('plugin_dataview_query returns whole rows and flags the cut', async () => {
     const result = await call('plugin_dataview_query', { query: 'TABLE status FROM ""' });
-    const data = result.structuredContent as { markdown: string; truncated?: boolean };
-    expect(data.truncated).toBe(true);
-    expect(data.markdown.startsWith('| File | Status |\n| --- | --- |\n')).toBe(true);
-    expect(data.markdown.split('\n').every((line) => /^\|.*\|$/.test(line))).toBe(true);
-    expect(textOf(result)).toMatch(/\[TRUNCATED: Showing \d+ of 3002 lines\. Narrow the query/);
-    const json = await callJson('plugin_dataview_query', { query: 'TABLE status FROM ""' });
-    expect(json.truncated).toBe(true);
+    expect(result.structuredContent).toBeUndefined();
+    const { meta, body } = parseDocument(result);
+    expect(meta.truncated).toBe('true');
+    expect(meta.lines).toMatch(/^\d+ of 3002$/);
+    const footer = body.lastIndexOf('\n\n[TRUNCATED: ');
+    const rows = body.slice(0, footer);
+    expect(rows.startsWith('| File | Status |\n| --- | --- |\n')).toBe(true);
+    expect(rows.split('\n').every((line) => /^\|.*\|$/.test(line))).toBe(true);
+    expect(body.slice(footer)).toMatch(/\[TRUNCATED: Showing \d+ of 3002 lines\. Narrow the query/);
   });
 
   it('workspace_get_layout shortens its longest list', async () => {
@@ -235,8 +231,6 @@ describe('large vault: windows and caps (#464)', () => {
     const children = (layout.main as { children: unknown[] }).children;
     expect(children.length).toBeGreaterThan(0);
     expect(children.length).toBeLessThan(LEAVES);
-    const markdown = await call('workspace_get_layout', {});
-    expect(textOf(markdown)).toContain('[TRUNCATED: The longest lists were shortened');
   });
 
   it('search_fulltext stays valid JSON with long match lists', async () => {

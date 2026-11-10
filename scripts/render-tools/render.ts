@@ -170,7 +170,6 @@ function renderExample(name: string, example: ToolExampleDoc): string[] {
     null,
     2,
   );
-  const response = JSON.stringify(truncateExampleValue(example.response.value), null, 2);
   return [
     '#### Example',
     '',
@@ -178,9 +177,29 @@ function renderExample(name: string, example: ToolExampleDoc): string[] {
     '',
     ...fenced('json', request),
     '',
-    `Response (\`${example.response.kind}\`):`,
-    '',
-    ...fenced('json', response),
-    '',
+    ...renderResponse(example.response),
   ];
+}
+
+/**
+ * The response of an example. `structuredContent` is shown as JSON (the
+ * text block carries the same JSON). Content blocks of document and binary
+ * tools (#467) are shown one by one: a text block as the text the model
+ * reads, any other block as JSON.
+ */
+function renderResponse(response: ToolExampleDoc['response']): string[] {
+  if (response.kind === 'structuredContent' || !Array.isArray(response.value)) {
+    const json = JSON.stringify(truncateExampleValue(response.value), null, 2);
+    return [`Response (\`${response.kind}\`):`, '', ...fenced('json', json), ''];
+  }
+  const lines: string[] = ['Response (`content`):', ''];
+  for (const block of response.value as Array<{ type?: unknown; text?: unknown }>) {
+    if (block.type === 'text' && typeof block.text === 'string') {
+      lines.push('Text block:', '', ...fenced('text', block.text), '');
+    } else {
+      const json = JSON.stringify(truncateExampleValue(block), null, 2);
+      lines.push(`\`${String(block.type)}\` block:`, '', ...fenced('json', json), '');
+    }
+  }
+  return lines;
 }

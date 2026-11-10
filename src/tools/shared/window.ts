@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { CHARACTER_LIMIT } from '../../constants';
 
 /**
  * Default and largest `length` of a text window (`vault_read`,
  * `editor_get_content`). It stays below CHARACTER_LIMIT so the content plus
- * the "continue at offset=…" footer fits in one response.
+ * the document header and the "continue at offset=…" footer fit in one
+ * response.
  */
 export const READ_MAX_LENGTH = 24_000;
 
@@ -32,29 +32,31 @@ export function sliceTextWindow(
   };
 }
 
+/** A window cut by {@link sliceTextWindow}. */
+export type TextWindow = ReturnType<typeof sliceTextWindow>;
+
 /**
- * Shrink a text window until its pretty-printed JSON fits in
- * CHARACTER_LIMIT (#447). Escaping (`\n` -> `\\n`, `"` -> `\\"`, control
- * characters -> `\\u00XX`) can make a full window's JSON larger than the
- * limit; cutting the text afterwards left invalid JSON without the paging
- * fields. Each round drops at least as many characters as the JSON is
- * over, since every character serialises to one or more.
+ * Paging lines of a document header (#467) for a window of a text of
+ * `totalLength` characters.
  */
-export function fitJsonWindow<P extends { content: string }>(
-  payload: P,
-  build: (length: number) => P,
-): P {
-  let current = payload;
-  let size = JSON.stringify(current, null, 2).length;
-  while (size > CHARACTER_LIMIT && current.content.length > 1) {
-    const length = Math.max(1, current.content.length - (size - CHARACTER_LIMIT));
-    current = build(length);
-    size = JSON.stringify(current, null, 2).length;
-  }
-  return current;
+export function windowMeta(
+  w: TextWindow,
+  totalLength: number,
+): { totalLength: number; offset: number; hasMore: boolean; nextOffset?: number } {
+  return {
+    totalLength,
+    offset: w.offset,
+    hasMore: w.hasMore,
+    ...(w.hasMore ? { nextOffset: w.end } : {}),
+  };
 }
 
-/** Markdown footer of a window that has more text, naming the tool to call again. */
+/** The window text, with {@link windowFooter} when more follows. */
+export function windowBody(tool: string, w: TextWindow, totalLength: number): string {
+  return w.hasMore ? `${w.content}${windowFooter(tool, w.offset, w.end, totalLength)}` : w.content;
+}
+
+/** Footer of a window that has more text, naming the tool to call again. */
 export function windowFooter(
   tool: string,
   offset: number,

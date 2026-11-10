@@ -31,38 +31,11 @@ import {
 } from './schemas';
 
 /**
- * Output schemas for the read tools that emit `structuredContent`. Each
- * shape mirrors what the corresponding handler in `./handlers.ts` puts on
- * `result.structuredContent` — declaring them here lets modern MCP clients
- * validate / introspect the typed payload.
+ * Output schemas of the data tools (#467): each shape mirrors what the
+ * handler in `./handlers.ts` puts on `structuredContent`, which is also
+ * the JSON text of the result. vault_read, vault_daily_note and
+ * vault_read_binary have none: they return text or binary content.
  */
-const readFileOutputSchema = {
-  path: z.string().describe('Vault-relative path that was read.'),
-  heading: z
-    .string()
-    .optional()
-    .describe('With the heading parameter: the matched heading as written, e.g. "## Log".'),
-  line: z
-    .number()
-    .optional()
-    .describe('With the heading parameter: 1-based line number of the heading in the file.'),
-  content: z
-    .string()
-    .describe(
-      'File content in the requested window (the whole file when it fits). With heading: the section, heading line included.',
-    ),
-  totalLength: z
-    .number()
-    .describe('Length of the whole file (or of the section, with heading) in characters.'),
-  offset: z.number().describe('Character offset where this window starts.'),
-  hasMore: z.boolean().describe('True when the file continues past this window.'),
-  nextOffset: z
-    .number()
-    .optional()
-    .describe('Offset to pass in the next call when hasMore is true.'),
-  modified: z.string().describe(MODIFIED_DESC),
-};
-
 const getMetadataOutputSchema = {
   path: z.string().describe('Vault-relative path that was inspected.'),
   size: z.number().describe('File size in bytes.'),
@@ -196,49 +169,8 @@ const getAspectOutputSchema = {
 };
 
 /**
- * Output schema for `vault_read_binary` (Batch D of #248). The handler now
- * emits `structuredContent: { path, data, encoding: 'base64', sizeBytes }`
- * alongside the plain-text base64 string so modern clients can introspect
- * the typed payload while existing `result.content[0].text` callers see no
- * change.
- */
-const readBinaryOutputSchema = {
-  path: z.string().describe('Vault-relative path that was read.'),
-  data: z.string().describe('Base64-encoded file contents (no data: prefix).'),
-  encoding: z
-    .literal('base64')
-    .describe('Encoding of the `data` field — always `"base64"` for this tool.'),
-  sizeBytes: z
-    .number()
-    .describe('Decoded file size in bytes (length of the underlying binary).'),
-};
-
-const dailyNoteOutputSchema = {
-  path: z.string().describe('Vault-relative path of the daily note.'),
-  created: z
-    .boolean()
-    .describe(
-      'True when the note was just created; false when it already existed or was missing and create was not true.',
-    ),
-  exists: z
-    .boolean()
-    .describe('True when the note exists after the call; false when the note is missing and create was not true.'),
-  warning: z
-    .string()
-    .optional()
-    .describe('Set when the configured template file is missing and the note was created empty.'),
-  content: z
-    .string()
-    .optional()
-    .describe(
-      'Full note content (template-expanded body when newly created). Absent when exists=false.',
-    ),
-};
-
-/**
- * Output schemas for the write tools (#388). They used to return only a
- * plain-text confirmation; the text is unchanged, and these small payloads
- * let agents chain calls without parsing it.
+ * Output schemas for the write tools (#388): small payloads that let
+ * agents chain calls, e.g. `modified` into the next `expectedMtime`.
  */
 const writePath = z.string().describe('Vault-relative path that was written.');
 const pathOf = (what: string): z.ZodString =>
@@ -395,9 +327,9 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary: 'Read the UTF-8 content of a file.',
             returns:
+              'Text: "key: value" header lines (path, modified, totalLength, offset, hasMore, nextOffset; heading, line), a blank line, the raw text. ' +
               'Files over 24 000 characters come in windows: while hasMore is true, call again with offset=nextOffset. ' +
-              'With heading, only that section (paged the same way). ' +
-              'With responseFormat=json a window can be shorter than length, so the escaped JSON fits the response limit; always continue at nextOffset.',
+              'With heading, only that section (paged the same way).',
             examples: [
               'Use when: "show me the README" -> { path: "README.md" }',
               'Use when: continuing a large file -> { path: "big.md", offset: 24000 }',
@@ -412,7 +344,6 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             ],
           }),
           schema: readFileSchema,
-          outputSchema: readFileOutputSchema,
           handler: handlers.readFile,
           annotations: annotations.read,
         }),
@@ -663,21 +594,18 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           name: 'vault_read_binary',
           title: 'Read binary file',
           description: describeTool({
-            summary: 'Read a binary file as base64.',
+            summary: 'Read a binary file (up to 1 MiB).',
             returns:
-              'The text is the bare base64 string of the whole file, never truncated: up to 1 MiB, about 1.4 million characters. ' +
-              'Check the size with vault_get_metadata first.',
+              'An image block for images, an audio block for audio, else an embedded resource (base64 blob), after a short text header. ' +
+              'For text files use vault_read.',
             errors: [
               FILE_NOT_FOUND_ERROR,
               '"Binary file too large" if the file exceeds 1 MiB.',
             ],
           }),
           schema: readBinarySchema,
-          outputSchema: readBinaryOutputSchema,
           handler: handlers.readBinary,
           annotations: annotations.read,
-          // Base64 up to BINARY_BYTE_LIMIT; over CHARACTER_LIMIT on purpose.
-          uncapped: true,
         }),
         defineTool({
           name: 'vault_write_binary',
@@ -718,6 +646,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
               "Resolve the daily note's path for today or date from the Daily notes core plugin settings and return the note if it exists. " +
               'Does not open it in the editor. Creates a missing note (from the configured template) only with create=true.',
             returns:
+              'Text: "key: value" header lines (path, exists, created, warning, paging), a blank line, the note (continue a long one with vault_read). ' +
               "In a new note {{date}} is the note's date (YYYY-MM-DD), {{time}} the local time (HH:mm), {{title}} the file name without .md. " +
               'Templater syntax (<%) is copied unchanged; a configured template that is missing gives an empty note and a warning.',
             examples: [
@@ -732,7 +661,6 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             ],
           }),
           schema: dailyNoteSchema,
-          outputSchema: dailyNoteOutputSchema,
           handler: handlers.dailyNote,
           annotations: annotations.additive,
         }),

@@ -1,5 +1,6 @@
 import { browser } from '@wdio/globals';
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
+import type { CallToolResult } from '@modelcontextprotocol/client';
 import { readFile } from 'node:fs/promises';
 import * as path from 'node:path';
 
@@ -103,20 +104,69 @@ export async function enableModules(...ids: string[]): Promise<void> {
 }
 
 /** Call a tool; fail with its text when the tool reports an error. */
-export async function callTool<T = Record<string, unknown>>(
+export async function callToolRaw(
   client: Client,
   name: string,
   args: Record<string, unknown> = {},
-): Promise<T> {
+): Promise<CallToolResult> {
   const result = await client.callTool({ name, arguments: args });
   if (result.isError === true) {
     const text = result.content.map((c) => (c.type === 'text' ? c.text : '')).join('\n');
     throw new Error(`${name} failed: ${text}`);
   }
+  return result;
+}
+
+/**
+ * Call a data tool (#467): returns its structuredContent, after checking
+ * that the one text block is the same data as compact JSON.
+ */
+export async function callTool<T = Record<string, unknown>>(
+  client: Client,
+  name: string,
+  args: Record<string, unknown> = {},
+): Promise<T> {
+  const result = await callToolRaw(client, name, args);
   if (result.structuredContent === undefined) {
     throw new Error(`${name} returned no structuredContent`);
   }
+  const text = result.content.length === 1 && result.content[0].type === 'text' ? result.content[0].text : '';
+  if (text !== JSON.stringify(result.structuredContent)) {
+    throw new Error(`${name}: the text is not the structuredContent as JSON: ${text.slice(0, 200)}`);
+  }
   return result.structuredContent as T;
+}
+
+/** A document tool's text (#467): its `key: value` header and the body after it. */
+export interface DocumentResult {
+  meta: Record<string, string>;
+  body: string;
+}
+
+/**
+ * Call a document tool (vault_read, editor_get_content, …; #467): one text
+ * block, no structuredContent. Splits the header off at the first blank
+ * line.
+ */
+export async function callDocument(
+  client: Client,
+  name: string,
+  args: Record<string, unknown> = {},
+): Promise<DocumentResult> {
+  const result = await callToolRaw(client, name, args);
+  if (result.structuredContent !== undefined || result.content.length !== 1) {
+    throw new Error(`${name} is not a document result: ${JSON.stringify(result).slice(0, 200)}`);
+  }
+  const block = result.content[0];
+  const text = block.type === 'text' ? block.text : '';
+  const end = text.indexOf('\n\n');
+  const head = end === -1 ? text : text.slice(0, end);
+  const meta: Record<string, string> = {};
+  for (const line of head.split('\n')) {
+    const i = line.indexOf(': ');
+    meta[line.slice(0, i)] = line.slice(i + 2);
+  }
+  return { meta, body: end === -1 ? '' : text.slice(end + 2) };
 }
 
 /** Absolute path of the (temporary) vault Obsidian has open. */

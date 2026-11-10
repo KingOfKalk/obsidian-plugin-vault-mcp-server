@@ -40,6 +40,10 @@ const SEED_CTIME = Date.UTC(2026, 0, 1, 12, 0, 0, 0);
 /** mtime for every seeded file: 2026-01-10T08:15:00.000Z. */
 const SEED_MTIME = Date.UTC(2026, 0, 10, 8, 15, 0, 0);
 
+/** A 1x1 PNG (70 bytes). */
+export const DOT_PNG_BASE64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
 const ALPHA = '---\nstatus: active\n---\n# Alpha\n\n## Goals\nShip it. ^goal-1\n';
 
 /** Populate a mock vault with the fixed sample notes every example uses. */
@@ -50,6 +54,9 @@ export function seedVault(adapter: MockObsidianAdapter): void {
   adapter.addFile('people/ada.md', '# Ada\n\nWorks on [[projects/alpha]].\n', stat);
   adapter.addFile('templates/meeting.md', '# Meeting {{title}}\n', stat);
   adapter.addFolder('empty');
+  // A 1x1 PNG, embedded by projects/alpha.md: vault_read_binary returns it
+  // as an image block (#467).
+  adapter.addBinaryFile('img.png', Buffer.from(DOT_PNG_BASE64, 'base64'), stat);
   adapter.setMetadata('projects/alpha.md', {
     frontmatter: { status: 'active' },
     tags: ['#project'],
@@ -99,7 +106,7 @@ export const SAMPLE_ARGS: Record<string, Record<string, unknown>> = {
   vault_rename_folder: { path: 'empty', newPath: 'renamed' },
   vault_list: { path: 'projects' },
   vault_list_recursive: { path: 'projects' },
-  vault_read_binary: { path: 'README.md' },
+  vault_read_binary: { path: 'img.png' },
   vault_write_binary: { path: 'bin/data.bin', data: 'AAEC' },
   vault_get_aspect: { path: 'projects/alpha.md', aspect: 'backlinks', includeContext: true },
   vault_daily_note: { date: '2026-11-08', create: true },

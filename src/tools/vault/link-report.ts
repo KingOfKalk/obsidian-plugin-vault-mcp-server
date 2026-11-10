@@ -99,17 +99,3 @@ export async function renameWithLinkReport(
   }
   return report;
 }
-
-/** One-line summary of a link report for the text output. */
-export function describeLinkReport(report: LinkUpdateReport): string {
-  const lines: string[] = [];
-  if (report.updatedFiles.length > 0) {
-    const links = report.linksUpdated === 1 ? 'link' : 'links';
-    const files = report.updatedFiles.length === 1 ? 'file' : 'files';
-    lines.push(
-      `Updated ${String(report.linksUpdated)} ${links} in ${String(report.updatedFiles.length)} ${files}: ${report.updatedFiles.join(', ')}`,
-    );
-  }
-  if (report.warning) lines.push(`Warning: ${report.warning}`);
-  return lines.length > 0 ? '\n' + lines.join('\n') : '';
-}

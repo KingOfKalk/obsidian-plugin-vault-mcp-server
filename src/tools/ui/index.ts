@@ -9,7 +9,7 @@ import {
 } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { describeTool } from '../shared/describe';
-import { confirmWithStructured } from '../shared/response';
+import { dataResponse } from '../shared/response';
 
 
 const showNoticeSchema = {
@@ -39,7 +39,7 @@ function createHandlers(adapter: ObsidianAdapter): UiHandlers {
   return {
     showNotice: (params): Promise<CallToolResult> => {
       adapter.showNotice(params.message, params.duration);
-      return Promise.resolve(confirmWithStructured('Notice shown', { shown: true }));
+      return Promise.resolve(dataResponse({ shown: true }));
     },
   };
 }

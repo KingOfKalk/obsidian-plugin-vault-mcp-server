@@ -69,6 +69,15 @@ export function isTextMime(mime: string): boolean {
 const VAULT_URI_PREFIX = 'obsidian://vault/';
 
 /**
+ * The `obsidian://vault/` URI of a vault-relative path. Each segment is
+ * percent-encoded, so reserved characters (?, #, …) are escaped while the
+ * slashes stay literal; {@link parseVaultUri} reverses it.
+ */
+export function vaultUri(path: string): string {
+  return VAULT_URI_PREFIX + path.split('/').map(encodeURIComponent).join('/');
+}
+
+/**
  * Validate an `obsidian://vault/{+path}` URI and return the vault-relative
  * path it points to.
  *
@@ -165,9 +174,7 @@ export function createIndexHandler(
       sortedFiles.map(async (path) => {
         const stat = await adapter.stat(path);
         return {
-          // encodeURIComponent per segment so reserved characters (?, #, etc.)
-          // are properly escaped while keeping path slashes literal.
-          uri: 'obsidian://vault/' + path.split('/').map(encodeURIComponent).join('/'),
+          uri: vaultUri(path),
           name: basename(path),
           mimeType: getMimeType(path),
           size: stat?.size ?? 0,
