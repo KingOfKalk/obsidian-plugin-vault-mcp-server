@@ -132,8 +132,8 @@ const inFolder = async (folder: string): Promise<string[]> =>
   (await allFiles()).filter((p) => p.startsWith(`${folder}/`));
 
 async function personWith(key: string, value: string): Promise<string> {
-  const { items: people, pageCount } = await allItems('search_by_tag', { tag: 'person' });
-  expect(pageCount).toBeGreaterThan(1);
+  // 23 people fit one default page of 50 (#490); follow nextOffset anyway.
+  const { items: people } = await allItems('search_by_tag', { tag: 'person' });
   for (const p of people) {
     if ((await frontmatter(p))[key] === value) return p;
   }
@@ -168,7 +168,7 @@ const solutions: Array<() => Promise<string>> = [
     const owner = String((await frontmatter(unlinked[0])).owner);
     return String((await frontmatter(await notePath(owner))).role);
   },
-  // Q2: Lead Researcher (people span several pages) -> their active project -> distinct backlinks
+  // Q2: Lead Researcher -> their active project -> distinct backlinks
   async (): Promise<string> => {
     const lead = nameOf(await personWith('role', 'Lead Researcher'));
     const { items: owned } = await allItems('search_by_frontmatter', { key: 'owner', value: lead });

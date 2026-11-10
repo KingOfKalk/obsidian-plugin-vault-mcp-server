@@ -552,7 +552,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'List folder',
           description: describeTool({
             summary: 'List files and folders directly under a path (non-recursive), as full vault-relative paths.',
-            returns: 'Folders first, then files, paged together with limit/offset.',
+            paging: 'folders first, then files',
             errors: ['"Folder not found" if path does not exist.'],
             seeAlso: [
               'vault_list_recursive — to include subfolders.',
@@ -568,7 +568,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'List folder (recursive)',
           description: describeTool({
             summary: 'List all files and folders under a path, recursively.',
-            returns: 'Files and folders are paged with the same limit/offset, each list on its own.',
+            paging: 'files and folders each in their own list, from the same offset',
             examples: [
               'Don\'t use when: the folder is very large — list a narrower subfolder.',
             ],
@@ -618,6 +618,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             summary:
               'Get one metadata aspect of a file: frontmatter, headings, ' +
               'outgoing links, embeds, backlinks, or block references.',
+            paging: 'aspect=backlinks only, over linking files',
             examples: [
               'Use when: "list the headings in README.md" → { path: "README.md", aspect: "headings" }',
               'Use when: "what links to this note?" → { path: "ideas.md", aspect: "backlinks" }',

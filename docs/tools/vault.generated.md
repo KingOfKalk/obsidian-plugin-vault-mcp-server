@@ -699,7 +699,7 @@ Response (`structuredContent`):
 **List folder**
 
 List files and folders directly under a path (non-recursive), as full vault-relative paths.
-Returns: Folders first, then files, paged together with limit/offset.
+Paging: folders first, then files; limit default 50, max 100; next page: offset=nextOffset.
 See also:
 - vault_list_recursive — to include subfolders.
 Errors:
@@ -710,7 +710,7 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `path` | string (≤4096) | yes | Vault-relative folder path, e.g. "projects"; "" (or "/" or ".") for the vault root. |
-| `limit` | number (1–100) | no (default `100`) | Maximum items per page. |
+| `limit` | number (1–100) | no (default `50`) | Maximum items per page. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
 
 #### Output
@@ -758,7 +758,7 @@ Response (`structuredContent`):
 **List folder (recursive)**
 
 List all files and folders under a path, recursively.
-Returns: Files and folders are paged with the same limit/offset, each list on its own.
+Paging: files and folders each in their own list, from the same offset; limit default 50, max 100; next page: offset=nextOffset.
 Examples:
 - Don't use when: the folder is very large — list a narrower subfolder.
 See also:
@@ -771,7 +771,7 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `path` | string (≤4096) | yes | Vault-relative folder path, e.g. "projects"; "" (or "/" or ".") for the vault root. |
-| `limit` | number (1–100) | no (default `20`) | Maximum items per page. |
+| `limit` | number (1–100) | no (default `50`) | Maximum items per page. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
 
 #### Output
@@ -923,6 +923,7 @@ Response (`structuredContent`):
 **Get file aspect**
 
 Get one metadata aspect of a file: frontmatter, headings, outgoing links, embeds, backlinks, or block references.
+Paging: aspect=backlinks only, over linking files; limit default 50, max 100; next page: offset=nextOffset.
 Examples:
 - Use when: "list the headings in README.md" → { path: "README.md", aspect: "headings" }
 - Use when: "what links to this note?" → { path: "ideas.md", aspect: "backlinks" }
