@@ -1,6 +1,7 @@
 import esbuild from 'esbuild';
 import process from 'process';
 import builtins from 'builtin-modules';
+import { zodEnglishOnly } from './scripts/esbuild/zod-locales.mjs';
 
 const production = process.argv[2] === 'production';
 
@@ -31,6 +32,7 @@ const context = await esbuild.context({
   outfile: 'main.js',
   minify: production,
   platform: 'node',
+  plugins: [zodEnglishOnly()],
 });
 
 if (production) {
