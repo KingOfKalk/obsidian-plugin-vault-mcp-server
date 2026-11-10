@@ -190,6 +190,19 @@ export function handleToolError(error: unknown): CallToolResult {
   return errorFrom(redactFilesystemPaths(message));
 }
 
+/**
+ * Whether `error` is an expected failure — invalid arguments, a typed
+ * error written for the client, a path outside the vault — rather than a
+ * bug. The dispatcher logs only the unexpected ones at `error` (#540).
+ */
+export function isExpectedToolError(error: unknown): boolean {
+  return (
+    error instanceof z.ZodError ||
+    error instanceof UserFacingError ||
+    error instanceof PathTraversalError
+  );
+}
+
 /** `handleToolError` for a plain message: `Error: <message>`, `isError: true`. */
 export function errorResult(message: string): CallToolResult {
   return handleToolError(new Error(message));

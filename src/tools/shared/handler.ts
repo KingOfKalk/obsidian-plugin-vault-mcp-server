@@ -5,11 +5,32 @@ import { handleToolError } from './errors';
 export type HandlerResult = CallToolResult | Promise<CallToolResult>;
 
 /**
+ * Where `safeHandler` keeps the error it caught on the result (#540): a
+ * non-enumerable symbol, so it is neither serialised nor copied by a
+ * spread and never reaches the client.
+ */
+const CAUGHT_ERROR = Symbol('caughtError');
+
+type WithCaughtError = CallToolResult & { [CAUGHT_ERROR]?: unknown };
+
+/**
+ * The error `safeHandler` turned into `result`, or `undefined` when the
+ * handler returned `result` itself. Lets the dispatcher log a crash it no
+ * longer sees thrown (#540).
+ */
+export function caughtError(result: CallToolResult): { error: unknown } | undefined {
+  return Object.prototype.hasOwnProperty.call(result, CAUGHT_ERROR)
+    ? { error: (result as WithCaughtError)[CAUGHT_ERROR] }
+    : undefined;
+}
+
+/**
  * Wrap a handler body (#532): a sync or async result becomes a promise, and
  * anything it throws becomes `handleToolError`'s `isError` result, so the
  * body needs neither `try`/`catch` nor `Promise.resolve`. The dispatcher
  * catches too; this keeps the shape for callers that call a handler
- * directly (tests, `vault_get_aspect`).
+ * directly (tests, `vault_get_aspect`). The caught error stays on the
+ * result for the dispatcher's log (see {@link caughtError}).
  */
 export function safeHandler<A extends unknown[]>(
   fn: (...args: A) => HandlerResult,
@@ -18,7 +39,7 @@ export function safeHandler<A extends unknown[]>(
     try {
       return await fn(...args);
     } catch (error) {
-      return handleToolError(error);
+      return Object.defineProperty(handleToolError(error), CAUGHT_ERROR, { value: error });
     }
   };
 }
