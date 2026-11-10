@@ -67,7 +67,6 @@ export interface ObsidianAdapter {
    * order and creates the block if missing.
    */
   processFrontMatter(path: string, fn: (frontmatter: Record<string, unknown>) => void): Promise<void>;
-  getTags(path: string): string[];
   /**
    * Vault-wide tag index: for every tag (with leading `#`), the files that
    * use it — each file listed once, in vault order — and `count`, the total

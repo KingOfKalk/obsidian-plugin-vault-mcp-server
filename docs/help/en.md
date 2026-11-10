@@ -306,7 +306,7 @@ The settings tab is split into six sections.
 | **Port** | `28741` | TCP port to listen on. Any integer 1–65535. Restart required. |
 | **Server URL** | (read-only) | Full `http(s)://address:port/mcp` URL. The copy button puts it on your clipboard. |
 | **Require Bearer authentication** | **on** | Master switch for auth. When on, every request must carry `Authorization: Bearer <key>`. When off, the server **refuses to bind** unless you also turn on **Accept insecure mode** (see below). |
-| **Access Key** | (auto-generated) | Visible only when auth is on. On a fresh install with auth on, the plugin auto-generates a 32-byte base64url key on first load and persists it. Use **Generate** to rotate it. The **Copy** button copies it to the clipboard. |
+| **Access Key** | (auto-generated) | Visible only when auth is on. On a fresh install with auth on, the plugin auto-generates a 32-byte base64url key on first load and persists it. Use **Generate** to rotate it; it makes a new key in the same format. The **Copy** button copies it to the clipboard. |
 | **Accept insecure mode** | off | Visible only when auth is off. The server refuses to bind without this toggle, so you can't accidentally expose an unauthenticated MCP endpoint. Only safe on a trusted, localhost-only setup. |
 | **HTTPS** | off | Switch to HTTPS using a locally generated self-signed certificate. Restart required. See the FAQ for client-side trust. |
 | **TLS Certificate** | auto | Generated on the first HTTPS start, then cached in `data.json`. Use **Regenerate certificate** if you change the address or want a fresh key pair — clients will need to re-trust the new cert. |

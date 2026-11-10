@@ -36,9 +36,12 @@ export function createValidationError(
   };
 }
 
-/** Generate a fresh 256-bit hex access key for Bearer authentication. */
+/**
+ * Generate a fresh 256-bit access key for Bearer authentication, as 43
+ * base64url characters. Any non-empty key the user types is accepted too.
+ */
 export function generateAccessKey(): string {
-  return randomBytes(32).toString('hex');
+  return randomBytes(32).toString('base64url');
 }
 
 /** Minimal IPv4 validator — four decimal octets in 0..255. */

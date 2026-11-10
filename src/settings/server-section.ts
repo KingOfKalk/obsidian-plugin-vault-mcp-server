@@ -1,24 +1,21 @@
-import { Notice, Setting } from 'obsidian';
+import { Setting } from 'obsidian';
 import type McpPlugin from '../main';
-import { t } from '../lang/helpers';
+import { t, type TranslationKey } from '../lang/helpers';
 import { reportError } from '../utils/report-error';
+import { copyWithNotice } from '../utils/clipboard';
 import {
   createValidationError,
   generateAccessKey,
   isValidIPv4,
 } from './validation';
 import { renderHttpsSection } from './https-section';
-import { displayHost } from './display-host';
+import { serverOrigin, serverUrl } from './display-host';
+import { DEFAULT_ALLOWED_HOSTS, DEFAULT_ALLOWED_ORIGINS } from '../types';
+import { bindToggle } from './bind-toggle';
 
-const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
-const LOOPBACK_ORIGIN_PREFIXES = [
-  'http://127.0.0.1',
-  'http://localhost',
-  'https://127.0.0.1',
-  'https://localhost',
-  'http://[::1]',
-  'https://[::1]',
-];
+// The default (loopback) allowlists plus IPv6 loopback.
+const LOOPBACK_HOSTS = new Set([...DEFAULT_ALLOWED_HOSTS, '::1', '[::1]']);
+const LOOPBACK_ORIGIN_PREFIXES = [...DEFAULT_ALLOWED_ORIGINS, 'http://[::1]', 'https://[::1]'];
 
 function parseLines(value: string): string[] {
   return value
@@ -38,10 +35,6 @@ function hasNonLoopbackOrigin(origins: string[]): boolean {
   });
 }
 
-function scheme(plugin: McpPlugin): 'http' | 'https' {
-  return plugin.settings.httpsEnabled ? 'https' : 'http';
-}
-
 /**
  * "Server Status" section — running/stopped indicator with toggle and
  * restart button. Clicking the toggle drives the plugin's start/stop
@@ -55,11 +48,9 @@ export function renderServerStatusSection(
   containerEl.createEl('h2', { text: t('heading_server_status') });
 
   const isRunning = plugin.httpServer?.isRunning ?? false;
-  const port = plugin.settings.port;
   const clients = plugin.httpServer?.connectedClients ?? 0;
 
-  const address = plugin.settings.serverAddress;
-  const url = `${scheme(plugin)}://${displayHost(address)}:${String(port)}`;
+  const url = serverOrigin(plugin.settings);
   const statusText = isRunning
     ? clients === 1
       ? t('status_running_one', { url })
@@ -172,53 +163,51 @@ export function renderServerSettingsSection(
       }),
   );
 
-  const serverUrl = `${scheme(plugin)}://${displayHost(plugin.settings.serverAddress)}:${String(plugin.settings.port)}/mcp`;
+  const url = serverUrl(plugin.settings);
   new Setting(containerEl)
     .setName(t('setting_server_url_name'))
-    .setDesc(serverUrl)
+    .setDesc(url)
     .addExtraButton((btn) =>
       btn
         .setIcon('copy')
         .setTooltip(t('tooltip_copy_server_url'))
         .onClick(() => {
-          navigator.clipboard
-            .writeText(serverUrl)
-            .then(() => {
-              new Notice(t('notice_server_url_copied'));
-            })
-            .catch(reportError('copy server URL', plugin.logger));
+          copyWithNotice(
+            url,
+            t('notice_server_url_copied'),
+            'copy server URL',
+            plugin.logger,
+          );
         }),
     );
 
-  new Setting(containerEl)
-    .setName(t('setting_auth_enabled_name'))
-    .setDesc(t('setting_auth_enabled_desc'))
-    .addToggle((toggle) =>
-      toggle.setValue(plugin.settings.authEnabled).onChange(async (value) => {
-        plugin.settings.authEnabled = value;
-        // Turning auth on clears the explicit insecure-mode flag so the
-        // user has to opt into it again if they later turn auth back off.
+  bindToggle(
+    new Setting(containerEl)
+      .setName(t('setting_auth_enabled_name'))
+      .setDesc(t('setting_auth_enabled_desc')),
+    plugin,
+    'authEnabled',
+    {
+      // Turning auth on clears the explicit insecure-mode flag so the
+      // user has to opt into it again if they later turn auth back off.
+      onChange: (value) => {
         if (value && plugin.settings.iAcceptInsecureMode) {
           plugin.settings.iAcceptInsecureMode = false;
         }
-        await plugin.saveSettings();
-        refresh();
-      }),
-    );
+      },
+      refresh,
+    },
+  );
 
   if (!plugin.settings.authEnabled) {
-    new Setting(containerEl)
-      .setName(t('setting_insecure_mode_name'))
-      .setDesc(t('setting_insecure_mode_desc'))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(plugin.settings.iAcceptInsecureMode)
-          .onChange(async (value) => {
-            plugin.settings.iAcceptInsecureMode = value;
-            await plugin.saveSettings();
-            refresh();
-          }),
-      );
+    bindToggle(
+      new Setting(containerEl)
+        .setName(t('setting_insecure_mode_name'))
+        .setDesc(t('setting_insecure_mode_desc')),
+      plugin,
+      'iAcceptInsecureMode',
+      { refresh },
+    );
   }
 
   if (plugin.settings.authEnabled) {
@@ -239,12 +228,12 @@ export function renderServerSettingsSection(
           .setIcon('copy')
           .setTooltip(t('tooltip_copy_access_key'))
           .onClick(() => {
-            navigator.clipboard
-              .writeText(plugin.settings.accessKey)
-              .then(() => {
-                new Notice(t('notice_access_key_copied'));
-              })
-              .catch(reportError('copy access key', plugin.logger));
+            copyWithNotice(
+              plugin.settings.accessKey,
+              t('notice_access_key_copied'),
+              'copy access key',
+              plugin.logger,
+            );
           }),
       )
       .addExtraButton((btn) =>
@@ -263,50 +252,42 @@ export function renderServerSettingsSection(
       );
   }
 
-  new Setting(containerEl)
-    .setName(t('setting_https_name'))
-    .setDesc(t('setting_https_desc'))
-    .addToggle((toggle) =>
-      toggle.setValue(plugin.settings.httpsEnabled).onChange(async (value) => {
-        plugin.settings.httpsEnabled = value;
-        await plugin.saveSettings();
-        refresh();
-      }),
-    );
+  bindToggle(
+    new Setting(containerEl)
+      .setName(t('setting_https_name'))
+      .setDesc(t('setting_https_desc')),
+    plugin,
+    'httpsEnabled',
+    { refresh },
+  );
 
   if (plugin.settings.httpsEnabled) {
     renderHttpsSection(containerEl, plugin, refresh);
   }
 
-  new Setting(containerEl)
-    .setName(t('setting_autostart_name'))
-    .setDesc(t('setting_autostart_desc'))
-    .addToggle((toggle) =>
-      toggle.setValue(plugin.settings.autoStart).onChange(async (value) => {
-        plugin.settings.autoStart = value;
-        await plugin.saveSettings();
-      }),
-    );
+  bindToggle(
+    new Setting(containerEl)
+      .setName(t('setting_autostart_name'))
+      .setDesc(t('setting_autostart_desc')),
+    plugin,
+    'autoStart',
+  );
 
-  new Setting(containerEl)
-    .setName(t('setting_resources_enabled_name'))
-    .setDesc(t('setting_resources_enabled_desc'))
-    .addToggle((toggle) =>
-      toggle.setValue(plugin.settings.resourcesEnabled).onChange(async (value) => {
-        plugin.settings.resourcesEnabled = value;
-        await plugin.saveSettings();
-      }),
-    );
+  bindToggle(
+    new Setting(containerEl)
+      .setName(t('setting_resources_enabled_name'))
+      .setDesc(t('setting_resources_enabled_desc')),
+    plugin,
+    'resourcesEnabled',
+  );
 
-  new Setting(containerEl)
-    .setName(t('setting_prompts_enabled_name'))
-    .setDesc(t('setting_prompts_enabled_desc'))
-    .addToggle((toggle) =>
-      toggle.setValue(plugin.settings.promptsEnabled).onChange(async (value) => {
-        plugin.settings.promptsEnabled = value;
-        await plugin.saveSettings();
-      }),
-    );
+  bindToggle(
+    new Setting(containerEl)
+      .setName(t('setting_prompts_enabled_name'))
+      .setDesc(t('setting_prompts_enabled_desc')),
+    plugin,
+    'promptsEnabled',
+  );
 
   renderDnsRebindSection(containerEl, plugin, refresh);
 }
@@ -323,77 +304,86 @@ function renderDnsRebindSection(
 ): void {
   containerEl.createEl('h3', { text: t('heading_dns_rebind') });
 
-  const originsSetting = new Setting(containerEl)
-    .setName(t('setting_allowed_origins_name'))
-    .setDesc(t('setting_allowed_origins_desc'));
-  const originsTextarea = containerEl.createEl('textarea', {
+  renderAllowlist(containerEl, plugin, {
+    key: 'allowedOrigins',
+    name: 'setting_allowed_origins_name',
+    desc: 'setting_allowed_origins_desc',
+    warning: 'warning_non_loopback_origin',
     cls: 'mcp-allowed-origins',
-    attr: {
-      rows: '4',
-      placeholder: 'http://127.0.0.1\nhttp://localhost',
-    },
-  });
-  originsTextarea.value = plugin.settings.allowedOrigins.join('\n');
-  const originWarning = createValidationError(originsSetting);
-  if (hasNonLoopbackOrigin(plugin.settings.allowedOrigins)) {
-    originWarning.show(t('warning_non_loopback_origin'));
-  }
-  originsTextarea.addEventListener('change', () => {
-    const next = parseLines(originsTextarea.value);
-    plugin.settings.allowedOrigins = next;
-    if (hasNonLoopbackOrigin(next)) {
-      originWarning.show(t('warning_non_loopback_origin'));
-    } else {
-      originWarning.clear();
-    }
-    plugin
-      .saveSettings()
-      .catch(reportError('save allowedOrigins', plugin.logger));
+    rows: '4',
+    placeholder: 'http://127.0.0.1\nhttp://localhost',
+    isWide: hasNonLoopbackOrigin,
   });
 
-  const hostsSetting = new Setting(containerEl)
-    .setName(t('setting_allowed_hosts_name'))
-    .setDesc(t('setting_allowed_hosts_desc'));
-  const hostsTextarea = containerEl.createEl('textarea', {
+  renderAllowlist(containerEl, plugin, {
+    key: 'allowedHosts',
+    name: 'setting_allowed_hosts_name',
+    desc: 'setting_allowed_hosts_desc',
+    warning: 'warning_non_loopback_host',
     cls: 'mcp-allowed-hosts',
-    attr: { rows: '3', placeholder: '127.0.0.1\nlocalhost' },
+    rows: '3',
+    placeholder: '127.0.0.1\nlocalhost',
+    isWide: hasNonLoopbackHost,
   });
-  hostsTextarea.value = plugin.settings.allowedHosts.join('\n');
-  const hostWarning = createValidationError(hostsSetting);
-  if (hasNonLoopbackHost(plugin.settings.allowedHosts)) {
-    hostWarning.show(t('warning_non_loopback_host'));
+
+  bindToggle(
+    new Setting(containerEl)
+      .setName(t('setting_allow_null_origin_name'))
+      .setDesc(t('setting_allow_null_origin_desc')),
+    plugin,
+    'allowNullOrigin',
+  );
+
+  bindToggle(
+    new Setting(containerEl)
+      .setName(t('setting_require_origin_name'))
+      .setDesc(t('setting_require_origin_desc')),
+    plugin,
+    'requireOrigin',
+    { refresh },
+  );
+}
+
+interface AllowlistOptions {
+  key: 'allowedOrigins' | 'allowedHosts';
+  name: TranslationKey;
+  desc: TranslationKey;
+  /** Shown while `isWide` says the list reaches beyond loopback. */
+  warning: TranslationKey;
+  cls: string;
+  rows: string;
+  placeholder: string;
+  isWide: (entries: string[]) => boolean;
+}
+
+/** One-entry-per-line textarea for an Origin or Host allowlist. */
+function renderAllowlist(
+  containerEl: HTMLElement,
+  plugin: McpPlugin,
+  options: AllowlistOptions,
+): void {
+  const setting = new Setting(containerEl)
+    .setName(t(options.name))
+    .setDesc(t(options.desc));
+  const textarea = containerEl.createEl('textarea', {
+    cls: options.cls,
+    attr: { rows: options.rows, placeholder: options.placeholder },
+  });
+  textarea.value = plugin.settings[options.key].join('\n');
+  const warning = createValidationError(setting);
+  if (options.isWide(plugin.settings[options.key])) {
+    warning.show(t(options.warning));
   }
-  hostsTextarea.addEventListener('change', () => {
-    const next = parseLines(hostsTextarea.value);
-    plugin.settings.allowedHosts = next;
-    if (hasNonLoopbackHost(next)) {
-      hostWarning.show(t('warning_non_loopback_host'));
+  textarea.addEventListener('change', () => {
+    const next = parseLines(textarea.value);
+    plugin.settings[options.key] = next;
+    if (options.isWide(next)) {
+      warning.show(t(options.warning));
     } else {
-      hostWarning.clear();
+      warning.clear();
     }
     plugin
       .saveSettings()
-      .catch(reportError('save allowedHosts', plugin.logger));
+      .catch(reportError(`save ${options.key}`, plugin.logger));
   });
-
-  new Setting(containerEl)
-    .setName(t('setting_allow_null_origin_name'))
-    .setDesc(t('setting_allow_null_origin_desc'))
-    .addToggle((toggle) =>
-      toggle.setValue(plugin.settings.allowNullOrigin).onChange(async (value) => {
-        plugin.settings.allowNullOrigin = value;
-        await plugin.saveSettings();
-      }),
-    );
-
-  new Setting(containerEl)
-    .setName(t('setting_require_origin_name'))
-    .setDesc(t('setting_require_origin_desc'))
-    .addToggle((toggle) =>
-      toggle.setValue(plugin.settings.requireOrigin).onChange(async (value) => {
-        plugin.settings.requireOrigin = value;
-        await plugin.saveSettings();
-        refresh();
-      }),
-    );
 }

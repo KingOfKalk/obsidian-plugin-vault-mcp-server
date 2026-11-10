@@ -33,7 +33,7 @@ export function sliceTextWindow(
 }
 
 /** A window cut by {@link sliceTextWindow}. */
-export type TextWindow = ReturnType<typeof sliceTextWindow>;
+type TextWindow = ReturnType<typeof sliceTextWindow>;
 
 /**
  * Paging lines of a document header (#467) for a window of a text of
@@ -57,7 +57,7 @@ export function windowBody(tool: string, w: TextWindow, totalLength: number): st
 }
 
 /** Footer of a window that has more text, naming the tool to call again. */
-export function windowFooter(
+function windowFooter(
   tool: string,
   offset: number,
   end: number,

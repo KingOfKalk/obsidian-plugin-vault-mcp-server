@@ -24,7 +24,7 @@ export interface FailureRateLimiterOptions {
   clock?: () => number;
 }
 
-export interface CheckResult {
+interface CheckResult {
   blocked: boolean;
   /** Milliseconds until the block expires, only set when `blocked` is true. */
   retryAfterMs?: number;

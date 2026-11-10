@@ -52,7 +52,7 @@ function baseMoment(now: Date, variables: Record<string, string>): Date {
   return base;
 }
 
-export interface PlaceholderContext {
+interface PlaceholderContext {
   /**
    * Moment for `{{date}}`, `{{time}}` and their `:FORMAT` variants;
    * defaults to the current time.

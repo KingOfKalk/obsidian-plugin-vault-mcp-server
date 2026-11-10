@@ -4,6 +4,7 @@ import { t } from '../lang/helpers';
 import { clearLogFile, getLogFilePath } from '../utils/log-file';
 import { DebugInfoModal } from '../ui/debug-info-modal';
 import { reportError } from '../utils/report-error';
+import { bindToggle } from './bind-toggle';
 
 /**
  * "Diagnostics" section — debug logging toggle, log file path display,
@@ -15,16 +16,18 @@ export function renderDiagnosticsSection(
 ): void {
   containerEl.createEl('h2', { text: t('heading_diagnostics') });
 
-  new Setting(containerEl)
-    .setName(t('setting_debug_name'))
-    .setDesc(t('setting_debug_desc'))
-    .addToggle((toggle) =>
-      toggle.setValue(plugin.settings.debugMode).onChange(async (value) => {
-        plugin.settings.debugMode = value;
+  bindToggle(
+    new Setting(containerEl)
+      .setName(t('setting_debug_name'))
+      .setDesc(t('setting_debug_desc')),
+    plugin,
+    'debugMode',
+    {
+      onChange: (value) => {
         plugin.logger.updateOptions({ debugMode: value });
-        await plugin.saveSettings();
-      }),
-    );
+      },
+    },
+  );
 
   new Setting(containerEl)
     .setName(t('setting_log_file_name'))

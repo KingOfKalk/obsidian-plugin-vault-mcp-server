@@ -20,7 +20,7 @@ import type { StandardSchemaWithJSON } from '@modelcontextprotocol/server';
  * the advertised output JSON when it builds the result, and wraps
  * `structuredContent` as `{ result: … }` for a non-object root.
  */
-export type AdvertisedRole = 'input' | 'output';
+type AdvertisedRole = 'input' | 'output';
 
 type JsonObject = Record<string, unknown>;
 

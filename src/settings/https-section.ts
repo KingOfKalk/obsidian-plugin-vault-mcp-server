@@ -3,6 +3,7 @@ import type McpPlugin from '../main';
 import { t } from '../lang/helpers';
 import { reportError } from '../utils/report-error';
 import { renderTlsSection } from './tls-section';
+import { bindToggle } from './bind-toggle';
 
 /**
  * HTTPS block of Server Settings — rendered only when `httpsEnabled` is
@@ -41,18 +42,14 @@ export function renderHttpsSection(
       );
   }
 
-  new Setting(containerEl)
-    .setName(t('setting_custom_tls_toggle_name'))
-    .setDesc(t('setting_custom_tls_toggle_desc'))
-    .addToggle((toggle) =>
-      toggle
-        .setValue(plugin.settings.useCustomTls)
-        .onChange(async (value) => {
-          plugin.settings.useCustomTls = value;
-          await plugin.saveSettings();
-          refresh();
-        }),
-    );
+  bindToggle(
+    new Setting(containerEl)
+      .setName(t('setting_custom_tls_toggle_name'))
+      .setDesc(t('setting_custom_tls_toggle_desc')),
+    plugin,
+    'useCustomTls',
+    { refresh },
+  );
 
   if (plugin.settings.useCustomTls) {
     renderTlsSection(containerEl, plugin, refresh);

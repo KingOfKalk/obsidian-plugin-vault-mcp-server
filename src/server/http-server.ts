@@ -8,6 +8,9 @@ import { authenticateRequest, sendAuthError, sendRateLimitError } from './auth';
 import { applyCorsHeaders, handlePreflight, CorsOptions, DEFAULT_CORS_OPTIONS } from './cors';
 import { FailureRateLimiter, normalizeIp } from './rate-limiter';
 import { validateOriginHost, type OriginHostOptions } from './origin-host';
+import { MCP_ENDPOINT_PATH } from '../constants';
+import { sendJson } from './send-json';
+import { DEFAULT_ALLOWED_HOSTS, DEFAULT_ALLOWED_ORIGINS } from '../types';
 
 export interface HttpServerOptions {
   host: string;
@@ -52,13 +55,8 @@ export interface HttpServerOptions {
 }
 
 const DEFAULT_ORIGIN_HOST_OPTIONS: OriginHostOptions = {
-  allowedOrigins: [
-    'http://127.0.0.1',
-    'http://localhost',
-    'https://127.0.0.1',
-    'https://localhost',
-  ],
-  allowedHosts: ['127.0.0.1', 'localhost'],
+  allowedOrigins: [...DEFAULT_ALLOWED_ORIGINS],
+  allowedHosts: [...DEFAULT_ALLOWED_HOSTS],
   allowNullOrigin: false,
   requireOrigin: false,
 };
@@ -75,15 +73,8 @@ const MAX_BODY_BYTES = 4 * 1024 * 1024;
 const DEFAULT_SESSION_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
 const DEFAULT_SESSION_SWEEP_INTERVAL_MS = 60 * 1000;
 export const DEFAULT_MAX_SESSIONS = 32;
-export const DEFAULT_BIND_RETRY_TIMEOUT_MS = 5000;
-export const DEFAULT_BIND_RETRY_DELAY_MS = 250;
-
-/**
- * The one URL path that serves MCP, as shown in the settings tab, the
- * client config snippet, the README and the user manual. The query string
- * is ignored. Every other path, `/` and `/mcp/` included, answers 404.
- */
-export const MCP_ENDPOINT_PATH = '/mcp';
+const DEFAULT_BIND_RETRY_TIMEOUT_MS = 5000;
+const DEFAULT_BIND_RETRY_DELAY_MS = 250;
 
 function requestPath(url: string | undefined): string {
   const raw = url ?? '/';
@@ -313,8 +304,7 @@ export class HttpMcpServer {
       });
       applyCorsHeaders(res, corsOptions);
       if (!res.headersSent) {
-        res.writeHead(403, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: originHostResult.reason }));
+        sendJson(res, 403, { error: originHostResult.reason });
       }
       return;
     }
@@ -326,8 +316,7 @@ export class HttpMcpServer {
     if (path !== MCP_ENDPOINT_PATH) {
       this.logger.debug(`Request to unknown path rejected: ${req.method ?? 'UNKNOWN'} ${path}`);
       applyCorsHeaders(res, corsOptions, allowedOrigin);
-      res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: `Not found. The MCP endpoint is ${MCP_ENDPOINT_PATH}` }));
+      sendJson(res, 404, { error: `Not found. The MCP endpoint is ${MCP_ENDPOINT_PATH}` });
       return;
     }
 
@@ -503,13 +492,21 @@ export class HttpMcpServer {
     }
     this.sessions.delete(id);
     this.logger.debug(`MCP session closed: ${id} (active: ${String(this.sessions.size)})`);
-    session.server.close().catch((error: unknown) => {
+    void this.closeLogged('MCP server', id, () => session.server.close());
+  }
+
+  /** Run `close`; a failure is logged, never thrown. */
+  private async closeLogged(
+    what: string,
+    id: string,
+    close: () => Promise<void>,
+  ): Promise<void> {
+    try {
+      await close();
+    } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(
-        `Error closing MCP server for session ${id}: ${message}`,
-        error,
-      );
-    });
+      this.logger.error(`Error closing ${what} for session ${id}: ${message}`, error);
+    }
   }
 
   /**
@@ -557,24 +554,8 @@ export class HttpMcpServer {
     this.sessions.clear();
     await Promise.all(
       sessionsToClose.map(async ([id, { transport, server }]) => {
-        try {
-          await transport.close();
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          this.logger.error(
-            `Error closing transport for session ${id}: ${message}`,
-            error,
-          );
-        }
-        try {
-          await server.close();
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          this.logger.error(
-            `Error closing MCP server for session ${id}: ${message}`,
-            error,
-          );
-        }
+        await this.closeLogged('transport', id, () => transport.close());
+        await this.closeLogged('MCP server', id, () => server.close());
       }),
     );
 
@@ -633,12 +614,5 @@ function sendJsonRpcError(
   if (res.headersSent) {
     return;
   }
-  res.writeHead(httpStatus, { 'Content-Type': 'application/json' });
-  res.end(
-    JSON.stringify({
-      jsonrpc: '2.0',
-      error: { code, message },
-      id: null,
-    }),
-  );
+  sendJson(res, httpStatus, { jsonrpc: '2.0', error: { code, message }, id: null });
 }

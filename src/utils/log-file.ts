@@ -7,7 +7,7 @@
  * and the file is rotated in place when it grows past 1 MiB.
  */
 
-export const LOG_FILE_NAME = 'debug.log';
+const LOG_FILE_NAME = 'debug.log';
 export const ROTATE_THRESHOLD_BYTES = 1024 * 1024;
 export const ROTATE_KEEP_BYTES = 512 * 1024;
 export const ROTATE_MARKER = '--- rotated ---\n';

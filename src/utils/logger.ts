@@ -8,7 +8,7 @@ export interface LogEntry {
   data?: unknown;
 }
 
-export interface LoggerOptions {
+interface LoggerOptions {
   debugMode: boolean;
   accessKey: string;
   /**

@@ -6,7 +6,7 @@ import manifest from '../../manifest.json';
 import { Logger } from '../../src/utils/logger';
 import { ModuleRegistry } from '../../src/registry/module-registry';
 import { ToolDefinition, ToolModule, annotations } from '../../src/registry/types';
-import { PermissionError } from '../../src/tools/shared/errors';
+import { FolderNotFoundError } from '../../src/tools/shared/errors';
 import type { ToolContext } from '../../src/registry/tool-context';
 import { DEFAULT_SETTINGS } from '../../src/types';
 import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';
@@ -627,7 +627,7 @@ describe('createToolDispatcher', () => {
     );
     const { logger, error } = makeSpiedLogger();
     const tool = makeTool({ foo: z.string() }, () =>
-      Promise.reject(new PermissionError('no access')),
+      Promise.reject(new FolderNotFoundError('notes')),
     );
 
     const dispatch = createToolDispatcher(tool, logger);
@@ -635,9 +635,9 @@ describe('createToolDispatcher', () => {
 
     expect(result.isError).toBe(true);
     const text = (result.content[0] as { type: 'text'; text: string }).text;
-    // PermissionError gets the "Permission denied: <message>" prefix from
-    // handleToolError — pins the integration with shared/errors.ts.
-    expect(text).toBe('Error: Permission denied: no access');
+    // A typed error keeps its message as it is in handleToolError —
+    // pins the integration with shared/errors.ts.
+    expect(text).toBe('Error: Folder not found: notes');
     expect(error).toHaveBeenCalledTimes(1);
   });
 

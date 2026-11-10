@@ -16,13 +16,13 @@ import { AGENT_CHANGES, type AgentChangeEntry } from '../../server/agent-changes
  */
 export const SERVER_DISPLAY_NAME = 'vault-mcp-server';
 
-export const SERVER_MODULE_ID = 'server';
+const SERVER_MODULE_ID = 'server';
 
 /**
  * Tells the agent that a version missing from `changes` is not a gap in
  * the list (#431): releases without agent-relevant changes get no entry.
  */
-export const CHANGES_COVERAGE_NOTE =
+const CHANGES_COVERAGE_NOTE =
   'Versions without an entry had no agent-relevant changes.';
 
 /**

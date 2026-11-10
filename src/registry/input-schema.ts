@@ -5,7 +5,7 @@ import { z } from 'zod';
  * declare. Names the offending keys and lists every valid parameter so a
  * typo such as `new_name` vs `newName` is obvious from the message alone.
  */
-export function formatUnknownKeysMessage(
+function formatUnknownKeysMessage(
   unknownKeys: readonly string[],
   validKeys: readonly string[],
 ): string {

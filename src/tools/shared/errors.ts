@@ -5,10 +5,17 @@ import type { ObsidianAdapter } from '../../obsidian/adapter';
 
 /**
  * Typed error classes the adapter / handlers can throw to signal a particular
- * failure category. The shared `handleToolError()` helper maps each class to
- * a consistent MCP error response shape.
+ * failure category. Their messages are written for the client, so
+ * `handleToolError()` passes them through as they are (no path redaction).
  */
-export class NotFoundError extends Error {
+export class UserFacingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'UserFacingError';
+  }
+}
+
+export class NotFoundError extends UserFacingError {
   constructor(message: string) {
     super(message);
     this.name = 'NotFoundError';
@@ -70,7 +77,7 @@ export async function fileNotFound(
  * "Destination file already exists!" and the filesystem's "EEXIST: …",
  * which name neither the path nor a next step (#463).
  */
-export class DestinationExistsError extends Error {
+export class DestinationExistsError extends UserFacingError {
   constructor(public readonly path: string) {
     super(`Destination already exists: ${path}. Choose another path or delete it first; nothing was changed.`);
     this.name = 'DestinationExistsError';
@@ -99,24 +106,10 @@ export async function withDestinationCheck<T>(dest: string, run: () => Promise<T
   }
 }
 
-export class PermissionError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'PermissionError';
-  }
-}
-
-export class ValidationError extends Error {
+export class ValidationError extends UserFacingError {
   constructor(message: string) {
     super(message);
     this.name = 'ValidationError';
-  }
-}
-
-export class TimeoutError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'TimeoutError';
   }
 }
 
@@ -125,7 +118,7 @@ export class TimeoutError extends Error {
  * Used by `vault_read_binary` and the resources surface to fail fast on
  * over-cap files instead of base64-encoding hundreds of megabytes.
  */
-export class BinaryTooLargeError extends Error {
+export class BinaryTooLargeError extends UserFacingError {
   constructor(
     public readonly sizeBytes: number,
     public readonly limitBytes: number,
@@ -141,7 +134,7 @@ export class BinaryTooLargeError extends Error {
  * The user-requested third-party plugin (e.g. Dataview, Templater) is
  * not installed or is currently disabled in Obsidian.
  */
-export class PluginNotInstalledError extends Error {
+export class PluginNotInstalledError extends UserFacingError {
   constructor(pluginId: string) {
     super(`Plugin not installed or disabled: ${pluginId}`);
     this.name = 'PluginNotInstalledError';
@@ -153,7 +146,7 @@ export class PluginNotInstalledError extends Error {
  * API surface we need (typically because it is mid-load or its API
  * changed in a newer version).
  */
-export class PluginApiUnavailableError extends Error {
+export class PluginApiUnavailableError extends UserFacingError {
   constructor(pluginId: string, reason?: string) {
     super(
       reason
@@ -165,45 +158,32 @@ export class PluginApiUnavailableError extends Error {
 }
 
 /**
+ * The `path: message` list of a Zod error, as shown after "Invalid
+ * arguments: ". Unknown-key issues sit at the root and already carry a
+ * self-contained message naming the keys (see registry/input-schema.ts).
+ */
+export function formatZodIssues(error: z.ZodError): string {
+  return error.issues
+    .map((issue) => {
+      if (issue.path.length === 0 && issue.code === 'unrecognized_keys') {
+        return issue.message;
+      }
+      const path = issue.path.length > 0 ? issue.path.join('.') : '<root>';
+      return `${path}: ${issue.message}`;
+    })
+    .join('; ');
+}
+
+/**
  * Map any caught value to a well-formed CallToolResult with `isError: true`.
  * Callers can use this as a single `catch` target so they don't need to
  * maintain their own per-module `errorResult()` helper.
  */
 export function handleToolError(error: unknown): CallToolResult {
   if (error instanceof z.ZodError) {
-    const details = error.issues
-      .map((issue) => {
-        const path = issue.path.length > 0 ? issue.path.join('.') : '<root>';
-        return `${path}: ${issue.message}`;
-      })
-      .join('; ');
-    return errorFrom(`Invalid arguments: ${details}`);
+    return errorFrom(`Invalid arguments: ${formatZodIssues(error)}`);
   }
-  if (error instanceof PathTraversalError) {
-    return errorFrom(error.message);
-  }
-  if (error instanceof NotFoundError) {
-    return errorFrom(error.message);
-  }
-  if (error instanceof PermissionError) {
-    return errorFrom(`Permission denied: ${error.message}`);
-  }
-  if (error instanceof ValidationError) {
-    return errorFrom(error.message);
-  }
-  if (error instanceof TimeoutError) {
-    return errorFrom(`Operation timed out: ${error.message}`);
-  }
-  if (error instanceof PluginNotInstalledError) {
-    return errorFrom(error.message);
-  }
-  if (error instanceof PluginApiUnavailableError) {
-    return errorFrom(error.message);
-  }
-  if (error instanceof BinaryTooLargeError) {
-    return errorFrom(error.message);
-  }
-  if (error instanceof DestinationExistsError) {
+  if (error instanceof UserFacingError || error instanceof PathTraversalError) {
     return errorFrom(error.message);
   }
   const message = error instanceof Error ? error.message : String(error);
