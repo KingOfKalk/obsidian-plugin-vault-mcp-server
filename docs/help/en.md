@@ -1103,11 +1103,28 @@ log entry:
   settings tab to turn auth back on (and let the plugin generate a
   key) or to explicitly accept insecure mode.
 
+### My client says "ECONNREFUSED" after a plugin update
+
+Before 5.1.1, updating the plugin (or disabling and enabling it) could
+leave the server down until Obsidian was reloaded: the old copy still
+held the port, or an open client connection kept it from stopping, when
+the new copy tried to start. The server now frees the port as soon as
+the plugin unloads, closes open client connections, and retries the
+start for a few seconds. If you still see `ECONNREFUSED`, check that
+**Auto-start on launch** is on (the server only starts by itself with it on), then
+look at the status bar and the log (**Diagnostics**) for the start error.
+Your client has to reconnect after an update; its old session is gone.
+
 ### "EADDRINUSE" / port conflict on start
 
 Another process holds port 28741. Either stop that process or change
 **Port** in settings. The plugin only checks the port when starting; you must
 restart the server after changing the port.
+
+If the port is busy when the server starts, the plugin keeps trying for
+about 5 seconds before it gives up (the log shows "Port … is in use,
+retrying"). This covers a plugin update or a disable/enable, where the old
+copy of the plugin may still be releasing the port.
 
 When this happens you'll see three signals at once:
 
