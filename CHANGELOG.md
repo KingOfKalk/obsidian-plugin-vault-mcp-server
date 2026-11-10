@@ -4,6 +4,30 @@
 > were renamed from `vX.Y.Z` (and `obsidian-mcp-v1.1.0`) to `X.Y.Z`; old links
 > containing `v` no longer resolve.
 
+## [5.2.1](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/5.2.0...5.2.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **logger:** keep message and stack when logging errors ([#543](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/543)) ([7cbbfee](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/7cbbfee58cc08ce8e13c693f8f5b9c37e8228fac)), closes [#542](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/542)
+* **server:** log unexpected tool handler crashes ([#540](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/540)) ([f7357d9](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/f7357d94fb6a78723a03b607edd62138439c3c8a))
+* **server:** log unexpected tool handler crashes ([#541](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/541)) ([f7357d9](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/f7357d94fb6a78723a03b607edd62138439c3c8a))
+
+
+### Code Refactoring
+
+* move test-only code out of src ([#539](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/539)) ([1bcb169](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/1bcb16994ca09a2804f25fcfdcea999a6555b232))
+* remove tool handler boilerplate ([#537](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/537)) ([69b78de](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/69b78de7f0164cb0efc8b12082c6fda4a377b705)), closes [#532](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/532)
+* **tests:** move mock adapter and link resolver out of src ([#534](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/534)) ([1bcb169](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/1bcb16994ca09a2804f25fcfdcea999a6555b232))
+* **tests:** resolve links in the mock adapter like Obsidian ([#544](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/544)) ([8d0091b](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/8d0091b8045c1598c6b0a98610876743cc09d349))
+* **tests:** resolve links in the mock adapter like Obsidian ([#545](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/545)) ([8d0091b](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/8d0091b8045c1598c6b0a98610876743cc09d349))
+* tidy core, remove dead exports, collapse old migrations ([#538](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/538)) ([fc9cfba](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/fc9cfba88b414431db4fe32c841161bd39f9bbd2))
+
+
+### Build System
+
+* reduce main.js bundle size ([#535](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/535)) ([a42e6c6](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/a42e6c6df8bc0278816efeaeaa445d794b26d9e5)), closes [#531](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/531)
+
 ## [5.2.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/5.1.0...5.2.0) (2026-11-10)
 
 
