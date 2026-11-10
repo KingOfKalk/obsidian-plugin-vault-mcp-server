@@ -357,7 +357,7 @@ describe('vault_get_aspect dispatcher', () => {
       frontmatter: { tag: 'x' },
       headings: [{ heading: 'H', level: 1 }],
       links: [{ link: 'b' }],
-      embeds: [{ link: 'img.png', path: null }],
+      embeds: [{ link: 'img.png' }],
     });
     adapter.addFile('b.md', '');
     adapter.setMetadata('b.md', { links: [{ link: 'a' }] });
