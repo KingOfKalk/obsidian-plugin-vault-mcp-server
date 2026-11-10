@@ -18,7 +18,7 @@ import {
   NotFoundError,
   markdownCandidate,
 } from '../../src/tools/shared/errors';
-import { resolveLinkpath } from './link-resolver';
+import { createLinkResolver, resolveLinkpath } from './link-resolver';
 // Dev-only dependency: `yaml` is only used by this test helper.
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
@@ -82,6 +82,19 @@ function parseFrontmatterBlock(yaml: string): Record<string, unknown> {
     throw new Error('Frontmatter is not a YAML mapping');
   }
   return parsed as Record<string, unknown>;
+}
+
+type LinkMap = Record<string, Record<string, number>>;
+
+/** A link's path without its `#subpath`, trimmed. */
+function linkpathOf(link: string): string {
+  const hash = link.indexOf('#');
+  return (hash === -1 ? link : link.slice(0, hash)).trim();
+}
+
+function dirName(path: string): string {
+  const i = path.lastIndexOf('/');
+  return i === -1 ? '' : path.slice(0, i);
 }
 
 interface MockFile {
@@ -402,32 +415,38 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     return resolveLinkpath(linkpath, sourcePath, Array.from(this.files.keys()));
   }
 
+  /**
+   * Resolve a link like `Atlas#Risks` from `source` to a vault path, the
+   * way Obsidian does: the `#subpath` is dropped, the rest goes through
+   * `resolveLinkpath`.
+   */
+  resolveLink(link: string, source: string): string | null {
+    return this.resolveLinkpath(linkpathOf(link), source);
+  }
+
+  /** Same rule as the real adapter: every source whose resolved map has `path`. */
   getBacklinks(path: string): string[] {
+    // Like the real adapter (#447): a missing path is "File not found",
+    // not "no backlinks" (#463).
     this.requireFile(path);
-    const backlinks: string[] = [];
-    for (const [filePath, file] of this.files.entries()) {
-      const links = file.metadata?.links ?? [];
-      if (links.some((l) => l.link === path || l.link + '.md' === path)) {
-        backlinks.push(filePath);
-      }
-    }
-    return backlinks;
+    const { resolved } = this.buildLinkMaps();
+    return Object.keys(resolved).filter((source) => path in resolved[source]);
   }
 
   /**
    * Mock stand-in for the metadata cache's link positions: scan each
-   * backlink's content for `[[...]]` / `![[...]]` whose link path matches
-   * `path` by the same rule as `getBacklinks`.
+   * backlink's content for `[[...]]` / `![[...]]` whose link path resolves
+   * to `path`.
    */
   getBacklinkLines(path: string): Array<{ path: string; lines: number[] }> {
     const wikilink = /!?\[\[([^\]|#]*)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]/g;
+    const resolve = createLinkResolver(Array.from(this.files.keys()));
     return this.getBacklinks(path).map((sourcePath) => {
       const content = this.files.get(sourcePath)?.content ?? '';
       const lines: number[] = [];
       content.split('\n').forEach((text, index) => {
         for (const match of text.matchAll(wikilink)) {
-          const target = match[1].trim();
-          if (target === path || target + '.md' === path) {
+          if (resolve(match[1].trim(), sourcePath) === path) {
             lines.push(index);
             break;
           }
@@ -438,35 +457,56 @@ export class MockObsidianAdapter implements ObsidianAdapter {
   }
 
   getResolvedLinks(): Record<string, Record<string, number>> {
-    const result: Record<string, Record<string, number>> = {};
-    for (const [filePath, file] of this.files.entries()) {
-      const links = file.metadata?.links ?? [];
-      if (links.length > 0) {
-        result[filePath] = {};
-        for (const link of links) {
-          const target = this.files.has(link.link) ? link.link : link.link + '.md';
-          if (this.files.has(target)) {
-            result[filePath][target] = (result[filePath][target] ?? 0) + 1;
-          }
-        }
-      }
-    }
-    return result;
+    return this.buildLinkMaps().resolved;
   }
 
   getUnresolvedLinks(): Record<string, Record<string, number>> {
-    const result: Record<string, Record<string, number>> = {};
-    for (const [filePath, file] of this.files.entries()) {
-      const links = file.metadata?.links ?? [];
-      for (const link of links) {
-        const target = link.link;
-        if (!this.files.has(target) && !this.files.has(target + '.md')) {
-          if (!result[filePath]) result[filePath] = {};
-          result[filePath][target] = (result[filePath][target] ?? 0) + 1;
+    return this.buildLinkMaps().unresolved;
+  }
+
+  /**
+   * Both link maps, like Obsidian's `metadataCache.resolvedLinks` and
+   * `unresolvedLinks`: one entry per file with metadata, counting its
+   * links and embeds. Links resolve by Obsidian's rule (#485); an
+   * unresolved link is keyed by its text without the `#subpath`.
+   * Built on every call, so they follow every change to the vault; the
+   * resolution cache only lives for one build, which keeps large vaults
+   * (the eval's bulk notes, #466) fast.
+   */
+  private buildLinkMaps(): { resolved: LinkMap; unresolved: LinkMap } {
+    const resolveIn = createLinkResolver(Array.from(this.files.keys()));
+    const cache = new Map<string, string | null>();
+    const resolve = (linkpath: string, source: string): string | null => {
+      // The result depends only on the lower-cased link path and the source
+      // folder (the source itself for an empty link path).
+      const key = `${linkpath === '' ? source : dirName(source)}\0${linkpath.toLowerCase()}`;
+      let target = cache.get(key);
+      if (target === undefined) {
+        target = resolveIn(linkpath, source);
+        cache.set(key, target);
+      }
+      return target;
+    };
+    const resolved: LinkMap = {};
+    const unresolved: LinkMap = {};
+    for (const [source, file] of this.files.entries()) {
+      if (!file.metadata) continue;
+      const found: Record<string, number> = {};
+      const missing: Record<string, number> = {};
+      for (const ref of [...(file.metadata.links ?? []), ...(file.metadata.embeds ?? [])]) {
+        const target = resolve(linkpathOf(ref.link), source);
+        if (target !== null) {
+          found[target] = (found[target] ?? 0) + 1;
+        } else {
+          const hash = ref.link.indexOf('#');
+          const key = hash === -1 ? ref.link : ref.link.slice(0, hash);
+          missing[key] = (missing[key] ?? 0) + 1;
         }
       }
+      resolved[source] = found;
+      unresolved[source] = missing;
     }
-    return result;
+    return { resolved, unresolved };
   }
 
   getAllFiles(): string[] {

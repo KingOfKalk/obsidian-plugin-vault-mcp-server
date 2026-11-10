@@ -197,7 +197,8 @@ Response (`structuredContent`):
       "projects/alpha.md": 1
     },
     "projects/alpha.md": {
-      "people/ada.md": 1
+      "people/ada.md": 1,
+      "img.png": 1
     },
     "people/ada.md": {
       "projects/alpha.md": 1

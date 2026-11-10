@@ -29,8 +29,35 @@ export function resolveLinkpath(
   sourcePath: string,
   files: readonly string[],
 ): string | null {
-  if (linkpath === '') return files.includes(sourcePath) ? sourcePath : null;
-  const byName = (name: string): string[] => files.filter((p) => baseName(p).toLowerCase() === name);
+  return createLinkResolver(files)(linkpath, sourcePath);
+}
+
+/**
+ * `resolveLinkpath` over a fixed list of vault paths, indexed by file name
+ * once, for resolving many links against the same vault.
+ */
+export function createLinkResolver(
+  files: readonly string[],
+): (linkpath: string, sourcePath: string) => string | null {
+  const index = new Map<string, string[]>();
+  for (const path of files) {
+    const name = baseName(path).toLowerCase();
+    const paths = index.get(name);
+    if (paths) paths.push(path);
+    else index.set(name, [path]);
+  }
+  const known = new Set(files);
+  return (linkpath, sourcePath) =>
+    resolveWith(linkpath, sourcePath, (name) => index.get(name) ?? [], known);
+}
+
+function resolveWith(
+  linkpath: string,
+  sourcePath: string,
+  byName: (name: string) => string[],
+  known: ReadonlySet<string>,
+): string | null {
+  if (linkpath === '') return known.has(sourcePath) ? sourcePath : null;
 
   let wanted = linkpath.toLowerCase();
   let candidates = baseName(wanted).includes('.') ? byName(baseName(wanted)) : [];
