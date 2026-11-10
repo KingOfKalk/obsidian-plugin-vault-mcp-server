@@ -18,6 +18,12 @@ export interface AgentChangeEntry {
 
 export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
   {
+    version: '5.1.1',
+    notes: [
+      '`template_expand` and `template_create_from`: `{{date:FORMAT}}` and `{{time:FORMAT}}` use `variables.date` when it is a `YYYY-MM-DD` date and `variables.time` when it is a 24-hour `HH:mm` or `HH:mm:ss` time (was always now), so `{{date:dddd}}` matches `{{date}}`. Other values are ignored and the current date or time is used. A variable named like the whole placeholder (e.g. `"date:dddd"`) still wins.',
+    ],
+  },
+  {
     version: '5.1.0',
     notes: [
       '`vault_get_aspect` with `aspect: "outgoing_links"` or `"embeds"`: each entry adds `path`, the vault path Obsidian resolves the link to from this note (pass it to `vault_read`; `null` when unresolved or inside the config folder), and `subpath`, the `#Heading` or `#^block` part when present. `link` is unchanged.',

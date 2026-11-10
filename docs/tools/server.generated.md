@@ -57,6 +57,12 @@ Response (`structuredContent`):
   ],
   "changes": [
     {
+      "version": "5.1.1",
+      "notes": [
+        "`template_expand` and `template_create_from`: `{{date:FORMAT}}` and `{{time:FORMAT}}` use `variables.date` when it is a `YYYY-MM-DD` date and `variables.time` when it is a 24-hour `HH:mm` or `HH:mm:ss` time (was always now), so `{{date:dddd}}` matches `{{date}}`. Other values are ignored and the cur… [truncated, 103 more chars]"
+      ]
+    },
+    {
       "version": "5.1.0",
       "notes": [
         "`vault_get_aspect` with `aspect: \"outgoing_links\"` or `\"embeds\"`: each entry adds `path`, the vault path Obsidian resolves the link to from this note (pass it to `vault_read`; `null` when unresolved or inside the config folder), and `subpath`, the `#Heading` or `#^block` part when present. `link` is… [truncated, 11 more chars]",
@@ -84,24 +90,8 @@ Response (`structuredContent`):
         "`vault_daily_note` with `create: true` adds a `warning` header line when the template set in the Daily notes plugin does not exist; the note is still created empty. A template set without `.md` is found.",
         "… 6 more items"
       ]
-    },
-    {
-      "version": "4.1.0",
-      "notes": [
-        "`search_resolved_links` and `search_unresolved_links` are paged: `limit` (default 50, max 100) and `offset` over source notes, with `total`, `count`, `offset`, `hasMore` and `nextOffset`; `path` returns one note's links. `search_unresolved_links` leaves out notes without broken links. Before, both r… [truncated, 24 more chars]",
-        "`vault_get_aspect` with `aspect: \"backlinks\"` is paged: `limit` (default 50) and `offset` over the linking files, with `total`, `hasMore` and `nextOffset`; `includeContext` applies to the page.",
-        "`vault_list` takes `limit` (default 100) and `offset` (folders first, then files) and adds `total`, `count`, `offset`, `hasMore` and `nextOffset`. `vault_list_recursive` pages `folders` with the same offset as the files and adds `folderTotal`; keep calling while `hasMore` is true.",
-        "`editor_get_content` returns windows of up to `length` characters (default 24000) from `offset`, like `vault_read`, with `totalLength`, `offset`, `hasMore` and `nextOffset`.",
-        "Results never exceed 25000 characters: a page holds fewer items than `limit` instead of cut text, so continue at `nextOffset` (also `search_fulltext`, whose JSON text used to be cut). `plugin_dataview_query` returns the first whole lines and `truncated: true`; `workspace_get_layout` shortens its lon… [truncated, 132 more chars]",
-        "Paths inside the vault's config folder (usually `.obsidian`, any case) are rejected by every tool, prompt and resource, also as the destination of rename, move or copy, with \"Path is inside the Obsidian config folder (.obsidian); it cannot be read or written\". `vault_list`, `vault_list_recursive` an… [truncated, 61 more chars]",
-        "`obsidian://vault/{+path}` resources work on Obsidian 1.5.3 (they failed with \"Unexpected host\") and percent-decode the path, so the URIs from `obsidian://vault/index` read files with spaces or non-ASCII names; query and fragment are ignored.",
-        "`workspace_open_file` applies `mode` (\"source\" = Source mode, \"live\" = Live Preview, \"preview\" = Reading view); it used to be ignored. The file opens in the active leaf (a new tab if that leaf is pinned); a missing file fails with \"File not found\".",
-        "`vault_append` starts the appended text on a new line: if the file is not empty, does not end with a line break and `content` does not start with one, one line break (the file's LF or CRLF) is added first. Its result adds `modified`.",
-        "`vault_create`, `vault_update`, `vault_write_binary` and `template_create_from` results add `modified` (ISO-8601), usable as the next `expectedMtime`.",
-        "… 15 more items"
-      ]
     }
   ],
-  "olderVersionsOmitted": 7
+  "olderVersionsOmitted": 8
 }
 ```
