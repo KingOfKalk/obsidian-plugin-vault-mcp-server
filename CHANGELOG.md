@@ -4,6 +4,30 @@
 > were renamed from `vX.Y.Z` (and `obsidian-mcp-v1.1.0`) to `X.Y.Z`; old links
 > containing `v` no longer resolve.
 
+## [5.2.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/5.1.0...5.2.0) (2026-11-10)
+
+
+### Features
+
+* **settings:** add "Read and edit only" switch for destructive tools ([ee62aa5](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/ee62aa56d246c438b3be8b039c20cb9e638e8208)), closes [#517](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/517)
+* **settings:** add a "Read and edit only" switch that hides destructive tools ([#522](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/522)) ([ee62aa5](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/ee62aa56d246c438b3be8b039c20cb9e638e8208))
+* **vault:** vault_insert can replace an empty placeholder bullet ([#528](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/528)) ([f60a9f1](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/f60a9f12668d2cf08314e64b5b3b3d1a71f7b1aa)), closes [#519](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/519)
+* **vault:** vault_rename can update the note's title heading ([#529](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/529)) ([a0096cc](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/a0096cc1a75c5eb397ef2e6b897212f46359b231)), closes [#520](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/520)
+
+
+### Bug Fixes
+
+* **server:** free the port on stop and retry the bind after a plugin update ([#521](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/521)) ([9ddaa25](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/9ddaa2539d959526b11e1a44f20f4baabb16cc7e))
+* **server:** free the port on unload and retry the bind after a plugin update ([9ddaa25](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/9ddaa2539d959526b11e1a44f20f4baabb16cc7e)), closes [#518](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/518)
+* **templates:** base {{date:FORMAT}} on variables.date and variables.time ([#523](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/523)) ([ffb0f0d](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/ffb0f0d215da2e8121163cd11027b2518751e36c)), closes [#512](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/512)
+* **vault:** match headings by Obsidian's #heading link form ([#525](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/525)) ([85bd4c9](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/85bd4c9e387860b40a405ee49d9aff6986da68f1)), closes [#515](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/515)
+* **vault:** point vault_daily_note misses to search_by_name, not create ([#524](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/524)) ([9db9fd5](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/9db9fd597eed2fb13d831ac3eed9190757547dfa)), closes [#514](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/514)
+
+
+### Documentation
+
+* recommend ${VAR} for the bearer token in client configs ([#526](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/526)) ([0278210](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/027821070ad77c493462d633ee51b341cdd0bf23)), closes [#516](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/516)
+
 ## [5.1.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/5.0.0...5.1.0) (2026-11-10)
 
 
