@@ -299,7 +299,7 @@ describe('createToolDispatcher logs unexpected handler errors (#540)', () => {
     expect(error).toHaveBeenCalledTimes(1);
     expect(error).toHaveBeenCalledWith(
       'Tool "demo_tool" failed unexpectedly: Cannot read properties of undefined',
-      { name: 'TypeError', stack: crash.stack },
+      crash,
     );
   });
 
@@ -311,10 +311,24 @@ describe('createToolDispatcher logs unexpected handler errors (#540)', () => {
     const result = await createToolDispatcher(tool, logger)({ path: 'a.md' }, makeExtra() as never);
     expect(result).toEqual(handleToolError(crash));
     expect(error).toHaveBeenCalledTimes(1);
-    expect(error).toHaveBeenCalledWith('Tool "demo_tool" failed unexpectedly: boom', {
-      name: 'Error',
+    expect(error).toHaveBeenCalledWith('Tool "demo_tool" failed unexpectedly: boom', crash);
+  });
+
+  it('writes the crash name, message and stack into the log line (#542)', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const sink = vi.fn();
+    const logger = new Logger('test', { debugMode: false, accessKey: '', sink });
+    const crash = new TypeError('Cannot read properties of undefined');
+    await createToolDispatcher(failing(crash), logger)({ path: 'a.md' }, makeExtra() as never);
+    expect(sink).toHaveBeenCalledTimes(1);
+    const line = sink.mock.calls[0][0] as string;
+    const data = JSON.parse(line.slice(line.indexOf('{'))) as Record<string, unknown>;
+    expect(data).toEqual({
+      name: 'TypeError',
+      message: 'Cannot read properties of undefined',
       stack: crash.stack,
     });
+    vi.restoreAllMocks();
   });
 
   it('logs a thrown non-Error value', async () => {

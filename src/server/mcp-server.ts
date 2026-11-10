@@ -258,15 +258,16 @@ export function createToolDispatcher(
 
 /**
  * Log a tool failure at `error` unless it is expected (#540): bad input or
- * a typed error written for the client is not a server problem. The stack
- * goes into the log data only; the client gets `handleToolError`'s message.
+ * a typed error written for the client is not a server problem. The error
+ * (with its stack, via the logger's Error serialisation, #542) goes into the
+ * log data only; the client gets `handleToolError`'s message.
  */
 function logUnexpectedError(toolName: string, error: unknown, logger: Logger): void {
   if (isExpectedToolError(error)) return;
   const message = error instanceof Error ? error.message : String(error);
   logger.error(
     `Tool "${toolName}" failed unexpectedly: ${message}`,
-    error instanceof Error ? { name: error.name, stack: error.stack } : undefined,
+    error instanceof Error ? error : undefined,
   );
 }
 
