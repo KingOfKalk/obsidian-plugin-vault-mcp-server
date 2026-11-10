@@ -13,8 +13,8 @@
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
-import { MockObsidianAdapter } from '../src/obsidian/mock-adapter';
-import { resolveLinkpath } from '../src/obsidian/link-resolver';
+import { MockObsidianAdapter } from '../tests/helpers/mock-adapter';
+import { resolveLinkpath } from '../tests/helpers/link-resolver';
 import type { GeneratedNote } from './fixture-generator';
 
 /** Fixed timestamp for every fixture file so stat output is deterministic. */
@@ -183,7 +183,7 @@ export class FixtureAdapter extends MockObsidianAdapter {
 
   /**
    * Resolve a link like `Atlas#Risks` from `source` to a vault path, the
-   * way Obsidian does (shared rule in src/obsidian/link-resolver.ts, #485).
+   * way Obsidian does (shared rule in tests/helpers/link-resolver.ts, #485).
    */
   resolveLink(link: string, source: string): string | null {
     const hash = link.indexOf('#');

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
+import { MockObsidianAdapter } from '../../helpers/mock-adapter';
 import {
   applyFrontmatter,
   assertMarkdownPath,

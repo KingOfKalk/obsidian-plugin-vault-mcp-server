@@ -9,7 +9,7 @@ import { ToolDefinition, ToolModule, annotations } from '../../src/registry/type
 import { FolderNotFoundError } from '../../src/tools/shared/errors';
 import type { ToolContext } from '../../src/registry/tool-context';
 import { DEFAULT_SETTINGS } from '../../src/types';
-import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';
+import { MockObsidianAdapter } from '../helpers/mock-adapter';
 import { createVaultModule } from '../../src/tools/vault';
 import { createSearchModule } from '../../src/tools/search';
 import { createEditorModule } from '../../src/tools/editor';

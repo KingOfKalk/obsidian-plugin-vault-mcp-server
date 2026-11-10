@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CallToolResult } from '@modelcontextprotocol/server';
-import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';
+import { MockObsidianAdapter } from '../helpers/mock-adapter';
 import { createVaultModule } from '../../src/tools/vault/index';
 import { createTemplatesModule } from '../../src/tools/templates/index';
 import { createWorkspaceModule } from '../../src/tools/workspace/index';

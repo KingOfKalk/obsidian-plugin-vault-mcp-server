@@ -5,9 +5,9 @@ import {
   buildTagIndex,
   filesWithTag,
   groupTagsByCase,
-  parseFrontmatterTags,
   tagKey,
 } from '../../src/obsidian/tag-index';
+import { parseFrontmatterTags } from '../helpers/mock-adapter';
 
 function file(path: string): TFile {
   const f = new TFile();

@@ -9,7 +9,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { argv } from 'node:process';
-import { MockObsidianAdapter } from '../src/obsidian/mock-adapter';
+import { MockObsidianAdapter } from '../tests/helpers/mock-adapter';
 import { discoverModules } from '../src/tools';
 import { createServerModule } from '../src/tools/server';
 import {

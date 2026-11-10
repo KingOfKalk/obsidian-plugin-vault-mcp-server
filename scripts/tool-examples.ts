@@ -20,7 +20,7 @@ import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
 import type { CallToolResult } from '@modelcontextprotocol/server';
 import { createMcpServer } from '../src/server/mcp-server';
 import { ModuleRegistry, type ModuleStateMap } from '../src/registry/module-registry';
-import { MockObsidianAdapter } from '../src/obsidian/mock-adapter';
+import { MockObsidianAdapter } from '../tests/helpers/mock-adapter';
 import { discoverModules } from '../src/tools';
 import { DEFAULT_SETTINGS } from '../src/types';
 import { Logger } from '../src/utils/logger';

@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { CallToolResult } from '@modelcontextprotocol/server';
-import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';
+import { MockObsidianAdapter } from '../helpers/mock-adapter';
 import type { ToolModule } from '../../src/registry/types';
 import { createVaultModule } from '../../src/tools/vault/index';
 import { createEditorModule } from '../../src/tools/editor/index';

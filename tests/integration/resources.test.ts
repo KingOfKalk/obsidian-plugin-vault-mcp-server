@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
 import { createMcpServer } from '../../src/server/mcp-server';
 import { ModuleRegistry } from '../../src/registry/module-registry';
-import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';
+import { MockObsidianAdapter } from '../helpers/mock-adapter';
 import { DEFAULT_SETTINGS } from '../../src/types';
 import { Logger } from '../../src/utils/logger';
 

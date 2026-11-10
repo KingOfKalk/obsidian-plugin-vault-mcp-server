@@ -57,7 +57,7 @@ describe('Integration: HTTPS server with user-provided cert', () => {
     const mcpMod = await import('../../src/server/mcp-server');
     const regMod = await import('../../src/registry/module-registry');
     const logMod = await import('../../src/utils/logger');
-    const mockMod = await import('../../src/obsidian/mock-adapter');
+    const mockMod = await import('../helpers/mock-adapter');
     const vaultMod = await import('../../src/tools/vault/index');
     const { DEFAULT_SETTINGS } = await import('../../src/types');
 

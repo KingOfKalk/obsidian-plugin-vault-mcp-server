@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
-import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
+import { MockObsidianAdapter } from '../../helpers/mock-adapter';
 import { createVaultModule } from '../../../src/tools/vault/index';
 import { createHandlers, WriteMutex } from '../../../src/tools/vault/handlers';
 

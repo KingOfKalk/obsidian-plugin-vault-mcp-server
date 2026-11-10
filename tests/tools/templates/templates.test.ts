@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/server';
-import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
+import { MockObsidianAdapter } from '../../helpers/mock-adapter';
 import { ListResult } from '../../../src/obsidian/adapter';
 import { createTemplatesModule } from '../../../src/tools/templates/index';
 import { ValidationError } from '../../../src/tools/shared/errors';

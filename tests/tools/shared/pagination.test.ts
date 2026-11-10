@@ -12,7 +12,7 @@ import {
   shrinkPage,
 } from '../../../src/tools/shared/pagination';
 import { CallToolResult } from '@modelcontextprotocol/server';
-import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
+import { MockObsidianAdapter } from '../../helpers/mock-adapter';
 import { createSearchHandlers } from '../../../src/tools/search/handlers';
 
 function getText(r: CallToolResult): string {

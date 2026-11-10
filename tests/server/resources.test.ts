@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { getMimeType, isTextMime, parseVaultUri, vaultUri, createFileHandler, createIndexHandler, registerResources } from '../../src/server/resources';
 import { CHARACTER_LIMIT } from '../../src/constants';
 import { ConfigDirError, PathTraversalError } from '../../src/utils/path-guard';
-import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';
+import { MockObsidianAdapter } from '../helpers/mock-adapter';
 import { BinaryTooLargeError, FileNotFoundError } from '../../src/tools/shared/errors';
 
 describe('getMimeType', () => {

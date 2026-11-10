@@ -3,7 +3,7 @@ import type { ToolContext } from '../../../src/registry/tool-context';
 import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/server';
 import { CHARACTER_LIMIT } from '../../../src/constants';
-import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
+import { MockObsidianAdapter } from '../../helpers/mock-adapter';
 import { createSearchHandlers, type SearchHandlers } from '../../../src/tools/search/handlers';
 import { createSearchModule } from '../../../src/tools/search/index';
 

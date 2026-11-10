@@ -1,5 +1,6 @@
-// Kept free of runtime `obsidian` imports so the mock adapter (used by
-// scripts outside Obsidian) can share it.
+// Kept free of runtime `obsidian` imports so the mock adapter
+// (tests/helpers/mock-adapter.ts, also used by scripts outside Obsidian)
+// can share it.
 
 /** One entry of the vault-wide tag index returned by `getAllTags()`. */
 export interface TagUsage {
@@ -26,36 +27,6 @@ export function buildTagIndex(
     }
   }
   return result;
-}
-
-const FRONTMATTER_TAG_KEY = /^tags?$/i;
-
-function frontmatterTagValues(value: unknown): string[] {
-  if (typeof value === 'string') return value.split(/[,\s]+/);
-  if (typeof value === 'number') return [String(value)];
-  if (Array.isArray(value)) return value.flatMap(frontmatterTagValues);
-  return [];
-}
-
-/**
- * Tags declared in a note's frontmatter, in Obsidian's `#tag` format, one
- * entry per occurrence. Mirrors Obsidian's `parseFrontMatterTags`: reads
- * the `tags` and `tag` keys (any case), as a list or as a comma/space
- * separated string, with or without a leading `#` (#440).
- */
-export function parseFrontmatterTags(
-  frontmatter: Record<string, unknown> | null | undefined,
-): string[] {
-  if (!frontmatter) return [];
-  const tags: string[] = [];
-  for (const [key, value] of Object.entries(frontmatter)) {
-    if (!FRONTMATTER_TAG_KEY.test(key)) continue;
-    for (const raw of frontmatterTagValues(value)) {
-      const name = raw.trim().replace(/^#+/, '');
-      if (name !== '') tags.push(`#${name}`);
-    }
-  }
-  return tags;
 }
 
 /**

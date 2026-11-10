@@ -3,7 +3,7 @@ import type { z } from 'zod';
 import { describeTool } from '../../../src/tools/shared/describe';
 import { PAGING_RULE } from '../../../src/tools/shared/pagination';
 import { discoverModules } from '../../../src/tools';
-import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
+import { MockObsidianAdapter } from '../../helpers/mock-adapter';
 
 describe('describeTool', () => {
   it('renders summary, returns, examples, and errors', () => {

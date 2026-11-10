@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/server';
-import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
+import { MockObsidianAdapter } from '../../helpers/mock-adapter';
 import { createEditorModule } from '../../../src/tools/editor/index';
 import { createToolDispatcher } from '../../../src/server/mcp-server';
 import { Logger } from '../../../src/utils/logger';

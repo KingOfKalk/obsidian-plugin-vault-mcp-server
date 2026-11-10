@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { App, TFile } from 'obsidian';
 import { CallToolResult } from '@modelcontextprotocol/server';
 import { RealObsidianAdapter, type ObsidianAdapter } from '../../src/obsidian/adapter';
-import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';
-import { resolveLinkpath } from '../../src/obsidian/link-resolver';
+import { MockObsidianAdapter } from '../helpers/mock-adapter';
+import { resolveLinkpath } from '../helpers/link-resolver';
 import { createAspectHandlers, splitLinkSubpath } from '../../src/tools/vault/aspect';
 
 /** Resolved link targets in vault_get_aspect (#485). */
