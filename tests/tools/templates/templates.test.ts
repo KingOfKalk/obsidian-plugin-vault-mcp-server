@@ -189,6 +189,20 @@ describe('templates module', () => {
       expect(await adapter.readFile('n.md')).toBe('2026-05-06 07:08');
     });
 
+    it('fills {{date:FORMAT}} and {{time:FORMAT}} with moment formats (#488)', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(2099, 0, 1, 14, 5, 0));
+      adapter.addFolder('templates');
+      adapter.addFile('templates/note.md', '# {{date:dddd}}, {{date:YYYY-MM-DD}} {{time:h A}}');
+      const create = createTemplatesModule(adapter).tools().find((t) => t.name === 'template_create_from')!;
+      await create.handler({ templatePath: 'templates/note.md', destPath: 'n.md' });
+      expect(await adapter.readFile('n.md')).toBe('# Thursday, 2099-01-01 2 PM');
+      const expand = createTemplatesModule(adapter).tools().find((t) => t.name === 'template_expand')!;
+      expect(
+        getText(await expand.handler({ template: '{{date:dddd}} {{date:YYYY}}', variables: { 'date:dddd': 'X' } })),
+      ).toContain('X 2099');
+    });
+
     it('template_expand leaves {{title}} as written unless given', async () => {
       const tool = createTemplatesModule(adapter).tools().find((t) => t.name === 'template_expand')!;
       expect(getText(await tool.handler({ template: '# {{title}}' }))).toBe('# {{title}}');

@@ -4,11 +4,11 @@
     "toolCount": 51,
     "totals": {
       "instructions": 997,
-      "toolsList": 59582,
-      "modelView": 42035,
-      "toolDescriptions": 17263,
-      "inputSchemas": 21182,
-      "inputSchemaDescriptions": 8851,
+      "toolsList": 59919,
+      "modelView": 42372,
+      "toolDescriptions": 17394,
+      "inputSchemas": 21388,
+      "inputSchemaDescriptions": 9053,
       "outputSchemas": 10774,
       "promptsList": 1425
     },
@@ -20,8 +20,8 @@
       },
       "vault": {
         "tools": 20,
-        "toolsList": 31075,
-        "modelView": 23449
+        "toolsList": 31206,
+        "modelView": 23580
       },
       "editor": {
         "tools": 10,
@@ -45,8 +45,8 @@
       },
       "templates": {
         "tools": 3,
-        "toolsList": 3344,
-        "modelView": 2592
+        "toolsList": 3550,
+        "modelView": 2798
       },
       "plugin-interop": {
         "tools": 4,
@@ -157,8 +157,8 @@
       },
       "vault_daily_note": {
         "module": "vault",
-        "toolsList": 1694,
-        "modelView": 1552
+        "toolsList": 1825,
+        "modelView": 1683
       },
       "vault_set_frontmatter": {
         "module": "vault",
@@ -282,13 +282,13 @@
       },
       "template_create_from": {
         "module": "templates",
-        "toolsList": 1947,
-        "modelView": 1567
+        "toolsList": 2050,
+        "modelView": 1670
       },
       "template_expand": {
         "module": "templates",
-        "toolsList": 827,
-        "modelView": 715
+        "toolsList": 930,
+        "modelView": 818
       },
       "plugin_list": {
         "module": "plugin-interop",
@@ -321,11 +321,11 @@
     "toolCount": 33,
     "totals": {
       "instructions": 816,
-      "toolsList": 45244,
-      "modelView": 32664,
-      "toolDescriptions": 13276,
-      "inputSchemas": 17029,
-      "inputSchemaDescriptions": 7731,
+      "toolsList": 45581,
+      "modelView": 33001,
+      "toolDescriptions": 13407,
+      "inputSchemas": 17235,
+      "inputSchemaDescriptions": 7933,
       "outputSchemas": 8223,
       "promptsList": 1425
     }

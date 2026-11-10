@@ -18,6 +18,12 @@ export interface AgentChangeEntry {
 
 export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
   {
+    version: '5.1.0',
+    notes: [
+      'Template placeholders `{{date:FORMAT}}` and `{{time:FORMAT}}` are expanded with a moment.js format (e.g. `{{date:dddd}}`), like Obsidian, in `template_expand`, `template_create_from` and `vault_daily_note`; an empty format gives `YYYY-MM-DD` / `HH:mm`. A variable named like the whole placeholder (e.g. `"date:dddd"`) still overrides it. In `vault_daily_note` they use the note\'s date, and `{{time}}` is the current time (was `00:00` for another day).',
+    ],
+  },
+  {
     version: '5.0.0',
     notes: [
       'Breaking: document tools return plain text. `vault_read`, `vault_daily_note`, `editor_get_content`, `template_expand` and `plugin_dataview_query` return one text block: `key: value` header lines (e.g. `path`, `modified`, `totalLength`, `offset`, `hasMore`, `nextOffset`), a blank line, then the raw text, not JSON-escaped. They have no `structuredContent` or `outputSchema` any more; read `modified` and `nextOffset` from the header.',

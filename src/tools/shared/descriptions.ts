@@ -51,5 +51,6 @@ export const EXPECTED_MTIME_DESC =
  * placeholders expand to (src/tools/shared/placeholders.ts).
  */
 export const TEMPLATE_VARIABLES_DESC =
-  'Values for {{name}} placeholders, overriding the built-ins {{date}} (local YYYY-MM-DD), {{time}} (local HH:mm) ' +
+  'Values for {{name}} placeholders, overriding the built-ins {{date}} (local YYYY-MM-DD), {{time}} (local HH:mm), ' +
+  '{{date:FORMAT}} / {{time:FORMAT}} (moment.js format, e.g. {{date:dddd}}; key "date:dddd" overrides) ' +
   'and {{title}} (target file name without .md). Unknown placeholders and Templater <% %> stay as written.';
