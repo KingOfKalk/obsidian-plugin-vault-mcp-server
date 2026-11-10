@@ -277,7 +277,7 @@ describe('vault_daily_note handler', () => {
         exists: false,
       });
       expect(await adapter.exists('daily/2026-03-04.md')).toBe(false);
-      expect(getText(result)).toContain('does not exist');
+      expect(getText(result)).toContain('No note at daily/2026-03-04.md');
     });
 
     it('create:false on a missing note has a header and no note text', async () => {
@@ -287,8 +287,24 @@ describe('vault_daily_note handler', () => {
       });
       expect(getText(result)).toBe(
         'path: daily/2026-03-04.md\nexists: false\ncreated: false\n\n' +
-          'The daily note does not exist. Call again with create=true to create it.',
+          'No note at daily/2026-03-04.md (path from the Daily notes settings). ' +
+          'It may exist elsewhere: check with search_by_name { query: "2026-03-04" } before create=true.',
       );
+    });
+
+    it('missing note hint does not invite a blind create (#514)', async () => {
+      const result = await handlers.dailyNote({ date: '2025-03-03' });
+      const text = getText(result);
+      expect(text).not.toContain('Call again with create=true');
+      expect(text).toContain('search_by_name { query: "2025-03-03" }');
+    });
+
+    it('missing note hint searches by the file name of a nested format (#514)', async () => {
+      adapter.setDailyNotesSettings({ format: 'YYYY/MM/YYYY-MM-DD', folder: 'Journal', template: '' });
+      const result = await handlers.dailyNote({ date: '2025-03-03' });
+      const text = getText(result);
+      expect(text).toContain('No note at Journal/2025/03/2025-03-03.md');
+      expect(text).toContain('search_by_name { query: "2025-03-03" }');
     });
 
     it('create:false on an existing note reads it like the default', async () => {

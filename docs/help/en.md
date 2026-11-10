@@ -892,7 +892,11 @@ clients and agents commonly trip over:
 - **Daily note: lookup by default.** `vault_daily_note` only looks the
   note up unless you pass `create: true`. A missing note then returns the
   header lines `exists: false` and `created: false` and no note text, and
-  nothing is written. With `create: true` a missing note is created from
+  nothing is written. Instead of the note, a hint says the note is not at
+  the path built from the Daily notes settings and asks to check with
+  `search_by_name` (by the date) before `create: true`: older notes may
+  sit elsewhere, for example after the folder or format changed (since
+  5.2.0; before, the hint invited `create: true` and so duplicates). With `create: true` a missing note is created from
   the configured template and the header says `created: true`. Every
   response has the `path` and `exists` header lines, followed by the note
   text when the note exists. When the note exists (or was just created)
