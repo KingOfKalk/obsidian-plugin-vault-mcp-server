@@ -173,6 +173,30 @@ describe('large vault: search_tags (#468)', () => {
   });
 });
 
+describe('large vault: search_by_name (#491)', () => {
+  it('finds one note by name among thousands', async () => {
+    const page = await callJson('search_by_name', { query: 'NOTE-01234 with' });
+    expect(page.items).toEqual([notePath(1234)]);
+    expect(page.total).toBe(1);
+  });
+
+  it('pages every glob match once, sorted by path', async () => {
+    const { items } = await walk<Paged & { items: string[] }, string>(
+      'search_by_name',
+      { query: 'notes/area-3/*.md', limit: 100 },
+      (p) => p.items,
+    );
+    expect(items).toHaveLength(NOTES / 10);
+    expect(items).toEqual([...items].sort());
+    expect(new Set(items).size).toBe(items.length);
+  });
+
+  it('limits the search to a folder', async () => {
+    const page = await callJson('search_by_name', { query: 'f-0000', folder: 'flat' });
+    expect(page.total).toBe(10);
+  });
+});
+
 describe('large vault: backlinks (#464)', () => {
   it.each([false, true])('pages every linking file, includeContext=%s', async (includeContext) => {
     const { items } = await walk<Paged & { backlinks: string[] }, string>(

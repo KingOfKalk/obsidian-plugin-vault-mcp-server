@@ -44,12 +44,16 @@ export function buildServerInstructions(
     active === null || [...active].some((name) => name.startsWith(prefix));
 
   const hints: string[] = [];
+  // search_fulltext searches note text, not file names (#449);
+  // search_by_name finds files by name or path (#491).
   if (has('search_fulltext')) {
-    // search_fulltext searches note text, not file names (#449).
     hints.push(
-      '- Find notes by content with `search_fulltext` (note text, not file names)' +
-        (has('vault_list_recursive') ? '; by name with `vault_list_recursive`.' : '.'),
+      has('search_by_name')
+        ? '- Find notes by content with `search_fulltext`; by name with `search_by_name`.'
+        : '- Find notes by content with `search_fulltext` (note text, not file names).',
     );
+  } else if (has('search_by_name')) {
+    hints.push('- Find notes by name with `search_by_name`.');
   }
   if (hasPrefix('editor_')) {
     hints.push(

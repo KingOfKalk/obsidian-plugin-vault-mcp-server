@@ -11,7 +11,7 @@ Auto-generated schema reference for the `search` module. See [../tools.generated
 Case-insensitive substring search in the text of Markdown (.md) notes. Does not match file names or other file types.
 Returns: Pages over matching files (total and count are files). Each item has up to maxMatchesPerFile matching lines and their 1-based line numbers.
 See also:
-- vault_list_recursive — to find a file by its name.
+- search_by_name — to find a file by its name.
 
 #### Input
 
@@ -347,6 +347,61 @@ Request (`tools/call` params):
   "arguments": {
     "key": "status",
     "value": "active"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "total": 1,
+  "count": 1,
+  "offset": 0,
+  "items": [
+    "projects/alpha.md"
+  ],
+  "hasMore": false
+}
+```
+
+### search_by_name
+
+**Find files by name**
+
+Find files of any type by name or path. Results are sorted by path.
+See also:
+- search_fulltext — to search note text.
+
+#### Input
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `query` | string (1–500) | yes | Case-insensitive substring of the path, or a glob with * and ?: without / it matches the file name (e.g. "*Atlas*.md"), with / the whole path (e.g. "notes/**/*.pdf"). |
+| `folder` | string (≤4096) | no | Only files in this folder and its subfolders, e.g. "projects". Omit for the whole vault. |
+| `limit` | number (1–100) | no (default `20`) | Maximum items per page. |
+| `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
+
+#### Output
+
+| Field | Type | Description |
+|---|---|---|
+| `total` | number | Total number of matching files before pagination. |
+| `count` | number | Number of files in this page. |
+| `offset` | number | Offset of the first item in this page. |
+| `items` | string[] | Vault-relative file paths in this page. |
+| `hasMore` | boolean | True when there are more files past this page. |
+| `nextOffset` | number | Offset to use in the next request when hasMore is true. |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "search_by_name",
+  "arguments": {
+    "query": "alpha"
   }
 }
 ```

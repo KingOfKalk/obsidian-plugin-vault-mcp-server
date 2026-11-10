@@ -261,10 +261,13 @@ describe('createMcpServer', () => {
       const { buildServerInstructions } = await import('../../src/server/mcp-server');
       const all = buildServerInstructions('1.0.0');
       expect(all).toContain('prefer `vault_replace` or `vault_insert`; `vault_update` only to rewrite');
-      expect(all).toContain('not file names); by name with `vault_list_recursive`');
+      expect(all).toContain('Find notes by content with `search_fulltext`; by name with `search_by_name`.');
+      expect(all).not.toContain('vault_list_recursive');
       const some = buildServerInstructions('1.0.0', ['search_fulltext', 'vault_replace']);
       expect(some).toContain('prefer `vault_replace`.');
-      expect(some).not.toMatch(/vault_insert|vault_update|vault_list_recursive/);
+      expect(some).not.toMatch(/vault_insert|vault_update|search_by_name/);
+      const byName = buildServerInstructions('1.0.0', ['search_by_name']);
+      expect(byName).toContain('Find notes by name with `search_by_name`.');
       const none = buildServerInstructions('1.0.0', ['vault_read']);
       expect(none).not.toContain('vault_replace');
     });

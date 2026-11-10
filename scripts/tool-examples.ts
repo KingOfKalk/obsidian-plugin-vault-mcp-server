@@ -126,6 +126,7 @@ export const SAMPLE_ARGS: Record<string, Record<string, unknown>> = {
   search_unresolved_links: {},
   search_by_tag: { tag: 'project' },
   search_by_frontmatter: { key: 'status', value: 'active' },
+  search_by_name: { query: 'alpha' },
   workspace_get_active_leaf: {},
   workspace_open_file: { path: 'README.md' },
   workspace_list_leaves: {},

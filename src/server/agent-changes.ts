@@ -18,6 +18,12 @@ export interface AgentChangeEntry {
 
 export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
   {
+    version: '5.1.0',
+    notes: [
+      'New tool `search_by_name`: find files of any type by name or path. `query` is a case-insensitive substring of the path, or a glob with `*`/`?` (without `/` matched against the file name, e.g. "*Atlas*.md"; with `/` against the whole path, e.g. "notes/**/*.pdf"). Optional `folder` limits the search; results are sorted by path and paged with `limit`/`offset` like `search_by_tag`. The server instructions point to it instead of `vault_list_recursive` for finding a note by name.',
+    ],
+  },
+  {
     version: '5.0.0',
     notes: [
       'Breaking: document tools return plain text. `vault_read`, `vault_daily_note`, `editor_get_content`, `template_expand` and `plugin_dataview_query` return one text block: `key: value` header lines (e.g. `path`, `modified`, `totalLength`, `offset`, `hasMore`, `nextOffset`), a blank line, then the raw text, not JSON-escaped. They have no `structuredContent` or `outputSchema` any more; read `modified` and `nextOffset` from the header.',

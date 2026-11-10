@@ -1,7 +1,11 @@
 import { CallToolResult } from '@modelcontextprotocol/server';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { filesWithTag, groupTagsByCase, tagKey } from '../../obsidian/tag-index';
-import { validateToolPath } from '../../utils/path-guard';
+import {
+  validateFolderListPath,
+  validateToolPath,
+  withoutConfigDir,
+} from '../../utils/path-guard';
 import { CHARACTER_LIMIT } from '../../constants';
 import { FileNotFoundError, handleToolError } from '../shared/errors';
 import {
@@ -11,6 +15,7 @@ import {
   type PaginatedResponse,
 } from '../shared/pagination';
 import { dataResponse } from '../shared/response';
+import { createNameMatcher } from './name-match';
 import type { InferredParams } from '../../registry/types';
 import type { ToolContext } from '../../registry/tool-context';
 import { LINKS_PAGE_LIMIT, TAGS_PAGE_LIMIT } from './schemas';
@@ -19,6 +24,7 @@ import type {
   filePathSchema,
   searchByTagSchema,
   searchByFrontmatterSchema,
+  searchByNameSchema,
   searchTagsSchema,
   linksMapSchema,
 } from './schemas';
@@ -45,6 +51,7 @@ export interface SearchHandlers {
   searchBlockReferences: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
   searchByTag: (params: InferredParams<typeof searchByTagSchema>) => Promise<CallToolResult>;
   searchByFrontmatter: (params: InferredParams<typeof searchByFrontmatterSchema>) => Promise<CallToolResult>;
+  searchByName: (params: InferredParams<typeof searchByNameSchema>) => Promise<CallToolResult>;
 }
 
 const DEFAULT_MAX_MATCHES_PER_FILE = 5;
@@ -404,6 +411,21 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
         return Promise.resolve(
           dataResponse(page),
         );
+      } catch (error) {
+        return Promise.resolve(handleToolError(error));
+      }
+    },
+
+    searchByName(params): Promise<CallToolResult> {
+      try {
+        // Any file type, config folder left out (#491).
+        const folder = validateFolderListPath(params.folder ?? '', vaultPath, configDir);
+        const matches = createNameMatcher(params.query);
+        const files = withoutConfigDir(adapter.listRecursive(folder), configDir)
+          .files.filter(matches)
+          .sort();
+        const page = paginate(files, readPagination(params));
+        return Promise.resolve(fitPage(page, (p) => dataResponse(p)));
       } catch (error) {
         return Promise.resolve(handleToolError(error));
       }
