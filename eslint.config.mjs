@@ -2,7 +2,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['dist/', 'main.js', 'node_modules/', 'esbuild.config.mjs', 'eslint.config.mjs', 'vitest.config.ts', 'wdio.conf.mts', '.obsidian-cache/'],
+    ignores: ['dist/', 'main.js', 'node_modules/', 'esbuild.config.mjs', 'scripts/esbuild/', 'eslint.config.mjs', 'vitest.config.ts', 'wdio.conf.mts', '.obsidian-cache/'],
   },
   ...tseslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/server';
+import moment from 'moment';
 import {
   ToolModule,
   ToolDefinition,
@@ -29,32 +30,13 @@ interface ExtrasHandlers {
   getDate: (params: InferredParams<typeof getDateSchema>) => Promise<CallToolResult>;
 }
 
-function pad(n: number, width = 2): string {
-  return String(Math.abs(n)).padStart(width, '0');
-}
-
-function formatOffset(offsetMinutes: number): string {
-  const sign = offsetMinutes <= 0 ? '+' : '-';
-  const abs = Math.abs(offsetMinutes);
-  return `${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
-}
-
-function formatIsoWithOffset(now: Date): string {
-  const offsetMinutes = now.getTimezoneOffset();
-  const y = now.getFullYear();
-  const mo = pad(now.getMonth() + 1);
-  const d = pad(now.getDate());
-  const h = pad(now.getHours());
-  const mi = pad(now.getMinutes());
-  const s = pad(now.getSeconds());
-  const ms = pad(now.getMilliseconds(), 3);
-  return `${String(y)}-${mo}-${d}T${h}:${mi}:${s}.${ms}${formatOffset(offsetMinutes)}`;
-}
+/** Local time with milliseconds and UTC offset, e.g. `2026-04-19T08:30:00.000+02:00`. */
+const ISO_WITH_OFFSET = 'YYYY-MM-DDTHH:mm:ss.SSSZ';
 
 function createHandlers(_adapter: ObsidianAdapter): ExtrasHandlers {
   return {
     getDate: (): Promise<CallToolResult> => {
-      const iso = formatIsoWithOffset(new Date());
+      const iso = moment().format(ISO_WITH_OFFSET);
       return Promise.resolve(
         dataResponse({ iso }),
       );

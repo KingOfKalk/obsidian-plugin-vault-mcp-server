@@ -1,8 +1,16 @@
 import esbuild from 'esbuild';
+import { builtinModules } from 'node:module';
 import process from 'process';
-import builtins from 'builtin-modules';
+import { obsidianMoment } from './scripts/esbuild/obsidian-moment.mjs';
+import { zodEnglishOnly } from './scripts/esbuild/zod-locales.mjs';
 
 const production = process.argv[2] === 'production';
+
+// Node's built-in modules, bare and `node:`-prefixed (some exist only
+// prefixed, e.g. `node:test`, and are listed that way).
+const builtins = builtinModules.flatMap((name) =>
+  name.startsWith('node:') ? [name] : [name, `node:${name}`],
+);
 
 const context = await esbuild.context({
   entryPoints: ['src/main.ts'],
@@ -30,7 +38,12 @@ const context = await esbuild.context({
   treeShaking: true,
   outfile: 'main.js',
   minify: production,
+  // No stray `debugger` statements in release builds (#531). Legal comments
+  // stay (esbuild's default `eof`): main.js is the only file a release
+  // ships, so it carries the bundled packages' license notices.
+  drop: production ? ['debugger'] : [],
   platform: 'node',
+  plugins: [obsidianMoment(), zodEnglishOnly()],
 });
 
 if (production) {
