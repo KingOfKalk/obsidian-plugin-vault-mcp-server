@@ -9,18 +9,13 @@ import {
   isValidIPv4,
 } from './validation';
 import { renderHttpsSection } from './https-section';
-import { displayHost } from './display-host';
+import { serverOrigin, serverUrl } from './display-host';
+import { DEFAULT_ALLOWED_HOSTS, DEFAULT_ALLOWED_ORIGINS } from '../types';
 import { bindToggle } from './bind-toggle';
 
-const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
-const LOOPBACK_ORIGIN_PREFIXES = [
-  'http://127.0.0.1',
-  'http://localhost',
-  'https://127.0.0.1',
-  'https://localhost',
-  'http://[::1]',
-  'https://[::1]',
-];
+// The default (loopback) allowlists plus IPv6 loopback.
+const LOOPBACK_HOSTS = new Set([...DEFAULT_ALLOWED_HOSTS, '::1', '[::1]']);
+const LOOPBACK_ORIGIN_PREFIXES = [...DEFAULT_ALLOWED_ORIGINS, 'http://[::1]', 'https://[::1]'];
 
 function parseLines(value: string): string[] {
   return value
@@ -40,10 +35,6 @@ function hasNonLoopbackOrigin(origins: string[]): boolean {
   });
 }
 
-function scheme(plugin: McpPlugin): 'http' | 'https' {
-  return plugin.settings.httpsEnabled ? 'https' : 'http';
-}
-
 /**
  * "Server Status" section — running/stopped indicator with toggle and
  * restart button. Clicking the toggle drives the plugin's start/stop
@@ -57,11 +48,9 @@ export function renderServerStatusSection(
   containerEl.createEl('h2', { text: t('heading_server_status') });
 
   const isRunning = plugin.httpServer?.isRunning ?? false;
-  const port = plugin.settings.port;
   const clients = plugin.httpServer?.connectedClients ?? 0;
 
-  const address = plugin.settings.serverAddress;
-  const url = `${scheme(plugin)}://${displayHost(address)}:${String(port)}`;
+  const url = serverOrigin(plugin.settings);
   const statusText = isRunning
     ? clients === 1
       ? t('status_running_one', { url })
@@ -174,17 +163,17 @@ export function renderServerSettingsSection(
       }),
   );
 
-  const serverUrl = `${scheme(plugin)}://${displayHost(plugin.settings.serverAddress)}:${String(plugin.settings.port)}/mcp`;
+  const url = serverUrl(plugin.settings);
   new Setting(containerEl)
     .setName(t('setting_server_url_name'))
-    .setDesc(serverUrl)
+    .setDesc(url)
     .addExtraButton((btn) =>
       btn
         .setIcon('copy')
         .setTooltip(t('tooltip_copy_server_url'))
         .onClick(() => {
           copyWithNotice(
-            serverUrl,
+            url,
             t('notice_server_url_copied'),
             'copy server URL',
             plugin.logger,

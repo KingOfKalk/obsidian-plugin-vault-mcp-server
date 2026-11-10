@@ -8,6 +8,8 @@ import { authenticateRequest, sendAuthError, sendRateLimitError } from './auth';
 import { applyCorsHeaders, handlePreflight, CorsOptions, DEFAULT_CORS_OPTIONS } from './cors';
 import { FailureRateLimiter, normalizeIp } from './rate-limiter';
 import { validateOriginHost, type OriginHostOptions } from './origin-host';
+import { MCP_ENDPOINT_PATH } from '../constants';
+import { DEFAULT_ALLOWED_HOSTS, DEFAULT_ALLOWED_ORIGINS } from '../types';
 
 export interface HttpServerOptions {
   host: string;
@@ -52,13 +54,8 @@ export interface HttpServerOptions {
 }
 
 const DEFAULT_ORIGIN_HOST_OPTIONS: OriginHostOptions = {
-  allowedOrigins: [
-    'http://127.0.0.1',
-    'http://localhost',
-    'https://127.0.0.1',
-    'https://localhost',
-  ],
-  allowedHosts: ['127.0.0.1', 'localhost'],
+  allowedOrigins: [...DEFAULT_ALLOWED_ORIGINS],
+  allowedHosts: [...DEFAULT_ALLOWED_HOSTS],
   allowNullOrigin: false,
   requireOrigin: false,
 };
@@ -77,13 +74,6 @@ const DEFAULT_SESSION_SWEEP_INTERVAL_MS = 60 * 1000;
 export const DEFAULT_MAX_SESSIONS = 32;
 export const DEFAULT_BIND_RETRY_TIMEOUT_MS = 5000;
 export const DEFAULT_BIND_RETRY_DELAY_MS = 250;
-
-/**
- * The one URL path that serves MCP, as shown in the settings tab, the
- * client config snippet, the README and the user manual. The query string
- * is ignored. Every other path, `/` and `/mcp/` included, answers 404.
- */
-export const MCP_ENDPOINT_PATH = '/mcp';
 
 function requestPath(url: string | undefined): string {
   const raw = url ?? '/';

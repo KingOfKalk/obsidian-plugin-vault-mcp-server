@@ -2,7 +2,7 @@ import { Setting } from 'obsidian';
 import type McpPlugin from '../main';
 import { t } from '../lang/helpers';
 import { copyWithNotice } from '../utils/clipboard';
-import { displayHost } from './display-host';
+import { serverUrl } from './display-host';
 
 /**
  * "MCP Client Configuration" section — one copy button that puts the
@@ -34,14 +34,8 @@ export function renderMcpConfigSection(
 }
 
 export function buildMcpConfigJson(plugin: McpPlugin): string {
-  const address = plugin.settings.serverAddress;
-  const port = plugin.settings.port;
-  const accessKey = plugin.settings.accessKey;
-  const authEnabled = plugin.settings.authEnabled;
-  const scheme = plugin.settings.httpsEnabled ? 'https' : 'http';
-  const url = `${scheme}://${displayHost(address)}:${String(port)}/mcp`;
-
-  const config: Record<string, unknown> = { type: 'http', url };
+  const { accessKey, authEnabled } = plugin.settings;
+  const config: Record<string, unknown> = { type: 'http', url: serverUrl(plugin.settings) };
 
   if (authEnabled && accessKey) {
     config.headers = {
