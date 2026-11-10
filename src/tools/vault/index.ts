@@ -253,6 +253,10 @@ const insertOutputSchema = {
   heading: z.string().describe('The matched heading as written, e.g. "## Log".'),
   position: z.enum(['start', 'end']).describe('Where the text went in the section.'),
   line: z.number().describe('1-based line number where the inserted text starts.'),
+  replacedPlaceholder: z
+    .literal(true)
+    .optional()
+    .describe('Present when replacePlaceholder replaced an empty item.'),
   modified: newModified,
 };
 

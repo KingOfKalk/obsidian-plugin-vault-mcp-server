@@ -560,18 +560,34 @@ export function createHandlers(
           await assertExpectedMtime(adapter, path, params.expectedMtime);
           let heading = '';
           let line = 0;
+          let replacedPlaceholder = false;
           // Resolving the section inside vault.process keeps the
           // read-modify-write atomic; throwing here writes nothing.
           await adapter.processFile(path, (content) => {
             const lines = splitLines(content);
             const section = findSection(lines, params.heading, path, ' Nothing was written.');
-            const result = insertIntoSection(content, lines, section, position, params.text);
+            const result = insertIntoSection(
+              content,
+              lines,
+              section,
+              position,
+              params.text,
+              params.replacePlaceholder ?? false,
+            );
             heading = formatHeading(section.heading);
             line = result.line + 1;
+            replacedPlaceholder = result.replacedPlaceholder;
             return result.content;
           });
           const modified = await modifiedIso(adapter, path);
-          return dataResponse({ path, heading, position, line, modified });
+          return dataResponse({
+            path,
+            heading,
+            position,
+            line,
+            ...(replacedPlaceholder ? { replacedPlaceholder: true } : {}),
+            modified,
+          });
         });
       } catch (error) {
         return handleToolError(error);

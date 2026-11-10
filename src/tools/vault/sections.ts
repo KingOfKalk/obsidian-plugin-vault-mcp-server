@@ -200,6 +200,18 @@ export function sectionText(content: string, section: Section): string {
 }
 
 /**
+ * An empty list item used as a template placeholder (#519): `-`, `*`, `+`,
+ * `1.` or `1)`, optionally with an unchecked task box `[ ]`, and nothing
+ * else but whitespace (indentation allowed).
+ */
+const PLACEHOLDER_ITEM = /^[ \t]*(?:[-*+]|\d{1,9}[.)])(?:[ \t]+\[ \])?[ \t]*$/;
+
+/** Whether `line` is an empty placeholder list item (see PLACEHOLDER_ITEM). */
+export function isPlaceholderItem(line: string): boolean {
+  return PLACEHOLDER_ITEM.test(line);
+}
+
+/**
  * Insert `text` into a section and return the new content plus the
  * 0-based line where the inserted text starts.
  *
@@ -209,6 +221,9 @@ export function sectionText(content: string, section: Section): string {
  *   lines before the next heading stay there.
  * - An empty section (only blank lines) gets the text right after the
  *   heading line; its blank lines follow the text.
+ * - With `replacePlaceholder`, a section whose only non-blank line
+ *   (subsections included) is an empty list item gets the text in place of
+ *   that line, whatever the `position` (#519).
  *
  * The text goes in as whole lines: one trailing newline is dropped and the
  * file's line ending (LF or CRLF) is used.
@@ -219,11 +234,26 @@ export function insertIntoSection(
   section: Section,
   position: 'start' | 'end',
   text: string,
-): { content: string; line: number } {
+  replacePlaceholder = false,
+): { content: string; line: number; replacedPlaceholder: boolean } {
   const body: number[] = [];
   for (let i = section.start + 1; i < section.end; i++) {
     if (lines[i].trim() !== '') body.push(i);
   }
+
+  const eol = content.includes('\r\n') ? '\r\n' : '\n';
+  const insertLines = text.replace(/\r\n/g, '\n').replace(/\n$/, '').split('\n');
+  const block = insertLines.join(eol);
+
+  if (replacePlaceholder && body.length === 1 && isPlaceholderItem(lines[body[0]])) {
+    const at = body[0];
+    const offset = lineOffset(content, at);
+    const lineEnd = content.indexOf('\n', offset);
+    // The line's own ending (if any) stays; only its text is replaced.
+    const rest = lineEnd === -1 ? '' : content.slice(lineEnd - (content[lineEnd - 1] === '\r' ? 1 : 0));
+    return { content: content.slice(0, offset) + block + rest, line: at, replacedPlaceholder: true };
+  }
+
   let at: number;
   if (body.length === 0) {
     at = section.start + 1;
@@ -233,17 +263,14 @@ export function insertIntoSection(
     at = body[body.length - 1] + 1;
   }
 
-  const eol = content.includes('\r\n') ? '\r\n' : '\n';
-  const insertLines = text.replace(/\r\n/g, '\n').replace(/\n$/, '').split('\n');
-  const block = insertLines.join(eol);
-
   if (at >= lines.length) {
     // After the last line, which has no newline: start a new line.
-    return { content: content + eol + block, line: lines.length };
+    return { content: content + eol + block, line: lines.length, replacedPlaceholder: false };
   }
   const offset = lineOffset(content, at);
   return {
     content: content.slice(0, offset) + block + eol + content.slice(offset),
     line: at,
+    replacedPlaceholder: false,
   };
 }
