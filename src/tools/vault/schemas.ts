@@ -171,6 +171,13 @@ export const insertSchema = {
     .describe(
       'Inserted as whole lines; one trailing newline is ignored. Start it with a newline to leave a blank line before it.',
     ),
+  replacePlaceholder: z
+    .boolean()
+    .default(false)
+    .describe(
+      'If the section\'s only non-blank line (subsections included) is an empty list item ("-", "*", "+", "1.", "- [ ]"), ' +
+        'replace that line with text instead of keeping it; position is then ignored.',
+    ),
   expectedMtime,
 };
 

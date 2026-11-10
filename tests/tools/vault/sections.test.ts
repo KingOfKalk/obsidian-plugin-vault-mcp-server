@@ -253,7 +253,7 @@ describe('section helpers (#428)', () => {
 
     it('end of a file without a trailing newline starts a new line', () => {
       const result = insert('## A\n- a', 'A', 'end', '- b');
-      expect(result).toEqual({ content: '## A\n- a\n- b', line: 2 });
+      expect(result).toEqual({ content: '## A\n- a\n- b', line: 2, replacedPlaceholder: false });
       expect(insert('## A', 'A', 'start', 'x').content).toBe('## A\nx');
     });
 
@@ -266,6 +266,64 @@ describe('section helpers (#428)', () => {
       expect(insert('## A\npara\n', 'A', 'end', '\nnew para\n').content).toBe(
         '## A\npara\n\nnew para\n',
       );
+    });
+
+    describe('replacePlaceholder (#519)', () => {
+      function replace(content: string, position: 'start' | 'end', text: string): {
+        content: string;
+        line: number;
+        replacedPlaceholder: boolean;
+      } {
+        const lines = splitLines(content);
+        return insertIntoSection(content, lines, findSection(lines, 'A', 'n.md'), position, text, true);
+      }
+
+      it.each(['-', '*', '+', '- [ ]', '* [ ]', '1.', '1)', '-   ', '  - [ ] ', '\t-'])(
+        'replaces the lone empty item %j',
+        (item) => {
+          for (const position of ['start', 'end'] as const) {
+            expect(replace(`## A\n\n${item}\n\n## B\n`, position, '- new')).toEqual({
+              content: '## A\n\n- new\n\n## B\n',
+              line: 2,
+              replacedPlaceholder: true,
+            });
+          }
+        },
+      );
+
+      it('replaces a placeholder on the last line without a trailing newline', () => {
+        expect(replace('## A\n-', 'end', 'x\ny\n')).toEqual({
+          content: '## A\nx\ny',
+          line: 1,
+          replacedPlaceholder: true,
+        });
+      });
+
+      it('keeps CRLF line endings', () => {
+        expect(replace('## A\r\n-\r\n## B\r\n', 'end', 'x').content).toBe('## A\r\nx\r\n## B\r\n');
+      });
+
+      it.each(['- a', '- [x]', '- [ ] a', '-a', '--', '---', '1. a', 'text', '> -'])(
+        'does not replace %j',
+        (item) => {
+          const result = replace(`## A\n${item}\n`, 'end', 'x');
+          expect(result).toEqual({ content: `## A\n${item}\nx\n`, line: 2, replacedPlaceholder: false });
+        },
+      );
+
+      it('only replaces when the placeholder is the only non-blank line of the section', () => {
+        expect(replace('## A\n-\n- b\n', 'end', 'x').content).toBe('## A\n-\n- b\nx\n');
+        expect(replace('## A\n-\n### Sub\n', 'start', 'x').content).toBe('## A\nx\n-\n### Sub\n');
+        expect(replace('## A\n\n## B\n', 'end', 'x')).toEqual({
+          content: '## A\nx\n\n## B\n',
+          line: 1,
+          replacedPlaceholder: false,
+        });
+      });
+
+      it('is off by default', () => {
+        expect(insert('## A\n-\n', 'A', 'end', 'x').content).toBe('## A\n-\nx\n');
+      });
     });
 
     it('uses CRLF in CRLF files', () => {
@@ -314,6 +372,25 @@ describe('vault_insert and vault_read with heading (#428)', () => {
       const result = await handlers.insert({ path: 'a.md', heading: 'A', text: 'y' });
       expect(result.structuredContent).toMatchObject({ position: 'end', line: 3 });
       expect(await adapter.readFile('a.md')).toBe('## A\nx\ny\n## B\n');
+    });
+
+    it('replacePlaceholder replaces a lone empty bullet and reports it (#519)', async () => {
+      adapter.addFile('a.md', '## Tasks\n- [ ]\n\n## B\n');
+      const result = await handlers.insert({
+        path: 'a.md',
+        heading: 'Tasks',
+        text: '- [ ] call Ada',
+        replacePlaceholder: true,
+      });
+      expect(await adapter.readFile('a.md')).toBe('## Tasks\n- [ ] call Ada\n\n## B\n');
+      expect(result.structuredContent).toMatchObject({ line: 2, replacedPlaceholder: true });
+    });
+
+    it('omits replacedPlaceholder when nothing was replaced', async () => {
+      adapter.addFile('a.md', '## Tasks\n-\n');
+      const result = await handlers.insert({ path: 'a.md', heading: 'Tasks', text: '- a' });
+      expect(await adapter.readFile('a.md')).toBe('## Tasks\n-\n- a\n');
+      expect(result.structuredContent).not.toHaveProperty('replacedPlaceholder');
     });
 
     it('inserts at the start of a nested parent section, before its subsections', async () => {
@@ -459,13 +536,14 @@ describe('vault_insert and vault_read with heading (#428)', () => {
   });
 
   describe('schemas and registration', () => {
-    it('defaults position to end and rejects a blank heading or empty text', () => {
+    it('defaults position to end, replacePlaceholder to false and rejects a blank heading or empty text', () => {
       const schema = buildInputSchema(insertSchema);
       expect(schema.parse({ path: 'a.md', heading: 'A', text: 'x' })).toEqual({
         path: 'a.md',
         heading: 'A',
         text: 'x',
         position: 'end',
+        replacePlaceholder: false,
       });
       expect(schema.safeParse({ path: 'a.md', heading: '  ', text: 'x' }).success).toBe(false);
       expect(schema.safeParse({ path: 'a.md', heading: 'A', text: '' }).success).toBe(false);

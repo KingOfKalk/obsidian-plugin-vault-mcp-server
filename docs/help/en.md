@@ -718,6 +718,16 @@ clients and agents commonly trip over:
     through `vault.process()` and accepts `expectedMtime`.
     `structuredContent` is `{ path, heading, position, line, modified }`,
     where `line` is the first inserted line.
+  - `replacePlaceholder: true` (off by default) handles template sections
+    that hold only an empty list item: if the section's only non-blank
+    line, subsections included, is `-`, `*`, `+`, `1.`/`1)` or an empty
+    task (`- [ ]`), with nothing else on it, the text replaces that line
+    instead of going next to it, and `position` does not matter. So
+    `## Tasks` followed by `- [ ]` becomes `## Tasks` followed by
+    `- [ ] call Ada`, not an empty task plus the new one. In every other
+    case (other lines in the section, a checked `- [x]`, an item with
+    text) the option changes nothing. When a line was replaced, the result
+    adds `replacedPlaceholder: true`.
 - **Appending to a note.** `vault_append` adds `content` at the end of the
   file on a new line: if the file is not empty, does not end with a line
   break and `content` does not start with one, one line break (the file's
