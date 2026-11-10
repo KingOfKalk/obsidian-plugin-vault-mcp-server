@@ -246,7 +246,14 @@ When no model API key is at hand, or to see whether a question is solvable at al
 
 On 2026-11-10 Claude subagents answered the five questions Mistral failed most often (Q2, Q5, Q6, Q7, Q9) correctly, with 10 to about 60 tool calls each. That shows the answer key holds and the questions are solvable with the tools as they are; the findings are in #499.
 
-Pending for #499 (tool descriptions and server instructions changed so a model picks `search_by_frontmatter`, backlinks and `search_unresolved_links` for structured questions): record three runs with Mistral before and after that change once the OpenAI-compatible runner (#483) is on `main`, and one run with the default Claude model to check for regressions.
+On 2026-11-10, after the #499 changes (#501-#509: clearer descriptions and server instructions, `search_by_frontmatter` values and prefix match, `search_fulltext` `folder` and `lastMatches`, `search_unresolved_links` `groupBy: "target"`), one fresh Claude subagent per question answered all ten questions correctly (10/10) through `tool-cli.ts`. Tool calls per question:
+
+| Q | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Calls after #499 | 8 | 8 | 6 | 4 | 22 | 13 | 15 | 16 | 28 | 45 |
+| Calls before (cross-check above) | - | 10 | - | - | 37 | 18 | 16 | - | ~61 | - |
+
+Same caveat as above: a check, not a baseline. Mistral runs after #499 were skipped.
 
 ## Adding or changing questions
 
