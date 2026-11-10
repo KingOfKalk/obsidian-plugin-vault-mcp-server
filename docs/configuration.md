@@ -123,13 +123,13 @@ the registry; the table below mirrors its module / count rows.
 
 | Module                    | Tools  | Default (new install) |
 | ------------------------- | ------ | --------------------- |
-| Vault and File Operations | 21     | on                    |
+| Vault and File Operations | 20     | on                    |
 | Editor Operations         | 10     | off                   |
 | Search and Metadata       | 6      | on                    |
 | Workspace and Navigation  | 5      | off                   |
 | UI Interactions           | 1      | off                   |
 | Templates                 | 3      | on                    |
-| Plugin Interop            | 6      | on                    |
+| Plugin Interop            | 4      | on                    |
 | Extras                    | 1      | off (per tool)        |
 | Server (always on)        | 1      | on                    |
 | **Total**                 | **54** |                       |
