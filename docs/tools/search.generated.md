@@ -9,7 +9,7 @@ Auto-generated schema reference for the `search` module. See [../tools.generated
 **Full-text search**
 
 Case-insensitive substring search in the text of Markdown (.md) notes. Does not match file names or other file types.
-Returns: Each item has up to maxMatchesPerFile matching lines and their 1-based line numbers; matchCount counts all matching lines in the file.
+Returns: Each item has up to maxMatchesPerFile matching lines and their 1-based line numbers; matchCount counts all matching lines in the file, so a higher matchCount means lines were left out.
 Paging: over matching files (total and count are files); limit default 50, max 100; next page: offset=nextOffset.
 See also:
 - search_by_name — to find a file by its name.
@@ -22,6 +22,8 @@ See also:
 |---|---|---|---|
 | `query` | string (1–500) | yes | Case-insensitive substring to find. |
 | `maxMatchesPerFile` | number (1–100) | no (default `5`) | Maximum matching lines returned per file; matchCount always reports the full count. |
+| `lastMatches` | boolean | no (default `false`) | Return the last maxMatchesPerFile matches of each file instead of the first (e.g. newest rows of a log). |
+| `folder` | string (≤4096) | no | Only notes in this folder and its subfolders, e.g. "projects". Omit for the whole vault. |
 | `limit` | number (1–100) | no (default `50`) | Maximum items per page. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
 
