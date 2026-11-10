@@ -1013,7 +1013,7 @@ Response (`structuredContent`):
 **Get or create a daily note**
 
 Resolve the daily note's path for today or date from the Daily notes core plugin settings and return the note if it exists. Does not open it in the editor. Creates a missing note (from the configured template) only with create=true.
-Returns: Text: "key: value" header lines (path, exists, created, warning, paging), a blank line, the note (continue a long one with vault_read). In a new note {{date}} is the note's date (YYYY-MM-DD), {{time}} the local time (HH:mm), {{title}} the file name without .md. Templater syntax (<%) is copied unchanged; a configured template that is missing gives an empty note and a warning.
+Returns: Text: "key: value" header lines (path, exists, created, warning, paging), a blank line, the note (continue a long one with vault_read). In a new note {{date}} is the note's date (YYYY-MM-DD), {{time}} the current local time (HH:mm), {{title}} the file name without .md; {{date:FORMAT}} / {{time:FORMAT}} format the note's date with the current time by a moment.js format (e.g. {{date:dddd}}). Templater syntax (<%) is copied unchanged; a configured template that is missing gives an empty note and a warning.
 Examples:
 - Use when: you need today's note, creating it if missing → { create: true }
 - Use when: checking whether a past daily note exists → { date: "2026-01-02" }

@@ -799,8 +799,13 @@ clients and agents commonly trip over:
   text when the note exists. Before 4.0 the default was `create: true`; see
   [Upgrading to 4.0](#upgrading-to-40). The tool does not open the note;
   the `/daily-note` prompt opens it with `workspace_open_file`. In a new
-  note `{{date}}` is the note's date, `{{time}}` the local time (`HH:mm`)
-  and `{{title}}` the file name. The template is the one set in the Daily
+  note `{{date}}` is the note's date, `{{time}}` the current local time
+  (`HH:mm`) and `{{title}}` the file name. `{{date:FORMAT}}` and
+  `{{time:FORMAT}}` work as in Obsidian (see **Template placeholders**
+  below) and format the note's date at the current time of day, so
+  `# {{date:dddd}}, {{date:YYYY-MM-DD}}` gives `# Thursday, 2099-01-01` for
+  `date: "2099-01-01"` (before 5.1 they stayed as written, and `{{time}}`
+  in a note for another day was `00:00`). The template is the one set in the Daily
   notes plugin, with or without `.md`. If that file is missing, the note
   is created empty and the response carries a `warning` naming the
   template (before 5.0 there was no warning).
@@ -811,6 +816,18 @@ clients and agents commonly trip over:
   the new file's name without `.md` (`template_create_from` only;
   `template_expand` leaves `{{title}}` as written). Unknown placeholders
   and Templater `<% %>` code stay as written.
+  - **Format variants.** As in Obsidian's core Templates plugin,
+    `{{date:FORMAT}}` and `{{time:FORMAT}}` format the date or time with a
+    [moment.js format](https://momentjs.com/docs/#/displaying/format/),
+    e.g. `{{date:dddd}}` (`Thursday`), `{{date:D MMMM YYYY}}`,
+    `{{time:HH:mm:ss}}`. The format is the text after the first `:`,
+    trimmed; an empty one (`{{date:}}`) gives the plain `YYYY-MM-DD` /
+    `HH:mm`. Names of days and months follow Obsidian's language (moment's
+    locale). Letters moment does not know are copied as they are, so an
+    invalid format never fails; put literal text in `[brackets]`. A
+    variable whose key is the whole placeholder, such as `"date:dddd"`,
+    overrides the formatted value. Before 5.1 the format variants stayed
+    as written.
 - **Template folder.** `template_list` lists every file in the folder set
   in Obsidian's core **Templates** plugin (**Settings → Templates →
   Template folder location**), including subfolders, and returns that

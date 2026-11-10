@@ -61,7 +61,7 @@ Errors:
 |---|---|---|---|
 | `templatePath` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. |
 | `destPath` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. |
-| `variables` | object | no | Values for {{name}} placeholders, overriding the built-ins {{date}} (local YYYY-MM-DD), {{time}} (local HH:mm) and {{title}} (target file name without .md). Unknown placeholders and Templater <% %> stay as written. |
+| `variables` | object | no | Values for {{name}} placeholders, overriding the built-ins {{date}} (local YYYY-MM-DD), {{time}} (local HH:mm), {{date:FORMAT}} / {{time:FORMAT}} (moment.js format, e.g. {{date:dddd}}; key "date:dddd" overrides) and {{title}} (target file name without .md). Unknown placeholders and Templater <% %> stay as written. |
 | `frontmatter` | object | no | Keys to set on the new note, mapped to JSON-compatible values (string, number, boolean, null, array or object). Applied after expansion: template keys are kept, keys given here overwrite them. Markdown (.md) destinations only. |
 
 #### Output
@@ -119,7 +119,7 @@ See also:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `template` | string (≤100000) | yes | Template text with {{variable}} placeholders. |
-| `variables` | object | no | Values for {{name}} placeholders, overriding the built-ins {{date}} (local YYYY-MM-DD), {{time}} (local HH:mm) and {{title}} (target file name without .md). Unknown placeholders and Templater <% %> stay as written. |
+| `variables` | object | no | Values for {{name}} placeholders, overriding the built-ins {{date}} (local YYYY-MM-DD), {{time}} (local HH:mm), {{date:FORMAT}} / {{time:FORMAT}} (moment.js format, e.g. {{date:dddd}}; key "date:dddd" overrides) and {{title}} (target file name without .md). Unknown placeholders and Templater <% %> stay as written. |
 
 #### Output
 
