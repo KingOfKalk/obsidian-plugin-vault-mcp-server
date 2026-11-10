@@ -1,8 +1,8 @@
 # LLM evaluation for the MCP tools
 
-Unit and integration tests check that the tools *work*. This evaluation checks that a model can *use* them: that the tool names, descriptions, parameters, error messages and server instructions lead Claude to the right calls. It follows the [mcp-builder evaluation format](https://github.com/anthropics/skills/tree/main/skills/mcp-builder).
+Unit and integration tests check that the tools *work*. This evaluation checks that a model can *use* them: that the tool names, descriptions, parameters, error messages and server instructions lead a model (Claude, Mistral or any other model behind an OpenAI-compatible API) to the right calls. It follows the [mcp-builder evaluation format](https://github.com/anthropics/skills/tree/main/skills/mcp-builder).
 
-It runs **locally only**, on demand. It calls the Claude API, which needs an API key and costs money, so no GitHub Actions workflow runs it and no API key is stored anywhere in the repository or its workflows. CI checks only the answer key, with scripted solutions and no model (see [How the answers are checked](#how-the-answers-are-checked)).
+It runs **locally only**, on demand. It calls a model API (Anthropic, or any OpenAI-compatible API such as Mistral), which needs an API key and usually costs money, so no GitHub Actions workflow runs it and no API key is stored anywhere in the repository or its workflows. CI checks only the answer key, with scripted solutions and no model (see [How the answers are checked](#how-the-answers-are-checked)).
 
 ## What is here
 
@@ -13,8 +13,9 @@ It runs **locally only**, on demand. It calls the Claude API, which needs an API
 | `fixture-adapter.ts` | Loads both parts into `MockObsidianAdapter` and parses the metadata Obsidian would cache (frontmatter, tags, headings, links, embeds). Links resolve by file name, like Obsidian. |
 | `harness.ts` | Starts the real server code (`createMcpServer` + `HttpMcpServer`) on the fixture, without Obsidian, on `127.0.0.1` with bearer token `eval-fixture-token`. Every module and tool is enabled. |
 | `vault.xml` | The 10 questions and expected answers. |
-| `run.ts` | The runner behind `npm run eval`. |
-| `lib.ts` | XML parsing and answer comparison. |
+| `run.ts` | The runner behind `npm run eval`: settings, the agent loop shared by both providers, the Anthropic provider, report and baseline row. |
+| `openai.ts` | The OpenAI-compatible provider (plain `fetch`): tool conversion, request, response parsing, retries and auth errors. |
+| `lib.ts` | XML parsing, answer comparison, `.env` loading and the provider interface. |
 
 Nothing here is imported by `src/`, so none of it ends up in `main.js`.
 
@@ -43,14 +44,73 @@ Changing the generator or `BULK_SEED` changes the answers. `tests/evals/answers.
 
 ## Running it
 
-Run it on your own machine, with your own key:
+Run it on your own machine, with your own key. The runner talks to one of two providers:
+
+- **`openai`:** any API that speaks the OpenAI Chat Completions format with function calling (`POST {base URL}/chat/completions`, `Authorization: Bearer <key>`): Mistral, OpenAI, OpenRouter, a local Ollama or LM Studio, and so on. It uses plain `fetch`, no vendor SDK.
+- **`anthropic`:** the Claude Messages API, with adaptive thinking and an effort level.
+
+Both use the same questions, harness, grading, output, dry run and baseline row.
+
+### Settings and `.env`
+
+Put the settings in a `.env` file in the repository root. The runner loads it on start (like `process.loadEnvFile`), so `npm run eval` works without exporting anything. Variables already set in the shell win over the file. `.env` is gitignored; never commit a key.
+
+### Mistral
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...   # never commit this
-npm run eval
+# .env
+EVAL_BASE_URL=https://api.mistral.ai/v1
+EVAL_MODEL=mistral-large-latest
+EVAL_API_KEY=your-mistral-key
 ```
 
-For each question the runner starts a fresh server on the fixture, connects an MCP client over Streamable HTTP, gives Claude the server's tools and instructions, and runs a tool-use loop until Claude answers in `<response>` tags. It prints pass/fail, tool calls per question, and the overall accuracy:
+```bash
+npm run eval -- --dry-run    # check: shows provider, base URL, model, and whether the key is set
+npm run eval -- --only 1     # one question first
+npm run eval                 # the full set
+```
+
+### Other OpenAI-compatible APIs
+
+Same three variables, another base URL and model:
+
+| API | `EVAL_BASE_URL` | `EVAL_MODEL` (example) | Key |
+| --- | --- | --- | --- |
+| Mistral | `https://api.mistral.ai/v1` | `mistral-large-latest` | `EVAL_API_KEY` |
+| OpenAI | `https://api.openai.com/v1` | `gpt-5` | `EVAL_API_KEY` |
+| OpenRouter | `https://openrouter.ai/api/v1` | `mistralai/mistral-large` | `EVAL_API_KEY` |
+| Ollama (local) | `http://localhost:11434/v1` | `qwen3` | none needed |
+
+Without a key the runner sends no `Authorization` header and prints a note; that is fine for a local server. To keep several keys side by side, name the variable the key comes from: `npm run eval -- --api-key-env MISTRAL_API_KEY`. Every setting also has a flag, which wins over the variable:
+
+```bash
+npm run eval -- --base-url https://openrouter.ai/api/v1 --model mistralai/mistral-large --api-key-env OPENROUTER_API_KEY
+```
+
+The model has to support function calling (tools). Notes on how the runner talks to these APIs:
+
+- Tools are sent as `tools: [{type: "function", function: {name, description, parameters}}]` with `tool_choice: "auto"`. `parameters` is the tool's MCP input schema without `$schema`. Some providers reject other JSON Schema keywords; list them in `EVAL_SCHEMA_DROP` (comma-separated, e.g. `EVAL_SCHEMA_DROP=additionalProperties,propertyNames`) and the runner drops them everywhere in the schema. The MCP server still validates every call with the full schema.
+- Tool results go back as one `role: "tool"` message per call, with `tool_call_id` and `name`, as text: data tools as their JSON text, document tools as plain text, an image block as the placeholder `[image content omitted]`. An error result starts with `Error: `.
+- Several tool calls in one turn (parallel calls) all run and are answered in order. Arguments may come as a JSON string or as an object; arguments that are not valid JSON go back to the model as an error without calling the tool. A tool call without an `id` gets one.
+- No `max_tokens`, temperature or effort is sent; the provider's defaults apply. `EVAL_EFFORT` is ignored for `openai`.
+- HTTP 429 is retried once, after `Retry-After` (at most 60 s) or 5 s. Any other error fails that question and the run goes on. HTTP 401 or 403 stops the run with a message that names the provider, the base URL and the variable the key came from.
+
+### Anthropic
+
+```bash
+# .env
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+Then `npm run eval`. Requests use adaptive thinking and `EVAL_EFFORT`. On models that support it, the runner also turns on the API's server-side refusal fallback (`fallbacks: "default"`), so a safety-classifier decline is retried on a fallback model instead of failing the question.
+
+### Choosing the provider
+
+`--provider anthropic|openai` or `EVAL_PROVIDER`. Without either, the provider is `openai` when a base URL is set (`EVAL_BASE_URL` or `--base-url`), otherwise `anthropic`. To run Claude while `.env` holds Mistral settings, pass `--provider anthropic --model claude-opus-5-5` (`EVAL_MODEL` applies to whichever provider runs).
+
+### Output
+
+For each question the runner starts a fresh server on the fixture, connects an MCP client over Streamable HTTP, gives the model the server's tools and instructions, and runs a tool-use loop until the model answers in `<response>` tags. It prints pass/fail, tool calls per question, and the overall accuracy:
 
 ```
 PASS  Q1  4 tool calls (vault_get_aspect×3, search_by_frontmatter×1), 5 turns, 21.4s
@@ -67,22 +127,29 @@ Options:
 | Flag | Effect |
 | --- | --- |
 | `--only 2,5` | Run only these questions (1-based). |
-| `--report out.json` | Also write a JSON report, including Claude's summary of its approach and its feedback on the tools. |
+| `--report out.json` | Also write a JSON report, including the model's summary of its approach and its feedback on the tools. |
 | `--file other.xml` | Use another evaluation file. |
-| `--dry-run` | Start the harness (including the generated notes), convert the tools and load the questions, but make no API calls. Prints the fixture size and every question with its expected answer. Needs no key. |
+| `--dry-run` | Start the harness (including the generated notes), convert the tools for the provider and load the questions, but make no API calls. Prints the provider, base URL, model, whether the key is set (never the key), the fixture size and every question with its expected answer. Needs no key. |
+| `--provider anthropic\|openai` | Provider; overrides `EVAL_PROVIDER`. |
+| `--base-url <url>` | Base URL; overrides `EVAL_BASE_URL` (for `anthropic`, `ANTHROPIC_BASE_URL`). |
+| `--model <id>` | Model; overrides `EVAL_MODEL`. |
+| `--api-key-env <NAME>` | Read the key from this variable instead of `EVAL_API_KEY` (`openai`) or `ANTHROPIC_API_KEY` (`anthropic`). |
 
-Environment variables:
+Environment variables (in `.env` or the shell):
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `ANTHROPIC_API_KEY` | (required) | Claude API key. The runner reads it from the environment only. |
-| `EVAL_MODEL` | `claude-opus-5-5` | Model to evaluate with. |
-| `EVAL_EFFORT` | `high` | `low`, `medium`, `high`, `xhigh` or `max`. |
+| `EVAL_PROVIDER` | see above | `anthropic` or `openai`. |
+| `EVAL_BASE_URL` | (required for `openai`) | Base URL of the OpenAI-compatible API; `/chat/completions` is appended. |
+| `EVAL_API_KEY` | (none) | Key for the `openai` provider. Optional for local servers. |
+| `ANTHROPIC_API_KEY` | (required for `anthropic`) | Claude API key. |
+| `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | Claude API base URL. |
+| `EVAL_MODEL` | `claude-opus-5-5` for `anthropic`; required for `openai` | Model to evaluate with. |
+| `EVAL_EFFORT` | `high` | `anthropic` only: `low`, `medium`, `high`, `xhigh` or `max`. |
 | `EVAL_MAX_TURNS` | `30` | Model turns per question before it counts as failed. |
+| `EVAL_SCHEMA_DROP` | (none) | `openai` only: extra JSON Schema keywords to drop from tool parameters. |
 
-Requests use adaptive thinking. On models that support it, the runner also turns on the API's server-side refusal fallback (`fallbacks: "default"`), so a safety-classifier decline is retried on a fallback model instead of failing the question.
-
-The exit code is 0 when every question ran (whatever the score), 1 when a question hit an API or harness error, and 2 when the key is missing.
+The exit code is 0 when every question ran (whatever the score), 1 when a question hit an API or harness error or the key was rejected, and 2 when `ANTHROPIC_API_KEY` is missing for the `anthropic` provider. A missing base URL or model for `openai` stops with a message that says which variable to set.
 
 To poke at the server with any MCP client, run `npx tsx evals/harness.ts` (set `EVAL_PORT` to pick the port). It prints the URL and token and runs until Ctrl+C.
 
@@ -90,26 +157,26 @@ The eval is run manually only. There is no GitHub Actions workflow for it, so no
 
 ## Baseline score
 
-Record a baseline so changes to tool names, descriptions, parameters, errors or server instructions can be compared before and after. Scores vary a little between runs, so compare against a baseline from the same model and effort, and re-run a question before trusting a single flip.
+Record a baseline so changes to tool names, descriptions, parameters, errors or server instructions can be compared before and after. Scores vary a little between runs and a lot between models, so compare only against a baseline from the same provider, model and effort, and re-run a question before trusting a single flip.
 
 To record one:
 
 1. Start from a clean checkout of the commit you want to measure (usually the latest `main`).
-2. Run the full set with the defaults, so the row compares with earlier rows:
+2. Run the full set with your provider settings in `.env` (for Mistral, the example above):
 
    ```bash
-   ANTHROPIC_API_KEY=sk-ant-... npm run eval -- --report eval-report.json
+   npm run eval -- --report eval-report.json
    ```
 
-   The default model is `claude-opus-5-5` with effort `high` (see `EVAL_MODEL` and `EVAL_EFFORT` above). Do not commit the report; it is for reading the per-question feedback.
-3. At the end of a full run (without `--only`) the runner prints a ready-made table row: date, plugin version from `package.json`, model, effort, fixture seed, accuracy, and tool calls per question.
+   Keep the same provider, model and (for Anthropic) effort as the rows you compare with. Do not commit the report; it is for reading the per-question feedback.
+3. At the end of a full run (without `--only`) the runner prints a ready-made table row: date, plugin version from `package.json`, provider, base URL host, model, effort (`-` for `openai`), fixture seed, accuracy, and tool calls per question.
 4. Add that row to the table below, newest first, in the same PR as the change it measures. If the score changed, say in the PR which questions flipped and why you think they did (the report's `summary` and `feedback` fields help).
 
-Record a new row when tools or server instructions change in a way the model sees, when the questions or the fixture change, or when the default model changes. Do not edit old rows.
+Record a new row when tools or server instructions change in a way the model sees, when the questions or the fixture change, or when you start measuring with another model. Do not edit old rows.
 
-| Date | Version | Model | Effort | Seed | Score | Tool calls per question |
-| --- | --- | --- | --- | --- | --- | --- |
-| | | | | | | |
+| Date | Version | Provider | Host | Model | Effort | Seed | Score | Tool calls per question |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| | | | | | | | | |
 
 No baseline has been recorded yet. The first full local run after #466 should fill in the first row.
 
@@ -129,7 +196,7 @@ Steps:
 1. If the question needs new content, add hand-written notes to `fixture-vault/` (small, no images) or extend `fixture-generator.ts` (bulk content, kept deterministic: use the seeded `rng`, never `Math.random()` or the clock). Check that the existing answers still hold.
 2. Add a `<qa_pair>` to `vault.xml`. Keep the total around 10.
 3. Add a scripted solution to `tests/evals/answers.test.ts` in the same position. It must solve the question through the MCP tools (read-only ones only), page through results like an agent would, and derive the answer from the tool results. This is how every answer is verified.
-4. Run `npm test`, then `npm run eval -- --only <n>` locally to see how Claude does.
+4. Run `npm test`, then `npm run eval -- --only <n>` locally to see how the model does.
 
 ## How the answers are checked
 
