@@ -1,6 +1,7 @@
 import esbuild from 'esbuild';
 import { builtinModules } from 'node:module';
 import process from 'process';
+import { obsidianMoment } from './scripts/esbuild/obsidian-moment.mjs';
 import { zodEnglishOnly } from './scripts/esbuild/zod-locales.mjs';
 
 const production = process.argv[2] === 'production';
@@ -42,7 +43,7 @@ const context = await esbuild.context({
   // ships, so it carries the bundled packages' license notices.
   drop: production ? ['debugger'] : [],
   platform: 'node',
-  plugins: [zodEnglishOnly()],
+  plugins: [obsidianMoment(), zodEnglishOnly()],
 });
 
 if (production) {

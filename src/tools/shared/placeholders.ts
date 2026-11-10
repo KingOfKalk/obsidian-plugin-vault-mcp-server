@@ -1,5 +1,6 @@
 // Obsidian ships moment and its core Templates / Daily notes plugins format
-// `{{date:FORMAT}}` with it; the bundled instance is the same one.
+// `{{date:FORMAT}}` with it; the production build resolves this import to
+// that same instance (scripts/esbuild/obsidian-moment.mjs, #531).
 import moment from 'moment';
 
 function pad2(value: number): string {
