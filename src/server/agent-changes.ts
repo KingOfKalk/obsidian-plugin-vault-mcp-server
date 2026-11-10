@@ -18,6 +18,12 @@ export interface AgentChangeEntry {
 
 export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
   {
+    version: '5.2.0',
+    notes: [
+      'New user setting "Read and edit only" (off by default). While on, `vault_delete`, `vault_delete_folder`, `vault_update` and `vault_write_binary` are not listed, and a call fails with "Tool <name> disabled" (or "not found"). It switches live with `notifications/tools/list_changed`. Edit in place instead (`vault_replace`, `vault_insert`, `vault_append`, `vault_set_frontmatter`); if the user wants a file deleted or replaced, ask them to do it or to switch the setting off.',
+    ],
+  },
+  {
     version: '5.1.0',
     notes: [
       '`vault_get_aspect` with `aspect: "outgoing_links"` or `"embeds"`: each entry adds `path`, the vault path Obsidian resolves the link to from this note (pass it to `vault_read`; `null` when unresolved or inside the config folder), and `subpath`, the `#Heading` or `#^block` part when present. `link` is unchanged.',

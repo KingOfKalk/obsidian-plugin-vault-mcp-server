@@ -408,6 +408,12 @@ see the change after they reconnect. The server instructions (see
 [For developers / MCP client builders](#for-developers--mcp-client-builders))
 are sent once when a client connects and keep the state from that moment.
 
+Above the module cards is one more switch:
+
+| Setting | Default | What it does |
+|---|---|---|
+| **Read and edit only** | off | Hides the four tools that delete or overwrite whole files: `vault_delete`, `vault_delete_folder`, `vault_update` (replaces a file's whole content) and `vault_write_binary` (overwrites an existing file). Like a module switch, it applies right away, also for connected clients: the tools disappear from `tools/list` and calls to them fail with "Tool … disabled". Everything else stays available: reading, creating, `vault_append`, `vault_insert`, `vault_replace`, `vault_set_frontmatter`, `vault_rename`, `vault_move` and `vault_copy` (these refuse an existing destination), templates and search. The Vault module switch itself is not changed. See [How do I stop the agent from deleting files?](#how-do-i-stop-the-agent-from-deleting-files) |
+
 | Module | Default | Tools | Notes |
 |---|---|---|---|
 | Vault and File Operations | on | 20 | Create / read / update / delete files and folders, read one section, replace a passage or insert into a section, rename, move, copy, list, binary I/O, metadata, set frontmatter, daily note. |
@@ -1184,6 +1190,8 @@ again retries the start.
 - The module that ships the tool is disabled. Enable it under **Feature
   Modules**.
 - For Extras tools (e.g. `extras_get_date` (Get current date)), the per-tool toggle is off by default.
+- `vault_delete`, `vault_delete_folder`, `vault_update` and
+  `vault_write_binary` are hidden while **Read and edit only** is on.
 - Editor, Workspace and UI tools are off by default since 5.0. Switch the
   module on under **Feature Modules**.
 - `plugin_dataview_query` is listed only while the Dataview plugin is
@@ -1278,6 +1286,30 @@ settings in Obsidian itself.
 
 This was a bug in earlier versions: every `vault_get_aspect` call failed
 inside the MCP SDK. Update the plugin to the current release.
+
+### How do I stop the agent from deleting files?
+
+Turn on **Read and edit only** under **Feature Modules**. The agent can then
+no longer delete files or folders (`vault_delete`, `vault_delete_folder`) or
+replace a whole file at once (`vault_update`, `vault_write_binary`), but it
+can still read, create, rename, move and copy notes and edit them in place
+(`vault_append`, `vault_insert`, `vault_replace`, `vault_set_frontmatter`).
+Rename, move, copy and create never overwrite: an existing destination is an
+error. The switch applies right away, also to connected clients.
+
+Notes:
+
+- With the switch off, `vault_delete` and `vault_delete_folder` follow
+  Obsidian's **Files and links → Deleted files** setting: a deleted file goes
+  to the system trash or the vault's `.trash` folder and can be restored from
+  there, unless the setting is **Permanently delete**.
+- Edits in place can still remove text, for example a `vault_replace` with an
+  empty replacement. To stop every change, switch off the **Vault and File
+  Operations** and **Templates** modules (and **Editor Operations** if it is
+  on); search and `server_info` stay available.
+- `plugin_execute_command` runs only the Obsidian commands you put on the
+  [Execute Command Allowlist](#execute-command-allowlist). Do not allow
+  commands that delete files, such as `app:delete-file`.
 
 ### How do I expose the server to another machine on my LAN?
 
