@@ -62,6 +62,8 @@ Put the settings in a `.env` file in the repository root. The runner loads it on
 EVAL_BASE_URL=https://api.mistral.ai/v1
 EVAL_MODEL=mistral-large-latest
 EVAL_API_KEY=your-mistral-key
+# Free tier: about one request per second; pace requests so the run is not rate limited.
+EVAL_MIN_INTERVAL_MS=1100
 ```
 
 ```bash
@@ -69,6 +71,8 @@ npm run eval -- --dry-run    # check: shows provider, base URL, model, and wheth
 npm run eval -- --only 1     # one question first
 npm run eval                 # the full set
 ```
+
+Mistral limits requests per second and per minute, more tightly on the free tier. `EVAL_MIN_INTERVAL_MS=1100` keeps requests at least 1.1 s apart, which suits the free tier's limit of about one request per second; on a paid tier you can lower it or leave it out. Rate-limited requests are retried anyway (see [Rate limits](#rate-limits)), but pacing avoids most of the waiting.
 
 ### Other OpenAI-compatible APIs
 
@@ -93,7 +97,12 @@ The model has to support function calling (tools). Notes on how the runner talks
 - Tool results go back as one `role: "tool"` message per call, with `tool_call_id` and `name`, as text: data tools as their JSON text, document tools as plain text, an image block as the placeholder `[image content omitted]`. An error result starts with `Error: `.
 - Several tool calls in one turn (parallel calls) all run and are answered in order. Arguments may come as a JSON string or as an object; arguments that are not valid JSON go back to the model as an error without calling the tool. A tool call without an `id` gets one.
 - No `max_tokens`, temperature or effort is sent; the provider's defaults apply. `EVAL_EFFORT` is ignored for `openai`.
-- HTTP 429 is retried once, after `Retry-After` (at most 60 s) or 5 s. Any other error fails that question and the run goes on. HTTP 401 or 403 stops the run with a message that names the provider, the base URL and the variable the key came from.
+- HTTP 429 and 503 are retried (see [Rate limits](#rate-limits)). Any other error, or a 429/503 that is still there after all retries, ends that question as `ERROR` and the run goes on. HTTP 401 or 403 stops the run with a message that names the provider, the base URL and the variable the key came from.
+
+### Rate limits
+
+- **Retries:** a request that gets HTTP 429 (rate limited) or 503 (unavailable) is retried up to 6 times. The runner waits for `Retry-After` when the server sends it, else 2, 4, 8, 16, 32 and 60 s; no wait is longer than 60 s. Each wait prints one line, e.g. `rate limited, waiting 4s (attempt 2/6)`. The Anthropic SDK retries 429 and 5xx up to 6 times as well, with its own backoff.
+- **Pacing:** `EVAL_MIN_INTERVAL_MS` (or `--min-interval-ms`) keeps model requests at least that many milliseconds apart, across all questions, for both providers. Default `0` (no pacing). For Mistral's free tier use `1100`.
 
 ### Anthropic
 
@@ -110,17 +119,24 @@ Then `npm run eval`. Requests use adaptive thinking and `EVAL_EFFORT`. On models
 
 ### Output
 
-For each question the runner starts a fresh server on the fixture, connects an MCP client over Streamable HTTP, gives the model the server's tools and instructions, and runs a tool-use loop until the model answers in `<response>` tags. It prints pass/fail, tool calls per question, and the overall accuracy:
+For each question the runner starts a fresh server on the fixture, connects an MCP client over Streamable HTTP, gives the model the server's tools and instructions, and runs a tool-use loop until the model answers in `<response>` tags. It prints `PASS`, `FAIL` or `ERROR`, tool calls per question, and the totals:
 
 ```
 PASS  Q1  4 tool calls (vault_get_aspect×3, search_by_frontmatter×1), 5 turns, 21.4s
 FAIL  Q6  2 tool calls (vault_read×1, search_fulltext×1), 3 turns, 9.8s
       expected: 5.4
       got:      6.5  [stop: end_turn]
+ERROR Q7  3 tool calls (search_by_tag×3), 0 turns, 131.2s
+      expected: 2025-07
+      got:      (no <response> tag)  [stop: error]
+      error:    openai provider: HTTP 429 from https://api.mistral.ai/v1/chat/completions after 6 retries: ...
 ...
-Accuracy: 9/10 (90.0%)
+Accuracy: 8/10 (80.0%)
+Results: 8 passed, 1 failed, 1 errored
 Tool calls: 41 total, 4.1 per question
 ```
+
+`FAIL` means the model answered wrongly or not at all. `ERROR` means the question ended on an API or harness error (rate limit after all retries, network, HTTP 5xx), so it says nothing about the tools; re-run it with `--only`. Accuracy counts errored questions as not passed.
 
 Options:
 
@@ -134,6 +150,7 @@ Options:
 | `--base-url <url>` | Base URL; overrides `EVAL_BASE_URL` (for `anthropic`, `ANTHROPIC_BASE_URL`). |
 | `--model <id>` | Model; overrides `EVAL_MODEL`. |
 | `--api-key-env <NAME>` | Read the key from this variable instead of `EVAL_API_KEY` (`openai`) or `ANTHROPIC_API_KEY` (`anthropic`). |
+| `--min-interval-ms <ms>` | Minimum gap between model requests; overrides `EVAL_MIN_INTERVAL_MS`. |
 
 Environment variables (in `.env` or the shell):
 
@@ -148,8 +165,9 @@ Environment variables (in `.env` or the shell):
 | `EVAL_EFFORT` | `high` | `anthropic` only: `low`, `medium`, `high`, `xhigh` or `max`. |
 | `EVAL_MAX_TURNS` | `30` | Model turns per question before it counts as failed. |
 | `EVAL_SCHEMA_DROP` | (none) | `openai` only: extra JSON Schema keywords to drop from tool parameters. |
+| `EVAL_MIN_INTERVAL_MS` | `0` | Minimum gap in ms between model requests (pacing); `1100` for Mistral's free tier. |
 
-The exit code is 0 when every question ran (whatever the score), 1 when a question hit an API or harness error or the key was rejected, and 2 when `ANTHROPIC_API_KEY` is missing for the `anthropic` provider. A missing base URL or model for `openai` stops with a message that says which variable to set.
+The exit code is 0 when every question ran (whatever the score), 1 when a question ended as `ERROR` or the key was rejected, and 2 when `ANTHROPIC_API_KEY` is missing for the `anthropic` provider. A missing base URL or model for `openai` stops with a message that says which variable to set.
 
 To poke at the server with any MCP client, run `npx tsx evals/harness.ts` (set `EVAL_PORT` to pick the port). It prints the URL and token and runs until Ctrl+C.
 
@@ -169,7 +187,7 @@ To record one:
    ```
 
    Keep the same provider, model and (for Anthropic) effort as the rows you compare with. Do not commit the report; it is for reading the per-question feedback.
-3. At the end of a full run (without `--only`) the runner prints a ready-made table row: date, plugin version from `package.json`, provider, base URL host, model, effort (`-` for `openai`), fixture seed, accuracy, and tool calls per question.
+3. At the end of a full run (without `--only`) the runner prints a ready-made table row: date, plugin version from `package.json`, provider, base URL host, model, effort (`-` for `openai`), fixture seed, accuracy, and tool calls per question. If any question ended as `ERROR`, it prints `Not a valid baseline: N question(s) errored` instead of the row: fix the cause (for rate limits, raise `EVAL_MIN_INTERVAL_MS`) and run the full set again.
 4. Add that row to the table below, newest first, in the same PR as the change it measures. If the score changed, say in the PR which questions flipped and why you think they did (the report's `summary` and `feedback` fields help).
 
 Record a new row when tools or server instructions change in a way the model sees, when the questions or the fixture change, or when you start measuring with another model. Do not edit old rows.
