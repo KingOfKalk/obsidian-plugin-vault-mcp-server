@@ -3,9 +3,10 @@
 ## Development Setup
 
 1. Clone the repository
-2. Install dependencies: `npm install`
-3. Start dev build: `npm run dev`
-4. Copy the built files to your vault's plugin folder for testing
+2. Use **Node.js 24.22.1**. CI, the release workflow and the devcontainer (`mcr.microsoft.com/devcontainers/typescript-node:5.2.5-24-trixie`) all use this version. `package.json` `engines` allows `>=22.23.4 <23 || >=24.22.1 <25 || >=26.12.1`, the range WebdriverIO 10 needs; older versions print `EBADENGINE` warnings. To change the version, update the devcontainer image, the `node-version` default in `.github/actions/setup/action.yml`, `.github/workflows/release.yml`, `engines` and this line together.
+3. Install dependencies: `npm install`
+4. Start dev build: `npm run dev`
+5. Copy the built files to your vault's plugin folder for testing
 
 ## Scripts
 
@@ -30,7 +31,7 @@
 
 Unit tests run against `MockObsidianAdapter`. Behaviour that only real Obsidian has (link rewriting on rename, the "Deleted files" setting, the metadata cache) is covered by E2E specs in `e2e/specs/*.e2e.ts`. They use WebdriverIO with [`wdio-obsidian-service`](https://github.com/jesse-r-s-hines/wdio-obsidian-service), configured in `wdio.conf.mts`.
 
-- **Requirements:** Linux with Xvfb and the Electron libraries. On Debian trixie or Ubuntu 24.04+ run `bash scripts/install-e2e-deps.sh` (uses `sudo` unless you are root). Node.js 22.23.4 or newer (WebdriverIO 10).
+- **Requirements:** Linux with Xvfb and the Electron libraries. On Debian trixie or Ubuntu 24.04+ run `bash scripts/install-e2e-deps.sh` (uses `sudo` unless you are root); the devcontainer runs it in `postCreateCommand`. Node.js as in [Development Setup](#development-setup).
 - **Run:** `npm run test:e2e`. It builds the plugin, then runs `xvfb-run -a wdio run ./wdio.conf.mts`. One spec file: `npm run build && xvfb-run -a npx wdio run ./wdio.conf.mts --spec ./e2e/specs/smoke.e2e.ts`. It is not part of `npm test`.
 - **What happens:** the service downloads Obsidian into `.obsidian-cache/` (not committed; the first run takes a while) and opens a temporary copy of `tests/vault/` with this checkout as the plugin. Dataview (pinned in `wdio.conf.mts`) is installed from GitHub but starts disabled; `e2e/specs/plugin-tools.e2e.ts` switches it on and off. Each spec file starts from a fresh vault, so a spec that uses editor, workspace or ui tools switches those modules on first with `enableModules` (they are off in a new install). Each spec sets the plugin's settings with `browser.executeObsidian` (`127.0.0.1`, port 28749, Bearer auth with a test key), starts the server, and calls tools with the MCP SDK client over HTTP. Set `E2E_MCP_PORT` if 28749 is taken. Helpers are in `e2e/helpers.ts`.
 - **Obsidian version:** pinned so results do not change with an Obsidian update. The default is 1.5.3, the oldest public release at or above the manifest's `minAppVersion` (1.5.0 to 1.5.2 were Insider builds). Pick another one with `OBSIDIAN_VERSION=1.15.0 OBSIDIAN_INSTALLER=1.15.0 npm run test:e2e`. CI runs the default and a pinned current release (the `e2e` job matrix in `.github/workflows/ci.yml`). To change a pinned version, edit `wdio.conf.mts` or the matrix; the CI cache key follows automatically.

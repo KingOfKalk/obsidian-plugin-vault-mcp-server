@@ -203,8 +203,9 @@ LLM client or scripts hard-code the old names, update calls as follows:
 ## Installation
 
 If you are building the plugin from source or running the repository's `npm`
-tasks yourself, use **Node.js 22.12.0 or newer**. The packaged release assets
-do not require a separate Node install inside Obsidian.
+tasks yourself, use **Node.js 24.22.1** (the version CI uses). Node 22.23.4+
+and 26.12.1+ also work. The packaged release assets do not require a separate
+Node install inside Obsidian.
 
 ### Option A — Install via BRAT (recommended while in beta)
 
