@@ -27,6 +27,7 @@ import type {
   searchByNameSchema,
   searchTagsSchema,
   linksMapSchema,
+  unresolvedLinksSchema,
 } from './schemas';
 
 export interface SearchHandlers {
@@ -47,7 +48,9 @@ export interface SearchHandlers {
     },
   ) => Promise<CallToolResult>;
   searchResolvedLinks: (params: InferredParams<typeof linksMapSchema>) => Promise<CallToolResult>;
-  searchUnresolvedLinks: (params: InferredParams<typeof linksMapSchema>) => Promise<CallToolResult>;
+  searchUnresolvedLinks: (
+    params: InferredParams<typeof unresolvedLinksSchema>,
+  ) => Promise<CallToolResult>;
   searchBlockReferences: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
   searchByTag: (params: InferredParams<typeof searchByTagSchema>) => Promise<CallToolResult>;
   searchByFrontmatter: (params: InferredParams<typeof searchByFrontmatterSchema>) => Promise<CallToolResult>;
@@ -105,6 +108,42 @@ function toLinkMapPage(page: PaginatedResponse<LinkMapEntry>): LinkMapPage {
     hasMore: page.hasMore,
     ...(page.hasMore ? { nextOffset: page.nextOffset } : {}),
   };
+}
+
+/** Sources listed per target by search_unresolved_links groupBy target (#505). */
+export const MAX_SOURCES_PER_TARGET = 10;
+
+/** One missing link target, summed over its sources (#505). */
+interface UnresolvedTarget {
+  target: string;
+  count: number;
+  sourceCount: number;
+  sources: string[];
+}
+
+/**
+ * Group link-map entries by target: counts summed, sorted by count desc then
+ * target; each lists its first {@link MAX_SOURCES_PER_TARGET} sources by path.
+ */
+function groupByTarget(entries: LinkMapEntry[]): UnresolvedTarget[] {
+  const byTarget = new Map<string, { count: number; sources: string[] }>();
+  for (const [source, targets] of entries) {
+    for (const [target, count] of Object.entries(targets)) {
+      const group = byTarget.get(target) ?? { count: 0, sources: [] };
+      group.count += count;
+      group.sources.push(source);
+      byTarget.set(target, group);
+    }
+  }
+  const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+  return [...byTarget.entries()]
+    .map(([target, { count, sources }]) => ({
+      target,
+      count,
+      sourceCount: sources.length,
+      sources: sources.sort(compare).slice(0, MAX_SOURCES_PER_TARGET),
+    }))
+    .sort((a, b) => b.count - a.count || compare(a.target, b.target));
 }
 
 /** What search_tags reports per tag (#468): counts, not the files. */
@@ -393,7 +432,9 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
       try {
         // A source without broken links carries no information (#464).
         const entries = await linkMapEntries(adapter.getUnresolvedLinks(), params, true);
-        return fitLinkMap(entries, params);
+        if (params.groupBy !== 'target') return fitLinkMap(entries, params);
+        const page = paginate(groupByTarget(entries), readPagination(params));
+        return fitPage(page, ({ items, ...rest }) => dataResponse({ targets: items, ...rest }));
       } catch (error) {
         return handleToolError(error);
       }

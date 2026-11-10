@@ -4,12 +4,12 @@
     "toolCount": 52,
     "totals": {
       "instructions": 1248,
-      "toolsList": 63097,
-      "modelView": 44895,
-      "toolDescriptions": 18931,
-      "inputSchemas": 22289,
-      "inputSchemaDescriptions": 9491,
-      "outputSchemas": 11305,
+      "toolsList": 63530,
+      "modelView": 45076,
+      "toolDescriptions": 18932,
+      "inputSchemas": 22465,
+      "inputSchemaDescriptions": 9574,
+      "outputSchemas": 11557,
       "promptsList": 1425
     },
     "modules": {
@@ -30,8 +30,8 @@
       },
       "search": {
         "tools": 7,
-        "toolsList": 10133,
-        "modelView": 6743
+        "toolsList": 10566,
+        "modelView": 6924
       },
       "workspace": {
         "tools": 5,
@@ -232,8 +232,8 @@
       },
       "search_unresolved_links": {
         "module": "search",
-        "toolsList": 1297,
-        "modelView": 835
+        "toolsList": 1730,
+        "modelView": 1016
       },
       "search_by_tag": {
         "module": "search",
@@ -326,12 +326,12 @@
     "toolCount": 34,
     "totals": {
       "instructions": 1067,
-      "toolsList": 48759,
-      "modelView": 35524,
-      "toolDescriptions": 14944,
-      "inputSchemas": 18136,
-      "inputSchemaDescriptions": 8371,
-      "outputSchemas": 8754,
+      "toolsList": 49192,
+      "modelView": 35705,
+      "toolDescriptions": 14945,
+      "inputSchemas": 18312,
+      "inputSchemaDescriptions": 8454,
+      "outputSchemas": 9006,
       "promptsList": 1425
     }
   }

@@ -212,8 +212,8 @@ Response (`structuredContent`):
 
 **Find unresolved links**
 
-Get the map of unresolved links (link text that matches no file); pass path for one note. Answers "which link targets have no note?"; for the most-linked missing note, sum the counts per target over all pages.
-Paging: over source notes; limit default 50, max 100; next page: offset=nextOffset.
+Get the map of unresolved links (link text that matches no file); pass path for one note. Answers "which link targets have no note?"; groupBy "target" ranks them by link count.
+Paging: over source notes, or targets with groupBy "target"; limit default 50, max 100; next page: offset=nextOffset.
 See also:
 - search_resolved_links — for links that resolve.
 
@@ -222,6 +222,7 @@ See also:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `path` | string (1–4096) | no | Only this note's links. Omit for the whole vault. |
+| `groupBy` | enum: `source` \| `target` | no (default `source`) | "target": one item per missing link target with its total count, most linked first. |
 | `limit` | number (1–100) | no (default `50`) | Maximum items per page. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
 
@@ -229,7 +230,8 @@ See also:
 
 | Field | Type | Description |
 |---|---|---|
-| `links` | object | Map of source note path to { link text that matches no file, as written (e.g. "Missing Note"): count }, for the sources in this page; notes without broken links are left out. |
+| `links` | object | groupBy "source": map of source note path to { link text that matches no file, as written (e.g. "Missing Note"): count }, for the sources in this page; notes without broken links are left out. |
+| `targets` | object[] | groupBy "target": missing targets in this page, by count desc, then target. |
 | `total` | number | Total number of items before paging. |
 | `count` | number | Number of items in this page. |
 | `offset` | number | Offset of the first item in this page. |
