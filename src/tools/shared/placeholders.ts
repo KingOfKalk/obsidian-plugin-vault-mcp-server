@@ -28,6 +28,29 @@ export function noteTitle(path: string): string {
  */
 const FORMAT_PLACEHOLDER = /\{\{((date|time):([^\n]*?))\}\}/g;
 
+/** 24-hour `HH:mm` or `HH:mm:ss`; groups are hours, minutes, seconds. */
+const STRICT_TIME = /^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/;
+
+/**
+ * The moment the `:FORMAT` variants format: `now`, moved to the day of
+ * `variables.date` when it is a strict `YYYY-MM-DD` calendar date and to
+ * the time of `variables.time` when it is a strict 24-hour `HH:mm` or
+ * `HH:mm:ss` (#512). Other values (other ISO forms included) are ignored.
+ */
+function baseMoment(now: Date, variables: Record<string, string>): Date {
+  const base = new Date(now.getTime());
+  const date = variables.date;
+  if (date !== undefined) {
+    const parsed = moment(date, 'YYYY-MM-DD', true);
+    if (parsed.isValid()) base.setFullYear(parsed.year(), parsed.month(), parsed.date());
+  }
+  const time = variables.time === undefined ? null : STRICT_TIME.exec(variables.time);
+  if (time !== null) {
+    base.setHours(Number(time[1]), Number(time[2]), Number(time[3] ?? '0'), 0);
+  }
+  return base;
+}
+
 export interface PlaceholderContext {
   /**
    * Moment for `{{date}}`, `{{time}}` and their `:FORMAT` variants;
@@ -51,7 +74,9 @@ export interface PlaceholderContext {
  * `context.title` when given. `{{date:FORMAT}}` and `{{time:FORMAT}}`
  * format `context.now` with a moment.js format, like Obsidian's core
  * Templates plugin (#488): the format is the text after the first `:`,
- * trimmed; an empty one gives the plain format. User-supplied variables
+ * trimmed; an empty one gives the plain format. A valid `variables.date`
+ * (`YYYY-MM-DD`) or `variables.time` (`HH:mm[:ss]`) replaces the day or
+ * time of the moment they format (#512). User-supplied variables
  * take precedence over the built-ins — also over a format variant, when the
  * variable's key is the whole placeholder (e.g. `date:dddd`). Unknown
  * placeholders are left untouched.
@@ -74,13 +99,14 @@ export function expandPlaceholders(
     ...(context.title === undefined ? {} : { title: context.title }),
     ...variables,
   };
+  const base = baseMoment(now, variables);
   let result = body.replace(
     FORMAT_PLACEHOLDER,
     (match: string, key: string, kind: 'date' | 'time', format: string): string => {
       if (Object.hasOwn(variables, key)) return match;
       const trimmed = format.trim();
-      if (trimmed === '') return kind === 'date' ? formatLocalDate(now) : formatLocalTime(now);
-      return moment(now).format(trimmed);
+      if (trimmed === '') return kind === 'date' ? formatLocalDate(base) : formatLocalTime(base);
+      return moment(base).format(trimmed);
     },
   );
   for (const [key, value] of Object.entries(builtins)) {

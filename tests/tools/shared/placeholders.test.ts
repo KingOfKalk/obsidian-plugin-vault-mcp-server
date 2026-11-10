@@ -124,8 +124,54 @@ describe('expandPlaceholders', () => {
       expect(out).toBe('Someday 2099');
     });
 
-    it('a plain date variable does not affect the format variants', () => {
+    it('an invalid date variable does not affect the format variants', () => {
       expect(expandPlaceholders('{{date}} {{date:YYYY}}', { date: 'x' }, { now: THURSDAY })).toBe('x 2099');
+    });
+
+    describe('variables.date / variables.time as the base (#512)', () => {
+      it('formats a YYYY-MM-DD variables.date', () => {
+        expect(
+          expandPlaceholders(
+            '# {{date:dddd}}, {{date:YYYY-MM-DD}} | {{date}}',
+            { date: '2099-01-02' },
+            { now: new Date('2026-11-10T09:15:00Z') },
+          ),
+        ).toBe('# Friday, 2099-01-02 | 2099-01-02');
+      });
+
+      it('keeps the current time of day with a date variable', () => {
+        expect(
+          expandPlaceholders('{{date:YYYY-MM-DD HH:mm}} {{time:HH:mm}} {{date:}}', { date: '2099-01-02' }, { now: THURSDAY }),
+        ).toBe('2099-01-02 14:05 14:05 2099-01-02');
+      });
+
+      it('formats a HH:mm or HH:mm:ss variables.time', () => {
+        expect(
+          expandPlaceholders('{{time:h:mm A}} {{time:ss}} {{time:}} {{time}}', { time: '07:30' }, { now: THURSDAY }),
+        ).toBe('7:30 AM 00 07:30 07:30');
+        expect(expandPlaceholders('{{time:HH:mm:ss}}', { time: '23:59:58' }, { now: THURSDAY })).toBe('23:59:58');
+      });
+
+      it('combines date and time variables', () => {
+        expect(
+          expandPlaceholders('{{date:ddd D MMM YYYY, HH:mm}}', { date: '2099-12-31', time: '18:45' }, { now: THURSDAY }),
+        ).toBe('Thu 31 Dec 2099, 18:45');
+      });
+
+      it('ignores values that are not a strict date or time', () => {
+        for (const date of ['x', '2099-1-2', '2099-02-30', '2099-01-02T10:00', '20990102', ' 2099-01-02']) {
+          expect(expandPlaceholders('{{date:YYYY-MM-DD}}', { date }, { now: THURSDAY })).toBe('2099-01-01');
+        }
+        for (const time of ['noon', '7:30', '24:00', '12:60', '12:30:60', '12:30 PM']) {
+          expect(expandPlaceholders('{{time:HH:mm}}', { time }, { now: THURSDAY })).toBe('14:05');
+        }
+      });
+
+      it('lets a full-key variable win over the base', () => {
+        expect(
+          expandPlaceholders('{{date:dddd}} {{date:YYYY}}', { date: '2099-01-02', 'date:dddd': 'Someday' }, { now: THURSDAY }),
+        ).toBe('Someday 2099');
+      });
     });
 
     it('leaves other colon placeholders and unclosed tokens as written', () => {
