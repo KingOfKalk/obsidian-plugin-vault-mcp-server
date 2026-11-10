@@ -389,3 +389,204 @@ describe('migrateV12ToV13 (#469: editor, workspace and ui off by default)', () =
     expect(result.moduleStates).toEqual({});
   });
 });
+
+describe('migrateSettings — full results per starting version', () => {
+  // Pinned outputs of the step-by-step migrations, so collapsing the
+  // pre-v10 steps cannot change what an existing install ends up with.
+  const LOOPBACK_ORIGINS = [
+    'http://127.0.0.1',
+    'http://localhost',
+    'https://127.0.0.1',
+    'https://localhost',
+  ];
+  const OLD_DEFAULT_MODULES = {
+    editor: { enabled: true },
+    workspace: { enabled: true },
+    ui: { enabled: true },
+  };
+
+  it('migrates a v0 install', () => {
+    const result = migrateSettings({
+      port: 9999,
+      accessKey: '',
+      debugMode: true,
+      moduleStates: { vault: { enabled: true, readOnly: true }, extras: { enabled: true } },
+    });
+    expect(result).toEqual({
+      schemaVersion: 13,
+      port: 9999,
+      accessKey: '',
+      debugMode: true,
+      httpsEnabled: false,
+      serverAddress: '127.0.0.1',
+      autoStart: false,
+      tlsCertificate: null,
+      authEnabled: false,
+      useCustomTls: false,
+      customTlsCertPath: null,
+      customTlsKeyPath: null,
+      executeCommandAllowlist: [],
+      allowedOrigins: LOOPBACK_ORIGINS,
+      allowedHosts: ['127.0.0.1', 'localhost'],
+      allowNullOrigin: false,
+      requireOrigin: false,
+      iAcceptInsecureMode: true,
+      seenInsecureWarning: false,
+      resourcesEnabled: true,
+      promptsEnabled: true,
+      moduleStates: {
+        vault: { enabled: true },
+        extras: { enabled: true, toolStates: { extras_get_date: true } },
+        ...OLD_DEFAULT_MODULES,
+      },
+    });
+  });
+
+  it('migrates a v3 install', () => {
+    const result = migrateSettings({
+      schemaVersion: 3,
+      serverAddress: '0.0.0.0',
+      port: 28741,
+      accessKey: 'k',
+      httpsEnabled: false,
+      debugMode: false,
+      autoStart: true,
+      moduleStates: {
+        vault: { enabled: true, readOnly: false },
+        editor: { enabled: false },
+        extras: { enabled: false },
+      },
+    });
+    expect(result).toEqual({
+      schemaVersion: 13,
+      serverAddress: '0.0.0.0',
+      port: 28741,
+      accessKey: 'k',
+      httpsEnabled: false,
+      debugMode: false,
+      autoStart: true,
+      tlsCertificate: null,
+      authEnabled: false,
+      useCustomTls: false,
+      customTlsCertPath: null,
+      customTlsKeyPath: null,
+      executeCommandAllowlist: [],
+      allowedOrigins: LOOPBACK_ORIGINS,
+      allowedHosts: ['127.0.0.1', 'localhost'],
+      allowNullOrigin: false,
+      requireOrigin: false,
+      iAcceptInsecureMode: false,
+      seenInsecureWarning: false,
+      resourcesEnabled: true,
+      promptsEnabled: true,
+      moduleStates: {
+        vault: { enabled: true },
+        editor: { enabled: false },
+        extras: { enabled: false, toolStates: {} },
+        workspace: { enabled: true },
+        ui: { enabled: true },
+      },
+    });
+  });
+
+  it('migrates a v9 install', () => {
+    const v9 = {
+      serverAddress: '127.0.0.1',
+      port: 28741,
+      accessKey: '',
+      authEnabled: false,
+      httpsEnabled: false,
+      tlsCertificate: null,
+      useCustomTls: false,
+      customTlsCertPath: null,
+      customTlsKeyPath: null,
+      debugMode: false,
+      autoStart: false,
+      executeCommandAllowlist: ['app:reload'],
+      allowedOrigins: ['http://127.0.0.1'],
+      allowedHosts: ['127.0.0.1'],
+      allowNullOrigin: false,
+      requireOrigin: false,
+    };
+    const result = migrateSettings({
+      schemaVersion: 9,
+      ...v9,
+      moduleStates: { extras: { enabled: true, toolStates: { get_date: false, other: true } } },
+    });
+    expect(result).toEqual({
+      ...v9,
+      schemaVersion: 13,
+      iAcceptInsecureMode: true,
+      seenInsecureWarning: false,
+      resourcesEnabled: true,
+      promptsEnabled: true,
+      moduleStates: {
+        extras: { enabled: true, toolStates: { other: true, extras_get_date: false } },
+        ...OLD_DEFAULT_MODULES,
+      },
+    });
+  });
+
+  it('fills only the fields added after the starting version', () => {
+    // A v5 file is not touched by the v0-v4 defaults: a falsy port or
+    // serverAddress stays as it is, a missing httpsEnabled stays missing.
+    const result = migrateSettings({
+      schemaVersion: 5,
+      port: 0,
+      serverAddress: '',
+      moduleStates: { workspace: { enabled: false } },
+    });
+    expect(result).toEqual({
+      schemaVersion: 13,
+      port: 0,
+      serverAddress: '',
+      authEnabled: false,
+      useCustomTls: false,
+      customTlsCertPath: null,
+      customTlsKeyPath: null,
+      executeCommandAllowlist: [],
+      allowedOrigins: LOOPBACK_ORIGINS,
+      allowedHosts: ['127.0.0.1', 'localhost'],
+      allowNullOrigin: false,
+      requireOrigin: false,
+      iAcceptInsecureMode: false,
+      seenInsecureWarning: false,
+      resourcesEnabled: true,
+      promptsEnabled: true,
+      moduleStates: {
+        workspace: { enabled: false },
+        editor: { enabled: true },
+        ui: { enabled: true },
+      },
+    });
+  });
+
+  it('leaves a current install unchanged', () => {
+    const current = {
+      schemaVersion: 13,
+      serverAddress: '127.0.0.1',
+      port: 28741,
+      authEnabled: true,
+      accessKey: 'abc',
+      httpsEnabled: false,
+      tlsCertificate: null,
+      useCustomTls: false,
+      customTlsCertPath: null,
+      customTlsKeyPath: null,
+      debugMode: false,
+      autoStart: false,
+      resourcesEnabled: true,
+      promptsEnabled: false,
+      executeCommandAllowlist: [],
+      allowedOrigins: ['http://localhost'],
+      allowedHosts: ['localhost'],
+      allowNullOrigin: false,
+      requireOrigin: false,
+      iAcceptInsecureMode: false,
+      seenInsecureWarning: true,
+      moduleStates: { vault: { enabled: true } },
+      readAndEditOnly: false,
+    };
+    expect(migrateSettings(structuredClone(current))).toEqual(current);
+  });
+});
