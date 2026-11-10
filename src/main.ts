@@ -330,6 +330,7 @@ export default class McpPlugin extends Plugin {
       this.registry.registerModule(module);
     }
     this.registry.applyState(this.settings.moduleStates);
+    this.registry.setReadAndEditOnly(this.settings.readAndEditOnly);
   }
 
   private updateStatusDisplay(): void {

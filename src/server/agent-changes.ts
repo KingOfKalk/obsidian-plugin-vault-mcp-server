@@ -18,8 +18,9 @@ export interface AgentChangeEntry {
 
 export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
   {
-    version: '5.1.1',
+    version: '5.2.0',
     notes: [
+      'New user setting "Read and edit only" (off by default). While on, `vault_delete`, `vault_delete_folder`, `vault_update` and `vault_write_binary` are not listed, and a call fails with "Tool <name> disabled" (or "not found"). It switches live with `notifications/tools/list_changed`. Edit in place instead (`vault_replace`, `vault_insert`, `vault_append`, `vault_set_frontmatter`); if the user wants a file deleted or replaced, ask them to do it or to switch the setting off.',
       '`heading` in `vault_read` and `vault_insert` also matches Obsidian\'s `#heading` link form when no heading has the exact text: punctuation and link brackets count as spaces, case is ignored, and a leading `#` is allowed. So `"2026-11-10 - Call"` (from `[[Note#2026-11-10 - Call]]`) finds `### [[2026-11-10]] - Call`. Several such matches are an error, as with duplicate headings.',
     ],
   },

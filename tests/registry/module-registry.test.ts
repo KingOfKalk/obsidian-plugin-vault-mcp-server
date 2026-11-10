@@ -450,3 +450,64 @@ describe('default module states (#469)', () => {
     expect(registry.getActiveTools().map((t) => t.name)).toEqual(['editor_x']);
   });
 });
+
+describe('ModuleRegistry read and edit only (#517)', () => {
+  let registry: ModuleRegistry;
+
+  function contentDestroyingTool(name: string): ToolDefinition {
+    return { ...createMockTool(name, false), destroysContent: true };
+  }
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    registry = new ModuleRegistry(createMockLogger());
+    registry.registerModule(
+      createMockModule('files', [
+        createMockTool('read', true),
+        createMockTool('edit', false),
+        contentDestroyingTool('remove'),
+      ]),
+    );
+  });
+
+  it('is off by default and lists every tool', () => {
+    expect(registry.isReadAndEditOnly()).toBe(false);
+    expect(registry.getActiveTools().map((t) => t.name)).toEqual(['read', 'edit', 'remove']);
+  });
+
+  it('leaves the tools that destroy content out while on', () => {
+    registry.setReadAndEditOnly(true);
+    expect(registry.isReadAndEditOnly()).toBe(true);
+    expect(registry.getActiveTools().map((t) => t.name)).toEqual(['read', 'edit']);
+
+    registry.setReadAndEditOnly(false);
+    expect(registry.getActiveTools().map((t) => t.name)).toEqual(['read', 'edit', 'remove']);
+  });
+
+  it('keeps the module switch and the saved module state untouched', () => {
+    registry.setReadAndEditOnly(true);
+    expect(registry.isModuleEnabled('files')).toBe(true);
+    expect(registry.getState()).toEqual({ files: { enabled: true } });
+    expect(registry.getEnabledModuleIds()).toEqual(['files']);
+  });
+
+  it('notifies the change handlers only when the switch changes', () => {
+    const handler = vi.fn();
+    registry.onChange(handler);
+    registry.setReadAndEditOnly(true);
+    expect(handler).toHaveBeenCalledTimes(1);
+    registry.setReadAndEditOnly(true);
+    expect(handler).toHaveBeenCalledTimes(1);
+    registry.setReadAndEditOnly(false);
+    expect(handler).toHaveBeenCalledTimes(2);
+  });
+
+  it('survives a module refresh (clear and register again)', () => {
+    registry.setReadAndEditOnly(true);
+    registry.clear();
+    registry.registerModule(
+      createMockModule('files', [createMockTool('read', true), contentDestroyingTool('remove')]),
+    );
+    expect(registry.getActiveTools().map((t) => t.name)).toEqual(['read']);
+  });
+});

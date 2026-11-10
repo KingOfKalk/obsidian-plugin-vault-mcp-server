@@ -93,6 +93,7 @@ const baseSettings: McpPluginSettings = {
   iAcceptInsecureMode: false,
   seenInsecureWarning: true,
   moduleStates: {},
+  readAndEditOnly: false,
 };
 
 function makePlugin(opts: {
@@ -175,6 +176,10 @@ describe('collectDebugInfo', () => {
       expect(bundle).toContain('Port: 28741');
       expect(bundle).toContain('Connected clients: 2');
       expect(bundle).toContain('Active sessions: 3');
+    });
+
+    it('reports the "Read and edit only" switch (#517)', () => {
+      expect(bundle).toContain('readAndEditOnly: false');
     });
 
     it('redacts the access key as <set>, never the literal value', () => {

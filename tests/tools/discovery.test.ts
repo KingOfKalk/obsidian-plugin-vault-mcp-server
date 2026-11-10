@@ -52,3 +52,27 @@ describe('tool discovery', () => {
     expect(registry.getActiveTools().length).toBeGreaterThan(0);
   });
 });
+
+describe('tools hidden by "Read and edit only" (#517)', () => {
+  it('are exactly the tools that delete or overwrite existing content', () => {
+    const names = discoverModules(new MockObsidianAdapter())
+      .flatMap((m) => m.tools())
+      .filter((t) => t.destroysContent === true)
+      .map((t) => t.name)
+      .sort();
+    expect(names).toEqual([
+      'vault_delete',
+      'vault_delete_folder',
+      'vault_update',
+      'vault_write_binary',
+    ]);
+  });
+
+  it('all carry the destructive annotation', () => {
+    for (const tool of discoverModules(new MockObsidianAdapter()).flatMap((m) => m.tools())) {
+      if (tool.destroysContent === true) {
+        expect(tool.annotations.destructiveHint, tool.name).toBe(true);
+      }
+    }
+  });
+});

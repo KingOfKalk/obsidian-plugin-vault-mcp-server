@@ -18,6 +18,12 @@ export class ModuleRegistry {
    * a tool's runtime availability actually changed.
    */
   private lastUnavailable = '';
+  /**
+   * "Read and edit only" (#517): while true, tools marked
+   * `destroysContent` are left out of the active tools. Kept across
+   * {@link clear}, since it is a setting and not part of a module.
+   */
+  private readAndEditOnly = false;
 
   constructor(logger: Logger) {
     this.logger = logger;
@@ -111,6 +117,22 @@ export class ModuleRegistry {
     return registration.toolStates[toolName] ?? false;
   }
 
+  /**
+   * Switch "Read and edit only" on or off (#517). Open MCP sessions follow
+   * through the change handlers, like a module switch (#448). Notifies only
+   * when the value changes.
+   */
+  setReadAndEditOnly(enabled: boolean): void {
+    if (this.readAndEditOnly === enabled) return;
+    this.readAndEditOnly = enabled;
+    this.logger.info(`Set read and edit only: ${String(enabled)}`);
+    this.notifyChange();
+  }
+
+  isReadAndEditOnly(): boolean {
+    return this.readAndEditOnly;
+  }
+
   getModules(): ModuleRegistration[] {
     return Array.from(this.modules.values());
   }
@@ -127,6 +149,7 @@ export class ModuleRegistry {
       const moduleTools = registration.module.tools();
       for (const tool of moduleTools) {
         if (isExtras && !(registration.toolStates[tool.name] ?? false)) continue;
+        if (this.readAndEditOnly && tool.destroysContent === true) continue;
         if (!isToolAvailable(tool)) continue;
         tools.push(tool);
       }

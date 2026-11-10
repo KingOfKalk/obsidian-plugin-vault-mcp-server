@@ -75,6 +75,14 @@ export interface ToolDefinition<
    * up by `ModuleRegistry.refreshAvailability`, so keep it cheap.
    */
   isAvailable?: () => boolean;
+  /**
+   * True for a tool that can delete or overwrite existing content without
+   * an error, e.g. delete a file or replace a whole file (#517). The
+   * "Read and edit only" setting leaves these tools out of `tools/list`
+   * (`ModuleRegistry.setReadAndEditOnly`). Tools that refuse an existing
+   * destination, and targeted edits such as `vault_replace`, leave it unset.
+   */
+  destroysContent?: boolean;
 }
 
 export type TypedHandler<Shape extends z.ZodRawShape> = (
