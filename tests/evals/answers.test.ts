@@ -140,10 +140,22 @@ async function personWith(key: string, value: string): Promise<string> {
   throw new Error(`no person with ${key}=${value}`);
 }
 
+/** search_by_frontmatter hits carry the note's value (#503). */
+interface FrontmatterHit {
+  path: string;
+  value: unknown;
+}
+
+/** Paths of the notes whose frontmatter has `key: value`. */
+async function notesWhere(key: string, value: string): Promise<string[]> {
+  const { items } = await allItems<FrontmatterHit>('search_by_frontmatter', { key, value });
+  for (const hit of items) expect(hit).toHaveProperty('value');
+  return items.map((hit) => hit.path);
+}
+
 /** Station IDs whose frontmatter has `key: value`. */
 async function stationsWhere(key: string, value: string): Promise<Set<string>> {
-  const { items } = await allItems('search_by_frontmatter', { key, value });
-  return new Set(items.filter((p) => p.startsWith('stations/')).map(nameOf));
+  return new Set((await notesWhere(key, value)).filter((p) => p.startsWith('stations/')).map(nameOf));
 }
 
 /** The single key with the highest count; fails on a tie for first place. */
@@ -161,7 +173,7 @@ function count(map: Map<string, number>, key: string): void {
 const solutions: Array<() => Promise<string>> = [
   // Q1: active projects -> the one with no outgoing links -> owner -> role
   async (): Promise<string> => {
-    const { items: active } = await allItems('search_by_frontmatter', { key: 'status', value: 'active' });
+    const active = await notesWhere('status', 'active');
     const unlinked: string[] = [];
     for (const p of active) if ((await aspectLinks(p, 'outgoing_links')).length === 0) unlinked.push(p);
     expect(unlinked).toHaveLength(1);
@@ -171,7 +183,7 @@ const solutions: Array<() => Promise<string>> = [
   // Q2: Lead Researcher -> their active project -> distinct backlinks
   async (): Promise<string> => {
     const lead = nameOf(await personWith('role', 'Lead Researcher'));
-    const { items: owned } = await allItems('search_by_frontmatter', { key: 'owner', value: lead });
+    const owned = await notesWhere('owner', lead);
     const active: string[] = [];
     for (const p of owned) if ((await frontmatter(p)).status === 'active') active.push(p);
     expect(active).toHaveLength(1);

@@ -80,6 +80,25 @@ const unresolvedLinksOutputSchema = {
 /** The link maps page over source notes (#464). */
 const LINK_PAGES = 'over source notes';
 
+/** `search_by_frontmatter` (#503): each hit carries the note's value. */
+const frontmatterHitsOutputSchema = {
+  items: z
+    .array(
+      z.object({
+        path: z.string().describe('Vault-relative path of the note.'),
+        value: z
+          .unknown()
+          .describe('The note\'s value of key as parsed (string, number, boolean, null, list or object).'),
+        valueTruncated: z
+          .boolean()
+          .optional()
+          .describe('True when value was cut to its first 1000 characters (of the JSON for a list or object).'),
+      }),
+    )
+    .describe('Matching notes in this page.'),
+  ...pageOutputFields,
+};
+
 const paginatedPathPageOutputSchema = {
   total: z
     .number()
@@ -194,14 +213,16 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
             summary:
               'Filter Markdown notes by frontmatter (YAML property) values, e.g. status: retired or type: station; without value, notes that have the key. ' +
               'Prefer it over search_fulltext for property questions.',
+            returns: 'Each item has path and the note\'s value of key.',
             paging: '',
             examples: [
               'Use when: "find all notes where status == done" -> { key: "status", value: "done" }',
               'Use when: "which notes have a status?" -> { key: "status" }',
+              'Use when: "dates in July 2025" -> { key: "date", value: "2025-07", match: "prefix" }',
             ],
           }),
           schema: searchByFrontmatterSchema,
-          outputSchema: paginatedPathPageOutputSchema,
+          outputSchema: frontmatterHitsOutputSchema,
           handler: handlers.searchByFrontmatter,
           annotations: annotations.read,
         }),
