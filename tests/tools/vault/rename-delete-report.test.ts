@@ -182,13 +182,13 @@ describe('rename/move link report and delete destination (#430)', () => {
     );
   });
 
-  describe('vault_rename_folder', () => {
-    it('counts links into every file of the folder and remaps moved sources', async () => {
+  describe('folder renames without vault_rename_folder (#468)', () => {
+    it('vault_move renames a folder in place, counts links into it and remaps moved sources', async () => {
       addNote('wip/one.md', 'one, see [[wip/two]]', ['wip/two']);
       addNote('wip/two.md', 'two');
       addNote('index.md', '[[wip/one]] [[wip/two]]', ['wip/one', 'wip/two']);
 
-      const result = await handlers.renameFolder({ path: 'wip', newPath: 'done' });
+      const result = await handlers.moveFile({ path: 'wip', newPath: 'done' });
 
       expect(result.isError).toBeUndefined();
       expect(result.structuredContent).toEqual({
@@ -199,22 +199,32 @@ describe('rename/move link report and delete destination (#430)', () => {
         autoUpdateLinks: true,
       });
       expect(await adapter.readFile('index.md')).toBe('[[done/one]] [[done/two]]');
+      expect(await adapter.readFile('done/one.md')).toBe('one, see [[done/two]]');
     });
 
-    it('warns when the setting is off and outside files link into the folder', async () => {
+    it('vault_move sets no warning when only files inside the folder link to it', async () => {
       adapter.setAutoUpdateLinks(false);
-      addNote('wip/one.md', 'one');
-      addNote('index.md', '[[wip/one]]', ['wip/one']);
+      addNote('wip/one.md', '[[wip/two]]', ['wip/two']);
+      addNote('wip/two.md', 'two');
 
-      const result = await handlers.renameFolder({ path: 'wip', newPath: 'done' });
+      const result = await handlers.moveFile({ path: 'wip', newPath: 'done' });
 
-      expect(result.structuredContent).toMatchObject({ linksUpdated: 0, updatedFiles: [] });
-      expect((result.structuredContent as { warning?: string }).warning).toContain('1 file links to wip');
+      expect(result.structuredContent).toEqual({
+        from: 'wip',
+        to: 'done',
+        linksUpdated: 0,
+        updatedFiles: [],
+        autoUpdateLinks: false,
+      });
     });
 
-    it('still reports "not found" for a missing folder', async () => {
-      const result = await handlers.renameFolder({ path: 'nope', newPath: 'x' });
+    it.each(['move', 'rename'] as const)('vault_%s reports "not found" for a missing folder', async (tool) => {
+      const result =
+        tool === 'move'
+          ? await handlers.moveFile({ path: 'nope', newPath: 'x' })
+          : await handlers.renameFile({ path: 'nope', newName: 'x' });
       expect(result.isError).toBe(true);
+      expect(getText(result)).toContain('Path not found');
     });
   });
 

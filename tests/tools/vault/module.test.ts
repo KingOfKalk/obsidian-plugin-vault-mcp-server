@@ -17,7 +17,7 @@ describe('vault module', () => {
     const adapter = new MockObsidianAdapter();
     const module = createVaultModule(adapter);
     const tools = module.tools();
-    expect(tools).toHaveLength(21);
+    expect(tools).toHaveLength(20);
   });
 
   it('should have 6 read-only tools', () => {
@@ -31,7 +31,7 @@ describe('vault module', () => {
     const adapter = new MockObsidianAdapter();
     const module = createVaultModule(adapter);
     const writeTools = module.tools().filter((t) => !t.annotations.readOnlyHint);
-    expect(writeTools).toHaveLength(15);
+    expect(writeTools).toHaveLength(14);
   });
 
   it('should have correct tool names', () => {
@@ -55,7 +55,6 @@ describe('vault module', () => {
       'vault_read',
       'vault_read_binary',
       'vault_rename',
-      'vault_rename_folder',
       'vault_replace',
       'vault_set_frontmatter',
       'vault_update',
@@ -117,7 +116,7 @@ describe('vault read tools — outputSchema declarations', () => {
     const data = createVaultModule(adapter)
       .tools()
       .filter((t) => !['vault_read', 'vault_daily_note', 'vault_read_binary'].includes(t.name));
-    expect(data).toHaveLength(18);
+    expect(data).toHaveLength(17);
     for (const tool of data) expect(tool.outputSchema, tool.name).toBeDefined();
   });
 

@@ -51,7 +51,6 @@ const WRITE_TOOLS_WITH_OUTPUT = [
   'vault_delete',
   'vault_create_folder',
   'vault_delete_folder',
-  'vault_rename_folder',
   'vault_write_binary',
   'editor_insert',
   'editor_replace',
@@ -289,10 +288,6 @@ describe('write tools return their data as JSON text and structuredContent (#388
     [
       'vault_delete_folder',
       { path: 'empty', deleted: true, recursive: false, trashedTo: 'system' },
-    ],
-    [
-      'vault_rename_folder',
-      { from: 'empty', to: 'renamed', linksUpdated: 0, updatedFiles: [], autoUpdateLinks: true },
     ],
     [
       'vault_write_binary',

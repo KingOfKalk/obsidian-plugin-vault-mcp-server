@@ -20,7 +20,6 @@ import {
   copyFileSchema,
   createFolderSchema,
   deleteFolderSchema,
-  renameFolderSchema,
   listFolderSchema,
   listRecursiveSchema,
   readBinarySchema,
@@ -470,7 +469,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'vault_rename',
-          title: 'Rename file',
+          title: 'Rename file or folder',
           description: describeTool({
             summary: 'Rename a file or folder within its current folder.',
             returns: LINK_UPDATE_RETURNS,
@@ -488,7 +487,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
         }),
         defineTool({
           name: 'vault_move',
-          title: 'Move file',
+          title: 'Move file or folder',
           description: describeTool({
             summary: 'Move a file or folder to a new path (can change folder and name). Missing parent folders are created.',
             returns: LINK_UPDATE_RETURNS,
@@ -541,19 +540,6 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           outputSchema: deleteFolderOutputSchema,
           handler: handlers.deleteFolder,
           annotations: annotations.destructiveIdempotent,
-        }),
-        defineTool({
-          name: 'vault_rename_folder',
-          title: 'Rename folder',
-          description: describeTool({
-            summary: 'Rename or move a folder (a file works too). Missing parent folders of newPath are created.',
-            returns: LINK_UPDATE_RETURNS,
-            errors: [PATH_NOT_FOUND_ERROR, DESTINATION_EXISTS_ERROR],
-          }),
-          schema: renameFolderSchema,
-          outputSchema: renameOutputSchema,
-          handler: handlers.renameFolder,
-          annotations: annotations.destructive,
         }),
         defineTool({
           name: 'vault_list',

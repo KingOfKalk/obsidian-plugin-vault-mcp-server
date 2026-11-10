@@ -103,7 +103,6 @@ export const SAMPLE_ARGS: Record<string, Record<string, unknown>> = {
   vault_copy: { sourcePath: 'README.md', destPath: 'README-copy.md' },
   vault_create_folder: { path: 'brand-new' },
   vault_delete_folder: { path: 'empty' },
-  vault_rename_folder: { path: 'empty', newPath: 'renamed' },
   vault_list: { path: 'projects' },
   vault_list_recursive: { path: 'projects' },
   vault_read_binary: { path: 'img.png' },

@@ -219,11 +219,6 @@ export const deleteFolderSchema = {
     .describe('Also delete everything inside; when false, only an empty folder is deleted.'),
 };
 
-export const renameFolderSchema = {
-  path: vaultPathField(FOLDER_PATH_DESC),
-  newPath: vaultPathField(FOLDER_PATH_DESC),
-};
-
 /**
  * Folder path for the listing tools. Unlike `folderPath` it may be empty:
  * `""`, `"/"` and `"."` all mean the vault root (#388).

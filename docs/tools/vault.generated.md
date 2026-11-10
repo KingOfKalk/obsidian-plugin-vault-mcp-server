@@ -446,7 +446,7 @@ Response (`structuredContent`):
 
 ### vault_rename
 
-**Rename file**
+**Rename file or folder**
 
 Rename a file or folder within its current folder.
 Returns: Links to it (for a folder: to every file in it) are updated only if the user enabled "Automatically update internal links"; no Obsidian prompt appears either way. linksUpdated and updatedFiles report the rewritten links, autoUpdateLinks the setting; warning is set when other files link to it but were not updated.
@@ -503,7 +503,7 @@ Response (`structuredContent`):
 
 ### vault_move
 
-**Move file**
+**Move file or folder**
 
 Move a file or folder to a new path (can change folder and name). Missing parent folders are created.
 Returns: Links to it (for a folder: to every file in it) are updated only if the user enabled "Automatically update internal links"; no Obsidian prompt appears either way. linksUpdated and updatedFiles report the rewritten links, autoUpdateLinks the setting; warning is set when other files link to it but were not updated.
@@ -691,60 +691,6 @@ Response (`structuredContent`):
   "deleted": true,
   "recursive": false,
   "trashedTo": "system"
-}
-```
-
-### vault_rename_folder
-
-**Rename folder**
-
-Rename or move a folder (a file works too). Missing parent folders of newPath are created.
-Returns: Links to it (for a folder: to every file in it) are updated only if the user enabled "Automatically update internal links"; no Obsidian prompt appears either way. linksUpdated and updatedFiles report the rewritten links, autoUpdateLinks the setting; warning is set when other files link to it but were not updated.
-Errors:
-- "Path not found" if path does not exist.
-- "Destination already exists" if the new path is taken; nothing is moved.
-
-#### Input
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `path` | string (1–4096) | yes | Vault-relative folder path, e.g. `projects/2026`. |
-| `newPath` | string (1–4096) | yes | Vault-relative folder path, e.g. `projects/2026`. |
-
-#### Output
-
-| Field | Type | Description |
-|---|---|---|
-| `from` | string | Vault-relative source path. |
-| `to` | string | Vault-relative destination path. |
-| `linksUpdated` | number | Number of links to the moved file(s) in the files listed in updatedFiles. |
-| `updatedFiles` | string[] | Vault-relative paths (after the rename) whose content changed because links were updated. |
-| `autoUpdateLinks` | unknown | The user's "Automatically update internal links" setting; null if it could not be read. |
-| `warning` | string | Present when other files link to the moved file(s) but their links were not updated. |
-
-#### Example
-
-Request (`tools/call` params):
-
-```json
-{
-  "name": "vault_rename_folder",
-  "arguments": {
-    "path": "empty",
-    "newPath": "renamed"
-  }
-}
-```
-
-Response (`structuredContent`):
-
-```json
-{
-  "from": "empty",
-  "to": "renamed",
-  "linksUpdated": 0,
-  "updatedFiles": [],
-  "autoUpdateLinks": true
 }
 ```
 

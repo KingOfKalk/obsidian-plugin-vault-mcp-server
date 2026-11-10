@@ -162,35 +162,9 @@ describe('rename and move: link report vs real link rewriting', function () {
     await expectNoModal();
   });
 
-  it('vault_rename_folder returns without a prompt and leaves links alone when auto-update is off', async function () {
-    await setVaultConfig('alwaysUpdateLinks', false);
-    await writeNotes({
-      'folder-off/wip/Inside.md': 'Inside\n',
-      'folder-off/Outside.md': 'Link: [[folder-off/wip/Inside]]\n',
-    });
-    await waitForLinks({ 'folder-off/Outside.md': { 'folder-off/wip/Inside.md': 1 } });
-
-    const report = await callTool<LinkReport>(client, 'vault_rename_folder', {
-      path: 'folder-off/wip',
-      newPath: 'folder-off/done',
-    });
-
-    expect(report).toMatchObject({
-      autoUpdateLinks: false,
-      linksUpdated: 0,
-      updatedFiles: [],
-    });
-    expect(report.warning).toContain('1 file links to folder-off/wip');
-    expect(await readFromDisk('folder-off/Outside.md')).toBe('Link: [[folder-off/wip/Inside]]\n');
-    expect(await readFromDisk('folder-off/done/Inside.md')).toBe('Inside\n');
-    expect(await readFromDisk('folder-off/wip/Inside.md')).toBeNull();
-    await expectNoModal();
-  });
-
   /**
    * vault_move and vault_rename accept folders too; their link report must
-   * count links to every file in the folder, like vault_rename_folder
-   * (#447). It used to look only for links to the folder path itself.
+   * count links to every file in the folder (#447). It used to look only for links to the folder path itself.
    */
   it('vault_move on a folder reports the links Obsidian rewrote into it', async function () {
     await setVaultConfig('alwaysUpdateLinks', true);
@@ -247,7 +221,7 @@ describe('rename and move: link report vs real link rewriting', function () {
 
   /**
    * vault_move and vault_rename replace vault_rename_folder (#468): on a
-   * folder they must report and warn exactly like it did.
+   * folder they report and warn exactly like it did.
    */
   it('vault_move on a folder returns without a prompt and leaves links alone when auto-update is off', async function () {
     await setVaultConfig('alwaysUpdateLinks', false);

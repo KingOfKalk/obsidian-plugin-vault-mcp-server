@@ -72,8 +72,9 @@ describe('config folder block (#462)', () => {
     ['vault_copy', { sourcePath: 'notes/a.md', destPath: '.obsidian/a.md' }],
     ['vault_create_folder', { path: '.obsidian/new' }],
     ['vault_delete_folder', { path: '.obsidian', recursive: true }],
-    ['vault_rename_folder', { path: 'notes', newPath: '.obsidian/notes' }],
-    ['vault_rename_folder', { path: '.obsidian', newPath: 'config' }],
+    ['vault_move', { path: 'notes', newPath: '.obsidian/notes' }],
+    ['vault_move', { path: '.obsidian', newPath: 'config' }],
+    ['vault_rename', { path: '.obsidian', newName: 'config' }],
     ['vault_list', { path: '.obsidian' }],
     ['vault_list_recursive', { path: '.obsidian/plugins' }],
   ];

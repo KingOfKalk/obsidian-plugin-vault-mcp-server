@@ -52,7 +52,6 @@ import type {
   copyFileSchema,
   createFolderSchema,
   deleteFolderSchema,
-  renameFolderSchema,
   listFolderSchema,
   listRecursiveSchema,
   readBinarySchema,
@@ -313,8 +312,8 @@ const RENAME_TARGET_PATTERN =/^[^/\\\x00]+$/;
  * The files a rename of `path` moves, for counting the links to them: every
  * file inside a folder (recursively), or the file itself. A path that is
  * not a folder counts as one file; the rename itself then reports any
- * error. Shared by vault_rename, vault_move and vault_rename_folder, which
- * all accept files and folders (#447).
+ * error. Shared by vault_rename and vault_move, which both accept files
+ * and folders (#447).
  */
 function movedFiles(adapter: ObsidianAdapter, path: string): string[] {
   try {
@@ -348,7 +347,6 @@ export interface VaultHandlers {
   getMetadata: (params: InferredParams<typeof getMetadataSchema>) => Promise<CallToolResult>;
   createFolder: (params: InferredParams<typeof createFolderSchema>) => Promise<CallToolResult>;
   deleteFolder: (params: InferredParams<typeof deleteFolderSchema>) => Promise<CallToolResult>;
-  renameFolder: (params: InferredParams<typeof renameFolderSchema>) => Promise<CallToolResult>;
   listFolder: (params: InferredParams<typeof listFolderSchema>) => Promise<CallToolResult>;
   listRecursive: (params: InferredParams<typeof listRecursiveSchema>) => Promise<CallToolResult>;
   readBinary: (params: InferredParams<typeof readBinarySchema>) => Promise<CallToolResult>;
@@ -657,22 +655,6 @@ export function createHandlers(
           recursive: params.recursive ?? false,
           trashedTo,
         });
-      } catch (error) {
-        return handleToolError(error);
-      }
-    },
-
-    async renameFolder(params): Promise<CallToolResult> {
-      try {
-        const path = validateToolPath(params.path, vaultPath, configDir);
-        const newPath = validateToolPath(params.newPath, vaultPath, configDir);
-        const report = await renameWithLinkReport(
-          adapter,
-          path,
-          newPath,
-          movedFiles(adapter, path),
-        );
-        return dataResponse({ from: path, to: newPath, ...report });
       } catch (error) {
         return handleToolError(error);
       }

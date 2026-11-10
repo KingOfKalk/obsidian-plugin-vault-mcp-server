@@ -150,11 +150,6 @@ describe('config folder is blocked (#462)', function () {
   it('folder tools fail and change nothing on disk', async function () {
     await expectBlocked('vault_create_folder', { path: `${configDir}/e2e-new-folder` });
     await expectBlocked('vault_delete_folder', { path: `${configDir}/e2e-block-folder`, recursive: true });
-    await expectBlocked('vault_rename_folder', {
-      path: `${configDir}/e2e-block-folder`,
-      newPath: 'block/stolen',
-    });
-    await expectBlocked('vault_rename_folder', { path: 'block', newPath: `${configDir}/block` });
     await expectBlocked('vault_move', {
       path: `${configDir}/e2e-block-folder`,
       newPath: 'block/stolen',
