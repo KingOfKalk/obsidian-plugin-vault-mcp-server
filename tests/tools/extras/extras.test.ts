@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { z } from 'zod';
 import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
 import { createExtrasModule } from '../../../src/tools/extras/index';
@@ -62,6 +62,33 @@ describe('Extras module', () => {
     const [hh, mm] = offsetToken.slice(1).split(':');
     const encodedMinutes = sign * (parseInt(hh, 10) * 60 + parseInt(mm, 10));
     expect([-before, -after]).toContain(encodedMinutes);
+  });
+
+  describe('extras_get_date output for a fixed instant (#531)', () => {
+    const originalTz = process.env.TZ;
+
+    afterEach(() => {
+      vi.useRealTimers();
+      if (originalTz === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTz;
+    });
+
+    it.each([
+      ['UTC', '2026-04-19T06:30:00.000Z', '2026-04-19T06:30:00.000+00:00'],
+      ['Europe/Berlin', '2026-04-19T06:30:00.000Z', '2026-04-19T08:30:00.000+02:00'],
+      ['Europe/Berlin', '2026-01-05T23:59:59.007Z', '2026-01-06T00:59:59.007+01:00'],
+      ['Asia/Kathmandu', '2026-12-31T18:15:00.050Z', '2027-01-01T00:00:00.050+05:45'],
+      ['America/St_Johns', '2026-07-01T02:00:00.999Z', '2026-06-30T23:30:00.999-02:30'],
+      ['America/Los_Angeles', '2026-03-08T10:00:00.000Z', '2026-03-08T03:00:00.000-07:00'],
+    ])('in %s, %s is %s', async (tz, instant, expected) => {
+      process.env.TZ = tz;
+      vi.useFakeTimers({ now: new Date(instant), toFake: ['Date'] });
+      const tool = createExtrasModule(new MockObsidianAdapter())
+        .tools()
+        .find((t) => t.name === 'extras_get_date')!;
+      const result = await tool.handler({});
+      expect(result.structuredContent).toEqual({ iso: expected });
+    });
   });
 });
 
