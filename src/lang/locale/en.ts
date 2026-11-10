@@ -111,7 +111,7 @@ const en = {
   heading_mcp_client_config: 'MCP Client Configuration',
   setting_client_config_name: 'Client configuration',
   setting_client_config_desc:
-    'Copy the JSON snippet for your MCP client and paste it into the mcpServers section of its config (Claude Desktop, Claude Code, …).',
+    'Copy the JSON snippet for your MCP client and paste it into the mcpServers section of its config (Claude Desktop, Claude Code, …). It contains your access key: keep it out of git, e.g. with ${VAR} in the .mcp.json of Claude Code (see the manual).',
   tooltip_copy_config: 'Copy configuration',
   notice_config_copied: 'MCP client configuration copied to clipboard',
 
@@ -123,6 +123,9 @@ const en = {
   message_no_modules:
     'No modules registered. Click "Refresh Modules" to re-run discovery.',
   button_refresh_modules: 'Refresh Modules',
+  setting_read_and_edit_only_name: 'Read and edit only',
+  setting_read_and_edit_only_desc:
+    'Hide the tools that delete or overwrite whole files: vault_delete, vault_delete_folder, vault_update and vault_write_binary. Assistants can still read, create, move, rename and edit notes. Takes effect right away, also for connected clients.',
 
   // Plugin lifecycle notices (main.ts)
   notice_server_started: 'MCP server started on port {port}',

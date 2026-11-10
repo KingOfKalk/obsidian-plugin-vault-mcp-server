@@ -85,6 +85,7 @@ function renderSettings(settings: McpPluginSettings): string {
     `tlsCertificate: ${settings.tlsCertificate ? '<present>' : '<absent>'}`,
     `debugMode: ${String(settings.debugMode)}`,
     `autoStart: ${String(settings.autoStart)}`,
+    `readAndEditOnly: ${String(settings.readAndEditOnly)}`,
   ];
   return lines.join('\n');
 }

@@ -39,6 +39,16 @@ export interface HttpServerOptions {
    * {@link DEFAULT_MAX_SESSIONS}. Set to 0 to disable the cap.
    */
   maxSessions?: number;
+  /**
+   * How long `start()` keeps retrying when the port is in use (#518). A
+   * plugin update unloads the old instance without waiting for its server
+   * to stop, so the new instance can try to bind a moment too early.
+   * Defaults to {@link DEFAULT_BIND_RETRY_TIMEOUT_MS}. Set to 0 to fail on
+   * the first EADDRINUSE.
+   */
+  bindRetryTimeoutMs?: number;
+  /** Pause between bind attempts. Defaults to {@link DEFAULT_BIND_RETRY_DELAY_MS}. */
+  bindRetryDelayMs?: number;
 }
 
 const DEFAULT_ORIGIN_HOST_OPTIONS: OriginHostOptions = {
@@ -65,6 +75,8 @@ const MAX_BODY_BYTES = 4 * 1024 * 1024;
 const DEFAULT_SESSION_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
 const DEFAULT_SESSION_SWEEP_INTERVAL_MS = 60 * 1000;
 export const DEFAULT_MAX_SESSIONS = 32;
+export const DEFAULT_BIND_RETRY_TIMEOUT_MS = 5000;
+export const DEFAULT_BIND_RETRY_DELAY_MS = 250;
 
 /**
  * The one URL path that serves MCP, as shown in the settings tab, the
@@ -96,6 +108,7 @@ export class HttpMcpServer {
   private sweepTimer: ReturnType<typeof setInterval> | null = null;
   private clock: () => number;
   private rateLimiter: FailureRateLimiter;
+  private stopping: Promise<void> | null = null;
 
   constructor(
     serverFactory: McpServerFactory,
@@ -162,24 +175,78 @@ export class HttpMcpServer {
       this._connectedClients = 0;
     });
 
-    await new Promise<void>((resolve, reject) => {
-      this.httpServer!.on('error', (error: NodeJS.ErrnoException) => {
-        if (error.code === 'EADDRINUSE') {
-          reject(new Error(`Port ${String(this.options.port)} is already in use. Choose a different port in settings.`));
-        } else {
-          reject(error);
-        }
-      });
+    // Bind errors are handled by listenWithRetry(); this keeps a later
+    // server error from being thrown as an unhandled 'error' event.
+    const server = this.httpServer;
+    server.on('error', (error: Error) => {
+      if (server.listening) {
+        this.logger.error(`MCP server error: ${error.message}`, error);
+      }
+    });
 
-      this.httpServer!.listen(this.options.port, this.options.host, () => {
+    try {
+      await this.listenWithRetry(this.httpServer);
+    } catch (error) {
+      this.httpServer = null;
+      this._connectedClients = 0;
+      throw error;
+    }
+
+    this.startIdleSweep();
+  }
+
+  /**
+   * Bind the port, retrying for a short while on EADDRINUSE. After a plugin
+   * update the old instance may still hold the port for a moment (#518);
+   * failing at once would leave the server down until a manual restart.
+   */
+  private async listenWithRetry(server: Server): Promise<void> {
+    const timeout = this.options.bindRetryTimeoutMs ?? DEFAULT_BIND_RETRY_TIMEOUT_MS;
+    const delay = this.options.bindRetryDelayMs ?? DEFAULT_BIND_RETRY_DELAY_MS;
+    const deadline = this.clock() + timeout;
+    let warned = false;
+    for (;;) {
+      try {
+        await this.listenOnce(server);
+        return;
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code !== 'EADDRINUSE') {
+          throw error;
+        }
+        if (this.clock() + delay > deadline) {
+          throw new Error(
+            `Port ${String(this.options.port)} is already in use. Choose a different port in settings.`,
+          );
+        }
+        if (!warned) {
+          warned = true;
+          this.logger.warn(
+            `Port ${String(this.options.port)} is in use, retrying for up to ${String(timeout)}ms`,
+          );
+        }
+        await new Promise<void>((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  private listenOnce(server: Server): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const onError = (error: Error): void => {
+        server.off('listening', onListening);
+        reject(error);
+      };
+      const onListening = (): void => {
+        server.off('error', onError);
         this.logger.info(
           `MCP server listening on ${this.scheme}://${this.options.host}:${String(this.options.port)}`,
         );
         resolve();
-      });
+      };
+      server.once('error', onError);
+      server.once('listening', onListening);
+      server.listen(this.options.port, this.options.host);
     });
-
-    this.startIdleSweep();
   }
 
   private startIdleSweep(): void {
@@ -445,17 +512,46 @@ export class HttpMcpServer {
     });
   }
 
-  async stop(): Promise<void> {
-    if (!this.httpServer) {
-      return;
+  /**
+   * Stop the server: free the port at once, close every MCP session, then
+   * drop any connection still open (SSE streams, keep-alive sockets,
+   * requests in flight) so the returned promise always settles. Obsidian
+   * does not await `onunload`, so the port must be free before the first
+   * await (#518). Concurrent calls share one stop.
+   */
+  stop(): Promise<void> {
+    if (this.stopping) {
+      return this.stopping;
     }
+    if (!this.httpServer) {
+      return Promise.resolve();
+    }
+    this.stopping = this.doStop(this.httpServer).finally(() => {
+      this.stopping = null;
+    });
+    return this.stopping;
+  }
 
+  private async doStop(httpServer: Server): Promise<void> {
     this.logger.info('Stopping MCP server...');
 
     if (this.sweepTimer) {
       clearInterval(this.sweepTimer);
       this.sweepTimer = null;
     }
+
+    // Stop listening first, synchronously: this frees the port for a new
+    // plugin instance before anything below yields. The callback fires once
+    // every open connection has ended.
+    const closed = new Promise<void>((resolve, reject) => {
+      httpServer.close((err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
 
     const sessionsToClose = Array.from(this.sessions.entries());
     this.sessions.clear();
@@ -482,17 +578,14 @@ export class HttpMcpServer {
       }),
     );
 
-    await new Promise<void>((resolve, reject) => {
-      this.httpServer!.close((err) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve();
-        }
-      });
-    });
+    // close() only ends idle connections; a stalled request or an open
+    // stream would keep the promise above pending forever.
+    httpServer.closeAllConnections();
+    await closed;
 
-    this.httpServer = null;
+    if (this.httpServer === httpServer) {
+      this.httpServer = null;
+    }
     this._connectedClients = 0;
     this.logger.info('MCP server stopped');
   }

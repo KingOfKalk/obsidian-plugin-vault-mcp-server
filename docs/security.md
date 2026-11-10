@@ -10,7 +10,7 @@
 - **Generate a strong key**: Use the "Generate" button to create a random 64-character hex key
 - **Don't share your key**: The access key grants full access to enabled vault operations
 - **Rotate regularly**: Generate a new key periodically, especially if you suspect exposure
-- **Don't commit keys**: Never store access keys in version control
+- **Don't commit keys**: Never store access keys in version control. In a committed Claude Code `.mcp.json`, reference an environment variable instead (`"Authorization": "Bearer ${OBSIDIAN_MCP_TOKEN}"`); see the [manual](help/en.md#keep-the-access-key-out-of-git)
 
 ## Network Exposure
 

@@ -79,6 +79,14 @@ export interface McpPluginSettings {
   seenInsecureWarning: boolean;
   /** Per-module enabled/disabled state, keyed by module ID */
   moduleStates: Record<string, ModuleState>;
+  /**
+   * "Read and edit only" (#517): when true, the tools that delete or
+   * overwrite existing content (`vault_delete`, `vault_delete_folder`,
+   * `vault_update`, `vault_write_binary`) are not listed and calls to them
+   * fail like calls to a disabled tool. Default false. No migration: a
+   * missing value takes the default.
+   */
+  readAndEditOnly: boolean;
 }
 
 export interface TlsCertificateData {
@@ -127,4 +135,5 @@ export const DEFAULT_SETTINGS: McpPluginSettings = {
   iAcceptInsecureMode: false,
   seenInsecureWarning: false,
   moduleStates: {},
+  readAndEditOnly: false,
 };

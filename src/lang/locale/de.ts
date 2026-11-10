@@ -110,7 +110,7 @@ const de: Partial<Record<keyof typeof en, string>> = {
   heading_mcp_client_config: 'MCP-Client-Konfiguration',
   setting_client_config_name: 'Client-Konfiguration',
   setting_client_config_desc:
-    'Kopiere das JSON-Snippet für deinen MCP-Client und füge es in den mcpServers-Abschnitt seiner Konfiguration ein (Claude Desktop, Claude Code, …).',
+    'Kopiere das JSON-Snippet für deinen MCP-Client und füge es in den mcpServers-Abschnitt seiner Konfiguration ein (Claude Desktop, Claude Code, …). Es enthält deinen Zugriffsschlüssel: halte ihn aus Git heraus, z. B. mit ${VAR} in der .mcp.json von Claude Code (siehe Handbuch).',
   tooltip_copy_config: 'Konfiguration kopieren',
   notice_config_copied: 'MCP-Client-Konfiguration in die Zwischenablage kopiert',
 
@@ -122,6 +122,9 @@ const de: Partial<Record<keyof typeof en, string>> = {
   message_no_modules:
     'Keine Module registriert. Klicke auf „Module neu laden", um die Erkennung erneut auszuführen.',
   button_refresh_modules: 'Module neu laden',
+  setting_read_and_edit_only_name: 'Nur lesen und bearbeiten',
+  setting_read_and_edit_only_desc:
+    'Blendet die Werkzeuge aus, die ganze Dateien löschen oder überschreiben: vault_delete, vault_delete_folder, vault_update und vault_write_binary. Assistenten können Notizen weiterhin lesen, anlegen, verschieben, umbenennen und bearbeiten. Wirkt sofort, auch für verbundene Clients.',
 
   // Plugin lifecycle notices
   notice_server_started: 'MCP-Server auf Port {port} gestartet',
