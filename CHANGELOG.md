@@ -4,6 +4,23 @@
 > were renamed from `vX.Y.Z` (and `obsidian-mcp-v1.1.0`) to `X.Y.Z`; old links
 > containing `v` no longer resolve.
 
+## [5.0.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/4.1.0...5.0.0) (2026-11-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* vault_rename_folder is gone. Call vault_move with the same path and newPath (or vault_rename with the new folder name); the result has the same fields.
+* document tools no longer return structuredContent and read their paging fields from the text header; data tools return JSON text instead of Markdown or confirmation sentences; responseFormat is rejected as an unknown parameter; vault_read_binary returns image, audio or resource content instead of base64 text.
+* editor_*, workspace_* and ui_* tools are no longer listed in a new install. Switch the Editor, Workspace or UI module on under Feature Modules to get them. Installs updated from 4.x are not affected.
+* search_by_tag is no longer exact and case-sensitive; it returns notes with any spelling of the tag and with nested tags, sorted by path. search_tags no longer lists case variants of a tag as separate keys.
+
+### Features
+
+* lean defaults and plugin tools only when their plugin is present ([#479](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/479)) ([92b8596](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/92b8596fbd30ee110e3cb458e3030942fa9574d3))
+* return documents as text and data as JSON, real binary content ([#480](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/480)) ([5ee998d](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/5ee998d283851b9eb1585c8ab6db81fb48862aad))
+* tags and templates behave like Obsidian ([#478](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/478)) ([a244fb6](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/a244fb647f5fdcb6565b2edb28fbda8ad888ba72))
+* v5 tool surface cleanup (search_tags counts, echo tools, blockRefs.text, folder rename) ([#482](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/482)) ([b01a41e](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/b01a41eb1a2130a1cdc75660048b861e66a87caa))
+
 ## [4.1.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/4.0.1...4.1.0) (2026-11-09)
 
 
