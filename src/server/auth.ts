@@ -1,5 +1,6 @@
 import { IncomingMessage, ServerResponse } from 'http';
 import { timingSafeEqual } from 'crypto';
+import { sendJson } from './send-json';
 
 export interface AuthResult {
   authenticated: boolean;
@@ -60,11 +61,7 @@ function constantTimeEqual(a: string, b: string): boolean {
 }
 
 export function sendAuthError(res: ServerResponse, error: string): void {
-  res.writeHead(401, {
-    'Content-Type': 'application/json',
-    'WWW-Authenticate': 'Bearer',
-  });
-  res.end(JSON.stringify({ error }));
+  sendJson(res, 401, { error }, { 'WWW-Authenticate': 'Bearer' });
 }
 
 export function sendRateLimitError(
@@ -72,9 +69,10 @@ export function sendRateLimitError(
   retryAfterMs: number,
 ): void {
   const retryAfterSeconds = Math.max(1, Math.ceil(retryAfterMs / 1000));
-  res.writeHead(429, {
-    'Content-Type': 'application/json',
-    'Retry-After': String(retryAfterSeconds),
-  });
-  res.end(JSON.stringify({ error: 'Too many failed authentication attempts' }));
+  sendJson(
+    res,
+    429,
+    { error: 'Too many failed authentication attempts' },
+    { 'Retry-After': String(retryAfterSeconds) },
+  );
 }
