@@ -367,6 +367,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           outputSchema: updatedOutputSchema,
           handler: handlers.updateFile,
           annotations: annotations.destructiveIdempotent,
+          destroysContent: true,
         }),
         defineTool({
           name: 'vault_delete',
@@ -380,6 +381,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           outputSchema: deletedOutputSchema,
           handler: handlers.deleteFile,
           annotations: annotations.destructiveIdempotent,
+          destroysContent: true,
         }),
         defineTool({
           name: 'vault_append',
@@ -546,6 +548,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           outputSchema: deleteFolderOutputSchema,
           handler: handlers.deleteFolder,
           annotations: annotations.destructiveIdempotent,
+          destroysContent: true,
         }),
         defineTool({
           name: 'vault_list',
@@ -610,6 +613,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           outputSchema: writeBinaryOutputSchema,
           handler: handlers.writeBinary,
           annotations: annotations.destructiveIdempotent,
+          destroysContent: true,
         }),
         defineTool({
           name: 'vault_get_aspect',

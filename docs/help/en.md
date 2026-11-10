@@ -278,7 +278,9 @@ steps once after install:
    click the copy button — the snippet is generated live from your current
    address, port, auth, and key. Paste it into your client's `mcpServers`
    config (e.g. Claude Desktop's `claude_desktop_config.json`, or Claude
-   Code's `mcp.json`).
+   Code's `.mcp.json`). The snippet contains your access key: if the config
+   file lives in a git repository, read the access key from an environment
+   variable instead (see [Keep the access key out of git](#keep-the-access-key-out-of-git)).
 
 That's it. The client should see the tools advertised by your enabled
 modules.
@@ -348,8 +350,44 @@ current settings:
 Paste it into:
 
 - **Claude Desktop** → `claude_desktop_config.json`, under `mcpServers`.
-- **Claude Code** → `~/.claude/mcp.json` (or per-project `.claude/mcp.json`).
+- **Claude Code** → `.mcp.json` in the project root (project scope), or add it
+  with `claude mcp add` (stored in `~/.claude.json`).
 - Any other MCP client that supports Streamable HTTP transport.
+
+#### Keep the access key out of git
+
+The copied snippet holds the access key as plain text. A project's
+`.mcp.json` is usually committed, so don't paste the key there. Claude Code
+expands `${VAR}` (and `${VAR:-default}`) in a server's `url` and `headers`,
+so the file can name an environment variable instead:
+
+```json
+{
+  "mcpServers": {
+    "obsidian": {
+      "type": "http",
+      "url": "http://127.0.0.1:28741/mcp",
+      "headers": {
+        "Authorization": "Bearer ${OBSIDIAN_MCP_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+Set the variable in the shell that starts Claude Code, e.g.
+`export OBSIDIAN_MCP_TOKEN='<your access key>'` in your shell profile or an
+untracked, git-ignored env file.
+
+- Use a variable name of your own. Claude Code reads its own and other known
+  credential variables (such as `ANTHROPIC_AUTH_TOKEN`) as empty in a remote
+  server's `headers`, so the request arrives without a key and fails with
+  `401`.
+- Variable expansion is a feature of the client, not of this plugin. Check
+  your client's documentation before using `${VAR}` elsewhere; a client
+  without it sends the literal text `${OBSIDIAN_MCP_TOKEN}`.
+- Never commit a file that holds the key itself. If you did, rotate the key
+  (**Generate** next to **Access Key**).
 
 ### 4. Feature Modules
 
@@ -369,6 +407,12 @@ message. Clients that support it update their tool list immediately; others
 see the change after they reconnect. The server instructions (see
 [For developers / MCP client builders](#for-developers--mcp-client-builders))
 are sent once when a client connects and keep the state from that moment.
+
+Above the module cards is one more switch:
+
+| Setting | Default | What it does |
+|---|---|---|
+| **Read and edit only** | off | Hides the four tools that delete or overwrite whole files: `vault_delete`, `vault_delete_folder`, `vault_update` (replaces a file's whole content) and `vault_write_binary` (overwrites an existing file). Like a module switch, it applies right away, also for connected clients: the tools disappear from `tools/list` and calls to them fail with "Tool … disabled". Everything else stays available: reading, creating, `vault_append`, `vault_insert`, `vault_replace`, `vault_set_frontmatter`, `vault_rename`, `vault_move` and `vault_copy` (these refuse an existing destination), templates and search. The Vault module switch itself is not changed. See [How do I stop the agent from deleting files?](#how-do-i-stop-the-agent-from-deleting-files) |
 
 | Module | Default | Tools | Notes |
 |---|---|---|---|
@@ -847,7 +891,7 @@ clients and agents commonly trip over:
   the path built from the Daily notes settings and asks to check with
   `search_by_name` (by the date) before `create: true`: older notes may
   sit elsewhere, for example after the folder or format changed (since
-  5.1.1; before, the hint invited `create: true` and so duplicates). With `create: true` a missing note is created from
+  5.2.0; before, the hint invited `create: true` and so duplicates). With `create: true` a missing note is created from
   the configured template and the header says `created: true`. Every
   response has the `path` and `exists` header lines, followed by the note
   text when the note exists. When the note exists (or was just created)
@@ -1036,6 +1080,9 @@ the right header. Check:
   exactly. Use the **Copy** button — never type it by hand.
 - Re-copy the **MCP Client Configuration** snippet after generating a new
   key; the snippet is rebuilt from the live key.
+- If the config reads the key from `${VAR}`, the variable is set in the
+  environment that starts the client, and its name isn't one the client
+  blanks (see [Keep the access key out of git](#keep-the-access-key-out-of-git)).
 
 ### My client says "429 Too Many Requests"
 
@@ -1107,11 +1154,28 @@ log entry:
   settings tab to turn auth back on (and let the plugin generate a
   key) or to explicitly accept insecure mode.
 
+### My client says "ECONNREFUSED" after a plugin update
+
+Before 5.2.0, updating the plugin (or disabling and enabling it) could
+leave the server down until Obsidian was reloaded: the old copy still
+held the port, or an open client connection kept it from stopping, when
+the new copy tried to start. The server now frees the port as soon as
+the plugin unloads, closes open client connections, and retries the
+start for a few seconds. If you still see `ECONNREFUSED`, check that
+**Auto-start on launch** is on (the server only starts by itself with it on), then
+look at the status bar and the log (**Diagnostics**) for the start error.
+Your client has to reconnect after an update; its old session is gone.
+
 ### "EADDRINUSE" / port conflict on start
 
 Another process holds port 28741. Either stop that process or change
 **Port** in settings. The plugin only checks the port when starting; you must
 restart the server after changing the port.
+
+If the port is busy when the server starts, the plugin keeps trying for
+about 5 seconds before it gives up (the log shows "Port … is in use,
+retrying"). This covers a plugin update or a disable/enable, where the old
+copy of the plugin may still be releasing the port.
 
 When this happens you'll see three signals at once:
 
@@ -1130,6 +1194,8 @@ again retries the start.
 - The module that ships the tool is disabled. Enable it under **Feature
   Modules**.
 - For Extras tools (e.g. `extras_get_date` (Get current date)), the per-tool toggle is off by default.
+- `vault_delete`, `vault_delete_folder`, `vault_update` and
+  `vault_write_binary` are hidden while **Read and edit only** is on.
 - Editor, Workspace and UI tools are off by default since 5.0. Switch the
   module on under **Feature Modules**.
 - `plugin_dataview_query` is listed only while the Dataview plugin is
@@ -1224,6 +1290,30 @@ settings in Obsidian itself.
 
 This was a bug in earlier versions: every `vault_get_aspect` call failed
 inside the MCP SDK. Update the plugin to the current release.
+
+### How do I stop the agent from deleting files?
+
+Turn on **Read and edit only** under **Feature Modules**. The agent can then
+no longer delete files or folders (`vault_delete`, `vault_delete_folder`) or
+replace a whole file at once (`vault_update`, `vault_write_binary`), but it
+can still read, create, rename, move and copy notes and edit them in place
+(`vault_append`, `vault_insert`, `vault_replace`, `vault_set_frontmatter`).
+Rename, move, copy and create never overwrite: an existing destination is an
+error. The switch applies right away, also to connected clients.
+
+Notes:
+
+- With the switch off, `vault_delete` and `vault_delete_folder` follow
+  Obsidian's **Files and links → Deleted files** setting: a deleted file goes
+  to the system trash or the vault's `.trash` folder and can be restored from
+  there, unless the setting is **Permanently delete**.
+- Edits in place can still remove text, for example a `vault_replace` with an
+  empty replacement. To stop every change, switch off the **Vault and File
+  Operations** and **Templates** modules (and **Editor Operations** if it is
+  on); search and `server_info` stay available.
+- `plugin_execute_command` runs only the Obsidian commands you put on the
+  [Execute Command Allowlist](#execute-command-allowlist). Do not allow
+  commands that delete files, such as `app:delete-file`.
 
 ### How do I expose the server to another machine on my LAN?
 
