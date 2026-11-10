@@ -14,6 +14,7 @@ import {
   openAIProvider,
   parseToolArguments,
   postChatCompletion,
+  retryWaitMs,
   sanitizeSchema,
   toOpenAITool,
   type OpenAIOptions,
@@ -89,6 +90,7 @@ function options(fetchFn: typeof fetch, extra: Partial<OpenAIOptions> = {}): Ope
     model: 'mistral-large-latest',
     fetch: fetchFn,
     sleep: () => Promise.resolve(),
+    log: () => undefined,
     ...extra,
   };
 }
@@ -291,25 +293,67 @@ describe('the agent loop against a mocked OpenAI-compatible server', () => {
 describe('postChatCompletion', () => {
   const body: OpenAIRequest = { model: 'm', messages: [], tools: [], tool_choice: 'auto' };
 
-  it('retries once after 429, waiting for Retry-After', async () => {
+  it('retries after 429, waiting for Retry-After, and logs the wait', async () => {
     const sleep = vi.fn((): Promise<void> => Promise.resolve());
+    const log = vi.fn();
     const { fetch, calls } = mockFetch([
       { status: 429, body: 'slow down', headers: { 'retry-after': '3' } },
+      { status: 429, body: '{"message":"Rate limit exceeded","code":"1300"}' },
       { body: finalReply('ok') },
     ]);
-    await expect(postChatCompletion(options(fetch, { sleep }), body)).resolves.toEqual(finalReply('ok'));
-    expect(calls).toHaveLength(2);
-    expect(sleep).toHaveBeenCalledWith(3000);
+    await expect(postChatCompletion(options(fetch, { sleep, log }), body)).resolves.toEqual(finalReply('ok'));
+    expect(calls).toHaveLength(3);
+    expect(sleep.mock.calls).toEqual([[3000], [4000]]);
+    expect(log.mock.calls).toEqual([
+      ['  rate limited, waiting 3s (attempt 1/6)'],
+      ['  rate limited, waiting 4s (attempt 2/6)'],
+    ]);
   });
 
-  it('gives up after a second 429', async () => {
+  it('retries 503 too', async () => {
     const sleep = vi.fn((): Promise<void> => Promise.resolve());
-    const { fetch } = mockFetch([
-      { status: 429, body: 'a' },
-      { status: 429, body: 'b' },
-    ]);
-    await expect(postChatCompletion(options(fetch, { sleep }), body)).rejects.toThrow(/HTTP 429/);
-    expect(sleep).toHaveBeenCalledWith(5000);
+    const log = vi.fn();
+    const { fetch } = mockFetch([{ status: 503, body: 'busy' }, { body: finalReply('ok') }]);
+    await expect(postChatCompletion(options(fetch, { sleep, log }), body)).resolves.toEqual(finalReply('ok'));
+    expect(sleep.mock.calls).toEqual([[2000]]);
+    expect(log).toHaveBeenCalledWith('  service unavailable (HTTP 503), waiting 2s (attempt 1/6)');
+  });
+
+  it('backs off exponentially up to 60 s and gives up after 6 retries', async () => {
+    const sleep = vi.fn((): Promise<void> => Promise.resolve());
+    const log = vi.fn();
+    const { fetch, calls } = mockFetch(
+      Array.from({ length: 7 }, () => ({ status: 429, body: '{"message":"Rate limit exceeded"}' })),
+    );
+    await expect(postChatCompletion(options(fetch, { sleep, log }), body)).rejects.toThrow(
+      /HTTP 429 from https:\/\/api\.mistral\.ai\/v1\/chat\/completions after 6 retries: .*Rate limit exceeded/,
+    );
+    expect(calls).toHaveLength(7);
+    expect(sleep.mock.calls).toEqual([[2000], [4000], [8000], [16000], [32000], [60000]]);
+    expect(log).toHaveBeenLastCalledWith('  rate limited, waiting 60s (attempt 6/6)');
+  });
+
+  it('computes the retry wait from Retry-After or the attempt', () => {
+    expect(retryWaitMs(1, null)).toBe(2000);
+    expect(retryWaitMs(5, null)).toBe(32000);
+    expect(retryWaitMs(6, null)).toBe(60000);
+    expect(retryWaitMs(1, '0.5')).toBe(500);
+    expect(retryWaitMs(1, '600')).toBe(60000);
+    expect(retryWaitMs(3, 'Wed, 21 Oct 2026 07:28:00 GMT')).toBe(8000);
+    expect(retryWaitMs(2, '')).toBe(4000);
+  });
+
+  it('keeps the minimum interval between requests across questions', async () => {
+    const sleep = vi.fn((): Promise<void> => Promise.resolve());
+    const { fetch } = mockFetch([{ body: finalReply('a') }, { body: finalReply('b') }]);
+    const provider = openAIProvider(options(fetch, { sleep, minIntervalMs: 1100 }));
+    await provider.start({ tools: [], system: 's', question: 'q1' }).send([]);
+    expect(sleep).not.toHaveBeenCalled();
+    await provider.start({ tools: [], system: 's', question: 'q2' }).send([]);
+    expect(sleep).toHaveBeenCalledTimes(1);
+    const waited = (sleep.mock.calls as unknown as number[][])[0][0];
+    expect(waited).toBeGreaterThan(1000);
+    expect(waited).toBeLessThanOrEqual(1100);
   });
 
   it('sends no Authorization header without a key and names an unset key on 401', async () => {
@@ -368,6 +412,46 @@ describe('main with the openai provider', () => {
     await expect(main(['--only', '1,2'], env, { fetch })).rejects.toThrow(
       /openai provider: HTTP 401 from https:\/\/api\.mistral\.ai\/v1 .*EVAL_API_KEY/,
     );
+  });
+});
+
+describe('scoring with API errors', () => {
+  const env = { EVAL_BASE_URL: 'https://api.mistral.ai/v1', EVAL_MODEL: 'mistral-large-latest', EVAL_API_KEY: 'k' };
+
+  /** Answers every request with NOT_FOUND, except the given request numbers, which get HTTP 500. */
+  function scriptedFetch(failing: number[]): typeof fetch {
+    let n = 0;
+    return () => {
+      n++;
+      return Promise.resolve(
+        failing.includes(n)
+          ? new Response('{"message":"internal"}', { status: 500 })
+          : new Response(JSON.stringify(finalReply('<response>NOT_FOUND</response>')), { status: 200 }),
+      );
+    };
+  }
+
+  it('reports API errors as ERROR and withholds the baseline row', async () => {
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    await expect(main([], env, { fetch: scriptedFetch([2, 5]) })).resolves.toBe(1);
+    const out = stdout.mock.calls.map((c) => String(c[0])).join('');
+    expect(out).toMatch(/^FAIL {2}Q1 /m);
+    expect(out).toMatch(/^ERROR Q2 /m);
+    expect(out).toMatch(/^ERROR Q5 /m);
+    expect(out).toContain('error:    openai provider: HTTP 500');
+    expect(out).toContain('Results: 0 passed, 8 failed, 2 errored');
+    expect(out).toContain('Not a valid baseline: 2 question(s) errored, so no baseline row is printed. Re-run them with --only 2,5');
+    expect(out).not.toContain('Baseline row for evals/README.md');
+  });
+
+  it('prints the baseline row for a full run without errors', async () => {
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    await expect(main(['--min-interval-ms', '0'], env, { fetch: scriptedFetch([]) })).resolves.toBe(0);
+    const out = stdout.mock.calls.map((c) => String(c[0])).join('');
+    expect(out).toContain('Results: 0 passed, 10 failed, 0 errored');
+    expect(out).toContain('Baseline row for evals/README.md (full run only):');
+    expect(out).toMatch(/\| openai \| api\.mistral\.ai \| mistral-large-latest \| - \| \d+ \| 0\/10 \(0%\) \| 0\.0 \|/);
+    expect(out).not.toContain('Not a valid baseline');
   });
 });
 

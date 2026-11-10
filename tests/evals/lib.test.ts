@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { answersMatch, extractTagged, loadDotEnv, normaliseAnswer, parseEvaluationXml } from '../../evals/lib';
+import { answersMatch, createPacer, extractTagged, loadDotEnv, normaliseAnswer, parseEvaluationXml } from '../../evals/lib';
 import {
   FixtureAdapter,
   parseFrontmatter,
@@ -166,5 +166,35 @@ describe('loadDotEnv', () => {
     const env: NodeJS.ProcessEnv = {};
     expect(loadDotEnv(join(tmpdir(), 'no-such-dir-483', '.env'), env)).toEqual([]);
     expect(env).toEqual({});
+  });
+});
+
+describe('createPacer', () => {
+  it('spaces requests at least minIntervalMs apart', async () => {
+    let clock = 1000;
+    const waits: number[] = [];
+    const sleep = (ms: number): Promise<void> => {
+      waits.push(ms);
+      clock += ms;
+      return Promise.resolve();
+    };
+    const pace = createPacer(1100, sleep, () => clock);
+    await pace(); // first request: no wait
+    clock += 300;
+    await pace(); // 300 ms later: waits the remaining 800 ms
+    clock += 5000;
+    await pace(); // long after: no wait
+    expect(waits).toEqual([800]);
+  });
+
+  it('never waits with an interval of 0', async () => {
+    const waits: number[] = [];
+    const pace = createPacer(0, (ms) => {
+      waits.push(ms);
+      return Promise.resolve();
+    });
+    await pace();
+    await pace();
+    expect(waits).toEqual([]);
   });
 });
