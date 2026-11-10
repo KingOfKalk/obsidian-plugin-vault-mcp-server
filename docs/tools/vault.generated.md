@@ -74,7 +74,7 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `path` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. |
-| `heading` | string (1–1024) | no | Return only this section: the heading line up to the next heading of the same or a higher level. Text without the # marks (e.g. "Log"), or with them to pin the level ("## Log"). offset/length then page within it. |
+| `heading` | string (1–1024) | no | Return only this section: the heading line up to the next heading of the same or a higher level. Text without the # marks (e.g. "Log"), or with them to pin the level ("## Log"); a [[note#heading]] anchor also works. offset/length then page within it. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Character offset to start at; pass nextOffset from the previous call to continue. |
 | `length` | number (1–24000) | no | Maximum characters to return (default 24000). Files that fit are returned whole. |
 
@@ -351,7 +351,7 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `path` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. |
-| `heading` | string (1–1024) | yes | Section heading: text without the # marks (e.g. "Log"), or with them to pin the level ("## Log"). Must match exactly one heading; headings in code blocks and frontmatter are ignored. |
+| `heading` | string (1–1024) | yes | Section heading: text without the # marks (e.g. "Log"), or with them to pin the level ("## Log"); a [[note#heading]] anchor also works. Must match exactly one heading; headings in code blocks and frontmatter are ignored. |
 | `position` | enum: `start` \| `end` | no (default `end`) | "end": after the last non-blank line of the section, nested subsections included. "start": before the first non-blank line below the heading (blank lines after the heading stay above the text; in an empty section, right below the heading). |
 | `text` | string (1–5000000) | yes | Inserted as whole lines; one trailing newline is ignored. Start it with a newline to leave a blank line before it. |
 | `expectedMtime` | string (≤64) | no | Conflict check: the latest `modified` of this file (from vault_read, vault_get_metadata or a write result; ISO-8601 or epoch ms). On a mismatch nothing is written and "File changed since expectedMtime" gives the current mtime. |

@@ -159,6 +159,60 @@ describe('section helpers (#428)', () => {
       expect(findSection(dup, '# Log', 'n.md')).toMatchObject({ start: 0, end: 6 });
       expect(() => findSection(dup, '## Log', 'n.md', ' X')).toThrow(/2 matches.*one of them\. X$/);
     });
+
+    describe('Obsidian #heading link form (#515)', () => {
+      const note = splitLines(
+        [
+          '# Day',
+          '### [[2026-11-10]] - Call',
+          'a',
+          '## [[People/Ann|Ann]]: 1:1 (Q4)',
+          'b',
+          '## Log',
+          'c',
+        ].join('\n'),
+      );
+
+      it('matches a heading with a wiki link by its link anchor', () => {
+        expect(findSection(note, '2026-11-10 - Call', 'n.md')).toMatchObject({ start: 1, end: 3 });
+        expect(findSection(note, '### 2026-11-10 - Call', 'n.md')).toMatchObject({ start: 1 });
+      });
+
+      it('still matches the exact source text', () => {
+        expect(findSection(note, '[[2026-11-10]] - Call', 'n.md')).toMatchObject({ start: 1 });
+      });
+
+      it('matches a wiki link with an alias and special characters', () => {
+        expect(findSection(note, 'People/Ann Ann 1 1 (Q4)', 'n.md')).toMatchObject({ start: 3, end: 5 });
+        expect(findSection(note, 'People/Ann|Ann: 1:1 (Q4)', 'n.md')).toMatchObject({ start: 3 });
+      });
+
+      it('accepts a leading # copied from a link, and ignores case', () => {
+        expect(findSection(note, '#2026-11-10 - Call', 'n.md')).toMatchObject({ start: 1 });
+        expect(findSection(note, '#log', 'n.md')).toMatchObject({ start: 5 });
+      });
+
+      it('does not use the level of a bare #', () => {
+        expect(() => findSection(note, '### Log', 'n.md')).toThrow('Heading not found');
+      });
+
+      it('prefers an exact match over a link-form match', () => {
+        const both = splitLines('## A: B\nx\n## A B\ny');
+        expect(findSection(both, 'A B', 'n.md')).toMatchObject({ start: 2 });
+        expect(findSection(both, 'A: B', 'n.md')).toMatchObject({ start: 0 });
+      });
+
+      it('reports several link-form matches as ambiguous', () => {
+        const dup = splitLines('## A: B\nx\n## A (B)\ny');
+        expect(() => findSection(dup, 'a b', 'n.md')).toThrow(
+          'Heading "a b" is ambiguous in n.md (2 matches): line 1 "## A: B", line 3 "## A (B)".',
+        );
+      });
+
+      it('does not match when the query has no text left', () => {
+        expect(() => findSection(splitLines('# ???\nx'), '!!', 'n.md')).toThrow('Heading not found');
+      });
+    });
   });
 
   describe('lineOffset', () => {
