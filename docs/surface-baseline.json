@@ -4,12 +4,12 @@
     "toolCount": 54,
     "totals": {
       "instructions": 997,
-      "toolsList": 62010,
-      "modelView": 43736,
-      "toolDescriptions": 18135,
-      "inputSchemas": 21776,
-      "inputSchemaDescriptions": 9024,
-      "outputSchemas": 11112,
+      "toolsList": 62009,
+      "modelView": 43699,
+      "toolDescriptions": 18087,
+      "inputSchemas": 21790,
+      "inputSchemaDescriptions": 9044,
+      "outputSchemas": 11148,
       "promptsList": 1425
     },
     "modules": {
@@ -20,8 +20,8 @@
       },
       "vault": {
         "tools": 21,
-        "toolsList": 32464,
-        "modelView": 24396
+        "toolsList": 32468,
+        "modelView": 24400
       },
       "editor": {
         "tools": 10,
@@ -30,8 +30,8 @@
       },
       "search": {
         "tools": 6,
-        "toolsList": 7029,
-        "modelView": 4336
+        "toolsList": 7069,
+        "modelView": 4376
       },
       "workspace": {
         "tools": 5,
@@ -45,13 +45,13 @@
       },
       "templates": {
         "tools": 3,
-        "toolsList": 3294,
-        "modelView": 2578
+        "toolsList": 3344,
+        "modelView": 2592
       },
       "plugin-interop": {
         "tools": 6,
-        "toolsList": 4590,
-        "modelView": 3062
+        "toolsList": 4495,
+        "modelView": 2967
       },
       "extras": {
         "tools": 1,
@@ -162,8 +162,8 @@
       },
       "vault_daily_note": {
         "module": "vault",
-        "toolsList": 1690,
-        "modelView": 1548
+        "toolsList": 1694,
+        "modelView": 1552
       },
       "vault_set_frontmatter": {
         "module": "vault",
@@ -227,8 +227,8 @@
       },
       "search_tags": {
         "module": "search",
-        "toolsList": 649,
-        "modelView": 314
+        "toolsList": 706,
+        "modelView": 371
       },
       "search_resolved_links": {
         "module": "search",
@@ -242,8 +242,8 @@
       },
       "search_by_tag": {
         "module": "search",
-        "toolsList": 1142,
-        "modelView": 741
+        "toolsList": 1125,
+        "modelView": 724
       },
       "search_by_frontmatter": {
         "module": "search",
@@ -282,18 +282,18 @@
       },
       "template_list": {
         "module": "templates",
-        "toolsList": 554,
-        "modelView": 330
+        "toolsList": 570,
+        "modelView": 310
       },
       "template_create_from": {
         "module": "templates",
-        "toolsList": 1930,
-        "modelView": 1550
+        "toolsList": 1947,
+        "modelView": 1567
       },
       "template_expand": {
         "module": "templates",
-        "toolsList": 810,
-        "modelView": 698
+        "toolsList": 827,
+        "modelView": 715
       },
       "plugin_list": {
         "module": "plugin-interop",
@@ -322,8 +322,8 @@
       },
       "plugin_execute_command": {
         "module": "plugin-interop",
-        "toolsList": 1008,
-        "modelView": 735
+        "toolsList": 913,
+        "modelView": 640
       },
       "extras_get_date": {
         "module": "extras",
@@ -333,15 +333,15 @@
     }
   },
   "defaults": {
-    "toolCount": 53,
+    "toolCount": 36,
     "totals": {
-      "instructions": 997,
-      "toolsList": 61541,
-      "modelView": 43464,
-      "toolDescriptions": 17987,
-      "inputSchemas": 21714,
-      "inputSchemaDescriptions": 9024,
-      "outputSchemas": 11037,
+      "instructions": 816,
+      "toolsList": 47671,
+      "modelView": 34328,
+      "toolDescriptions": 14100,
+      "inputSchemas": 17637,
+      "inputSchemaDescriptions": 7924,
+      "outputSchemas": 8597,
       "promptsList": 1425
     }
   }

@@ -118,6 +118,34 @@ describe('RealObsidianAdapter reads vault settings via getConfig (#430)', () => 
   });
 });
 
+describe('RealObsidianAdapter.getTemplatesFolder (#470)', () => {
+  function withTemplatesPlugin(plugin: unknown): RealObsidianAdapter {
+    const { app } = makeApp({}, {}, {});
+    (app as unknown as { internalPlugins: unknown }).internalPlugins = {
+      plugins: { templates: plugin },
+    };
+    return new RealObsidianAdapter(app);
+  }
+
+  it('reads the core Templates plugin folder, enabled or not', () => {
+    const options = { folder: 'Meta/Templates' };
+    expect(withTemplatesPlugin({ enabled: true, instance: { options } }).getTemplatesFolder()).toBe(
+      'Meta/Templates',
+    );
+    expect(withTemplatesPlugin({ enabled: false, instance: { options } }).getTemplatesFolder()).toBe(
+      'Meta/Templates',
+    );
+  });
+
+  it('returns null when no folder was set or the plugin is missing', () => {
+    expect(withTemplatesPlugin({ enabled: true, instance: { options: {} } }).getTemplatesFolder()).toBeNull();
+    expect(withTemplatesPlugin({ enabled: true, instance: { options: { folder: 3 } } }).getTemplatesFolder()).toBeNull();
+    expect(withTemplatesPlugin(undefined).getTemplatesFolder()).toBeNull();
+    const { app } = makeApp({}, {}, {});
+    expect(new RealObsidianAdapter(app).getTemplatesFolder()).toBeNull();
+  });
+});
+
 describe('vault handlers on the real adapter report link updates (#430)', () => {
   const files = { 'a.md': 'a', 'b.md': 'see [[a]] and [[a]]', 'c.md': 'none' };
   const links = { 'b.md': { 'a.md': 2 } };

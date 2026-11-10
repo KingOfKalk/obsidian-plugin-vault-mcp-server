@@ -146,6 +146,28 @@ export function migrateV11ToV12(data: Settings): void {
   if (data.promptsEnabled === undefined) data.promptsEnabled = true;
 }
 
+/**
+ * Modules that were on by default before 5.0 and are off by default for new
+ * installs since (#469).
+ */
+export const MODULES_OFF_BY_DEFAULT_SINCE_V5 = ['editor', 'workspace', 'ui'] as const;
+
+export function migrateV12ToV13(data: Settings): void {
+  // 5.0 turns editor, workspace and ui off by default for new installs
+  // (#469). An existing install keeps what it had: a module without a saved
+  // state ran on the old default (on), so write that down. A saved state,
+  // on or off, is left as it is. New installs have no data to migrate and
+  // get the new defaults.
+  const moduleStates = (data.moduleStates ?? {}) as Record<string, ModuleStateShape>;
+  for (const id of MODULES_OFF_BY_DEFAULT_SINCE_V5) {
+    const entry = moduleStates[id];
+    if (entry === undefined || typeof entry !== 'object' || typeof entry.enabled !== 'boolean') {
+      moduleStates[id] = { enabled: true };
+    }
+  }
+  data.moduleStates = moduleStates;
+}
+
 const HOPS: Array<{ target: number; run: MigrationHop }> = [
   { target: 1, run: migrateV0ToV1 },
   { target: 2, run: migrateV1ToV2 },
@@ -159,9 +181,10 @@ const HOPS: Array<{ target: number; run: MigrationHop }> = [
   { target: 10, run: migrateV9ToV10 },
   { target: 11, run: migrateV10ToV11 },
   { target: 12, run: migrateV11ToV12 },
+  { target: 13, run: migrateV12ToV13 },
 ];
 
-export const CURRENT_SCHEMA_VERSION = 12;
+export const CURRENT_SCHEMA_VERSION = 13;
 
 export function migrateSettings(data: Settings): Settings {
   const currentVersion =

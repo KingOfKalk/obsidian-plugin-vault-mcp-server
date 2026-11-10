@@ -164,6 +164,9 @@ describe('createMcpServer', () => {
     registry.registerModule(createSearchModule(adapter));
     registry.registerModule(createEditorModule(adapter));
     registry.registerModule(createWorkspaceModule(adapter));
+    // Off by default since 5.0 (#469).
+    registry.enableModule('editor');
+    registry.enableModule('workspace');
 
     createMcpServer(registry, adapter, DEFAULT_SETTINGS, makeLogger());
 
@@ -185,6 +188,9 @@ describe('createMcpServer', () => {
       registry.registerModule(createSearchModule(adapter));
       registry.registerModule(createEditorModule(adapter));
       registry.registerModule(createWorkspaceModule(adapter));
+      // Off by default since 5.0 (#469).
+      registry.enableModule('editor');
+      registry.enableModule('workspace');
       for (const id of disable) registry.disableModule(id);
       capturedConstructorArgs.length = 0;
       createMcpServer(registry, adapter, DEFAULT_SETTINGS, makeLogger());

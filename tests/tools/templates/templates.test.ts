@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/server';
 import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
@@ -14,7 +14,7 @@ class ListThrowingAdapter extends MockObsidianAdapter {
   constructor(private readonly toThrow: unknown) {
     super();
   }
-  override list(_path: string): ListResult {
+  override listRecursive(_path: string): ListResult {
     throw this.toThrow;
   }
 }
@@ -49,7 +49,7 @@ describe('templates module', () => {
       const tool = module.tools().find((t) => t.name === 'template_list')!;
       const result = await tool.handler({});
       expect(result.isError).toBeUndefined();
-      expect(getText(result)).toBe('{"files":[]}');
+      expect(getText(result)).toBe('{"folder":"templates","files":[]}');
     });
 
     // (b) Folder present + empty → handler returns [].
@@ -59,7 +59,7 @@ describe('templates module', () => {
       const tool = module.tools().find((t) => t.name === 'template_list')!;
       const result = await tool.handler({});
       expect(result.isError).toBeUndefined();
-      expect(getText(result)).toBe('{"files":[]}');
+      expect(getText(result)).toBe('{"folder":"templates","files":[]}');
     });
 
     // (c) Folder present + populated → returns the file list as JSON.
@@ -113,6 +113,89 @@ describe('templates module', () => {
     expect(content).toContain('# My Note');
     expect(content).toContain('Created:');
     expect(content).not.toContain('{{title}}');
+  });
+
+  describe('template_list folder (#470)', () => {
+    async function list(a: MockObsidianAdapter): Promise<CallToolResult> {
+      const tool = createTemplatesModule(a).tools().find((t) => t.name === 'template_list')!;
+      return tool.handler({});
+    }
+
+    it('lists the core Templates plugin folder, including subfolders', async () => {
+      adapter.addFolder('Meta');
+      adapter.addFolder('Meta/Templates');
+      adapter.addFolder('Meta/Templates/work');
+      adapter.addFile('Meta/Templates/daily.md', 'd');
+      adapter.addFile('Meta/Templates/work/meeting.md', 'm');
+      adapter.addFolder('templates');
+      adapter.addFile('templates/ignored.md', 'x');
+      adapter.setTemplatesFolder('/Meta/Templates/');
+      const result = await list(adapter);
+      expect(result.structuredContent).toEqual({
+        folder: 'Meta/Templates',
+        files: ['Meta/Templates/daily.md', 'Meta/Templates/work/meeting.md'],
+      });
+    });
+
+    it('falls back to "templates" when no folder is set', async () => {
+      adapter.addFolder('templates');
+      adapter.addFolder('templates/sub');
+      adapter.addFile('templates/sub/nested.md', 'n');
+      for (const value of [null, '', ' / ']) {
+        adapter.setTemplatesFolder(value);
+        const result = await list(adapter);
+        expect(result.structuredContent).toEqual({
+          folder: 'templates',
+          files: ['templates/sub/nested.md'],
+        });
+      }
+    });
+
+    it('returns no files when the configured folder is missing', async () => {
+      adapter.setTemplatesFolder('Nowhere');
+      const result = await list(adapter);
+      expect(result.isError).toBeUndefined();
+      expect(result.structuredContent).toEqual({ folder: 'Nowhere', files: [] });
+    });
+
+    it('rejects a configured folder inside the config folder', async () => {
+      adapter.setTemplatesFolder('.obsidian/templates');
+      const result = await list(adapter);
+      expect(result.isError).toBe(true);
+    });
+  });
+
+  describe('built-in placeholders in template_create_from (#470)', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('fills {{title}} with the destination file name without .md', async () => {
+      adapter.addFolder('templates');
+      adapter.addFile('templates/note.md', '# {{title}}');
+      const tool = createTemplatesModule(adapter).tools().find((t) => t.name === 'template_create_from')!;
+      await tool.handler({ templatePath: 'templates/note.md', destPath: 'people/Ada Lovelace.md' });
+      expect(await adapter.readFile('people/Ada Lovelace.md')).toBe('# Ada Lovelace');
+    });
+
+    it('fills {{date}} and {{time}} as local YYYY-MM-DD and HH:mm', async () => {
+      vi.useFakeTimers();
+      const now = new Date(2026, 4, 6, 7, 8, 9);
+      vi.setSystemTime(now);
+      adapter.addFolder('templates');
+      adapter.addFile('templates/note.md', '{{date}} {{time}}');
+      const tool = createTemplatesModule(adapter).tools().find((t) => t.name === 'template_create_from')!;
+      await tool.handler({ templatePath: 'templates/note.md', destPath: 'n.md' });
+      expect(await adapter.readFile('n.md')).toBe('2026-05-06 07:08');
+    });
+
+    it('template_expand leaves {{title}} as written unless given', async () => {
+      const tool = createTemplatesModule(adapter).tools().find((t) => t.name === 'template_expand')!;
+      expect(getText(await tool.handler({ template: '# {{title}}' }))).toBe('# {{title}}');
+      expect(
+        getText(await tool.handler({ template: '# {{title}}', variables: { title: 'X' } })),
+      ).toBe('# X');
+    });
   });
 
   describe('template_create_from with frontmatter (#431)', () => {
@@ -234,6 +317,15 @@ describe('templates module', () => {
       for (const tool of createTemplatesModule(adapter).tools()) {
         expect(Object.keys(tool.schema), tool.name).not.toContain('responseFormat');
       }
+    });
+
+    it('template_list returns folder and files as JSON text and structuredContent', async () => {
+      adapter.addFolder('templates');
+      adapter.addFile('templates/a.md', 'a');
+      const tool = createTemplatesModule(adapter).tools().find((t) => t.name === 'template_list')!;
+      const result = await tool.handler({});
+      expect(result.structuredContent).toEqual({ folder: 'templates', files: ['templates/a.md'] });
+      expect(getText(result)).toBe('{"folder":"templates","files":["templates/a.md"]}');
     });
 
     it('template_expand returns only the expanded text, without structuredContent', async () => {

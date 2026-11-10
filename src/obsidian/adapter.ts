@@ -138,6 +138,13 @@ export interface ObsidianAdapter {
    * never have to handle `undefined`.
    */
   getDailyNotesSettings(): DailyNotesSettings | null;
+  /**
+   * The template folder set in the Obsidian core "Templates" plugin
+   * (`options.folder`) as stored. `null` when no folder was ever set or
+   * the plugin is not present. Read whether or not the
+   * plugin is enabled: Obsidian keeps the option while it is off (#470).
+   */
+  getTemplatesFolder(): string | null;
 
   // Vault settings
   /**
@@ -650,6 +657,12 @@ export class RealObsidianAdapter implements ObsidianAdapter {
       folder: typeof options.folder === 'string' ? options.folder : '',
       template: typeof options.template === 'string' ? options.template : '',
     };
+  }
+
+  getTemplatesFolder(): string | null {
+    const appAny = this.app as any;
+    const folder: unknown = appAny.internalPlugins?.plugins?.templates?.instance?.options?.folder;
+    return typeof folder === 'string' ? folder : null;
   }
 
   getAutoUpdateLinks(): boolean | null {

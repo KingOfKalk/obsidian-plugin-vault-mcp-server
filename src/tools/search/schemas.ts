@@ -40,7 +40,7 @@ export const searchByTagSchema = {
     .min(1)
     .max(200)
     .describe(
-      'Tag with or without the leading # (e.g. "project"). "project" does not find "Project" or nested "project/alpha".',
+      'Tag with or without the leading # (e.g. "project" also finds "#Project" and "#project/alpha").',
     ),
   ...paginationFields,
 };

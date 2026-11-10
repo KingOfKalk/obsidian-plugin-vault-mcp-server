@@ -17,7 +17,8 @@ import {
   NEW_MODIFIED_DESC,
   vaultPathField,
 } from '../shared/descriptions';
-import { expandPlaceholders } from '../shared/placeholders';
+import { expandPlaceholders, noteTitle } from '../shared/placeholders';
+import { templatesFolder } from '../shared/templates-folder';
 import { modifiedIso } from '../shared/modified';
 import { assertSafeFrontmatterKeys, frontmatterKeySchema } from '../shared/frontmatter';
 import { dataResponse, documentResponse } from '../shared/response';
@@ -58,9 +59,12 @@ const expandVariablesSchema = {
  * document tool and has none.
  */
 const templateListOutputSchema = {
+  folder: z
+    .string()
+    .describe('The template folder that was listed.'),
   files: z
     .array(z.string())
-    .describe('Vault-relative paths of the files directly in the top-level "templates" folder; empty when that folder is missing.'),
+    .describe('Vault-relative paths of the files in the template folder and its subfolders; empty when the folder is missing.'),
 };
 
 const createFromTemplateOutputSchema = {
@@ -82,17 +86,22 @@ interface TemplatesHandlers {
 function createHandlers(adapter: ObsidianAdapter): TemplatesHandlers {
   const vaultPath = adapter.getVaultPath();
   const configDir = adapter.getConfigDir();
-  const templatesFolder = 'templates';
 
   return {
     listTemplates: (): Promise<CallToolResult> => {
       try {
-        const result = adapter.list(templatesFolder);
-        return Promise.resolve(dataResponse({ files: result.files }));
-      } catch (error) {
-        if (error instanceof FolderNotFoundError) {
-          return Promise.resolve(dataResponse({ files: [] as string[] }));
+        const folder = validateToolPath(templatesFolder(adapter), vaultPath, configDir);
+        let files: string[];
+        try {
+          files = adapter.listRecursive(folder).files;
+        } catch (error) {
+          if (!(error instanceof FolderNotFoundError)) throw error;
+          files = [];
         }
+        return Promise.resolve(
+          dataResponse({ folder, files }),
+        );
+      } catch (error) {
         return Promise.resolve(handleToolError(error));
       }
     },
@@ -110,7 +119,9 @@ function createHandlers(adapter: ObsidianAdapter): TemplatesHandlers {
           assertSafeFrontmatterKeys(setKeys);
         }
         const templateContent = await adapter.readFile(templatePath);
-        const expanded = expandPlaceholders(templateContent, variables);
+        const expanded = expandPlaceholders(templateContent, variables, {
+          title: noteTitle(destPath),
+        });
         await adapter.createFile(destPath, expanded);
         if (setKeys.length === 0) {
           return dataResponse({
@@ -161,8 +172,8 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
           title: 'List templates',
           description: describeTool({
             summary:
-              'List the files directly inside the top-level folder named exactly "templates" (case-sensitive; not recursive). ' +
-              'The folder set in the Templates or Templater plugin is not used; use vault_list to look elsewhere.',
+              'List the files in the folder set in the core Templates plugin ("templates" if none is set), including subfolders. ' +
+              "Templater's folder is not used; use vault_list_recursive to look elsewhere.",
           }),
           schema: listTemplatesSchema,
           outputSchema: templateListOutputSchema,

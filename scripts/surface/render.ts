@@ -95,7 +95,7 @@ const ASSUMPTION =
 export function renderSurfaceReport(m: SurfaceMeasurement): string {
   return [
     '## Agent-facing surface',
-    `All ${m.all.toolCount} tools enabled (extras included); a fresh install enables ${m.defaults.toolCount}. ${ASSUMPTION}`,
+    `All ${m.all.toolCount} tools enabled (extras included); a fresh install enables ${m.defaults.toolCount} (editor, workspace, ui and extras off, empty command allowlist, Dataview enabled). ${ASSUMPTION}`,
     renderTotalsTable(m),
     '### Per module (all tools)',
     renderModulesTable(m),

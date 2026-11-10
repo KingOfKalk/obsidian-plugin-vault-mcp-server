@@ -191,7 +191,7 @@ function createHandlers(adapter: ObsidianAdapter): WorkspaceHandlers {
 export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
   const h = createHandlers(adapter);
   return {
-    metadata: { id: 'workspace', name: 'Workspace and Navigation', description: 'Manage panes, open files, and navigate the workspace' },
+    metadata: { id: 'workspace', name: 'Workspace and Navigation', description: 'Manage panes, open files, and navigate the workspace', defaultEnabled: false },
     tools(): ToolDefinition[] {
       return [
         defineTool({

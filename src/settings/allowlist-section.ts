@@ -14,7 +14,7 @@ export function renderAllowlistSection(
 
   containerEl.createEl('p', {
     cls: 'setting-item-description',
-    text: 'The plugin_execute_command tool refuses every call by default. To enable specific Obsidian commands for MCP execution, list their ids here (one per line). Leave empty to keep the tool disabled.',
+    text: 'The plugin_execute_command tool runs only the Obsidian commands listed here (one id per line). While the list is empty, MCP clients do not see the tool at all.',
   });
 
   const textarea = containerEl.createEl('textarea', {
@@ -28,6 +28,8 @@ export function renderAllowlistSection(
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
     plugin.settings.executeCommandAllowlist = next;
+    // Lists or hides plugin_execute_command in open sessions (#469).
+    plugin.registry.refreshAvailability();
     plugin
       .saveSettings()
       .catch(reportError('save allowlist', plugin.logger));

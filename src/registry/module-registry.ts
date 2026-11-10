@@ -12,6 +12,12 @@ export class ModuleRegistry {
   private modules: Map<string, ModuleRegistration> = new Map();
   private changeHandlers: Set<RegistryChangeHandler> = new Set();
   private logger: Logger;
+  /**
+   * Names of the tools that were unavailable at the last change
+   * notification (#469), so {@link refreshAvailability} notifies only when
+   * a tool's runtime availability actually changed.
+   */
+  private lastUnavailable = '';
 
   constructor(logger: Logger) {
     this.logger = logger;
@@ -121,6 +127,7 @@ export class ModuleRegistry {
       const moduleTools = registration.module.tools();
       for (const tool of moduleTools) {
         if (isExtras && !(registration.toolStates[tool.name] ?? false)) continue;
+        if (!isToolAvailable(tool)) continue;
         tools.push(tool);
       }
     }
@@ -201,9 +208,50 @@ export class ModuleRegistry {
     this.notifyChange();
   }
 
+  /**
+   * Re-check every tool's runtime availability (#469), e.g. whether
+   * Dataview is enabled or the command allowlist has entries. Notifies the
+   * change handlers (and so every open MCP session) only when a tool became
+   * available or unavailable since the last notification. Returns whether
+   * it notified. Cheap enough to call on a timer.
+   */
+  refreshAvailability(): boolean {
+    const key = this.unavailableKey();
+    if (key === this.lastUnavailable) return false;
+    this.logger.info('Tool availability changed', {
+      unavailable: key === '' ? [] : key.split(','),
+    });
+    this.notifyChange();
+    return true;
+  }
+
+  /** Sorted, comma-joined names of the tools that are unavailable now. */
+  private unavailableKey(): string {
+    const names: string[] = [];
+    for (const registration of this.modules.values()) {
+      for (const tool of registration.module.tools()) {
+        if (tool.isAvailable !== undefined && !isToolAvailable(tool)) {
+          names.push(tool.name);
+        }
+      }
+    }
+    return names.sort().join(',');
+  }
+
   private notifyChange(): void {
+    this.lastUnavailable = this.unavailableKey();
     for (const handler of this.changeHandlers) {
       handler();
     }
+  }
+}
+
+/** A tool's runtime availability; a check that throws counts as unavailable. */
+function isToolAvailable(tool: ToolDefinition): boolean {
+  if (tool.isAvailable === undefined) return true;
+  try {
+    return tool.isAvailable();
+  } catch {
+    return false;
   }
 }

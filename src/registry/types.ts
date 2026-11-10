@@ -66,6 +66,15 @@ export interface ToolDefinition<
   outputSchema?: z.ZodRawShape | z.ZodObject;
   handler: TypedHandler<Shape>;
   annotations: ToolAnnotations;
+  /**
+   * Runtime availability, separate from the user's module and tool
+   * switches (#469). Returns false while the tool cannot work, e.g. its
+   * plugin is not enabled or its allowlist is empty; the tool is then left
+   * out of `tools/list` even though its module is on. Omitted means always
+   * available. Read by `ModuleRegistry.getActiveTools`; changes are picked
+   * up by `ModuleRegistry.refreshAvailability`, so keep it cheap.
+   */
+  isAvailable?: () => boolean;
 }
 
 export type TypedHandler<Shape extends z.ZodRawShape> = (

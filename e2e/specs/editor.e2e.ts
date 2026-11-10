@@ -4,6 +4,7 @@ import {
   callDocument,
   callTool,
   connectClient,
+  enableModules,
   startMcpServer,
   waitForCache,
   writeNotes,
@@ -31,6 +32,7 @@ describe('editor positions at the end of the document', function () {
   let client: Client;
 
   before(async function () {
+    await enableModules('editor', 'workspace');
     await startMcpServer();
     client = await connectClient();
   });

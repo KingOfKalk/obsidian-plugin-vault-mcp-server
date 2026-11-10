@@ -22,8 +22,8 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.moduleStates).toEqual({});
   });
 
-  it('should have schema version 12', () => {
-    expect(DEFAULT_SETTINGS.schemaVersion).toBe(12);
+  it('should have schema version 13', () => {
+    expect(DEFAULT_SETTINGS.schemaVersion).toBe(13);
     expect(DEFAULT_SETTINGS.promptsEnabled).toBe(true);
   });
 

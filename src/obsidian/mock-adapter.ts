@@ -623,6 +623,17 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     this.dailyNotesSettings = value;
   }
 
+  private templatesFolder: string | null = null;
+
+  getTemplatesFolder(): string | null {
+    return this.templatesFolder;
+  }
+
+  /** Test helper: the core Templates plugin's folder option (#470). */
+  setTemplatesFolder(value: string | null): void {
+    this.templatesFolder = value;
+  }
+
   // Test helpers
   setActiveEditor(path: string, content: string): void {
     this.activeFile = path;
@@ -639,6 +650,12 @@ export class MockObsidianAdapter implements ObsidianAdapter {
 
   addInstalledPlugin(id: string, name: string, enabled: boolean): void {
     this.installedPlugins.push({ id, name, enabled });
+  }
+
+  /** Enable or disable an installed plugin, as the Community plugins tab does. */
+  setPluginEnabled(id: string, enabled: boolean): void {
+    const plugin = this.installedPlugins.find((p) => p.id === id);
+    if (plugin) plugin.enabled = enabled;
   }
 
   getExecutedCommands(): string[] {

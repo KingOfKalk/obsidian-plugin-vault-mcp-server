@@ -218,10 +218,9 @@ Response (`structuredContent`):
 
 **Execute command**
 
-Run an Obsidian command by id. Only ids the user put on the Execute Command Allowlist in the plugin settings run; the list is empty by default.
+Run an Obsidian command by id. Only ids the user put on the Execute Command Allowlist in the plugin settings run.
 Errors:
-- "Command execution disabled" if the allowlist is empty; ask the user to add the id in the plugin settings.
-- "Command "<id>" is not on the executeCommand allowlist" if the id is not listed.
+- "Command "<id>" is not on the executeCommand allowlist" if the id is not listed; ask the user to add it in the plugin settings.
 - "Command not found" if the id is listed but no such command exists.
 
 #### Input

@@ -22,7 +22,9 @@ export const config: WebdriverIO.Config = {
       browserVersion: process.env.OBSIDIAN_VERSION || '1.5.3',
       'wdio:obsidianOptions': {
         installerVersion: process.env.OBSIDIAN_INSTALLER || '1.5.3',
-        plugins: ['.'],
+        // Dataview is installed but starts disabled; plugin-tools.e2e.ts
+        // switches it on and off (#469). Pinned like Obsidian itself.
+        plugins: ['.', { repo: 'blacksmithgu/obsidian-dataview', version: '0.5.68', enabled: false }],
         vault: 'tests/vault',
       },
     },

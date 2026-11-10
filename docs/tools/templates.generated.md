@@ -8,7 +8,7 @@ Auto-generated schema reference for the `templates` module. See [../tools.genera
 
 **List templates**
 
-List the files directly inside the top-level folder named exactly "templates" (case-sensitive; not recursive). The folder set in the Templates or Templater plugin is not used; use vault_list to look elsewhere.
+List the files in the folder set in the core Templates plugin ("templates" if none is set), including subfolders. Templater's folder is not used; use vault_list_recursive to look elsewhere.
 
 #### Input
 
@@ -18,7 +18,8 @@ _No input parameters._
 
 | Field | Type | Description |
 |---|---|---|
-| `files` | string[] | Vault-relative paths of the files directly in the top-level "templates" folder; empty when that folder is missing. |
+| `folder` | string | The template folder that was listed. |
+| `files` | string[] | Vault-relative paths of the files in the template folder and its subfolders; empty when the folder is missing. |
 
 #### Example
 
@@ -35,6 +36,7 @@ Response (`structuredContent`):
 
 ```json
 {
+  "folder": "templates",
   "files": [
     "templates/meeting.md"
   ]
@@ -59,7 +61,7 @@ Errors:
 |---|---|---|---|
 | `templatePath` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. |
 | `destPath` | string (1–4096) | yes | Vault-relative file path with extension, e.g. `notes/a.md`. |
-| `variables` | object | no | Values for {{name}} placeholders, overriding the built-ins {{date}} (UTC, YYYY-MM-DD), {{time}} (host-locale) and {{title}} ("Untitled"). Unknown placeholders and Templater <% %> stay as written. |
+| `variables` | object | no | Values for {{name}} placeholders, overriding the built-ins {{date}} (local YYYY-MM-DD), {{time}} (local HH:mm) and {{title}} (target file name without .md). Unknown placeholders and Templater <% %> stay as written. |
 | `frontmatter` | object | no | Keys to set on the new note, mapped to JSON-compatible values (string, number, boolean, null, array or object). Applied after expansion: template keys are kept, keys given here overwrite them. Markdown (.md) destinations only. |
 
 #### Output
@@ -117,7 +119,7 @@ See also:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `template` | string (≤100000) | yes | Template text with {{variable}} placeholders. |
-| `variables` | object | no | Values for {{name}} placeholders, overriding the built-ins {{date}} (UTC, YYYY-MM-DD), {{time}} (host-locale) and {{title}} ("Untitled"). Unknown placeholders and Templater <% %> stay as written. |
+| `variables` | object | no | Values for {{name}} placeholders, overriding the built-ins {{date}} (local YYYY-MM-DD), {{time}} (local HH:mm) and {{title}} (target file name without .md). Unknown placeholders and Templater <% %> stay as written. |
 
 #### Output
 

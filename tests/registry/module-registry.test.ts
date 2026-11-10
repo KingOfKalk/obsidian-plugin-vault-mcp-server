@@ -360,3 +360,93 @@ describe('ModuleRegistry', () => {
     });
   });
 });
+
+describe('ModuleRegistry runtime availability (#469)', () => {
+  let registry: ModuleRegistry;
+  let available: boolean;
+
+  function conditionalTool(name: string): ToolDefinition {
+    return { ...createMockTool(name, true), isAvailable: (): boolean => available };
+  }
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    registry = new ModuleRegistry(createMockLogger());
+    available = false;
+    registry.registerModule(
+      createMockModule('plugins', [createMockTool('always', true), conditionalTool('sometimes')]),
+    );
+  });
+
+  it('leaves an unavailable tool out of the active tools', () => {
+    expect(registry.getActiveTools().map((t) => t.name)).toEqual(['always']);
+    available = true;
+    expect(registry.getActiveTools().map((t) => t.name)).toEqual(['always', 'sometimes']);
+  });
+
+  it('keeps the module on: availability is separate from the user switch', () => {
+    expect(registry.isModuleEnabled('plugins')).toBe(true);
+    expect(registry.getState()).toEqual({ plugins: { enabled: true } });
+    expect(registry.getEnabledModuleIds()).toEqual(['plugins']);
+  });
+
+  it('an available tool of a disabled module stays inactive', () => {
+    available = true;
+    registry.disableModule('plugins');
+    expect(registry.getActiveTools()).toEqual([]);
+  });
+
+  it('refreshAvailability notifies only when availability changed', () => {
+    const handler = vi.fn();
+    registry.onChange(handler);
+
+    expect(registry.refreshAvailability()).toBe(false);
+    expect(handler).not.toHaveBeenCalled();
+
+    available = true;
+    expect(registry.refreshAvailability()).toBe(true);
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(registry.refreshAvailability()).toBe(false);
+    expect(handler).toHaveBeenCalledTimes(1);
+
+    available = false;
+    expect(registry.refreshAvailability()).toBe(true);
+    expect(handler).toHaveBeenCalledTimes(2);
+  });
+
+  it('a change already notified by a switch is not notified again', () => {
+    const handler = vi.fn();
+    registry.onChange(handler);
+    available = true;
+    registry.disableModule('plugins');
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(registry.refreshAvailability()).toBe(false);
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it('a check that throws counts as unavailable', () => {
+    registry.registerModule(
+      createMockModule('broken', [
+        {
+          ...createMockTool('throws', true),
+          isAvailable: (): boolean => {
+            throw new Error('plugin API gone');
+          },
+        },
+      ]),
+    );
+    expect(registry.getActiveTools().map((t) => t.name)).not.toContain('throws');
+    expect(registry.refreshAvailability()).toBe(false);
+  });
+});
+
+describe('default module states (#469)', () => {
+  it('modules with defaultEnabled: false start off and can be applied on', () => {
+    const registry = new ModuleRegistry(createMockLogger());
+    registry.registerModule(createMockModule('editor', [createMockTool('editor_x', true)], false));
+    expect(registry.isModuleEnabled('editor')).toBe(false);
+    expect(registry.getActiveTools()).toEqual([]);
+    registry.applyState({ editor: { enabled: true } });
+    expect(registry.getActiveTools().map((t) => t.name)).toEqual(['editor_x']);
+  });
+});
