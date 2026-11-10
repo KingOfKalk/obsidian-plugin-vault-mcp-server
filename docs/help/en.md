@@ -818,6 +818,14 @@ clients and agents commonly trip over:
   first; nothing was changed.`; nothing is overwritten. (Before 4.1.0 the
   error was Obsidian's `Destination file already exists!`, or an `EEXIST`
   error for `vault_copy`.)
+- **Renaming can update the note's title.** `vault_rename` with
+  `updateTitle: true` also changes the note's first `# Heading` (after the
+  frontmatter) to the new name, when that heading equals the old file name
+  without `.md`. Renaming `Draft.md` to `Final.md` turns `# Draft` into
+  `# Final`. If the first heading says something else, or the item is a
+  folder or not a Markdown file, the note is left as it is and the result
+  reports `titleUpdated: false`. Without the flag (the default) the heading
+  is never touched. `vault_move` keeps the name and does not change it.
 - **Missing folders are created.** `vault_create`, `vault_copy`,
   `vault_move`, `vault_write_binary` and `template_create_from` create any
   folders in the target path that do not exist yet, so writing

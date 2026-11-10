@@ -233,6 +233,14 @@ const renameOutputSchema = {
     .describe('Present when other files link to the moved file(s) but their links were not updated.'),
 };
 
+const renameFileOutputSchema = {
+  ...renameOutputSchema,
+  titleUpdated: z
+    .boolean()
+    .optional()
+    .describe('With updateTitle only: whether the first H1 was changed.'),
+};
+
 const replaceOutputSchema = {
   path: writePath,
   replacements: z.number().describe('Number of occurrences replaced (over all edits).'),
@@ -480,7 +488,9 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Rename file or folder',
           description: describeTool({
             summary: 'Rename a file or folder within its current folder.',
-            returns: LINK_UPDATE_RETURNS,
+            returns:
+              LINK_UPDATE_RETURNS +
+              ' With updateTitle, titleUpdated says whether the first H1 changed; it is left alone (false) unless it equals the old name.',
             examples: ['Use when: renaming "notes/draft.md" to "notes/final.md" -> { path: "notes/draft.md", newName: "final.md" }'],
             errors: [
               '"newName must not contain path separators" if newName has / or \\; "Invalid rename target" if it is blank or invalid.',
@@ -489,7 +499,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             ],
           }),
           schema: renameFileSchema,
-          outputSchema: renameOutputSchema,
+          outputSchema: renameFileOutputSchema,
           handler: handlers.renameFile,
           annotations: annotations.destructive,
         }),

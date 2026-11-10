@@ -191,6 +191,10 @@ export const renameFileSchema = {
     .describe(
       'New name of the last path segment, extension included ("final.md", not "final"); the folder stays the same. No / or \\.',
     ),
+  updateTitle: z
+    .boolean()
+    .default(false)
+    .describe('Markdown file: also change its first H1 to the new name if it equals the old name (without .md).'),
 };
 
 export const moveFileSchema = {

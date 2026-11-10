@@ -247,3 +247,27 @@ export function insertIntoSection(
     line: at,
   };
 }
+
+const H1_PARTS = /^( {0,3}#[ \t]+)(.*?)((?:[ \t]+#+)?[ \t]*)$/;
+
+/**
+ * `vault_rename` with `updateTitle` (#520): if the note's first H1 (after
+ * the frontmatter, outside code fences) is `oldTitle`, return the content
+ * with that heading's text replaced by `newTitle`; otherwise `null`.
+ * Indentation, closing hashes and line endings are kept.
+ */
+export function replaceTitleHeading(
+  content: string,
+  oldTitle: string,
+  newTitle: string,
+): string | null {
+  const lines = splitLines(content);
+  const h1 = parseHeadings(lines).find((heading) => heading.level === 1);
+  if (h1 === undefined || h1.text !== normalizeHeadingText(oldTitle)) return null;
+  const match = H1_PARTS.exec(lines[h1.index]);
+  if (match === null) return null;
+  const raw = content.split('\n');
+  const cr = raw[h1.index].endsWith('\r') ? '\r' : '';
+  raw[h1.index] = `${match[1]}${newTitle}${match[3]}${cr}`;
+  return raw.join('\n');
+}
