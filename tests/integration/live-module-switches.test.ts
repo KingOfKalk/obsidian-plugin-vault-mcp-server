@@ -195,6 +195,49 @@ describe('live module switches (#448)', () => {
     );
   });
 
+  it('"Read and edit only" hides the tools that delete or overwrite, live (#517)', async () => {
+    const c = await connect();
+    const before = await toolNames(c.client);
+    expect(before).toEqual(
+      expect.arrayContaining(['vault_delete', 'vault_delete_folder', 'vault_update', 'vault_write_binary']),
+    );
+
+    const notified = c.nextListChanged();
+    registry.setReadAndEditOnly(true);
+    await notified;
+
+    const names = await toolNames(c.client);
+    for (const hidden of ['vault_delete', 'vault_delete_folder', 'vault_update', 'vault_write_binary']) {
+      expect(names).not.toContain(hidden);
+    }
+    for (const kept of ['vault_read', 'vault_create', 'vault_replace', 'vault_append', 'vault_rename', 'vault_move']) {
+      expect(names).toContain(kept);
+    }
+    await expect(
+      c.client.callTool({ name: 'vault_delete', arguments: { path: 'note.md' } }),
+    ).rejects.toThrow(/vault_delete disabled/);
+    await expect(
+      c.client.callTool({ name: 'vault_update', arguments: { path: 'note.md', content: 'x' } }),
+    ).rejects.toThrow(/vault_update disabled/);
+    const read = await c.client.callTool({ name: 'vault_read', arguments: { path: 'note.md' } });
+    expect(read.isError).not.toBe(true);
+    expect(c.listChanged()).toBe(1);
+
+    registry.setReadAndEditOnly(false);
+    expect(await toolNames(c.client)).toEqual(before);
+  });
+
+  it('a session opened while "Read and edit only" is on never lists the hidden tools (#517)', async () => {
+    registry.setReadAndEditOnly(true);
+    const { client } = await connect();
+    const names = await toolNames(client);
+    expect(names).toContain('vault_read');
+    expect(names).not.toContain('vault_delete');
+    await expect(
+      client.callTool({ name: 'vault_delete', arguments: { path: 'note.md' } }),
+    ).rejects.toThrow(/vault_delete (disabled|not found)/);
+  });
+
   it('sends one notifications/tools/list_changed per switch', async () => {
     const c = await connect();
     const offNotified = c.nextListChanged();

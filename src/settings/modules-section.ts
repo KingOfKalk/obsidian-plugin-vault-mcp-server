@@ -34,6 +34,8 @@ export function renderModulesSection(
     });
   }
 
+  renderReadAndEditOnlyRow(containerEl, plugin);
+
   for (const registration of coreModules) {
     renderModuleRow(containerEl, plugin, registration);
   }
@@ -51,6 +53,29 @@ export function renderModulesSection(
       refresh();
     }),
   );
+}
+
+/**
+ * "Read and edit only" (#517): hides the tools that delete or overwrite
+ * existing content. Applied live through the registry, like a module
+ * switch (#448).
+ */
+function renderReadAndEditOnlyRow(
+  containerEl: HTMLElement,
+  plugin: McpPlugin,
+): void {
+  new Setting(containerEl)
+    .setName(t('setting_read_and_edit_only_name'))
+    .setDesc(t('setting_read_and_edit_only_desc'))
+    .addToggle((toggle) =>
+      toggle.setValue(plugin.settings.readAndEditOnly).onChange((value) => {
+        plugin.settings.readAndEditOnly = value;
+        plugin.registry.setReadAndEditOnly(value);
+        plugin
+          .saveSettings()
+          .catch(reportError('save read and edit only', plugin.logger));
+      }),
+    );
 }
 
 function renderExtrasToolRows(

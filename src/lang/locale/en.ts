@@ -123,6 +123,9 @@ const en = {
   message_no_modules:
     'No modules registered. Click "Refresh Modules" to re-run discovery.',
   button_refresh_modules: 'Refresh Modules',
+  setting_read_and_edit_only_name: 'Read and edit only',
+  setting_read_and_edit_only_desc:
+    'Hide the tools that delete or overwrite whole files: vault_delete, vault_delete_folder, vault_update and vault_write_binary. Assistants can still read, create, move, rename and edit notes. Takes effect right away, also for connected clients.',
 
   // Plugin lifecycle notices (main.ts)
   notice_server_started: 'MCP server started on port {port}',

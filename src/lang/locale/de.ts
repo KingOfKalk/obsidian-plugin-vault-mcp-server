@@ -122,6 +122,9 @@ const de: Partial<Record<keyof typeof en, string>> = {
   message_no_modules:
     'Keine Module registriert. Klicke auf „Module neu laden", um die Erkennung erneut auszuführen.',
   button_refresh_modules: 'Module neu laden',
+  setting_read_and_edit_only_name: 'Nur lesen und bearbeiten',
+  setting_read_and_edit_only_desc:
+    'Blendet die Werkzeuge aus, die ganze Dateien löschen oder überschreiben: vault_delete, vault_delete_folder, vault_update und vault_write_binary. Assistenten können Notizen weiterhin lesen, anlegen, verschieben, umbenennen und bearbeiten. Wirkt sofort, auch für verbundene Clients.',
 
   // Plugin lifecycle notices
   notice_server_started: 'MCP-Server auf Port {port} gestartet',
