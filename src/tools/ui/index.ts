@@ -5,12 +5,11 @@ import {
   ToolDefinition,
   annotations,
   defineTool,
-  type InferredParams,
 } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { describeTool } from '../shared/describe';
 import { dataResponse } from '../shared/response';
-
+import { safeHandler } from '../shared/handler';
 
 const showNoticeSchema = {
   message: z
@@ -31,21 +30,7 @@ const showNoticeOutputSchema = {
   shown: z.boolean().describe('Always true once the notice was shown.'),
 };
 
-interface UiHandlers {
-  showNotice: (params: InferredParams<typeof showNoticeSchema>) => Promise<CallToolResult>;
-}
-
-function createHandlers(adapter: ObsidianAdapter): UiHandlers {
-  return {
-    showNotice: (params): Promise<CallToolResult> => {
-      adapter.showNotice(params.message, params.duration);
-      return Promise.resolve(dataResponse({ shown: true }));
-    },
-  };
-}
-
 export function createUiModule(adapter: ObsidianAdapter): ToolModule {
-  const h = createHandlers(adapter);
   return {
     metadata: { id: 'ui', name: 'UI Interactions', description: 'Show notices, modals, and prompts in Obsidian', defaultEnabled: false },
     tools(): ToolDefinition[] {
@@ -58,7 +43,10 @@ export function createUiModule(adapter: ObsidianAdapter): ToolModule {
           }),
           schema: showNoticeSchema,
           outputSchema: showNoticeOutputSchema,
-          handler: h.showNotice,
+          handler: safeHandler((params): CallToolResult => {
+            adapter.showNotice(params.message, params.duration);
+            return dataResponse({ shown: true });
+          }),
           annotations: annotations.additive,
         }),
       ];

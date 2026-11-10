@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { CallToolResult } from '@modelcontextprotocol/server';
 import { MockObsidianAdapter } from '../../helpers/mock-adapter';
 import { createHandlers, WriteMutex } from '../../../src/tools/vault/handlers';
-import { createSearchHandlers } from '../../../src/tools/search/handlers';
 import type { TrashDestination } from '../../../src/obsidian/adapter';
 
 function getText(result: CallToolResult): string {
@@ -16,7 +15,7 @@ describe('rename/move link report and delete destination (#430)', () => {
 
   beforeEach(() => {
     adapter = new MockObsidianAdapter();
-    handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
+    handlers = createHandlers(adapter, new WriteMutex());
   });
 
   /** Add a note whose content and metadata links agree. */

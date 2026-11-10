@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { CallToolResult } from '@modelcontextprotocol/server';
 import { MockObsidianAdapter } from '../../helpers/mock-adapter';
 import { createHandlers, WriteMutex } from '../../../src/tools/vault/handlers';
-import { createSearchHandlers } from '../../../src/tools/search/handlers';
 import { jsonOf, parseDocument, windowOf } from '../../helpers/result';
 
 function getText(result: CallToolResult): string {
@@ -19,7 +18,7 @@ describe('vault handlers', () => {
   beforeEach(() => {
     adapter = new MockObsidianAdapter();
     mutex = new WriteMutex();
-    handlers = createHandlers(adapter, mutex, createSearchHandlers(adapter));
+    handlers = createHandlers(adapter, mutex);
   });
 
   describe('createFile', () => {
@@ -503,7 +502,7 @@ describe('vault handlers truncation and size limits', () => {
 
   beforeEach(() => {
     adapter = new MockObsidianAdapter();
-    handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
+    handlers = createHandlers(adapter, new WriteMutex());
   });
 
   it('truncates oversized readFile content with a clear footer', async () => {
@@ -631,7 +630,7 @@ describe('vault handlers: trash, links and missing folders (#405)', () => {
 
   beforeEach(() => {
     adapter = new MockObsidianAdapter();
-    handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
+    handlers = createHandlers(adapter, new WriteMutex());
   });
 
   it('vault_delete sends the file to the trash', async () => {

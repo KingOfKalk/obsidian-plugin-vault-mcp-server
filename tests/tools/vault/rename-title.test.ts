@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { MockObsidianAdapter } from '../../helpers/mock-adapter';
 import { createHandlers, WriteMutex } from '../../../src/tools/vault/handlers';
-import { createSearchHandlers } from '../../../src/tools/search/handlers';
 import { renameFileSchema } from '../../../src/tools/vault/schemas';
 import { z } from 'zod';
 
@@ -11,7 +10,7 @@ describe('vault_rename updateTitle (#520)', () => {
 
   beforeEach(() => {
     adapter = new MockObsidianAdapter();
-    handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
+    handlers = createHandlers(adapter, new WriteMutex());
   });
 
   it('defaults to false in the schema', () => {

@@ -4,7 +4,6 @@ import { App, TFile } from 'obsidian';
 import { MockObsidianAdapter } from '../../helpers/mock-adapter';
 import { RealObsidianAdapter } from '../../../src/obsidian/adapter';
 import { createHandlers, WriteMutex } from '../../../src/tools/vault/handlers';
-import { createSearchHandlers } from '../../../src/tools/search/handlers';
 import { createEditorModule } from '../../../src/tools/editor/index';
 import { writeBinarySchema } from '../../../src/tools/vault/schemas';
 import {
@@ -90,7 +89,7 @@ describe('error hints (#463)', () => {
 
     beforeEach(() => {
       adapter = new MockObsidianAdapter();
-      handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
+      handlers = createHandlers(adapter, new WriteMutex());
     });
 
     it('vault_read suggests the .md path when it exists', async () => {

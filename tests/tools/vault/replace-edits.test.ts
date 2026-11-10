@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/server';
 import { MockObsidianAdapter } from '../../helpers/mock-adapter';
 import { createHandlers, WriteMutex } from '../../../src/tools/vault/handlers';
-import { createSearchHandlers } from '../../../src/tools/search/handlers';
 import { createVaultModule } from '../../../src/tools/vault/index';
 import { buildInputSchema } from '../../../src/registry/input-schema';
 import { replaceInFileSchema, MAX_REPLACE_EDITS } from '../../../src/tools/vault/schemas';
@@ -27,7 +26,7 @@ describe('vault_replace with edits (#429)', () => {
 
   beforeEach(() => {
     adapter = new MockObsidianAdapter();
-    handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
+    handlers = createHandlers(adapter, new WriteMutex());
   });
 
   it('applies several edits in one write and reports per-edit counts', async () => {

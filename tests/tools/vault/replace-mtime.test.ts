@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { CallToolResult } from '@modelcontextprotocol/server';
 import { MockObsidianAdapter } from '../../helpers/mock-adapter';
 import { createHandlers, WriteMutex } from '../../../src/tools/vault/handlers';
-import { createSearchHandlers } from '../../../src/tools/search/handlers';
 import { buildInputSchema } from '../../../src/registry/input-schema';
 import { replaceInFileSchema, updateFileSchema } from '../../../src/tools/vault/schemas';
 import { parseDocument } from '../../helpers/result';
@@ -24,7 +23,7 @@ describe('vault_replace and expectedMtime (#406)', () => {
 
   beforeEach(() => {
     adapter = new MockObsidianAdapter();
-    handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
+    handlers = createHandlers(adapter, new WriteMutex());
   });
 
   describe('replaceInFile', () => {

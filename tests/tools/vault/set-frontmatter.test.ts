@@ -5,7 +5,6 @@ import { CallToolResult } from '@modelcontextprotocol/server';
 import { MockObsidianAdapter } from '../../helpers/mock-adapter';
 import { RealObsidianAdapter } from '../../../src/obsidian/adapter';
 import { createHandlers, WriteMutex } from '../../../src/tools/vault/handlers';
-import { createSearchHandlers } from '../../../src/tools/search/handlers';
 import { createVaultModule } from '../../../src/tools/vault/index';
 
 function getText(result: CallToolResult): string {
@@ -19,7 +18,7 @@ describe('vault_set_frontmatter handler (#407)', () => {
 
   beforeEach(() => {
     adapter = new MockObsidianAdapter();
-    handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
+    handlers = createHandlers(adapter, new WriteMutex());
   });
 
   it('sets keys, keeps other keys and the body', async () => {
@@ -306,7 +305,7 @@ describe('vault_set_frontmatter registration', () => {
   it('structuredContent parses against the declared outputSchema', async () => {
     const adapter = new MockObsidianAdapter();
     adapter.addFile('note.md', 'Body');
-    const handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
+    const handlers = createHandlers(adapter, new WriteMutex());
     const result = await handlers.setFrontmatter({ path: 'note.md', set: { a: [1] } });
     const shape = tool?.outputSchema as z.ZodRawShape;
     expect(z.object(shape).strict().parse(result.structuredContent)).toEqual({

@@ -1,7 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
+import { z } from 'zod';
 import {
   fitItems,
   fitPage,
+  itemsPageOutputFields,
+  pageOf,
   paginate,
   paginationFields,
   readPagination,
@@ -168,5 +171,47 @@ describe('fitting a page into CHARACTER_LIMIT (#464)', () => {
     expect(paginationFields.limit.parse(undefined)).toBe(50);
     expect(paginationFields.limit.safeParse(100).success).toBe(true);
     expect(paginationFields.limit.safeParse(101).success).toBe(false);
+  });
+});
+
+describe('pageOf()', () => {
+  it('puts the fields first, then the paging fields in schema order', () => {
+    const page = paginate(['a', 'b', 'c'], { limit: 2, offset: 0 });
+    const result = pageOf({ links: { a: 1 } }, page);
+    expect(Object.keys(result)).toEqual(['links', 'total', 'count', 'offset', 'hasMore', 'nextOffset']);
+    expect(result).toEqual({ links: { a: 1 }, total: 3, count: 2, offset: 0, hasMore: true, nextOffset: 2 });
+  });
+
+  it('leaves out nextOffset on the last page', () => {
+    const result = pageOf({ tags: {} }, paginate(['a'], { limit: 2, offset: 0 }));
+    expect(result).toStrictEqual({ tags: {}, total: 1, count: 1, offset: 0, hasMore: false });
+  });
+
+  it('follows a page cut by shrinkPage', () => {
+    const page = shrinkPage(paginate(['a', 'b', 'c'], { limit: 3, offset: 0 }), 1);
+    expect(pageOf({ targets: page.items }, page)).toEqual({
+      targets: ['a'],
+      total: 3,
+      count: 1,
+      offset: 0,
+      hasMore: true,
+      nextOffset: 1,
+    });
+  });
+});
+
+describe('itemsPageOutputFields()', () => {
+  it('builds the page fields around items with the given texts', () => {
+    const fields = itemsPageOutputFields(z.array(z.string()), {
+      total: 'T',
+      count: 'C',
+      hasMore: 'H',
+    });
+    expect(Object.keys(fields)).toEqual(['total', 'count', 'offset', 'items', 'hasMore', 'nextOffset']);
+    expect(fields.total.description).toBe('T');
+    expect(fields.count.description).toBe('C');
+    expect(fields.hasMore.description).toBe('H');
+    const schema = z.object(fields).strict();
+    expect(schema.parse({ total: 1, count: 1, offset: 0, items: ['a'], hasMore: false })).toBeTruthy();
   });
 });

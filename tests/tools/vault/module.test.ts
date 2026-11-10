@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { MockObsidianAdapter } from '../../helpers/mock-adapter';
 import { createVaultModule } from '../../../src/tools/vault/index';
 import { createHandlers, WriteMutex } from '../../../src/tools/vault/handlers';
-import { createSearchHandlers } from '../../../src/tools/search/handlers';
 
 describe('vault module', () => {
   it('should have correct metadata', () => {
@@ -126,7 +125,7 @@ describe('vault read tools — outputSchema declarations', () => {
 
     const adapter = new MockObsidianAdapter();
     adapter.addFile('note.md', 'hi', { ctime: 1000, mtime: 2000 });
-    const handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
+    const handlers = createHandlers(adapter, new WriteMutex());
 
     const result = await handlers.getMetadata({
       path: 'note.md',
@@ -151,7 +150,7 @@ describe('vault read tools — outputSchema declarations', () => {
     adapter.addFolder('notes');
     adapter.addFile('notes/a.md', 'a');
     adapter.addFolder('notes/sub');
-    const handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
+    const handlers = createHandlers(adapter, new WriteMutex());
 
     const result = await handlers.listFolder({
       path: 'notes',
@@ -173,7 +172,7 @@ describe('vault read tools — outputSchema declarations', () => {
     for (let i = 0; i < 5; i++) {
       adapter.addFile(`lots/f-${String(i)}.md`, 'x');
     }
-    const handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
+    const handlers = createHandlers(adapter, new WriteMutex());
 
     const result = await handlers.listRecursive({
       path: 'lots',
@@ -201,7 +200,7 @@ describe('vault read tools — outputSchema declarations', () => {
     adapter.addFolder('few');
     adapter.addFile('few/a.md', 'a');
     adapter.addFile('few/b.md', 'b');
-    const handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
+    const handlers = createHandlers(adapter, new WriteMutex());
 
     const result = await handlers.listRecursive({
       path: 'few',
@@ -232,8 +231,7 @@ describe('vault read tools — outputSchema declarations', () => {
     adapter.addFile('b.md', '');
     adapter.setMetadata('b.md', { links: [{ link: 'a' }] });
 
-    const searchHandlers = createSearchHandlers(adapter);
-    const handlers = createHandlers(adapter, new WriteMutex(), searchHandlers);
+    const handlers = createHandlers(adapter, new WriteMutex());
 
     const cases = [
       {
@@ -296,7 +294,7 @@ describe('vault read tools — outputSchema declarations', () => {
     adapter.addFile('a.md', 'x');
     adapter.addFile('b.md', 'top\nsee [[a]]');
     adapter.setMetadata('b.md', { links: [{ link: 'a' }] });
-    const handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
+    const handlers = createHandlers(adapter, new WriteMutex());
 
     const result = await handlers.getAspect({
       path: 'a.md',
@@ -350,7 +348,7 @@ describe('vault tools document shared args in inputSchema', () => {
 });
 
 describe('vault_get_aspect dispatcher', () => {
-  it('routes each aspect to the matching searchHandlers method', async () => {
+  it('routes each aspect to its aspect handler', async () => {
     const adapter = new MockObsidianAdapter();
     adapter.addFile('a.md', 'A line ^anchor\n');
     adapter.setMetadata('a.md', {
@@ -362,8 +360,7 @@ describe('vault_get_aspect dispatcher', () => {
     adapter.addFile('b.md', '');
     adapter.setMetadata('b.md', { links: [{ link: 'a' }] });
 
-    const searchHandlers = createSearchHandlers(adapter);
-    const handlers = createHandlers(adapter, new WriteMutex(), searchHandlers);
+    const handlers = createHandlers(adapter, new WriteMutex());
 
     const fm = await handlers.getAspect({ path: 'a.md', aspect: 'frontmatter' });
     expect(fm.structuredContent).toEqual({
@@ -423,8 +420,7 @@ describe('vault_get_aspect dispatcher', () => {
     const adapter = new MockObsidianAdapter();
     adapter.addFile('b.md', 'See [[missing]].');
     adapter.setMetadata('b.md', { links: [{ link: 'missing' }] });
-    const searchHandlers = createSearchHandlers(adapter);
-    const handlers = createHandlers(adapter, new WriteMutex(), searchHandlers);
+    const handlers = createHandlers(adapter, new WriteMutex());
 
     const result = await handlers.getAspect({ path: 'missing.md', aspect });
     expect(result.isError).toBe(true);
