@@ -1,5 +1,8 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { answersMatch, extractTagged, normaliseAnswer, parseEvaluationXml } from '../../evals/lib';
+import { answersMatch, extractTagged, loadDotEnv, normaliseAnswer, parseEvaluationXml } from '../../evals/lib';
 import {
   FixtureAdapter,
   parseFrontmatter,
@@ -135,5 +138,33 @@ describe('FixtureAdapter.getBacklinks', () => {
     adapter.addNote('log.md', 'See [[Atlas]].\n');
     expect(() => adapter.getBacklinks('missing.md')).toThrow('File not found: missing.md');
     expect(() => adapter.getBacklinkLines('missing.md')).toThrow('File not found: missing.md');
+  });
+});
+
+describe('loadDotEnv', () => {
+  it('loads a .env file without overriding variables that are already set', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'eval-env-'));
+    try {
+      const path = join(dir, '.env');
+      writeFileSync(
+        path,
+        '# Mistral\nEVAL_BASE_URL=https://api.mistral.ai/v1\nEVAL_MODEL="mistral-large-latest"\nEVAL_API_KEY=from-file\n',
+      );
+      const env: NodeJS.ProcessEnv = { EVAL_API_KEY: 'from-shell' };
+      expect(loadDotEnv(path, env).sort()).toEqual(['EVAL_BASE_URL', 'EVAL_MODEL']);
+      expect(env).toEqual({
+        EVAL_API_KEY: 'from-shell',
+        EVAL_BASE_URL: 'https://api.mistral.ai/v1',
+        EVAL_MODEL: 'mistral-large-latest',
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('does nothing when there is no .env file', () => {
+    const env: NodeJS.ProcessEnv = {};
+    expect(loadDotEnv(join(tmpdir(), 'no-such-dir-483', '.env'), env)).toEqual([]);
+    expect(env).toEqual({});
   });
 });
