@@ -802,9 +802,13 @@ export function createHandlers(
         }
         // Lookup by default (#432): only create when explicitly asked.
         if (params.create !== true) {
+          // The note may live elsewhere (older layout, changed settings),
+          // so point to a search rather than a create (#514).
+          const name = filenameBase.slice(filenameBase.lastIndexOf('/') + 1);
           return documentResponse(
             { path, exists: false, created: false },
-            'The daily note does not exist. Call again with create=true to create it.',
+            `No note at ${path} (path from the Daily notes settings). ` +
+              `It may exist elsewhere: check with search_by_name { query: ${JSON.stringify(name)} } before create=true.`,
           );
         }
         const { body, warning } = await resolveInitialBody(
