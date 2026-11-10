@@ -252,8 +252,9 @@ const solutions: Array<() => Promise<string>> = [
   // Q8: stations on the Corra -> each #issue/<kind> tag (paged) -> most frequent kind
   async (): Promise<string> => {
     const corra = await stationsWhere('river', 'Corra');
-    const { tags } = await data<{ tags: Record<string, string[]> }>('search_tags');
-    const kinds = Object.keys(tags)
+    const tagPages = await pages<PageInfo & { tags: Record<string, { files: number }> }>('search_tags');
+    const kinds = tagPages
+      .flatMap((p) => Object.keys(p.tags))
       .filter((t) => t.startsWith('#issue/'))
       .map((t) => t.slice('#issue/'.length));
     expect(kinds.length).toBeGreaterThan(1);

@@ -279,29 +279,50 @@ describe('search handlers', () => {
   });
 
   describe('searchTags', () => {
-    it('should return all tags with file associations (json)', async () => {
+    interface TagsPage {
+      tags: Record<string, { files: number; occurrences: number }>;
+      total: number;
+      count: number;
+      offset: number;
+      hasMore: boolean;
+      nextOffset?: number;
+    }
+
+    function tagsOf(result: CallToolResult): TagsPage {
+      const data = JSON.parse(getText(result)) as TagsPage;
+      expect(data).toEqual(result.structuredContent);
+      return data;
+    }
+
+    it('returns the number of files and occurrences per tag, no file list (#468)', async () => {
       adapter.addFile('a.md', 'content');
       adapter.setMetadata('a.md', { tags: ['#project', '#work'] });
       adapter.addFile('b.md', 'content');
       adapter.setMetadata('b.md', { tags: ['#project'] });
-      const result = await handlers.searchTags({});
-      const data = JSON.parse(getText(result)) as { tags: Record<string, string[]> };
-      expect(data.tags['#project']).toHaveLength(2);
-      expect(data.tags['#work']).toHaveLength(1);
+      const data = tagsOf(await handlers.searchTags({}));
+      expect(data).toEqual({
+        tags: {
+          '#project': { files: 2, occurrences: 2 },
+          '#work': { files: 1, occurrences: 1 },
+        },
+        total: 2,
+        count: 2,
+        offset: 0,
+        hasMore: false,
+      });
+      expect(getText(await handlers.searchTags({}))).not.toContain('a.md');
     });
 
-    it('lists a file once per tag and counts every occurrence (#431)', async () => {
+    it('counts a file once per tag and every occurrence (#431)', async () => {
       adapter.addFile('a.md', 'content');
       adapter.setMetadata('a.md', { tags: ['#project', '#work', '#project'] });
       adapter.addFile('b.md', 'content');
       adapter.setMetadata('b.md', { tags: ['#project'] });
-      const result = await handlers.searchTags({});
-      const data = JSON.parse(getText(result)) as {
-        tags: Record<string, string[]>;
-        counts: Record<string, number>;
-      };
-      expect(data.tags['#project']).toEqual(['a.md', 'b.md']);
-      expect(data.counts).toEqual({ '#project': 3, '#work': 1 });
+      const data = tagsOf(await handlers.searchTags({}));
+      expect(data.tags).toEqual({
+        '#project': { files: 2, occurrences: 3 },
+        '#work': { files: 1, occurrences: 1 },
+      });
     });
 
     it('search_by_tag lists a file with a repeated tag once (#431)', async () => {
@@ -321,17 +342,12 @@ describe('search handlers', () => {
         frontmatter: { tag: '#Project' },
         tags: ['#Project', '#inline'],
       });
-      const result = await handlers.searchTags({});
-      const data = JSON.parse(getText(result)) as {
-        tags: Record<string, string[]>;
-        counts: Record<string, number>;
-      };
+      const data = tagsOf(await handlers.searchTags({}));
       expect(data.tags).toEqual({
-        '#Project': ['fm.md', 'mixed.md'],
-        '#area/work': ['fm.md'],
-        '#inline': ['mixed.md'],
+        '#area/work': { files: 1, occurrences: 1 },
+        '#inline': { files: 1, occurrences: 1 },
+        '#Project': { files: 2, occurrences: 3 },
       });
-      expect(data.counts).toEqual({ '#Project': 3, '#area/work': 1, '#inline': 1 });
     });
 
     it('groups tags that differ only in case under the most common spelling (#470)', async () => {
@@ -342,19 +358,48 @@ describe('search handlers', () => {
       });
       adapter.addFile('b.md', 'content');
       adapter.setMetadata('b.md', { tags: ['#Project', '#PROJECT', '#project/alpha'] });
-      const result = await handlers.searchTags({});
-      const data = JSON.parse(getText(result)) as {
-        tags: Record<string, string[]>;
-        counts: Record<string, number>;
-      };
+      const data = tagsOf(await handlers.searchTags({}));
       // #Project: 2 occurrences, #project: 1, #PROJECT: 1. Nested tags
       // keep their own entry; #Project/Alpha and #project/alpha tie, so
       // the first seen spelling wins.
       expect(data.tags).toEqual({
-        '#Project': ['a.md', 'b.md'],
-        '#Project/Alpha': ['a.md', 'b.md'],
+        '#Project': { files: 2, occurrences: 4 },
+        '#Project/Alpha': { files: 2, occurrences: 2 },
       });
-      expect(data.counts).toEqual({ '#Project': 4, '#Project/Alpha': 2 });
+    });
+
+    it('sorts tags by name, ignoring case, so nested tags follow their parent', async () => {
+      adapter.addFile('a.md', 'content');
+      adapter.setMetadata('a.md', { tags: ['#zeta', '#Beta', '#alpha/two', '#alpha', '#alpha-x'] });
+      const data = tagsOf(await handlers.searchTags({}));
+      expect(Object.keys(data.tags)).toEqual(['#alpha', '#alpha/two', '#alpha-x', '#Beta', '#zeta']);
+    });
+
+    it('pages with limit/offset and walks every tag once', async () => {
+      adapter.addFile('a.md', 'content');
+      const all = Array.from({ length: 25 }, (_, i) => `#t${String(i).padStart(2, '0')}`);
+      adapter.setMetadata('a.md', { tags: all });
+
+      const first = tagsOf(await handlers.searchTags({ limit: 10, offset: 0 }));
+      expect(first).toMatchObject({ total: 25, count: 10, offset: 0, hasMore: true, nextOffset: 10 });
+      expect(Object.keys(first.tags)).toEqual(all.slice(0, 10));
+
+      const seen: string[] = [];
+      let offset = 0;
+      for (;;) {
+        const page = tagsOf(await handlers.searchTags({ limit: 10, offset }));
+        seen.push(...Object.keys(page.tags));
+        if (!page.hasMore) break;
+        offset = page.nextOffset ?? 0;
+      }
+      expect(seen).toEqual(all);
+    });
+
+    it('defaults to pages of 100 tags', async () => {
+      adapter.addFile('a.md', 'content');
+      adapter.setMetadata('a.md', { tags: Array.from({ length: 150 }, (_, i) => `#t${String(i)}`) });
+      const data = tagsOf(await handlers.searchTags({}));
+      expect(data).toMatchObject({ total: 150, count: 100, hasMore: true, nextOffset: 100 });
     });
   });
 
@@ -725,8 +770,8 @@ describe('search tools document shared args in inputSchema', () => {
     }
   });
 
-  it('search_tags takes no parameters', () => {
-    expect(Object.keys(schemaFor('search_tags'))).toEqual([]);
+  it('search_tags takes only limit and offset (#468)', () => {
+    expect(Object.keys(schemaFor('search_tags'))).toEqual(['limit', 'offset']);
   });
 
   it('link maps take path, limit and offset (#464)', () => {
@@ -817,8 +862,8 @@ describe('search read tools — outputSchema declarations', () => {
 
     const result = await handlers.searchTags({});
     const parsed = schema.parse(result.structuredContent);
-    expect(parsed.tags).toEqual({ '#project': ['a.md'] });
-    expect(parsed.counts).toEqual({ '#project': 1 });
+    expect(parsed.tags).toEqual({ '#project': { files: 1, occurrences: 1 } });
+    expect(parsed.total).toBe(1);
   });
 
   it('search_resolved_links declares outputSchema and parses against handler output', async () => {

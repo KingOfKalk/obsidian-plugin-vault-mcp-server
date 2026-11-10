@@ -48,6 +48,7 @@ beforeAll(async () => {
     );
     h.adapter.setMetadata(path, {
       links: [{ link: 'projects/alpha' }, { link: `missing-${String(i)}` }],
+      tags: ['#bulk', `#bulk/area-${String(i % 10)}/note-${String(i).padStart(5, '0')}`],
     });
   }
   for (let i = 0; i < FLAT_FILES; i++) {
@@ -150,6 +151,25 @@ describe('large vault: link maps (#464)', () => {
     expect(page.links).toEqual({ [path]: { 'missing-7': 1 } });
     expect(page.total).toBe(1);
     expect(page.hasMore).toBe(false);
+  });
+});
+
+describe('large vault: search_tags (#468)', () => {
+  it('pages counts over every tag, without file lists', async () => {
+    const before = Object.keys(h.adapter.getAllTags()).length - NOTES - 1;
+    const { items, pages } = await walk<
+      Paged & { tags: Record<string, { files: number; occurrences: number }> },
+      [string, { files: number; occurrences: number }]
+    >('search_tags', {}, (p) => Object.entries(p.tags));
+    expect(items).toHaveLength(NOTES + 1 + before);
+    expect(new Set(items.map(([tag]) => tag)).size).toBe(items.length);
+    expect(pages).toBe(Math.ceil(items.length / 100));
+    expect(Object.fromEntries(items)['#bulk']).toEqual({ files: NOTES, occurrences: NOTES });
+  });
+
+  it('a page holds no file paths', async () => {
+    const result = await call('search_tags', {});
+    expect(textOf(result)).not.toContain('.md');
   });
 });
 

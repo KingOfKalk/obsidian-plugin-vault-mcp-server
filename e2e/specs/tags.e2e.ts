@@ -2,6 +2,12 @@ import { expect } from '@wdio/globals';
 import type { Client } from '@modelcontextprotocol/client';
 import { callTool, connectClient, startMcpServer, waitForCache, writeNotes } from '../helpers';
 
+interface TagsPage {
+  tags: Record<string, { files: number; occurrences: number }>;
+  total: number;
+  hasMore: boolean;
+}
+
 /**
  * Frontmatter-only and inline tags in `search_by_tag` / `search_tags`.
  * The tag tools used to ignore frontmatter tags and the mock adapter had the
@@ -30,12 +36,9 @@ describe('tags: frontmatter and inline', function () {
     expect([...page.items].sort()).toEqual(['tags/Frontmatter.md', 'tags/Inline.md']);
   });
 
-  it('search_tags lists frontmatter-only and inline tags', async function () {
-    const result = await callTool<{ tags: Record<string, string[]> }>(client, 'search_tags');
-    expect([...(result.tags['#project'] ?? [])].sort()).toEqual([
-      'tags/Frontmatter.md',
-      'tags/Inline.md',
-    ]);
+  it('search_tags counts frontmatter-only and inline tags', async function () {
+    const result = await callTool<TagsPage>(client, 'search_tags');
+    expect(result.tags['#project']).toEqual({ files: 2, occurrences: 2 });
   });
 });
 
@@ -78,17 +81,23 @@ describe('tags: case and nesting', function () {
     expect(nested.items).toEqual(['tagcase/Nested.md']);
   });
 
-  it('search_tags merges case variants under the most common spelling', async function () {
-    const result = await callTool<{
-      tags: Record<string, string[]>;
-      counts: Record<string, number>;
-    }>(client, 'search_tags');
+  it('search_tags merges case variants under the most common spelling, counts only', async function () {
+    const result = await callTool<TagsPage>(client, 'search_tags');
     expect(result.tags['#area']).toBeUndefined();
-    expect([...(result.tags['#Area'] ?? [])].sort()).toEqual([
-      'tagcase/Lower.md',
-      'tagcase/Upper.md',
-    ]);
-    expect(result.counts['#Area']).toBe(3);
-    expect(result.tags['#area/North']).toEqual(['tagcase/Nested.md']);
+    expect(result.tags['#Area']).toEqual({ files: 2, occurrences: 3 });
+    expect(result.tags['#area/North']).toEqual({ files: 1, occurrences: 1 });
+    expect(result.tags['#areas']).toEqual({ files: 1, occurrences: 1 });
+    // Sorted by name, a nested tag right after its parent (#468).
+    const names = Object.keys(result.tags);
+    expect(names.indexOf('#area/North')).toBe(names.indexOf('#Area') + 1);
+    expect(JSON.stringify(result)).not.toContain('tagcase/');
+  });
+
+  it('search_tags pages with limit and offset', async function () {
+    const first = await callTool<TagsPage & { nextOffset?: number }>(client, 'search_tags', { limit: 1 });
+    expect(Object.keys(first.tags)).toHaveLength(1);
+    expect(first.hasMore).toBe(first.total > 1);
+    const rest = await callTool<TagsPage>(client, 'search_tags', { offset: first.nextOffset ?? 1 });
+    expect(Object.keys(rest.tags)).not.toContain(Object.keys(first.tags)[0]);
   });
 });

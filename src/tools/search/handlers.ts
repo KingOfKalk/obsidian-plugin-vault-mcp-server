@@ -1,6 +1,6 @@
 import { CallToolResult } from '@modelcontextprotocol/server';
 import { ObsidianAdapter } from '../../obsidian/adapter';
-import { filesWithTag, groupTagsByCase } from '../../obsidian/tag-index';
+import { filesWithTag, groupTagsByCase, tagKey } from '../../obsidian/tag-index';
 import { validateToolPath } from '../../utils/path-guard';
 import { CHARACTER_LIMIT } from '../../constants';
 import { FileNotFoundError, handleToolError } from '../shared/errors';
@@ -13,13 +13,13 @@ import {
 import { dataResponse } from '../shared/response';
 import type { InferredParams } from '../../registry/types';
 import type { ToolContext } from '../../registry/tool-context';
-import { LINKS_PAGE_LIMIT } from './schemas';
+import { LINKS_PAGE_LIMIT, TAGS_PAGE_LIMIT } from './schemas';
 import type {
   searchFulltextSchema,
   filePathSchema,
   searchByTagSchema,
   searchByFrontmatterSchema,
-  readOnlySchema,
+  searchTagsSchema,
   linksMapSchema,
 } from './schemas';
 
@@ -29,7 +29,7 @@ export interface SearchHandlers {
     ctx?: ToolContext,
   ) => Promise<CallToolResult>;
   searchFrontmatter: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
-  searchTags: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
+  searchTags: (params: InferredParams<typeof searchTagsSchema>) => Promise<CallToolResult>;
   searchHeadings: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
   searchOutgoingLinks: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
   searchEmbeds: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
@@ -92,6 +92,39 @@ interface LinkMapPage {
 function toLinkMapPage(page: PaginatedResponse<LinkMapEntry>): LinkMapPage {
   return {
     links: Object.fromEntries(page.items),
+    total: page.total,
+    count: page.count,
+    offset: page.offset,
+    hasMore: page.hasMore,
+    ...(page.hasMore ? { nextOffset: page.nextOffset } : {}),
+  };
+}
+
+/** What search_tags reports per tag (#468): counts, not the files. */
+interface TagCounts {
+  files: number;
+  occurrences: number;
+}
+
+type TagEntry = [string, TagCounts];
+
+/**
+ * Order tags by name, ignoring case, segment by segment, so a nested tag
+ * follows its parent (`#a`, `#a/b`, `#a-x`) and pages stay stable.
+ */
+function compareTags(a: string, b: string): number {
+  const left = tagKey(a).split('/');
+  const right = tagKey(b).split('/');
+  for (let i = 0; i < Math.min(left.length, right.length); i++) {
+    if (left[i] !== right[i]) return left[i] < right[i] ? -1 : 1;
+  }
+  if (left.length !== right.length) return left.length - right.length;
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+function toTagsPage(page: PaginatedResponse<TagEntry>): Record<string, unknown> {
+  return {
+    tags: Object.fromEntries(page.items),
     total: page.total,
     count: page.count,
     offset: page.offset,
@@ -217,17 +250,15 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
       }
     },
 
-    searchTags(): Promise<CallToolResult> {
+    searchTags(params): Promise<CallToolResult> {
       try {
-        const tags: Record<string, string[]> = {};
-        const counts: Record<string, number> = {};
-        for (const [tag, usage] of Object.entries(groupTagsByCase(adapter.getAllTags()))) {
-          tags[tag] = usage.files;
-          counts[tag] = usage.count;
-        }
-        return Promise.resolve(
-          dataResponse({ tags, counts }),
-        );
+        // Counts only (#468): the file lists made the result huge on a
+        // large vault; search_by_tag returns the files of one tag.
+        const entries: TagEntry[] = Object.entries(groupTagsByCase(adapter.getAllTags()))
+          .map(([tag, usage]): TagEntry => [tag, { files: usage.files.length, occurrences: usage.count }])
+          .sort(([a], [b]) => compareTags(a, b));
+        const page = paginate(entries, readPagination(params, TAGS_PAGE_LIMIT));
+        return Promise.resolve(fitPage(page, (p) => dataResponse(toTagsPage(p))));
       } catch (error) {
         return Promise.resolve(handleToolError(error));
       }
