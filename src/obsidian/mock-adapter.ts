@@ -623,6 +623,17 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     this.dailyNotesSettings = value;
   }
 
+  private templatesFolder: string | null = null;
+
+  getTemplatesFolder(): string | null {
+    return this.templatesFolder;
+  }
+
+  /** Test helper: the core Templates plugin's folder option (#470). */
+  setTemplatesFolder(value: string | null): void {
+    this.templatesFolder = value;
+  }
+
   // Test helpers
   setActiveEditor(path: string, content: string): void {
     this.activeFile = path;

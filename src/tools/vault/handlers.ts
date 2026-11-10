@@ -21,7 +21,7 @@ import {
 } from '../shared/errors';
 import { fitItems, fitPage, pageFooter, paginate, readPagination } from '../shared/pagination';
 import { confirmWithStructured, makeResponse, readResponseFormat } from '../shared/response';
-import { expandPlaceholders } from '../shared/placeholders';
+import { expandPlaceholders, noteTitle } from '../shared/placeholders';
 import { assertSafeFrontmatterKeys } from '../shared/frontmatter';
 import { modifiedIso } from '../shared/modified';
 import { BINARY_BYTE_LIMIT } from '../../constants';
@@ -262,37 +262,52 @@ function renderRecursiveListing(
   return lines.join('\n');
 }
 
+/**
+ * The vault path of the configured daily-note template, or `null` when it
+ * does not exist. Obsidian stores the template as a link path, usually
+ * without `.md`, so a path without an extension is also tried with `.md`.
+ */
+async function findDailyTemplate(
+  adapter: ObsidianAdapter,
+  templatePath: string,
+): Promise<string | null> {
+  const candidates = [templatePath];
+  if (!/\.[^/]+$/.test(templatePath)) candidates.push(`${templatePath}.md`);
+  for (const candidate of candidates) {
+    if (await adapter.exists(candidate)) return candidate;
+  }
+  return null;
+}
+
+/**
+ * Body of a new daily note: the configured template, expanded, or empty
+ * when none is configured. A configured template that is missing gives an
+ * empty body plus a `warning` instead of failing silently (#470).
+ */
 async function resolveInitialBody(
   adapter: ObsidianAdapter,
   templatePath: string,
   targetMoment: ReturnType<typeof moment>,
   filename: string,
-): Promise<string> {
-  if (!templatePath) return '';
-  let templateBody: string;
-  try {
-    templateBody = await adapter.readFile(templatePath);
-  } catch {
-    // Configured template missing/moved — create empty rather than fail.
-    // (The original spec called for a warn-log here, but vault handlers do
-    // not currently take a logger and threading one through is out of
-    // scope for #304. Falling back silently matches existing patterns
-    // like template_list error swallowing in #272.)
-    return '';
+): Promise<{ body: string; warning?: string }> {
+  if (!templatePath) return { body: '' };
+  const found = await findDailyTemplate(adapter, templatePath);
+  if (found === null) {
+    return {
+      body: '',
+      warning: `Template ${templatePath} (Daily notes settings) not found; created an empty note.`,
+    };
   }
+  const templateBody = await adapter.readFile(found);
   // Templater syntax: never expanded here — Templater can run arbitrary
   // user JS, so execution stays client-side (mirrors plugin_templater_*).
-  if (templateBody.includes('<%')) return templateBody;
-  const title = filename.replace(/\.md$/, '');
-  return expandPlaceholders(
-    templateBody,
-    {
-      date: targetMoment.format('YYYY-MM-DD'),
-      time: targetMoment.format('HH:mm'),
-      title,
-    },
-    targetMoment.toDate(),
-  );
+  if (templateBody.includes('<%')) return { body: templateBody };
+  return {
+    body: expandPlaceholders(templateBody, {}, {
+      now: targetMoment.toDate(),
+      title: noteTitle(filename),
+    }),
+  };
 }
 
 /** `vault_read`'s structured result; `content` is serialised last. */
@@ -927,11 +942,25 @@ export function createHandlers(
             readResponseFormat(params),
           );
         }
-        const body = await resolveInitialBody(adapter, settings.template, targetMoment, filename);
+        const { body, warning } = await resolveInitialBody(
+          adapter,
+          settings.template,
+          targetMoment,
+          filename,
+        );
         await adapter.createFile(path, body);
         return makeResponse(
-          { path, created: true, exists: true, content: body },
-          (v) => `${v.path} (created)\n\n${v.content}`,
+          {
+            path,
+            created: true,
+            exists: true,
+            ...(warning === undefined ? {} : { warning }),
+            content: body,
+          },
+          (v) => {
+            const note = v.warning === undefined ? '' : `\nWarning: ${v.warning}`;
+            return `${v.path} (created)${note}\n\n${v.content}`;
+          },
           readResponseFormat(params),
         );
       } catch (error) {

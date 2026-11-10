@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { ObsidianAdapter } from '../obsidian/adapter';
 import type { Logger } from '../utils/logger';
 import { validateToolPath } from '../utils/path-guard';
+import { templatesFolder } from '../tools/shared/templates-folder';
 
 const TEMPLATE_BUILTIN_PLACEHOLDERS = new Set(['date', 'time', 'title']);
 
@@ -76,7 +77,6 @@ interface TemplateArgs {
   template: string;
 }
 
-const TEMPLATES_FOLDER = 'templates';
 const COMPLETER_RESULT_LIMIT = 100;
 
 export function createExpandTemplateHandler(
@@ -102,7 +102,8 @@ export function createTemplateCompleter(
   // eslint-disable-next-line @typescript-eslint/require-await
   return async (partial) => {
     try {
-      const list = adapter.list(TEMPLATES_FOLDER);
+      // The same folder template_list lists, subfolders included (#470).
+      const list = adapter.listRecursive(templatesFolder(adapter));
       const needle = partial.toLowerCase();
       return list.files
         .filter((p) => p.toLowerCase().includes(needle))

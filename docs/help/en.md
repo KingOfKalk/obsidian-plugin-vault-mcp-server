@@ -29,6 +29,47 @@ connect to the server and read or modify your vault programmatically.
 
 ---
 
+## Upgrading to 5.0
+
+Version 5.0 changes how some tools behave for agents and scripts that call
+them. `server_info` lists the changes under version `5.0.0`.
+
+- **Tags and templates behave like Obsidian.**
+  - **Tags match in any case and include nested tags.** `search_by_tag`
+    with `project` now finds `#project`, `#Project` and `#project/alpha`
+    (but not `#projects`), like Obsidian's `tag:#project` search. Before,
+    it matched only the exact spelling. Results are sorted by path.
+    **What to do:** nothing for most calls. To leave nested tags out, take
+    the files of the exact tag from `search_tags` instead.
+  - **`search_tags` merges spellings.** Tags that differ only in case are
+    one entry, keyed by the most common spelling (`#Project` and
+    `#project` become one entry), with their files and `counts` combined.
+    Nested tags keep their own entries. **What to do:** don't rely on
+    finding every spelling as its own key.
+  - **`{{title}}` is the new file's name.** `template_create_from` fills
+    `{{title}}` with the file name of `destPath` without `.md`
+    (`people/Ada.md` gives `Ada`); before, it was `Untitled`.
+    `template_expand` has no target file and leaves `{{title}}` as written
+    unless you pass `variables.title`. **What to do:** drop a `title`
+    variable that only repeated the file name.
+  - **`{{date}}` and `{{time}}` are local.** `{{date}}` is the local date
+    (`YYYY-MM-DD`; was the UTC date) and `{{time}}` the local time
+    (`HH:mm`; was the computer's locale format), the same as in
+    `vault_daily_note`. **What to do:** pass `date` or `time` in
+    `variables` if you need another format.
+  - **`template_list` uses the Templates plugin's folder.** It lists the
+    folder set under **Settings → Templates → Template folder location**
+    (`templates` if none is set), including subfolders, and its result
+    adds `folder`. Before, it listed only the files directly in a folder
+    named `templates`. **What to do:** nothing, unless you kept templates
+    in `templates` while the Templates plugin points elsewhere: move them
+    or change the setting.
+  - **Daily note warns about a missing template.** `vault_daily_note`
+    with `create: true` still creates the note empty when the template set
+    in the Daily notes plugin does not exist, but now returns a `warning`
+    naming it. A template set without `.md` (as Obsidian stores it) is
+    found.
+
 ## Upgrading to 4.0
 
 Version 4.0 has two breaking changes for agents and scripts that call the
@@ -622,9 +663,15 @@ clients and agents commonly trip over:
   idea]`) or as a comma- or space-separated string (`tags: project, idea`),
   with or without `#`. A note tagged only in its frontmatter is found by
   `search_by_tag`, and `counts` adds up frontmatter and inline occurrences.
-  Before 4.0.1 only inline tags were seen. `search_by_tag` matches the tag
-  exactly and case-sensitively: `project` does not find `#Project` or the
-  nested `#project/alpha`.
+  Before 4.0.1 only inline tags were seen.
+- **Tag case and nested tags.** Like Obsidian, the tag tools ignore case.
+  `search_by_tag` with `project` (or `#Project`) finds notes tagged
+  `#project`, `#Project` or a nested tag such as `#project/alpha`, but not
+  `#projects`; with `project/alpha` it finds only that branch. Each note is
+  listed once, sorted by path. `search_tags` lists `#Project` and
+  `#project` as one tag under the spelling used most often, with their
+  files and counts combined; nested tags keep their own entries. Before
+  5.0 both tools matched the exact spelling only.
 - **Dataview lists as plain text.** `plugin_dataview_query` asks Dataview
   for Markdown without HTML, so a list field in a `TABLE` cell comes back
   as `a, b` instead of `<ul><li>a</li><li>b</li></ul>`. `LIST` and `TASK`
@@ -638,16 +685,24 @@ clients and agents commonly trip over:
   [Upgrading to 4.0](#upgrading-to-40). The tool does not open the note;
   the `/daily-note` prompt opens it with `workspace_open_file`. In a new
   note `{{date}}` is the note's date, `{{time}}` the local time (`HH:mm`)
-  and `{{title}}` the file name. If the configured template file is
-  missing, the note is created empty, without a warning.
+  and `{{title}}` the file name. The template is the one set in the Daily
+  notes plugin, with or without `.md`. If that file is missing, the note
+  is created empty and the response carries a `warning` naming the
+  template (before 5.0 there was no warning).
 - **Template placeholders.** `template_create_from` and `template_expand`
   fill `{{name}}` placeholders from `variables`. Without a value,
-  `{{date}}` is today's date in UTC (`YYYY-MM-DD`), `{{time}}` the current
-  time in the computer's locale format and `{{title}}` is `Untitled`, not
-  the new note's name; pass `title` to set it. Unknown placeholders and
-  Templater `<% %>` code stay as written. `template_list` lists only the
-  files directly in the top-level folder named `templates`, not the folder
-  set in the Templates or Templater plugin.
+  `{{date}}` is today's local date (`YYYY-MM-DD`), `{{time}}` the local
+  time (`HH:mm`), the same formats as `vault_daily_note`, and `{{title}}`
+  the new file's name without `.md` (`template_create_from` only;
+  `template_expand` leaves `{{title}}` as written). Unknown placeholders
+  and Templater `<% %>` code stay as written.
+- **Template folder.** `template_list` lists every file in the folder set
+  in Obsidian's core **Templates** plugin (**Settings → Templates →
+  Template folder location**), including subfolders, and returns that
+  `folder` with the `files`. With no folder set it lists `templates`. The
+  setting is read even while the Templates plugin is switched off. The
+  folder of the Templater community plugin is not used. The
+  `/expand-template` prompt's autocomplete uses the same folder.
 - **Editor positions.** The `editor_*` tools use 0-based lines and
   columns. A range runs from (`fromLine`, `fromCh`) up to, but not
   including, (`toLine`, `toCh`): to replace `abc` starting at column 4 of
@@ -727,7 +782,7 @@ How the prompts appear depends on the host. Claude Code, for example, surfaces t
 
 - **`summarize-note`** — argument: `path` (vault-relative). Asks Claude to read the note with `vault_read` and produce a concise summary.
 - **`find-related`** — argument: `path` (vault-relative). Asks Claude to read the seed note, then cross-reference it with `search_fulltext` and `vault_get_aspect` (with `aspect: "backlinks"`) and report the most relevant connections.
-- **`expand-template`** — argument: `template` (vault-relative path to a template file in the vault's `templates/` folder). Reads the template, surfaces the placeholders that need values, and asks Claude to collect them and call `template_expand` (or `template_create_from` if the user wants a new note written).
+- **`expand-template`** — argument: `template` (vault-relative path to a template file, usually in the template folder). Reads the template, surfaces the placeholders that need values, and asks Claude to collect them and call `template_expand` (or `template_create_from` if the user wants a new note written).
 - **`daily-note`** — argument: `date` (optional, ISO `YYYY-MM-DD`; omit for today / local time). Asks Claude to call `vault_daily_note` with `create: true` and then `workspace_open_file` on the resulting path, creating the note from the configured daily-notes template if it does not yet exist. Requires the **Daily notes** core plugin to be enabled in Obsidian (`Settings → Core plugins`); the underlying tool reads the plugin's configured `format`, `folder`, and `template` settings — so a German user with `format = "DD.MM.YYYY"` will get filenames like `27.04.2026.md`, exactly as they configured. The `date` argument itself is **ISO-only** (`YYYY-MM-DD`); date strings in other formats are rejected. When the configured template uses Templater syntax (`<%`), the tool copies the template body **verbatim** — Templater is never executed server-side; running the template stays the host client's responsibility.
 - **`fix-broken-links`** — argument: `path` (optional, vault-relative). Enumerates broken `[[wikilinks]]` via `search_unresolved_links` and walks Claude through fixing them — retarget to an existing note or delete the link (both with `vault_replace`), or create a stub note at a path with `.md`. With `path`, scopes to that one source note; without, walks the whole vault (capped at ~20 source notes per run, re-run to continue). Each proposed edit lands as a separate tool call so you confirm or reject one at a time. Autocomplete on `path` lists vault notes that currently contain unresolved links.
 
@@ -735,7 +790,7 @@ How the prompts appear depends on the host. Claude Code, for example, surfaces t
 
 Two prompts support argument autocomplete:
 
-- **`expand-template`** (`template`): the server lists files in the vault's `templates/` folder and filters them by case-insensitive substring match.
+- **`expand-template`** (`template`): the server lists the files in the template folder (the one set in the core Templates plugin, `templates` if none is set; subfolders included) and filters them by case-insensitive substring match.
 - **`fix-broken-links`** (`path`): the server lists vault notes that currently contain unresolved links (sourced from `search_unresolved_links`'s map keys) and filters them by case-insensitive substring match.
 
 Both completers cap at 100 entries. Hosts that implement the MCP `completion/complete` protocol expose this as a dropdown next to the argument input.

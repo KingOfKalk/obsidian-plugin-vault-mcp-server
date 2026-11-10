@@ -197,6 +197,20 @@ describe('templateCompleter', () => {
     expect(result).toEqual(['templates/Weekly.md']);
   });
 
+  it('completes from the core Templates plugin folder, subfolders included (#470)', async () => {
+    const adapter = new MockObsidianAdapter();
+    adapter.addFolder('Meta');
+    adapter.addFolder('Meta/Tpl');
+    adapter.addFolder('Meta/Tpl/work');
+    adapter.addFile('Meta/Tpl/work/Weekly.md', '');
+    adapter.addFolder('templates');
+    adapter.addFile('templates/Weekly.md', '');
+    adapter.setTemplatesFolder('Meta/Tpl');
+    const completer = createTemplateCompleter(adapter);
+
+    expect(await completer('week')).toEqual(['Meta/Tpl/work/Weekly.md']);
+  });
+
   it('returns [] when the templates folder is missing (no throw)', async () => {
     const adapter = new MockObsidianAdapter();
     // No `templates` folder added.

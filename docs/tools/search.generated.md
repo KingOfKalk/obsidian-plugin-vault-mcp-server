@@ -85,7 +85,7 @@ Response (`structuredContent`):
 
 **List tags**
 
-List every tag in the vault's Markdown notes (inline and frontmatter) with the files using it (each once) and its total occurrence count.
+List every tag in the vault's Markdown notes (inline and frontmatter) with the files using it (each once) and its total occurrence count. Case variants are merged under the most common spelling.
 See also:
 - search_by_tag — for the notes carrying a tag.
 
@@ -99,7 +99,7 @@ See also:
 
 | Field | Type | Description |
 |---|---|---|
-| `tags` | object | Map of tag (with leading #) to the vault-relative paths of the files that use it. Each file is listed once per tag. |
+| `tags` | object | Map of tag (with leading #) to the vault-relative paths of the files that use it. Each file is listed once per tag. Spellings that differ only in case are one entry, keyed by the most common spelling. |
 | `counts` | object | Map of tag (with leading #) to its total number of occurrences across the vault; a file using a tag twice counts twice. The number of files is the length of the matching tags entry. |
 
 #### Example
@@ -244,15 +244,15 @@ Response (`structuredContent`):
 
 **Find notes by tag**
 
-Find Markdown notes that carry a tag (inline #tag or frontmatter tags). Matching is exact and case-sensitive.
+Find Markdown notes that carry a tag (inline #tag or frontmatter tags), matched like Obsidian's tag search: any case, nested tags included.
 See also:
-- search_tags — for the list of tags with their exact spellings.
+- search_tags — for the list of tags.
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `tag` | string (1–200) | yes | Tag with or without the leading # (e.g. "project"). "project" does not find "Project" or nested "project/alpha". |
+| `tag` | string (1–200) | yes | Tag with or without the leading # (e.g. "project" also finds "#Project" and "#project/alpha"). |
 | `limit` | number (1–100) | no (default `20`) | Maximum items per page. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
 | `responseFormat` | enum: `markdown` \| `json` | no (default `markdown`) | "json" returns the full result as JSON. |

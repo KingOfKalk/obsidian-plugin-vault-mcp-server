@@ -47,7 +47,7 @@ const searchFulltextOutputSchema = {
 const searchTagsOutputSchema = {
   tags: z
     .record(z.string(), z.array(z.string()))
-    .describe('Map of tag (with leading #) to the vault-relative paths of the files that use it. Each file is listed once per tag.'),
+    .describe('Map of tag (with leading #) to the vault-relative paths of the files that use it. Each file is listed once per tag. Spellings that differ only in case are one entry, keyed by the most common spelling.'),
   counts: z
     .record(z.string(), z.number())
     .describe('Map of tag (with leading #) to its total number of occurrences across the vault; a file using a tag twice counts twice. The number of files is the length of the matching tags entry.'),
@@ -123,7 +123,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           name: 'search_tags',
           title: 'List tags',
           description: describeTool({
-            summary: 'List every tag in the vault\'s Markdown notes (inline and frontmatter) with the files using it (each once) and its total occurrence count.',
+            summary: 'List every tag in the vault\'s Markdown notes (inline and frontmatter) with the files using it (each once) and its total occurrence count. Case variants are merged under the most common spelling.',
             seeAlso: ['search_by_tag — for the notes carrying a tag.'],
           }),
           schema: readOnlySchema,
@@ -159,8 +159,8 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           name: 'search_by_tag',
           title: 'Find notes by tag',
           description: describeTool({
-            summary: 'Find Markdown notes that carry a tag (inline #tag or frontmatter tags). Matching is exact and case-sensitive.',
-            seeAlso: ['search_tags — for the list of tags with their exact spellings.'],
+            summary: 'Find Markdown notes that carry a tag (inline #tag or frontmatter tags), matched like Obsidian\'s tag search: any case, nested tags included.',
+            seeAlso: ['search_tags — for the list of tags.'],
           }),
           schema: searchByTagSchema,
           outputSchema: paginatedPathPageOutputSchema,
