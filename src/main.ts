@@ -1,5 +1,4 @@
 import { Notice, Plugin, setIcon } from 'obsidian';
-import { randomBytes } from 'crypto';
 import { DEFAULT_SETTINGS, McpPluginSettings, TlsCertificateData } from './types';
 import { createLogger, Logger } from './utils/logger';
 import { ModuleRegistry } from './registry/module-registry';
@@ -11,14 +10,27 @@ import { CustomTlsError, loadAndValidateCustomTls } from './server/custom-tls';
 import { RealObsidianAdapter, ObsidianAdapter } from './obsidian/adapter';
 import { discoverModules } from './tools';
 import { registerVaultBasePath } from './tools/shared/errors';
-import { McpSettingsTab, migrateSettings } from './settings';
-import { t } from './lang/helpers';
+import { McpSettingsTab, generateAccessKey, migrateSettings } from './settings';
+import { t, type TranslationKey } from './lang/helpers';
 import { createLogFileSink } from './utils/log-file';
 import { reportError } from './utils/report-error';
+import { copyWithNotice } from './utils/clipboard';
 import { DebugInfoModal } from './ui/debug-info-modal';
 
 const ICON_MCP = 'plug';
 const ICON_MCP_RUNNING = 'plug-zap';
+
+/** Start / stop / restart commands: id, name key, error scope, action. */
+const SERVER_COMMANDS: ReadonlyArray<{
+  id: string;
+  name: TranslationKey;
+  scope: string;
+  run: (plugin: McpPlugin) => Promise<void>;
+}> = [
+  { id: 'start-server', name: 'command_start_server', scope: 'start server', run: (p) => p.startServer() },
+  { id: 'stop-server', name: 'command_stop_server', scope: 'stop server', run: (p) => p.stopServer() },
+  { id: 'restart-server', name: 'command_restart_server', scope: 'restart server', run: (p) => p.restartServer() },
+];
 
 export default class McpPlugin extends Plugin {
   settings: McpPluginSettings = DEFAULT_SETTINGS;
@@ -78,40 +90,26 @@ export default class McpPlugin extends Plugin {
     this.statusBarItem = this.addStatusBarItem();
 
     // Register commands
-    this.addCommand({
-      id: 'start-server',
-      name: t('command_start_server'),
-      callback: () => {
-        this.startServer().catch(reportError('start server', this.logger));
-      },
-    });
-
-    this.addCommand({
-      id: 'stop-server',
-      name: t('command_stop_server'),
-      callback: () => {
-        this.stopServer().catch(reportError('stop server', this.logger));
-      },
-    });
-
-    this.addCommand({
-      id: 'restart-server',
-      name: t('command_restart_server'),
-      callback: () => {
-        this.restartServer().catch(reportError('restart server', this.logger));
-      },
-    });
+    for (const command of SERVER_COMMANDS) {
+      this.addCommand({
+        id: command.id,
+        name: t(command.name),
+        callback: () => {
+          command.run(this).catch(reportError(command.scope, this.logger));
+        },
+      });
+    }
 
     this.addCommand({
       id: 'copy-access-key',
       name: t('command_copy_access_key'),
       callback: () => {
-        navigator.clipboard
-          .writeText(this.settings.accessKey)
-          .then(() => {
-            new Notice(t('notice_access_key_copied'));
-          })
-          .catch(reportError('copy access key', this.logger));
+        copyWithNotice(
+          this.settings.accessKey,
+          t('notice_access_key_copied'),
+          'copy access key',
+          this.logger,
+        );
       },
     });
 
@@ -149,13 +147,13 @@ export default class McpPlugin extends Plugin {
 
   /**
    * On first load with the new secure-by-default posture, generate a
-   * fresh 32-byte access key if auth is enabled but the key is empty.
+   * fresh access key if auth is enabled but the key is empty.
    * Persist immediately so the user sees the value in settings without
    * having to click Generate.
    */
   private async ensureAccessKey(): Promise<void> {
     if (this.settings.authEnabled && this.settings.accessKey.length === 0) {
-      this.settings.accessKey = randomBytes(32).toString('base64url');
+      this.settings.accessKey = generateAccessKey();
       await this.saveSettings();
     }
   }
@@ -272,20 +270,7 @@ export default class McpPlugin extends Plugin {
 
   private formatTlsError(error: unknown): string {
     if (error instanceof CustomTlsError) {
-      switch (error.code) {
-        case 'cert_not_readable':
-          return t('error_custom_tls_cert_not_readable');
-        case 'key_not_readable':
-          return t('error_custom_tls_key_not_readable');
-        case 'invalid_cert':
-          return t('error_custom_tls_invalid_cert');
-        case 'invalid_key':
-          return t('error_custom_tls_invalid_key');
-        case 'key_cert_mismatch':
-          return t('error_custom_tls_key_cert_mismatch');
-        case 'cert_expired':
-          return t('error_custom_tls_cert_expired');
-      }
+      return t(`error_custom_tls_${error.code}`);
     }
     return error instanceof Error ? error.message : String(error);
   }
