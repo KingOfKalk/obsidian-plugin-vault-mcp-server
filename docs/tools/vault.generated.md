@@ -922,11 +922,11 @@ Response (`structuredContent`):
 
 **Get file aspect**
 
-Get one metadata aspect of a file: frontmatter, headings, outgoing links, embeds, backlinks, or block references.
+Get one metadata aspect of a file: frontmatter, headings, outgoing links, embeds, backlinks (notes that link to it), or block references.
 Paging: aspect=backlinks only, over linking files; limit default 50, max 100; next page: offset=nextOffset.
 Examples:
 - Use when: "list the headings in README.md" → { path: "README.md", aspect: "headings" }
-- Use when: "what links to this note?" → { path: "ideas.md", aspect: "backlinks" }
+- Use when: "which notes link to ideas.md?" → { path: "ideas.md", aspect: "backlinks" }
 - Use when: "how is this note referenced?" → { ..., aspect: "backlinks", includeContext: true }
 Errors:
 - "File not found" if path does not exist.

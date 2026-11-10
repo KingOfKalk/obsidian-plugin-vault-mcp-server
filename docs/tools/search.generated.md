@@ -13,6 +13,8 @@ Returns: Each item has up to maxMatchesPerFile matching lines and their 1-based 
 Paging: over matching files (total and count are files); limit default 50, max 100; next page: offset=nextOffset.
 See also:
 - search_by_name — to find a file by its name.
+- search_by_frontmatter — to filter notes by a property (e.g. status).
+- vault_get_aspect backlinks — for the notes that link to a note.
 
 #### Input
 
@@ -149,7 +151,7 @@ Response (`structuredContent`):
 
 **Find resolved links**
 
-Get the map of resolved links (targets that exist); pass path for one note.
+Get the map of resolved links (targets that exist) per source note; pass path for one note. Answers "what does each note link to?".
 Paging: over source notes; limit default 50, max 100; next page: offset=nextOffset.
 See also:
 - search_unresolved_links — for broken links.
@@ -210,7 +212,7 @@ Response (`structuredContent`):
 
 **Find unresolved links**
 
-Get the map of unresolved links (link text that matches no file); pass path for one note.
+Get the map of unresolved links (link text that matches no file); pass path for one note. Answers "which link targets have no note?"; for the most-linked missing note, sum the counts per target over all pages.
 Paging: over source notes; limit default 50, max 100; next page: offset=nextOffset.
 See also:
 - search_resolved_links — for links that resolve.
@@ -316,7 +318,7 @@ Response (`structuredContent`):
 
 **Find notes by frontmatter**
 
-Find Markdown notes whose YAML frontmatter has a key, optionally with a given value.
+Filter Markdown notes by frontmatter (YAML property) values, e.g. status: retired or type: station; without value, notes that have the key. Prefer it over search_fulltext for property questions.
 Paging: limit default 50, max 100; next page: offset=nextOffset.
 Examples:
 - Use when: "find all notes where status == done" -> { key: "status", value: "done" }

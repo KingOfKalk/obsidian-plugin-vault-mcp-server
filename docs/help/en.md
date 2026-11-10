@@ -470,10 +470,10 @@ without being repeated in each tool description.
 
 The text is built when a client connects (MCP `initialize`) from the tools
 that are switched on at that moment: a hint about a tool you switched off
-is left out (the `search_fulltext` / `search_by_name` line without the
-Search module, the `editor_*` line without the Editor module, the
-`workspace_open_file` and `search_by_name` parts without their tools, and the write-tool and
-`vault_get_aspect` lines without the Vault module). A client that is already
+is left out (each part of the "Which tool" line without its tool, the
+paging line when no paged tool is on, the `editor_*` line without the
+Editor module, the `workspace_open_file` part without its tool, and the
+write-tool and `vault_get_aspect` lines without the Vault module). A client that is already
 connected keeps the text it got. With every module on, the text is (the
 first line carries the running plugin version, here shown as `<version>`):
 
@@ -483,11 +483,12 @@ Call `server_info` for agent-relevant changes (renamed parameters or fields, new
 
 This server exposes an Obsidian vault as MCP tools.
 
-- Find notes by content with `search_fulltext`; by name with `search_by_name`.
+- Which tool: note text → `search_fulltext`; file name → `search_by_name`; tag → `search_by_tag`; frontmatter value (e.g. `status: retired`) → `search_by_frontmatter`; notes linking to X → `vault_get_aspect` backlinks; link targets without a note → `search_unresolved_links`.
+- Paged results: while `hasMore` is true, call again with offset=nextOffset.
 - `editor_*` tools work on the **active** file only (open one with `workspace_open_file`); no expectedMtime check; most fail with "No active editor" if no Markdown view is focused.
 - Paths: vault-relative, forward slashes, case-sensitive; files with the extension (e.g. `notes/foo.md`); a leading / is ignored. Never absolute filesystem paths; leaving the vault fails with "Path must not traverse outside the vault". The config folder (usually `.obsidian`) is blocked.
 - To edit a note, prefer `vault_replace` or `vault_insert`; `vault_update` only to rewrite a whole file read in one window.
-- Frontmatter, headings, links, embeds, backlinks, block refs: use `vault_get_aspect`, don't parse `vault_read` output.
+- One note's frontmatter, headings, links, embeds, backlinks, block refs: use `vault_get_aspect`, don't parse `vault_read` output.
 ```
 
 The text is sent once per session, in the `initialize` response, so it
