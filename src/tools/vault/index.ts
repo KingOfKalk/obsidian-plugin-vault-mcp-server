@@ -617,11 +617,11 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary:
               'Get one metadata aspect of a file: frontmatter, headings, ' +
-              'outgoing links, embeds, backlinks, or block references.',
+              'outgoing links, embeds, backlinks (notes that link to it), or block references.',
             paging: 'aspect=backlinks only, over linking files',
             examples: [
               'Use when: "list the headings in README.md" → { path: "README.md", aspect: "headings" }',
-              'Use when: "what links to this note?" → { path: "ideas.md", aspect: "backlinks" }',
+              'Use when: "which notes link to ideas.md?" → { path: "ideas.md", aspect: "backlinks" }',
               'Use when: "how is this note referenced?" → { ..., aspect: "backlinks", includeContext: true }',
             ],
             errors: [FILE_NOT_FOUND_ERROR],

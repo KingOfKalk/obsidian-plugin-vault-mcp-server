@@ -113,6 +113,8 @@ Record a new row when tools or server instructions change in a way the model see
 
 No baseline has been recorded yet. The first full local run after #466 should fill in the first row.
 
+Pending for #499 (tool descriptions and server instructions changed so a model picks `search_by_frontmatter`, backlinks and `search_unresolved_links` for structured questions): record three runs with Mistral before and after that change once the OpenAI-compatible runner (#483) is on `main`, and one run with the default Claude model to check for regressions.
+
 ## Adding or changing questions
 
 Follow the rules in the mcp-builder guide. Each question must be:

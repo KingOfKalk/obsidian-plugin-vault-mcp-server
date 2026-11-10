@@ -3,10 +3,10 @@
   "all": {
     "toolCount": 52,
     "totals": {
-      "instructions": 963,
-      "toolsList": 62001,
-      "modelView": 43914,
-      "toolDescriptions": 18167,
+      "instructions": 1248,
+      "toolsList": 62459,
+      "modelView": 44372,
+      "toolDescriptions": 18619,
       "inputSchemas": 22089,
       "inputSchemaDescriptions": 9382,
       "outputSchemas": 11190,
@@ -20,8 +20,8 @@
       },
       "vault": {
         "tools": 20,
-        "toolsList": 31648,
-        "modelView": 23884
+        "toolsList": 31677,
+        "modelView": 23913
       },
       "editor": {
         "tools": 10,
@@ -30,8 +30,8 @@
       },
       "search": {
         "tools": 7,
-        "toolsList": 9185,
-        "modelView": 5910
+        "toolsList": 9614,
+        "modelView": 6339
       },
       "workspace": {
         "tools": 5,
@@ -152,8 +152,8 @@
       },
       "vault_get_aspect": {
         "module": "vault",
-        "toolsList": 3241,
-        "modelView": 1719
+        "toolsList": 3270,
+        "modelView": 1748
       },
       "vault_daily_note": {
         "module": "vault",
@@ -217,8 +217,8 @@
       },
       "search_fulltext": {
         "module": "search",
-        "toolsList": 1665,
-        "modelView": 1039
+        "toolsList": 1804,
+        "modelView": 1178
       },
       "search_tags": {
         "module": "search",
@@ -227,13 +227,13 @@
       },
       "search_resolved_links": {
         "module": "search",
-        "toolsList": 1153,
-        "modelView": 693
+        "toolsList": 1211,
+        "modelView": 751
       },
       "search_unresolved_links": {
         "module": "search",
-        "toolsList": 1175,
-        "modelView": 713
+        "toolsList": 1297,
+        "modelView": 835
       },
       "search_by_tag": {
         "module": "search",
@@ -242,8 +242,8 @@
       },
       "search_by_frontmatter": {
         "module": "search",
-        "toolsList": 1439,
-        "modelView": 1030
+        "toolsList": 1549,
+        "modelView": 1140
       },
       "search_by_name": {
         "module": "search",
@@ -325,10 +325,10 @@
   "defaults": {
     "toolCount": 34,
     "totals": {
-      "instructions": 782,
-      "toolsList": 47663,
-      "modelView": 34543,
-      "toolDescriptions": 14180,
+      "instructions": 1067,
+      "toolsList": 48121,
+      "modelView": 35001,
+      "toolDescriptions": 14632,
       "inputSchemas": 17936,
       "inputSchemaDescriptions": 8262,
       "outputSchemas": 8639,

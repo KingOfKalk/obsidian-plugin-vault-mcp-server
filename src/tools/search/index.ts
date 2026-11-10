@@ -118,7 +118,11 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
               'Case-insensitive substring search in the text of Markdown (.md) notes. Does not match file names or other file types.',
             returns: 'Each item has up to maxMatchesPerFile matching lines and their 1-based line numbers.',
             paging: 'over matching files (total and count are files)',
-            seeAlso: ['search_by_name — to find a file by its name.'],
+            seeAlso: [
+              'search_by_name — to find a file by its name.',
+              'search_by_frontmatter — to filter notes by a property (e.g. status).',
+              'vault_get_aspect backlinks — for the notes that link to a note.',
+            ],
           }),
           schema: searchFulltextSchema,
           outputSchema: searchFulltextOutputSchema,
@@ -144,7 +148,9 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           name: 'search_resolved_links',
           title: 'Find resolved links',
           description: describeTool({
-            summary: 'Get the map of resolved links (targets that exist); pass path for one note.',
+            summary:
+              'Get the map of resolved links (targets that exist) per source note; pass path for one note. ' +
+              'Answers "what does each note link to?".',
             paging: LINK_PAGES,
             seeAlso: ['search_unresolved_links — for broken links.'],
           }),
@@ -157,7 +163,9 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           name: 'search_unresolved_links',
           title: 'Find unresolved links',
           description: describeTool({
-            summary: 'Get the map of unresolved links (link text that matches no file); pass path for one note.',
+            summary:
+              'Get the map of unresolved links (link text that matches no file); pass path for one note. ' +
+              'Answers "which link targets have no note?"; for the most-linked missing note, sum the counts per target over all pages.',
             paging: LINK_PAGES,
             seeAlso: ['search_resolved_links — for links that resolve.'],
           }),
@@ -183,7 +191,9 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           name: 'search_by_frontmatter',
           title: 'Find notes by frontmatter',
           description: describeTool({
-            summary: 'Find Markdown notes whose YAML frontmatter has a key, optionally with a given value.',
+            summary:
+              'Filter Markdown notes by frontmatter (YAML property) values, e.g. status: retired or type: station; without value, notes that have the key. ' +
+              'Prefer it over search_fulltext for property questions.',
             paging: '',
             examples: [
               'Use when: "find all notes where status == done" -> { key: "status", value: "done" }',
