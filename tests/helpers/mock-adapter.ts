@@ -1,3 +1,7 @@
+/**
+ * In-memory `ObsidianAdapter` for tests, scripts and evals. Lives under
+ * tests/helpers/ so it is never part of the shipped plugin (#534).
+ */
 import {
   DailyNotesSettings,
   DataviewApi,
@@ -6,18 +10,47 @@ import {
   ListResult,
   ObsidianAdapter,
   TrashDestination,
-} from './adapter';
-import { resolveLinkpath } from './link-resolver';
-import { buildTagIndex, parseFrontmatterTags, type TagUsage } from './tag-index';
+} from '../../src/obsidian/adapter';
+import { buildTagIndex, type TagUsage } from '../../src/obsidian/tag-index';
 import {
   FileNotFoundError,
   FolderNotFoundError,
   NotFoundError,
   markdownCandidate,
-} from '../tools/shared/errors';
-// Dev-only dependency: the mock adapter is used by tests, scripts and
-// evals, never imported by src/main.ts, so `yaml` stays out of main.js.
+} from '../../src/tools/shared/errors';
+import { resolveLinkpath } from './link-resolver';
+// Dev-only dependency: `yaml` is only used by this test helper.
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+
+const FRONTMATTER_TAG_KEY = /^tags?$/i;
+
+function frontmatterTagValues(value: unknown): string[] {
+  if (typeof value === 'string') return value.split(/[,\s]+/);
+  if (typeof value === 'number') return [String(value)];
+  if (Array.isArray(value)) return value.flatMap(frontmatterTagValues);
+  return [];
+}
+
+/**
+ * Tags declared in a note's frontmatter, in Obsidian's `#tag` format, one
+ * entry per occurrence. Mirrors Obsidian's `parseFrontMatterTags`: reads
+ * the `tags` and `tag` keys (any case), as a list or as a comma/space
+ * separated string, with or without a leading `#` (#440).
+ */
+export function parseFrontmatterTags(
+  frontmatter: Record<string, unknown> | null | undefined,
+): string[] {
+  if (!frontmatter) return [];
+  const tags: string[] = [];
+  for (const [key, value] of Object.entries(frontmatter)) {
+    if (!FRONTMATTER_TAG_KEY.test(key)) continue;
+    for (const raw of frontmatterTagValues(value)) {
+      const name = raw.trim().replace(/^#+/, '');
+      if (name !== '') tags.push(`#${name}`);
+    }
+  }
+  return tags;
+}
 
 interface MockFileMetadata {
   frontmatter?: Record<string, unknown>;

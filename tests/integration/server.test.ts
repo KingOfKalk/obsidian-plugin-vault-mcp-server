@@ -53,7 +53,7 @@ let HttpMcpServer: typeof import('../../src/server/http-server').HttpMcpServer;
 let createMcpServer: typeof import('../../src/server/mcp-server').createMcpServer;
 let ModuleRegistry: typeof import('../../src/registry/module-registry').ModuleRegistry;
 let Logger: typeof import('../../src/utils/logger').Logger;
-let MockObsidianAdapter: typeof import('../../src/obsidian/mock-adapter').MockObsidianAdapter;
+let MockObsidianAdapter: typeof import('../helpers/mock-adapter').MockObsidianAdapter;
 let createVaultModule: typeof import('../../src/tools/vault/index').createVaultModule;
 let DEFAULT_SETTINGS: typeof import('../../src/types').DEFAULT_SETTINGS;
 
@@ -62,7 +62,7 @@ beforeAll(async () => {
   const mcpMod = await import('../../src/server/mcp-server');
   const regMod = await import('../../src/registry/module-registry');
   const logMod = await import('../../src/utils/logger');
-  const mockMod = await import('../../src/obsidian/mock-adapter');
+  const mockMod = await import('../helpers/mock-adapter');
   const vaultMod = await import('../../src/tools/vault/index');
   const typesMod = await import('../../src/types');
 

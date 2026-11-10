@@ -13,7 +13,7 @@ import { HttpMcpServer } from '../../src/server/http-server';
 import { createMcpServer } from '../../src/server/mcp-server';
 import { ModuleRegistry } from '../../src/registry/module-registry';
 import { startAvailabilityPolling } from '../../src/registry/availability';
-import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';
+import { MockObsidianAdapter } from '../helpers/mock-adapter';
 import { discoverModules } from '../../src/tools';
 import { DEFAULT_SETTINGS } from '../../src/types';
 import { Logger } from '../../src/utils/logger';

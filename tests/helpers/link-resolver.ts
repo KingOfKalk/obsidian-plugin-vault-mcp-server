@@ -1,7 +1,7 @@
 /**
  * Obsidian's link resolution (`metadataCache.getFirstLinkpathDest`),
  * re-implemented for the mock and fixture adapters (#485). The real adapter
- * asks Obsidian; this file is never imported by `src/main.ts`.
+ * asks Obsidian; this test helper is never part of the shipped plugin.
  *
  * Rule, as in Obsidian: candidates are the files with the link's file name
  * (`.md` appended when the name alone matches nothing); a relative

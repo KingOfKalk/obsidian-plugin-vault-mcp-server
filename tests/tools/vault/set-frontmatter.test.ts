@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { z } from 'zod';
 import { App, TFile } from 'obsidian';
 import { CallToolResult } from '@modelcontextprotocol/server';
-import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
+import { MockObsidianAdapter } from '../../helpers/mock-adapter';
 import { RealObsidianAdapter } from '../../../src/obsidian/adapter';
 import { createHandlers, WriteMutex } from '../../../src/tools/vault/handlers';
 import { createSearchHandlers } from '../../../src/tools/search/handlers';

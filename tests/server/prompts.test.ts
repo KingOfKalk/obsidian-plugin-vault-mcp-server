@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { extractPlaceholders } from '../../src/server/prompts';
-import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';
+import { MockObsidianAdapter } from '../helpers/mock-adapter';
 import { PathTraversalError } from '../../src/utils/path-guard';
 import {
   createSummarizeNoteHandler,

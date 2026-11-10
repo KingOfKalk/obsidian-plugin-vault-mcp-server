@@ -8,7 +8,7 @@ import {
   waitForLinks,
   writeNotes,
 } from '../helpers';
-import { resolveLinkpath } from '../../src/obsidian/link-resolver';
+import { resolveLinkpath } from '../../tests/helpers/link-resolver';
 
 /**
  * `vault_get_aspect` with aspect=backlinks on a path that does not exist

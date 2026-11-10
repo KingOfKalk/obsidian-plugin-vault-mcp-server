@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { discoverModules, MODULE_FACTORIES } from '../../src/tools';
-import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';
+import { MockObsidianAdapter } from '../helpers/mock-adapter';
 import { ModuleRegistry } from '../../src/registry/module-registry';
 import { Logger } from '../../src/utils/logger';
 

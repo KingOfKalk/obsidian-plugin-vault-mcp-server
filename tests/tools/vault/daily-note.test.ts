@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import moment from 'moment';
 import { CallToolResult } from '@modelcontextprotocol/server';
-import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
+import { MockObsidianAdapter } from '../../helpers/mock-adapter';
 import { createHandlers, WriteMutex } from '../../../src/tools/vault/handlers';
 import { createSearchHandlers } from '../../../src/tools/search/handlers';
 import { windowOf } from '../../helpers/result';

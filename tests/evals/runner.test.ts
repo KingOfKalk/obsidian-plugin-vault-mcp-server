@@ -25,7 +25,7 @@ import {
   toClaudeTool,
   type CreateMessage,
 } from '../../evals/run';
-import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';
+import { MockObsidianAdapter } from '../helpers/mock-adapter';
 import { discoverModules } from '../../src/tools';
 
 afterEach(() => {

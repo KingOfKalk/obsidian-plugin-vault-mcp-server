@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';
+import { MockObsidianAdapter } from '../helpers/mock-adapter';
 import { FolderNotFoundError } from '../../src/tools/shared/errors';
 
 describe('MockObsidianAdapter', () => {

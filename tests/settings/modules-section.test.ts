@@ -3,7 +3,7 @@ import { Setting, mockElement } from '../__mocks__/obsidian';
 import { renderModulesSection } from '../../src/settings/modules-section';
 import { ModuleRegistry } from '../../src/registry/module-registry';
 import { discoverModules } from '../../src/tools';
-import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';
+import { MockObsidianAdapter } from '../helpers/mock-adapter';
 import { DEFAULT_SETTINGS } from '../../src/types';
 import { Logger } from '../../src/utils/logger';
 import type McpPlugin from '../../src/main';

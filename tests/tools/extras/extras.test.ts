@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { z } from 'zod';
-import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
+import { MockObsidianAdapter } from '../../helpers/mock-adapter';
 import { createExtrasModule } from '../../../src/tools/extras/index';
 
 interface TextContent {

@@ -11,7 +11,7 @@ import { HttpMcpServer } from '../../src/server/http-server';
 import { createMcpServer } from '../../src/server/mcp-server';
 import { ModuleRegistry } from '../../src/registry/module-registry';
 import { Logger } from '../../src/utils/logger';
-import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';
+import { MockObsidianAdapter } from '../helpers/mock-adapter';
 import { DEFAULT_SETTINGS } from '../../src/types';
 
 const TEST_PORT = 38761;
