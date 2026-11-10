@@ -758,7 +758,7 @@ Response (`structuredContent`):
 **List folder (recursive)**
 
 List all files and folders under a path, recursively.
-Paging: files and folders each in their own list, from the same offset; limit default 50, max 100; next page: offset=nextOffset.
+Paging: items (files, total) and folders (folderTotal), each from the same offset; limit default 50, max 100; next page: offset=nextOffset.
 Examples:
 - Don't use when: the folder is very large — list a narrower subfolder.
 See also:
@@ -923,6 +923,7 @@ Response (`structuredContent`):
 **Get file aspect**
 
 Get one metadata aspect of a file: frontmatter, headings, outgoing links, embeds, backlinks (notes that link to it), or block references.
+Returns: backlinks counts links, embeds and frontmatter links, incl. [[note#heading]] and [[note#^block]].
 Paging: aspect=backlinks only, over linking files; limit default 50, max 100; next page: offset=nextOffset.
 Examples:
 - Use when: "list the headings in README.md" → { path: "README.md", aspect: "headings" }

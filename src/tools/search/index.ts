@@ -135,7 +135,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary:
               'Case-insensitive substring search in the text of Markdown (.md) notes. Does not match file names or other file types.',
-            returns: 'Each item has up to maxMatchesPerFile matching lines and their 1-based line numbers.',
+            returns: 'Each item has up to maxMatchesPerFile matching lines and their 1-based line numbers; matchCount counts all matching lines in the file.',
             paging: 'over matching files (total and count are files)',
             seeAlso: [
               'search_by_name — to find a file by its name.',
