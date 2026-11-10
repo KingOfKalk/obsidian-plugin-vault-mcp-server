@@ -57,6 +57,12 @@ Response (`structuredContent`):
   ],
   "changes": [
     {
+      "version": "5.0.1",
+      "notes": [
+        "`vault_daily_note` adds the `modified` header line (ISO-8601, as in `vault_read`) when the note exists or was just created; pass it as `expectedMtime` to the next write."
+      ]
+    },
+    {
       "version": "5.0.0",
       "notes": [
         "Breaking: document tools return plain text. `vault_read`, `vault_daily_note`, `editor_get_content`, `template_expand` and `plugin_dataview_query` return one text block: `key: value` header lines (e.g. `path`, `modified`, `totalLength`, `offset`, `hasMore`, `nextOffset`), a blank line, then the raw t… [truncated, 133 more chars]",
@@ -87,15 +93,8 @@ Response (`structuredContent`):
         "`vault_create`, `vault_update`, `vault_write_binary` and `template_create_from` results add `modified` (ISO-8601), usable as the next `expectedMtime`.",
         "… 15 more items"
       ]
-    },
-    {
-      "version": "4.0.1",
-      "notes": [
-        "`search_by_tag` and `search_tags` include tags from the frontmatter (`tags` / `tag`, as a list or a comma/space separated string), not only inline `#tags`. `counts` counts frontmatter and inline occurrences; each file is still listed once per tag.",
-        "`vault_rename`, `vault_move` and `vault_rename_folder` no longer wait for Obsidian's \"Update links\" prompt when \"Automatically update internal links\" is off or unreadable (`autoUpdateLinks` false or null): the call returns right away, links are not updated, and the result carries `linksUpdated: 0` a… [truncated, 87 more chars]"
-      ]
     }
   ],
-  "olderVersionsOmitted": 6
+  "olderVersionsOmitted": 7
 }
 ```

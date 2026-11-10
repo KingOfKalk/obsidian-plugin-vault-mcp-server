@@ -18,6 +18,12 @@ export interface AgentChangeEntry {
 
 export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
   {
+    version: '5.0.1',
+    notes: [
+      '`vault_daily_note` adds the `modified` header line (ISO-8601, as in `vault_read`) when the note exists or was just created; pass it as `expectedMtime` to the next write.',
+    ],
+  },
+  {
     version: '5.0.0',
     notes: [
       'Breaking: document tools return plain text. `vault_read`, `vault_daily_note`, `editor_get_content`, `template_expand` and `plugin_dataview_query` return one text block: `key: value` header lines (e.g. `path`, `modified`, `totalLength`, `offset`, `hasMore`, `nextOffset`), a blank line, then the raw text, not JSON-escaped. They have no `structuredContent` or `outputSchema` any more; read `modified` and `nextOffset` from the header.',

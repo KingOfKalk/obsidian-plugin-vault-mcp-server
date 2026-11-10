@@ -323,4 +323,49 @@ describe('vault_daily_note handler', () => {
       expect(daily(result)).toMatchObject({ created: false, exists: true });
     });
   });
+
+  describe('modified header (#489)', () => {
+    beforeEach(() => {
+      adapter.setDailyNotesSettings({ format: 'YYYY-MM-DD', folder: 'daily', template: '' });
+      adapter.addFolder('daily');
+    });
+
+    async function metadataModified(path: string): Promise<unknown> {
+      const meta = await handlers.getMetadata({ path });
+      return (meta.structuredContent as { modified: unknown }).modified;
+    }
+
+    it('an existing note carries modified, the same as vault_get_metadata', async () => {
+      adapter.addFile('daily/2026-03-04.md', 'x');
+      const result = await handlers.dailyNote({ date: '2026-03-04' });
+      const modified = windowOf(result).meta.modified;
+      expect(modified).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+      expect(modified).toBe(await metadataModified('daily/2026-03-04.md'));
+    });
+
+    it('a newly created note carries modified, the same as vault_get_metadata', async () => {
+      const result = await handlers.dailyNote({ date: '2026-03-04', create: true });
+      expect(windowOf(result).meta.created).toBe('true');
+      const modified = windowOf(result).meta.modified;
+      expect(modified).toBeDefined();
+      expect(modified).toBe(await metadataModified('daily/2026-03-04.md'));
+    });
+
+    it('modified is accepted as expectedMtime by the next write', async () => {
+      adapter.addFile('daily/2026-03-04.md', 'x');
+      const result = await handlers.dailyNote({ date: '2026-03-04' });
+      const modified = windowOf(result).meta.modified;
+      const update = await handlers.updateFile({
+        path: 'daily/2026-03-04.md',
+        content: 'y',
+        expectedMtime: modified,
+      });
+      expect(update.isError).toBeUndefined();
+    });
+
+    it('a missing note without create has no modified', async () => {
+      const result = await handlers.dailyNote({ date: '2026-03-04' });
+      expect(windowOf(result).meta.modified).toBeUndefined();
+    });
+  });
 });
