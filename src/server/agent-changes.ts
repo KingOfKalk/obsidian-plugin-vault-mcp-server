@@ -22,6 +22,7 @@ export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
     notes: [
       '`vault_get_aspect` with `aspect: "outgoing_links"` or `"embeds"`: each entry adds `path`, the vault path Obsidian resolves the link to from this note (pass it to `vault_read`; `null` when unresolved or inside the config folder), and `subpath`, the `#Heading` or `#^block` part when present. `link` is unchanged.',
       'Template placeholders `{{date:FORMAT}}` and `{{time:FORMAT}}` are expanded with a moment.js format (e.g. `{{date:dddd}}`), like Obsidian, in `template_expand`, `template_create_from` and `vault_daily_note`; an empty format gives `YYYY-MM-DD` / `HH:mm`. A variable named like the whole placeholder (e.g. `"date:dddd"`) still overrides it. In `vault_daily_note` they use the note\'s date, and `{{time}}` is the current time (was `00:00` for another day).',
+      '`vault_daily_note` adds the `modified` header line (ISO-8601, as in `vault_read`) when the note exists or was just created; pass it as `expectedMtime` to the next write.',
       'New tool `search_by_name`: find files of any type by name or path. `query` is a case-insensitive substring of the path, or a glob with `*`/`?` (without `/` matched against the file name, e.g. "*Atlas*.md"; with `/` against the whole path, e.g. "notes/**/*.pdf"). Optional `folder` limits the search; results are sorted by path and paged with `limit`/`offset` like `search_by_tag`. The server instructions point to it instead of `vault_list_recursive` for finding a note by name.',
     ],
   },

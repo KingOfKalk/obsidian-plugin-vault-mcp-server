@@ -61,6 +61,7 @@ Response (`structuredContent`):
       "notes": [
         "`vault_get_aspect` with `aspect: \"outgoing_links\"` or `\"embeds\"`: each entry adds `path`, the vault path Obsidian resolves the link to from this note (pass it to `vault_read`; `null` when unresolved or inside the config folder), and `subpath`, the `#Heading` or `#^block` part when present. `link` is… [truncated, 11 more chars]",
         "Template placeholders `{{date:FORMAT}}` and `{{time:FORMAT}}` are expanded with a moment.js format (e.g. `{{date:dddd}}`), like Obsidian, in `template_expand`, `template_create_from` and `vault_daily_note`; an empty format gives `YYYY-MM-DD` / `HH:mm`. A variable named like the whole placeholder (e.… [truncated, 151 more chars]",
+        "`vault_daily_note` adds the `modified` header line (ISO-8601, as in `vault_read`) when the note exists or was just created; pass it as `expectedMtime` to the next write.",
         "New tool `search_by_name`: find files of any type by name or path. `query` is a case-insensitive substring of the path, or a glob with `*`/`?` (without `/` matched against the file name, e.g. \"*Atlas*.md\"; with `/` against the whole path, e.g. \"notes/**/*.pdf\"). Optional `folder` limits the search; … [truncated, 178 more chars]"
       ]
     },
