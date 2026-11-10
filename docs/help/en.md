@@ -733,12 +733,14 @@ clients and agents commonly trip over:
   the vault and are marked `openWorldHint: false` (before 4.1.0 they were
   `true`).
 - **Changing frontmatter.** `vault_set_frontmatter` sets and removes
-  frontmatter keys of a Markdown note without touching the rest of the file:
+  frontmatter keys of a Markdown note without touching the note body:
   `{ "path": "notes/a.md", "set": { "status": "done" }, "remove": ["draft"] }`.
   Values can be any JSON value (text, number, true/false, null, list or
-  object). Obsidian writes the YAML itself, so key order and formatting are
-  kept, and the frontmatter block is created if the note has none. Keys you
-  do not list stay as they are; removing a key that is not there is not an
+  object). Obsidian rewrites the whole YAML block itself: key order and
+  values are kept, but the quoting or formatting of keys you did not list
+  can change (for example `date: "2099-01-02"` becomes `date: 2099-01-02`).
+  The frontmatter block is created if the note has none. Keys you do not
+  list keep their values; removing a key that is not there is not an
   error. The result's `structuredContent` holds the `path`, the whole
   `frontmatter` after the change and the new `modified` timestamp. Pass
   `expectedMtime` to refuse the change if the note was edited since you
@@ -1136,6 +1138,14 @@ ambiguous" lists the matching headings: if they have different levels, add
 the `#` marks (`"## Log"` instead of `"Log"`); if they are identical, rename
 one of them or use `vault_replace`. `vault_insert` writes nothing when it
 fails.
+
+### `vault_set_frontmatter` changed keys I did not touch
+
+Obsidian rewrites the whole YAML block when it changes frontmatter, so keys
+you did not list keep their values and order but can lose quotes or change
+formatting (`date: "2099-01-02"` becomes `date: 2099-01-02`). The note body
+is not changed. If a diff-based backup or review needs the exact text, edit
+the frontmatter lines with `vault_replace` instead.
 
 ### A tool call fails with "Path is inside the Obsidian config folder"
 
