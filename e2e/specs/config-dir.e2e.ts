@@ -155,6 +155,11 @@ describe('config folder is blocked (#462)', function () {
       newPath: 'block/stolen',
     });
     await expectBlocked('vault_rename_folder', { path: 'block', newPath: `${configDir}/block` });
+    await expectBlocked('vault_move', {
+      path: `${configDir}/e2e-block-folder`,
+      newPath: 'block/stolen',
+    });
+    await expectBlocked('vault_move', { path: 'block', newPath: `${configDir}/block` });
 
     expect(await existsOnDisk(`${configDir}/e2e-new-folder`)).toBe(false);
     expect(await existsOnDisk(`${configDir}/e2e-block-folder`)).toBe(true);

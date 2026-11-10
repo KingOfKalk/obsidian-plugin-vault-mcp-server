@@ -244,4 +244,66 @@ describe('rename and move: link report vs real link rewriting', function () {
     expect(await readFromDisk('frename-off/done/Inside.md')).toBe('Inside\n');
     await expectNoModal();
   });
+
+  /**
+   * vault_move and vault_rename replace vault_rename_folder (#468): on a
+   * folder they must report and warn exactly like it did.
+   */
+  it('vault_move on a folder returns without a prompt and leaves links alone when auto-update is off', async function () {
+    await setVaultConfig('alwaysUpdateLinks', false);
+    await writeNotes({
+      'fmove-off/wip/Inside.md': 'Inside\n',
+      'fmove-off/Outside.md': 'Link: [[fmove-off/wip/Inside]]\n',
+    });
+    await waitForLinks({ 'fmove-off/Outside.md': { 'fmove-off/wip/Inside.md': 1 } });
+
+    const report = await callTool<LinkReport>(client, 'vault_move', {
+      path: 'fmove-off/wip',
+      newPath: 'fmove-off/done',
+    });
+
+    expect(report).toEqual({
+      from: 'fmove-off/wip',
+      to: 'fmove-off/done',
+      autoUpdateLinks: false,
+      linksUpdated: 0,
+      updatedFiles: [],
+      warning: expect.stringContaining('1 file links to fmove-off/wip') as unknown as string,
+    });
+    expect(await readFromDisk('fmove-off/Outside.md')).toBe('Link: [[fmove-off/wip/Inside]]\n');
+    expect(await readFromDisk('fmove-off/done/Inside.md')).toBe('Inside\n');
+    expect(await readFromDisk('fmove-off/wip/Inside.md')).toBeNull();
+    await expectNoModal();
+  });
+
+  it('vault_rename on a folder reports the links Obsidian rewrote into it, sources inside included', async function () {
+    await setVaultConfig('alwaysUpdateLinks', true);
+    await writeNotes({
+      'frename-on/wip/One.md': 'See [[frename-on/wip/Two]].\n',
+      'frename-on/wip/Two.md': 'Two\n',
+      'frename-on/Index.md': 'See [[frename-on/wip/One]] and [[frename-on/wip/Two]].\n',
+    });
+    await waitForLinks({
+      'frename-on/Index.md': { 'frename-on/wip/One.md': 1, 'frename-on/wip/Two.md': 1 },
+      'frename-on/wip/One.md': { 'frename-on/wip/Two.md': 1 },
+    });
+
+    const report = await callTool<LinkReport>(client, 'vault_rename', {
+      path: 'frename-on/wip',
+      newName: 'done',
+    });
+
+    expect(report).toEqual({
+      from: 'frename-on/wip',
+      to: 'frename-on/done',
+      autoUpdateLinks: true,
+      linksUpdated: 3,
+      updatedFiles: ['frename-on/Index.md', 'frename-on/done/One.md'],
+    });
+    const index = await readFromDisk('frename-on/Index.md');
+    expect(index).not.toContain('[[frename-on/wip/');
+    expect(await readFromDisk('frename-on/done/One.md')).not.toContain('[[frename-on/wip/');
+    expect(await readFromDisk('frename-on/done/Two.md')).toBe('Two\n');
+    await expectNoModal();
+  });
 });
