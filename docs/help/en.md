@@ -928,6 +928,15 @@ clients and agents commonly trip over:
     variable whose key is the whole placeholder, such as `"date:dddd"`,
     overrides the formatted value. Before 5.1 the format variants stayed
     as written.
+  - **Formatting another date.** When `variables.date` is a date written
+    exactly as `YYYY-MM-DD` (e.g. `"2099-01-02"`), the format variants use
+    that day, at the current time of day: `# {{date:dddd}}, {{date}}` gives
+    `# Friday, 2099-01-02`. When `variables.time` is a 24-hour `HH:mm` or
+    `HH:mm:ss` time (e.g. `"07:30"`), they use that time. Any other value,
+    including other ISO forms such as `2099-01-02T10:00` or `20990102`, or
+    a day that does not exist, is only filled into `{{date}}` / `{{time}}`,
+    and the format variants keep today's date and the current time. Before
+    5.2.0 the format variants always used today.
 - **Template folder.** `template_list` lists every file in the folder set
   in Obsidian's core **Templates** plugin (**Settings → Templates →
   Template folder location**), including subfolders, and returns that

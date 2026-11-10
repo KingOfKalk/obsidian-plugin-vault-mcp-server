@@ -60,6 +60,7 @@ Response (`structuredContent`):
       "version": "5.2.0",
       "notes": [
         "New user setting \"Read and edit only\" (off by default). While on, `vault_delete`, `vault_delete_folder`, `vault_update` and `vault_write_binary` are not listed, and a call fails with \"Tool <name> disabled\" (or \"not found\"). It switches live with `notifications/tools/list_changed`. Edit in place inst… [truncated, 173 more chars]",
+        "`template_expand` and `template_create_from`: `{{date:FORMAT}}` and `{{time:FORMAT}}` use `variables.date` when it is a `YYYY-MM-DD` date and `variables.time` when it is a 24-hour `HH:mm` or `HH:mm:ss` time (was always now), so `{{date:dddd}}` matches `{{date}}`. Other values are ignored and the cur… [truncated, 103 more chars]",
         "`vault_daily_note` without `create: true` on a missing note: the text says the note is not at `path` (from the Daily notes settings) and may exist elsewhere; check with `search_by_name` (e.g. the date) before `create: true`. It no longer says \"Call again with create=true\"."
       ]
     },
