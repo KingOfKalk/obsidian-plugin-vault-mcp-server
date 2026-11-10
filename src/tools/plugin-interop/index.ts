@@ -15,11 +15,10 @@ import {
 } from '../shared/errors';
 import { describeTool } from '../shared/describe';
 import { safeHandlers } from '../shared/handler';
+import { noParamsSchema } from '../shared/schemas';
 import { dataResponse, documentResponse } from '../shared/response';
 import { fitItems } from '../shared/pagination';
 import type { ModuleOptions } from '../index';
-
-const listSchema = {};
 
 const checkSchema = {
   pluginId: z
@@ -74,7 +73,7 @@ const executeCommandOutputSchema = {
 };
 
 interface PluginInteropHandlers {
-  listPlugins: (params: InferredParams<typeof listSchema>) => Promise<CallToolResult>;
+  listPlugins: (params: InferredParams<typeof noParamsSchema>) => Promise<CallToolResult>;
   checkPlugin: (params: InferredParams<typeof checkSchema>) => Promise<CallToolResult>;
   dataviewQuery: (params: InferredParams<typeof dataviewSchema>) => Promise<CallToolResult>;
   executeCommand: (params: InferredParams<typeof executeCommandSchema>) => Promise<CallToolResult>;
@@ -162,7 +161,7 @@ export function createPluginInteropModule(
           description: describeTool({
             summary: 'List every installed community plugin with its enabled flag.',
           }),
-          schema: listSchema,
+          schema: noParamsSchema,
           outputSchema: pluginListOutputSchema,
           handler: h.listPlugins,
           annotations: annotations.read,

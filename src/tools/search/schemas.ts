@@ -3,6 +3,9 @@ import { searchQuerySchema } from '../../utils/validation';
 import { paginationFields } from '../shared/pagination';
 import { FILE_PATH_DESC, vaultPathField } from '../shared/descriptions';
 
+/** Optional folder to search in, with its subfolders (#491, #504). */
+const folderFilter = z.string().max(4096).optional();
+
 export const searchFulltextSchema = {
   query: searchQuerySchema.describe('Case-insensitive substring to find.'),
   maxMatchesPerFile: z
@@ -18,16 +21,10 @@ export const searchFulltextSchema = {
     .boolean()
     .default(false)
     .describe('Return the last maxMatchesPerFile matches of each file instead of the first (e.g. newest rows of a log).'),
-  folder: z
-    .string()
-    .max(4096)
-    .optional()
-    .describe('Only notes in this folder and its subfolders, e.g. "projects". Omit for the whole vault.'),
+  folder: folderFilter.describe(
+    'Only notes in this folder and its subfolders, e.g. "projects". Omit for the whole vault.',
+  ),
   ...paginationFields,
-};
-
-export const filePathSchema = {
-  path: vaultPathField(FILE_PATH_DESC),
 };
 
 /** `search_tags`: counts per tag, paged (#468). */
@@ -93,10 +90,8 @@ export const searchByNameSchema = {
     'Case-insensitive substring of the path, or a glob with * and ?: ' +
       'without / it matches the file name (e.g. "*Atlas*.md"), with / the whole path (e.g. "notes/**/*.pdf").',
   ),
-  folder: z
-    .string()
-    .max(4096)
-    .optional()
-    .describe('Only files in this folder and its subfolders, e.g. "projects". Omit for the whole vault.'),
+  folder: folderFilter.describe(
+    'Only files in this folder and its subfolders, e.g. "projects". Omit for the whole vault.',
+  ),
   ...paginationFields,
 };

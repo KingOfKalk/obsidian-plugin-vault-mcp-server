@@ -12,6 +12,7 @@ import { validateToolPath } from '../../utils/path-guard';
 import { FolderNotFoundError } from '../shared/errors';
 import { describeTool } from '../shared/describe';
 import { safeHandlers } from '../shared/handler';
+import { noParamsSchema } from '../shared/schemas';
 import {
   FILE_PATH_DESC,
   TEMPLATE_VARIABLES_DESC,
@@ -28,8 +29,6 @@ import {
   frontmatterKeySchema,
 } from '../shared/frontmatter';
 import { dataResponse, documentResponse } from '../shared/response';
-
-const listTemplatesSchema = {};
 
 const createFromTemplateSchema = {
   templatePath: vaultPathField(FILE_PATH_DESC),
@@ -82,7 +81,7 @@ const createFromTemplateOutputSchema = {
 };
 
 interface TemplatesHandlers {
-  listTemplates: (params: InferredParams<typeof listTemplatesSchema>) => Promise<CallToolResult>;
+  listTemplates: (params: InferredParams<typeof noParamsSchema>) => Promise<CallToolResult>;
   createFromTemplate: (params: InferredParams<typeof createFromTemplateSchema>) => Promise<CallToolResult>;
   expandVariables: (params: InferredParams<typeof expandVariablesSchema>) => Promise<CallToolResult>;
 }
@@ -155,7 +154,7 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
               'List the files in the folder set in the core Templates plugin ("templates" if none is set), including subfolders. ' +
               "Templater's folder is not used; use vault_list_recursive to look elsewhere.",
           }),
-          schema: listTemplatesSchema,
+          schema: noParamsSchema,
           outputSchema: templateListOutputSchema,
           handler: h.listTemplates,
           annotations: annotations.read,

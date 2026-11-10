@@ -12,12 +12,10 @@ import { validateToolPath } from '../../utils/path-guard';
 import { errorResult } from '../shared/errors';
 import { describeTool } from '../shared/describe';
 import { safeHandlers } from '../shared/handler';
-import { FILE_PATH_DESC, vaultPathField } from '../shared/descriptions';
+import { filePathSchema, noParamsSchema } from '../shared/schemas';
 import { dataResponse } from '../shared/response';
 import { resultTextLength } from '../shared/pagination';
 import { CHARACTER_LIMIT } from '../../constants';
-
-const readOnlySchema = {};
 
 /** The largest list (by JSON size) with more than one item in `value`, or null. */
 function largestList(value: unknown): unknown[] | null {
@@ -66,7 +64,7 @@ function layoutResponse(layout: Record<string, unknown>): CallToolResult {
 }
 
 const openFileSchema = {
-  path: vaultPathField(FILE_PATH_DESC),
+  ...filePathSchema,
   mode: z
     .enum(['source', 'preview', 'live'])
     .optional()
@@ -135,11 +133,11 @@ const setActiveLeafOutputSchema = {
 };
 
 interface WorkspaceHandlers {
-  getActiveLeaf: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
+  getActiveLeaf: (params: InferredParams<typeof noParamsSchema>) => Promise<CallToolResult>;
   openFile: (params: InferredParams<typeof openFileSchema>) => Promise<CallToolResult>;
-  listLeaves: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
+  listLeaves: (params: InferredParams<typeof noParamsSchema>) => Promise<CallToolResult>;
   setActiveLeaf: (params: InferredParams<typeof setActiveLeafSchema>) => Promise<CallToolResult>;
-  getLayout: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
+  getLayout: (params: InferredParams<typeof noParamsSchema>) => Promise<CallToolResult>;
 }
 
 function createHandlers(adapter: ObsidianAdapter): WorkspaceHandlers {
@@ -189,7 +187,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
             errors: ['"No active leaf" if no leaf is focused.'],
             seeAlso: ['editor_get_active_file — for just the active file\'s path.'],
           }),
-          schema: readOnlySchema,
+          schema: noParamsSchema,
           outputSchema: getActiveLeafOutputSchema,
           handler: h.getActiveLeaf,
           annotations: annotations.read,
@@ -215,7 +213,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary: 'List the open leaves that show a file, with their leaf ids and file paths.',
           }),
-          schema: readOnlySchema,
+          schema: noParamsSchema,
           outputSchema: listLeavesOutputSchema,
           handler: h.listLeaves,
           annotations: annotations.read,
@@ -238,7 +236,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary: "Get Obsidian's raw workspace layout JSON (opaque, varies by Obsidian version). Over the size limit its longest lists are shortened and truncated: true is set.",
           }),
-          schema: readOnlySchema,
+          schema: noParamsSchema,
           outputSchema: getLayoutOutputSchema,
           handler: h.getLayout,
           annotations: annotations.read,

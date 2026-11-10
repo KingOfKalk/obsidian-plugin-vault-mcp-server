@@ -11,6 +11,7 @@ import { ObsidianAdapter } from '../../obsidian/adapter';
 import { errorResult } from '../shared/errors';
 import { describeTool } from '../shared/describe';
 import { safeHandlers } from '../shared/handler';
+import { noParamsSchema, textInput } from '../shared/schemas';
 import { dataResponse, documentResponse } from '../shared/response';
 import {
   READ_MAX_LENGTH,
@@ -25,8 +26,6 @@ import {
 // via `typeof <schema>` for automatic parameter typing through
 // `InferredParams<Shape>`.
 
-const readOnlySchema = {};
-
 /** `editor_get_content`: a character window like `vault_read` (#464). */
 const getContentSchema = {
   offset: windowOffsetField,
@@ -38,23 +37,20 @@ const getContentSchema = {
  * The end is a CodeMirror position: the range stops before the character
  * at (toLine, toCh), so an edit within one line has toLine == fromLine.
  */
-const rangeFields = {
-  fromLine: z.number().int().min(0).describe('Start line (0-based).'),
-  fromCh: z
-    .number()
-    .int()
-    .min(0)
-    .describe('Start column (0-based); included.'),
-  toLine: z
-    .number()
-    .int()
-    .min(0)
-    .describe('End line (0-based); equals fromLine for a range within one line.'),
-  toCh: z
-    .number()
-    .int()
-    .min(0)
-    .describe('End column (0-based); not included.'),
+/** A 0-based line or column. */
+const editorIndex = z.number().int().min(0);
+
+const rangeSchema = {
+  fromLine: editorIndex.describe('Start line (0-based).'),
+  fromCh: editorIndex.describe('Start column (0-based); included.'),
+  toLine: editorIndex.describe('End line (0-based); equals fromLine for a range within one line.'),
+  toCh: editorIndex.describe('End column (0-based); not included.'),
+};
+
+/** A (line, ch) position: editor_insert and editor_set_cursor. */
+const pointSchema = {
+  line: editorIndex.describe('Line (0-based).'),
+  ch: editorIndex.describe('Column (0-based).'),
 };
 
 /** One sentence on how ranges work, for the range tools' summaries. */
@@ -74,30 +70,14 @@ const NO_EDITOR_HINT =
 const NO_ACTIVE_EDITOR = `No active editor. ${NO_EDITOR_HINT}`;
 
 const insertSchema = {
-  line: z.number().int().min(0).describe('Line (0-based).'),
-  ch: z.number().int().min(0).describe('Column (0-based).'),
-  text: z
-    .string()
-    .max(5_000_000)
-    .describe('Text to insert; may contain newlines.'),
+  ...pointSchema,
+  text: textInput.describe('Text to insert; may contain newlines.'),
 };
 
 const replaceSchema = {
-  ...rangeFields,
-  text: z
-    .string()
-    .max(5_000_000)
-    .describe('Replacement text.'),
+  ...rangeSchema,
+  text: textInput.describe('Replacement text.'),
 };
-
-const deleteRangeSchema = { ...rangeFields };
-
-const setCursorSchema = {
-  line: z.number().int().min(0).describe('Line (0-based).'),
-  ch: z.number().int().min(0).describe('Column (0-based).'),
-};
-
-const setSelectionSchema = { ...rangeFields };
 
 /**
  * Output schemas of the editor data tools (#467): each shape mirrors what
@@ -207,15 +187,15 @@ function withEditor(
 
 interface EditorHandlers {
   getContent: (params: InferredParams<typeof getContentSchema>) => Promise<CallToolResult>;
-  getActivePath: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
+  getActivePath: (params: InferredParams<typeof noParamsSchema>) => Promise<CallToolResult>;
   insert: (params: InferredParams<typeof insertSchema>) => Promise<CallToolResult>;
   replace: (params: InferredParams<typeof replaceSchema>) => Promise<CallToolResult>;
-  deleteRange: (params: InferredParams<typeof deleteRangeSchema>) => Promise<CallToolResult>;
-  getCursor: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
-  setCursor: (params: InferredParams<typeof setCursorSchema>) => Promise<CallToolResult>;
-  getSelection: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
-  setSelection: (params: InferredParams<typeof setSelectionSchema>) => Promise<CallToolResult>;
-  getLineCount: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
+  deleteRange: (params: InferredParams<typeof rangeSchema>) => Promise<CallToolResult>;
+  getCursor: (params: InferredParams<typeof noParamsSchema>) => Promise<CallToolResult>;
+  setCursor: (params: InferredParams<typeof pointSchema>) => Promise<CallToolResult>;
+  getSelection: (params: InferredParams<typeof noParamsSchema>) => Promise<CallToolResult>;
+  setSelection: (params: InferredParams<typeof rangeSchema>) => Promise<CallToolResult>;
+  getLineCount: (params: InferredParams<typeof noParamsSchema>) => Promise<CallToolResult>;
 }
 
 function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
@@ -314,7 +294,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             errors: ['"No active file" if no file is open.'],
             seeAlso: ['workspace_get_active_leaf — for the active leaf (id and view type), not just the path.'],
           }),
-          schema: readOnlySchema,
+          schema: noParamsSchema,
           outputSchema: getActiveFileOutputSchema,
           handler: h.getActivePath,
           annotations: annotations.read,
@@ -369,7 +349,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
               'editor_replace — to overwrite a range.',
             ],
           }),
-          schema: deleteRangeSchema,
+          schema: rangeSchema,
           outputSchema: rangeOutputSchema,
           handler: h.deleteRange,
           annotations: annotations.destructive,
@@ -380,7 +360,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary: 'Get the cursor position (0-based line, ch) in the active editor.',
           }),
-          schema: readOnlySchema,
+          schema: noParamsSchema,
           outputSchema: getCursorOutputSchema,
           handler: h.getCursor,
           annotations: annotations.read,
@@ -393,7 +373,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             errors: ['"Position is out of range" if line is past the last line (ch is not checked).'],
             seeAlso: ['editor_set_selection — to select a range.'],
           }),
-          schema: setCursorSchema,
+          schema: pointSchema,
           outputSchema: positionOutputSchema,
           handler: h.setCursor,
           annotations: annotations.additive,
@@ -405,7 +385,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             summary: 'Get the selected text and its range (0-based) in the active editor. With nothing selected, from equals to (the cursor) and text is "".',
             errors: ['"No active editor or selection" if no editor is open.'],
           }),
-          schema: readOnlySchema,
+          schema: noParamsSchema,
           outputSchema: getSelectionOutputSchema,
           handler: h.getSelection,
           annotations: annotations.read,
@@ -418,7 +398,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             errors: [RANGE_OUT_OF_RANGE_ERROR],
             seeAlso: ['editor_set_cursor — to place the caret at a point.'],
           }),
-          schema: setSelectionSchema,
+          schema: rangeSchema,
           outputSchema: rangeOutputSchema,
           handler: h.setSelection,
           annotations: annotations.additive,
@@ -429,7 +409,7 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary: 'Get the number of lines in the active editor.',
           }),
-          schema: readOnlySchema,
+          schema: noParamsSchema,
           outputSchema: getLineCountOutputSchema,
           handler: h.getLineCount,
           annotations: annotations.read,

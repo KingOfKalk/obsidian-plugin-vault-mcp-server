@@ -33,6 +33,7 @@ import { BINARY_BYTE_LIMIT } from '../../constants';
 import { getMimeType, isTextMime, vaultUri } from '../../server/resources';
 import type { InferredParams } from '../../registry/types';
 import { createAspectHandlers } from './aspect';
+import type { filePathSchema } from '../shared/schemas';
 import { READ_MAX_LENGTH, parseExpectedMtime } from './schemas';
 import {
   findSection,
@@ -48,19 +49,15 @@ import type {
   createFileSchema,
   readFileSchema,
   updateFileSchema,
-  deleteFileSchema,
   appendFileSchema,
   replaceInFileSchema,
   insertSchema,
-  getMetadataSchema,
   renameFileSchema,
   moveFileSchema,
   copyFileSchema,
   createFolderSchema,
   deleteFolderSchema,
   listFolderSchema,
-  listRecursiveSchema,
-  readBinarySchema,
   writeBinarySchema,
   getAspectSchema,
   dailyNoteSchema,
@@ -353,19 +350,19 @@ export interface VaultHandlers {
   createFile: (params: InferredParams<typeof createFileSchema>) => Promise<CallToolResult>;
   readFile: (params: InferredParams<typeof readFileSchema>) => Promise<CallToolResult>;
   updateFile: (params: InferredParams<typeof updateFileSchema>) => Promise<CallToolResult>;
-  deleteFile: (params: InferredParams<typeof deleteFileSchema>) => Promise<CallToolResult>;
+  deleteFile: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
   appendFile: (params: InferredParams<typeof appendFileSchema>) => Promise<CallToolResult>;
   replaceInFile: (params: InferredParams<typeof replaceInFileSchema>) => Promise<CallToolResult>;
   insert: (params: InferredParams<typeof insertSchema>) => Promise<CallToolResult>;
   renameFile: (params: InferredParams<typeof renameFileSchema>) => Promise<CallToolResult>;
   moveFile: (params: InferredParams<typeof moveFileSchema>) => Promise<CallToolResult>;
   copyFile: (params: InferredParams<typeof copyFileSchema>) => Promise<CallToolResult>;
-  getMetadata: (params: InferredParams<typeof getMetadataSchema>) => Promise<CallToolResult>;
+  getMetadata: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
   createFolder: (params: InferredParams<typeof createFolderSchema>) => Promise<CallToolResult>;
   deleteFolder: (params: InferredParams<typeof deleteFolderSchema>) => Promise<CallToolResult>;
   listFolder: (params: InferredParams<typeof listFolderSchema>) => Promise<CallToolResult>;
-  listRecursive: (params: InferredParams<typeof listRecursiveSchema>) => Promise<CallToolResult>;
-  readBinary: (params: InferredParams<typeof readBinarySchema>) => Promise<CallToolResult>;
+  listRecursive: (params: InferredParams<typeof listFolderSchema>) => Promise<CallToolResult>;
+  readBinary: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
   writeBinary: (params: InferredParams<typeof writeBinarySchema>) => Promise<CallToolResult>;
   getAspect: (params: InferredParams<typeof getAspectSchema>) => Promise<CallToolResult>;
   dailyNote: (params: InferredParams<typeof dailyNoteSchema>) => Promise<CallToolResult>;

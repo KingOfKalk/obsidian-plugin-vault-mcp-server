@@ -11,8 +11,7 @@ import {
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { describeTool } from '../shared/describe';
 import { dataResponse } from '../shared/response';
-
-const getDateSchema = {};
+import { noParamsSchema } from '../shared/schemas';
 
 /**
  * Output schema for the `extras_get_date` tool that emits `structuredContent`
@@ -27,7 +26,7 @@ const getDateOutputSchema = {
 };
 
 interface ExtrasHandlers {
-  getDate: (params: InferredParams<typeof getDateSchema>) => Promise<CallToolResult>;
+  getDate: (params: InferredParams<typeof noParamsSchema>) => Promise<CallToolResult>;
 }
 
 /** Local time with milliseconds and UTC offset, e.g. `2026-04-19T08:30:00.000+02:00`. */
@@ -65,7 +64,7 @@ export function createExtrasModule(adapter: ObsidianAdapter): ToolModule {
               'vault_get_metadata — for a file\'s modified/created timestamp.',
             ],
           }),
-          schema: getDateSchema,
+          schema: noParamsSchema,
           outputSchema: getDateOutputSchema,
           handler: h.getDate,
           annotations: annotations.read,
