@@ -4,6 +4,40 @@
 > were renamed from `vX.Y.Z` (and `obsidian-mcp-v1.1.0`) to `X.Y.Z`; old links
 > containing `v` no longer resolve.
 
+## [5.1.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/5.0.0...5.1.0) (2026-11-10)
+
+
+### Features
+
+* **search:** add folder filter and lastMatches to search_fulltext ([#508](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/508)) ([66509cc](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/66509ccd6cb9402dfe9d1be132c19dd1b5cffa30)), closes [#504](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/504)
+* **search:** add search_by_name tool ([#498](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/498)) ([7eb5575](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/7eb557588fc738a1399d2328b89c42db3ded90a3))
+* **search:** count unresolved links per target ([#509](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/509)) ([c21406f](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/c21406f4e766b4d995435132d420df86abbd310c)), closes [#505](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/505)
+* **search:** return frontmatter value and support prefix match ([#507](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/507)) ([6867e17](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/6867e175add24150e4a38d304ef97ad9a751e781)), closes [#503](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/503)
+* **templates:** support {{date:FORMAT}} and {{time:FORMAT}} placeholders ([#494](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/494)) ([5c08b87](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/5c08b8712bb3211f73e693aaed293c95d6b543fa)), closes [#488](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/488)
+* **tools:** one default page size of 50 for all paged tools ([#497](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/497)) ([e70285c](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/e70285cc87fe21c6035e1f508651e852d8e85dfb)), closes [#490](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/490)
+* **vault:** return resolved path and subpath for links and embeds in vault_get_aspect ([#486](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/486)) ([e7d6e79](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/e7d6e797335befc2b92c3fe46d353f717c063789))
+
+
+### Bug Fixes
+
+* **vault:** add modified to vault_daily_note header ([9f6bb86](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/9f6bb8674aef720d56077bd5be35d9671cf788c2)), closes [#489](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/489)
+* **vault:** include modified in vault_daily_note header ([#495](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/495)) ([9f6bb86](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/9f6bb8674aef720d56077bd5be35d9671cf788c2))
+
+
+### Documentation
+
+* **evals:** record the Claude cross-check after the [#499](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/499) changes ([#511](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/511)) ([c2180e5](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/c2180e51f19721efe092d7a171646ca252725021))
+* **tools:** say what backlinks include, name list_recursive fields, clarify matchCount ([#506](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/506)) ([35e17d7](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/35e17d72c6de8b1ae8f17944f15f2fe5d777746d)), closes [#502](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/502)
+* **vault:** say vault_set_frontmatter re-serializes the YAML block ([#493](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/493)) ([c7baf58](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/c7baf581b56520fe729a7377d664d9151652b50f)), closes [#492](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/492)
+
+
+### Miscellaneous Chores
+
+* **devcontainer:** unify Node 24.22.1 across devcontainer, CI and engines ([f4ccab5](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/f4ccab5173837015f1427bcecc6d2494f9506c6b)), closes [#484](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/484)
+* **devcontainer:** use Node 24.22.1 everywhere and install e2e deps ([#500](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/500)) ([f4ccab5](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/f4ccab5173837015f1427bcecc6d2494f9506c6b))
+* **evals:** run the evals against Anthropic or any OpenAI-compatible API ([#510](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/510)) ([5bcdc77](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/5bcdc77f36e9f5a9f8ea7878f54c75a4143d786a)), closes [#483](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/483)
+* **tools:** make frontmatter, backlink and link tools easier to find ([#501](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/501)) ([a62503c](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/a62503ca06442df24fa575b9fefcdb5138f6d2bc)), closes [#499](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/499)
+
 ## [5.0.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/4.1.0...5.0.0) (2026-11-10)
 
 
