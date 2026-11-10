@@ -241,7 +241,7 @@ describe('the agent loop against a mocked OpenAI-compatible server', () => {
     const result = await runAgent(openAIProvider(options(fetch)), { maxTurns: 5 }, qa, 1);
 
     expect(result.passed).toBe(true);
-    expect(result.toolCalls).toEqual({ vault_get_aspect: 1, no_such_tool: 1, search_tags: 2 });
+    expect(result.toolCalls).toEqual({ vault_get_aspect: 1, '(unknown tool)': 1, search_tags: 2 });
     const messages = calls[1].body.messages;
     const assistant = messages[2] as { content: string; tool_calls: Array<{ id: string; function: { arguments: string } }> };
     expect(assistant.content).toBe('Let me look.');
@@ -252,7 +252,7 @@ describe('the agent loop against a mocked OpenAI-compatible server', () => {
     expect(tools.map((m) => m.role)).toEqual(['tool', 'tool', 'tool', 'tool']);
     expect(tools.map((m) => m.tool_call_id)).toEqual(['call00001', 'call00002', 'call00003', assistant.tool_calls[3].id]);
     expect(tools[0].content).toContain('Hydrology');
-    expect(tools[1].content).toMatch(/^Error: /);
+    expect(tools[1].content).toMatch(/^Error: Tool call failed: Unknown tool "no_such_tool"/);
     expect(tools[2].content).toMatch(/^Error: Tool call failed: Tool arguments are not valid JSON/);
     expect(tools[3].content).not.toMatch(/^Error/);
   });
@@ -279,6 +279,41 @@ describe('the agent loop against a mocked OpenAI-compatible server', () => {
         1,
       ),
     ).rejects.toThrow(/openai provider: HTTP 403 from https:\/\/api\.mistral\.ai\/v1 .*MISTRAL_API_KEY/);
+  });
+
+  it('counts invented tool names under one key and never calls MCP with them', async () => {
+    // Seen with Mistral: the "name" of a tool call is a made-up JSON tool result.
+    const invented = '{"total": 3, "items": [{"path": "Field_Visits/2023-07-15_Birke_Station_3.md"}]}';
+    const { fetch, calls } = mockFetch([
+      { body: toolCallReply([{ id: 'call00001', name: invented, arguments: '{}' }]) },
+      { body: finalReply(ANSWER) },
+    ]);
+    const result = await runAgent(openAIProvider(options(fetch)), { maxTurns: 5 }, qa, 1);
+    expect(result.toolCalls).toEqual({ '(unknown tool)': 1 });
+    expect(result.totalToolCalls).toBe(1);
+    const reply = calls[1].body.messages[3] as { content: string };
+    expect(reply.content).toMatch(/^Error: Tool call failed: Unknown tool "\{"total": 3/);
+    expect(reply.content).toContain('Call one of the listed tools');
+  });
+
+  it('scores finish_reason "error" as ERROR, not as a wrong answer', async () => {
+    const { fetch } = mockFetch([{ body: finalReply('', 'error') }]);
+    const result = await runAgent(openAIProvider(options(fetch)), { maxTurns: 5 }, qa, 1);
+    expect(result.outcome).toBe('error');
+    expect(result.stopReason).toBe('error');
+    expect(result.turns).toBe(1);
+    expect(result.error).toMatch(/finish_reason "error"/);
+  });
+
+  it('keeps the turn count when a later request fails', async () => {
+    const { fetch } = mockFetch([
+      { body: toolCallReply([{ id: 'x', name: 'search_tags', arguments: '{}' }]) },
+      { status: 400, body: { message: 'Invalid schema' } },
+    ]);
+    const result = await runAgent(openAIProvider(options(fetch)), { maxTurns: 5 }, qa, 1);
+    expect(result.outcome).toBe('error');
+    expect(result.turns).toBe(2);
+    expect(result.totalToolCalls).toBe(1);
   });
 
   it('records other HTTP errors on the question and carries on', async () => {
@@ -317,6 +352,15 @@ describe('postChatCompletion', () => {
     await expect(postChatCompletion(options(fetch, { sleep, log }), body)).resolves.toEqual(finalReply('ok'));
     expect(sleep.mock.calls).toEqual([[2000]]);
     expect(log).toHaveBeenCalledWith('  service unavailable (HTTP 503), waiting 2s (attempt 1/6)');
+  });
+
+  it.each([502, 504])('retries HTTP %i (gateway errors) too', async (status) => {
+    const sleep = vi.fn((): Promise<void> => Promise.resolve());
+    const log = vi.fn();
+    const { fetch } = mockFetch([{ status, body: 'upstream request failed' }, { body: finalReply('ok') }]);
+    await expect(postChatCompletion(options(fetch, { sleep, log }), body)).resolves.toEqual(finalReply('ok'));
+    expect(sleep.mock.calls).toEqual([[2000]]);
+    expect(log).toHaveBeenCalledWith(`  server error (HTTP ${String(status)}), waiting 2s (attempt 1/6)`);
   });
 
   it('backs off exponentially up to 60 s and gives up after 6 retries', async () => {

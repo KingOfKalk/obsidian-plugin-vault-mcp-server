@@ -97,11 +97,11 @@ The model has to support function calling (tools). Notes on how the runner talks
 - Tool results go back as one `role: "tool"` message per call, with `tool_call_id` and `name`, as text: data tools as their JSON text, document tools as plain text, an image block as the placeholder `[image content omitted]`. An error result starts with `Error: `.
 - Several tool calls in one turn (parallel calls) all run and are answered in order. Arguments may come as a JSON string or as an object; arguments that are not valid JSON go back to the model as an error without calling the tool. A tool call without an `id` gets one.
 - No `max_tokens`, temperature or effort is sent; the provider's defaults apply. `EVAL_EFFORT` is ignored for `openai`.
-- HTTP 429 and 503 are retried (see [Rate limits](#rate-limits)). Any other error, or a 429/503 that is still there after all retries, ends that question as `ERROR` and the run goes on. HTTP 401 or 403 stops the run with a message that names the provider, the base URL and the variable the key came from.
+- HTTP 429, 502, 503 and 504 are retried (see [Rate limits](#rate-limits)). Any other error, or one of these that is still there after all retries, ends that question as `ERROR` and the run goes on. So does a reply with `finish_reason: "error"` (Mistral sends it when a generation fails on its side). HTTP 401 or 403 stops the run with a message that names the provider, the base URL and the variable the key came from.
 
 ### Rate limits
 
-- **Retries:** a request that gets HTTP 429 (rate limited) or 503 (unavailable) is retried up to 6 times. The runner waits for `Retry-After` when the server sends it, else 2, 4, 8, 16, 32 and 60 s; no wait is longer than 60 s. Each wait prints one line, e.g. `rate limited, waiting 4s (attempt 2/6)`. The Anthropic SDK retries 429 and 5xx up to 6 times as well, with its own backoff.
+- **Retries:** a request that gets HTTP 429 (rate limited), 502 or 504 (gateway errors, e.g. Mistral's `upstream request failed`) or 503 (unavailable) is retried up to 6 times. The runner waits for `Retry-After` when the server sends it, else 2, 4, 8, 16, 32 and 60 s; no wait is longer than 60 s. Each wait prints one line, e.g. `rate limited, waiting 4s (attempt 2/6)` or `server error (HTTP 502), waiting 2s (attempt 1/6)`. The Anthropic SDK retries 429 and 5xx up to 6 times as well, with its own backoff.
 - **Pacing:** `EVAL_MIN_INTERVAL_MS` (or `--min-interval-ms`) keeps model requests at least that many milliseconds apart, across all questions, for both providers. Default `0` (no pacing). For Mistral's free tier use `1100`.
 
 ### Anthropic
@@ -126,7 +126,7 @@ PASS  Q1  4 tool calls (vault_get_aspect×3, search_by_frontmatter×1), 5 turns,
 FAIL  Q6  2 tool calls (vault_read×1, search_fulltext×1), 3 turns, 9.8s
       expected: 5.4
       got:      6.5  [stop: end_turn]
-ERROR Q7  3 tool calls (search_by_tag×3), 0 turns, 131.2s
+ERROR Q7  3 tool calls (search_by_tag×3), 4 turns, 131.2s
       expected: 2025-07
       got:      (no <response> tag)  [stop: error]
       error:    openai provider: HTTP 429 from https://api.mistral.ai/v1/chat/completions after 6 retries: ...
@@ -136,7 +136,9 @@ Results: 8 passed, 1 failed, 1 errored
 Tool calls: 41 total, 4.1 per question
 ```
 
-`FAIL` means the model answered wrongly or not at all. `ERROR` means the question ended on an API or harness error (rate limit after all retries, network, HTTP 5xx), so it says nothing about the tools; re-run it with `--only`. Accuracy counts errored questions as not passed.
+`FAIL` means the model answered wrongly or not at all. `ERROR` means the question ended on an API or harness error (rate limit after all retries, network, HTTP 5xx, `finish_reason: "error"`), so it says nothing about the tools; re-run it with `--only`. Accuracy counts errored questions as not passed.
+
+A call to a tool name the server does not have is counted as `(unknown tool)` in the tool-call summary and answered with an error, without reaching the server. Some models invent tool calls whose name is a made-up tool result; a high `(unknown tool)` count points to that.
 
 Options:
 

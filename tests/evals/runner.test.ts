@@ -135,7 +135,7 @@ describe('runQuestion', () => {
 
     expect(result.passed).toBe(true);
     expect(result.actual).toBe('hydrology');
-    expect(result.toolCalls).toEqual({ vault_get_aspect: 1, no_such_tool: 1 });
+    expect(result.toolCalls).toEqual({ vault_get_aspect: 1, '(unknown tool)': 1 });
     expect(result.totalToolCalls).toBe(2);
     expect(result.feedback).toBe('f');
     expect(requests[0].model).toBe(DEFAULT_MODEL);

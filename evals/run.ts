@@ -352,12 +352,29 @@ export function anthropicProvider(
   };
 }
 
-/** Run one tool call against the MCP server; failures become error results for the model. */
+/** Key in `toolCalls` for calls to tools the server does not have (some models invent names). */
+export const UNKNOWN_TOOL = '(unknown tool)';
+
+/**
+ * Run one tool call against the MCP server; failures become error results for the model.
+ * A name the server does not list is counted under UNKNOWN_TOOL and never sent to MCP:
+ * models sometimes put a made-up tool result in the name, which would garble the summary.
+ */
 async function executeToolCall(
   mcp: Client,
   call: ToolCall,
   toolCalls: Record<string, number>,
+  known: ReadonlySet<string>,
 ): Promise<ToolOutcome> {
+  if (!known.has(call.name)) {
+    toolCalls[UNKNOWN_TOOL] = (toolCalls[UNKNOWN_TOOL] ?? 0) + 1;
+    const name = call.name.length > 80 ? `${call.name.slice(0, 80)}...` : call.name;
+    return {
+      call,
+      text: `Tool call failed: Unknown tool "${name}". Call one of the listed tools by its exact name.`,
+      isError: true,
+    };
+  }
   toolCalls[call.name] = (toolCalls[call.name] ?? 0) + 1;
   if (call.inputError !== undefined) {
     return { call, text: `Tool call failed: ${call.inputError}`, isError: true };
@@ -396,12 +413,13 @@ export async function runAgent(
     totalToolCalls: 0,
     durationMs: 0,
   };
+  let turns = 0;
   try {
     const tools = (await mcp.listTools()).tools;
+    const known = new Set(tools.map((t) => t.name));
     const session = provider.start({ tools, system: buildSystemPrompt(mcp.getInstructions()), question: qa.question });
     let finalText = '';
     let stopReason = 'max_turns';
-    let turns = 0;
     let pending: ToolOutcome[] = [];
     while (turns < config.maxTurns) {
       turns++;
@@ -409,12 +427,17 @@ export async function runAgent(
       pending = [];
       if (turn.kind === 'continue') continue;
       if (turn.kind === 'final') {
+        // Mistral ends a generation that failed on its side with finish_reason "error":
+        // an API error, not a wrong answer.
+        if (turn.stopReason === 'error') {
+          throw new Error('the model API ended the turn with finish_reason "error"');
+        }
         stopReason = turn.stopReason;
         finalText = turn.text;
         break;
       }
       // Run every tool call of this turn; all results go back together.
-      pending = await Promise.all(turn.calls.map((call) => executeToolCall(mcp, call, toolCalls)));
+      pending = await Promise.all(turn.calls.map((call) => executeToolCall(mcp, call, toolCalls, known)));
     }
     const actual = extractTagged(finalText, 'response');
     const passed = answersMatch(actual, qa.answer);
@@ -438,7 +461,7 @@ export async function runAgent(
       passed: false,
       outcome: 'error',
       totalToolCalls: Object.values(toolCalls).reduce((a, b) => a + b, 0),
-      turns: 0,
+      turns,
       stopReason: 'error',
       durationMs: Date.now() - started,
       summary: null,

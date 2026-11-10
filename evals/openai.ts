@@ -11,10 +11,10 @@ import { createPacer, type ChatSession, type Provider, type ToolCall, type ToolO
 /** JSON Schema keywords always dropped from function parameters: metadata no model needs. */
 export const ALWAYS_DROPPED_KEYWORDS: readonly string[] = ['$schema'];
 
-/** Retries after HTTP 429/503, and the cap of one wait (backoff 2, 4, 8, 16, 32, 60 s). */
+/** Retries after HTTP 429/502/503/504, and the cap of one wait (backoff 2, 4, 8, 16, 32, 60 s). */
 export const MAX_RETRIES = 6;
 const MAX_RETRY_WAIT_MS = 60_000;
-const RETRY_STATUSES = new Set([429, 503]);
+const RETRY_STATUSES = new Set([429, 502, 503, 504]);
 /** One request may take long on a slow local model, but never hang forever. */
 const REQUEST_TIMEOUT_MS = 300_000;
 
@@ -165,7 +165,7 @@ export function chatCompletionsUrl(baseUrl: string): string {
 
 /**
  * One Chat Completions request. Retries up to MAX_RETRIES times after HTTP
- * 429 or 503 (Retry-After or exponential backoff, at most 60 s per wait),
+ * 429, 502, 503 or 504 (Retry-After or exponential backoff, at most 60 s per wait),
  * logging one line per wait; 401/403 throw ProviderAuthError naming the
  * base URL and the env variable the key came from. `pace` runs before every
  * request, retries included (minimum interval, see createPacer).
@@ -199,7 +199,12 @@ export async function postChatCompletion(
     if (RETRY_STATUSES.has(res.status) && retry < MAX_RETRIES) {
       await res.text().catch(() => '');
       const wait = retryWaitMs(retry + 1, res.headers.get('retry-after'));
-      const what = res.status === 429 ? 'rate limited' : 'service unavailable (HTTP 503)';
+      const what =
+        res.status === 429
+          ? 'rate limited'
+          : res.status === 503
+            ? 'service unavailable (HTTP 503)'
+            : `server error (HTTP ${String(res.status)})`;
       log(`  ${what}, waiting ${String(Math.round(wait / 1000))}s (attempt ${String(retry + 1)}/${String(MAX_RETRIES)})`);
       await sleep(wait);
       continue;
