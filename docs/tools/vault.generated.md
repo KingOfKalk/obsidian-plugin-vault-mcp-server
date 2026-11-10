@@ -1066,8 +1066,8 @@ hasMore: false
 
 **Set frontmatter**
 
-Set or remove YAML frontmatter keys of a Markdown note without rewriting the rest of the file.
-Returns: The resulting frontmatter and the new modified timestamp. Obsidian writes the YAML, keeps key order and creates the block if missing.
+Set or remove YAML frontmatter keys of a Markdown note; the body is untouched. Obsidian rewrites the YAML block, so quoting of other keys can change.
+Returns: The resulting frontmatter and the new modified timestamp. Key order and values are kept; a missing block is created.
 Examples:
 - Use when: marking a note done -> { path: "projects/alpha.md", set: { status: "done" } }
 - Use when: dropping a key -> { path: "projects/alpha.md", set: {}, remove: ["draft"] }
