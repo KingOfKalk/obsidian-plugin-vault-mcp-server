@@ -186,6 +186,48 @@ describe('MockObsidianAdapter', () => {
     });
   });
 
+  describe('link resolution like Obsidian (#544)', () => {
+    beforeEach(() => {
+      adapter.addFile('projects/Atlas.md', '# Atlas');
+      adapter.addFile('img.png', '');
+      adapter.addFile('log.md', 'See [[Atlas#Risks]].\n![[img.png]]\n[[Missing#Part]]');
+      adapter.setMetadata('log.md', {
+        links: [{ link: 'Atlas#Risks' }, { link: 'Missing#Part' }],
+        embeds: [{ link: 'img.png' }],
+      });
+      adapter.setMetadata('projects/Atlas.md', {});
+    });
+
+    it('resolves links by file name and counts embeds', () => {
+      expect(adapter.getResolvedLinks()).toEqual({
+        'projects/Atlas.md': {},
+        'log.md': { 'projects/Atlas.md': 1, 'img.png': 1 },
+      });
+    });
+
+    it('keys unresolved links by their text without the subpath', () => {
+      expect(adapter.getUnresolvedLinks()).toEqual({
+        'projects/Atlas.md': {},
+        'log.md': { Missing: 1 },
+      });
+    });
+
+    it('finds backlinks and their lines through the resolved links', () => {
+      expect(adapter.getBacklinks('projects/Atlas.md')).toEqual(['log.md']);
+      expect(adapter.getBacklinks('img.png')).toEqual(['log.md']);
+      expect(adapter.getBacklinkLines('projects/Atlas.md')).toEqual([
+        { path: 'log.md', lines: [0] },
+      ]);
+      expect(adapter.getBacklinkLines('img.png')).toEqual([{ path: 'log.md', lines: [1] }]);
+    });
+
+    it('resolveLink drops the subpath', () => {
+      expect(adapter.resolveLink('Atlas#Risks', 'log.md')).toBe('projects/Atlas.md');
+      expect(adapter.resolveLink('#Risks', 'log.md')).toBe('log.md');
+      expect(adapter.resolveLink('Missing', 'log.md')).toBeNull();
+    });
+  });
+
   describe('tags (#440)', () => {
     it('returns frontmatter-only tags in #tag form', () => {
       adapter.addFile('a.md', 'x');
