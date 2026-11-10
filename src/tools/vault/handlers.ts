@@ -1,7 +1,7 @@
 import { CallToolResult } from '@modelcontextprotocol/server';
-// Obsidian re-exports moment at runtime; importing from 'moment' directly
-// gives us a properly callable type while still resolving to the same
-// bundled instance Obsidian uses (moment is a direct dependency).
+// The production build resolves 'moment' to Obsidian's own instance
+// (scripts/esbuild/obsidian-moment.mjs, #531); tests and scripts use the
+// npm package. Importing 'moment' also gives a properly callable type.
 import moment from 'moment';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import {
