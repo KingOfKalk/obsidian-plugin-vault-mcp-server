@@ -21,7 +21,12 @@ import {
 import { expandPlaceholders, noteTitle } from '../shared/placeholders';
 import { templatesFolder } from '../shared/templates-folder';
 import { modifiedIso } from '../shared/modified';
-import { assertSafeFrontmatterKeys, frontmatterKeySchema } from '../shared/frontmatter';
+import {
+  applyFrontmatter,
+  assertMarkdownPath,
+  assertSafeFrontmatterKeys,
+  frontmatterKeySchema,
+} from '../shared/frontmatter';
 import { dataResponse, documentResponse } from '../shared/response';
 
 const listTemplatesSchema = {};
@@ -105,9 +110,7 @@ function createHandlers(adapter: ObsidianAdapter): TemplatesHandlers {
       const set = params.frontmatter ?? {};
       const setKeys = Object.keys(set);
       if (setKeys.length > 0) {
-        if (!destPath.toLowerCase().endsWith('.md')) {
-          throw new Error('Frontmatter can only be set on Markdown (.md) files');
-        }
+        assertMarkdownPath(destPath);
         assertSafeFrontmatterKeys(setKeys);
       }
       const templateContent = await adapter.readFile(templatePath);
@@ -122,15 +125,7 @@ function createHandlers(adapter: ObsidianAdapter): TemplatesHandlers {
           modified: await modifiedIso(adapter, destPath),
         });
       }
-      let frontmatter: Record<string, unknown> = {};
-      await adapter.processFrontMatter(destPath, (fm) => {
-        for (const key of setKeys) {
-          fm[key] = set[key];
-        }
-        // Snapshot as plain JSON so the result is serialisable even if
-        // Obsidian hands back richer YAML values.
-        frontmatter = JSON.parse(JSON.stringify(fm)) as Record<string, unknown>;
-      });
+      const frontmatter = await applyFrontmatter(adapter, destPath, set);
       return dataResponse({
         path: destPath,
         templatePath,

@@ -22,7 +22,11 @@ import {
 import { fitItems, fitPage, paginate, readPagination } from '../shared/pagination';
 import { dataResponse, documentResponse, documentText } from '../shared/response';
 import { expandPlaceholders, noteTitle } from '../shared/placeholders';
-import { assertSafeFrontmatterKeys } from '../shared/frontmatter';
+import {
+  applyFrontmatter,
+  assertMarkdownPath,
+  assertSafeFrontmatterKeys,
+} from '../shared/frontmatter';
 import { modifiedIso } from '../shared/modified';
 import { safeHandlers } from '../shared/handler';
 import { BINARY_BYTE_LIMIT } from '../../constants';
@@ -791,28 +795,12 @@ export function createHandlers(
 
     async setFrontmatter(params): Promise<CallToolResult> {
       const path = validateToolPath(params.path, vaultPath, configDir);
-      if (!path.toLowerCase().endsWith('.md')) {
-        throw new Error('Frontmatter can only be set on Markdown (.md) files');
-      }
-      const set = params.set;
+      assertMarkdownPath(path);
       const remove = params.remove ?? [];
-      const setKeys = Object.keys(set);
-      validateFrontmatterChange(setKeys, remove);
-      return await guardedWrite(path, params.expectedMtime, async () => {
-        let frontmatter: Record<string, unknown> = {};
-        await adapter.processFrontMatter(path, (fm) => {
-          for (const key of setKeys) {
-            fm[key] = set[key];
-          }
-          for (const key of remove) {
-            delete fm[key];
-          }
-          // Snapshot as plain JSON so the result is serialisable even if
-          // Obsidian hands back richer YAML values.
-          frontmatter = JSON.parse(JSON.stringify(fm)) as Record<string, unknown>;
-        });
-        return { frontmatter };
-      });
+      validateFrontmatterChange(Object.keys(params.set), remove);
+      return await guardedWrite(path, params.expectedMtime, async () => ({
+        frontmatter: await applyFrontmatter(adapter, path, params.set, remove),
+      }));
     },
   });
 }
