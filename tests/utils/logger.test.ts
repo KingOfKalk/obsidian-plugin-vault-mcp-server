@@ -174,6 +174,138 @@ describe('Logger', () => {
     });
   });
 
+  describe('Error data (#542)', () => {
+    function logData(data: unknown, key = accessKey): unknown {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      createLogger('m', { debugMode: true, accessKey: key }).error('failed', data);
+      const line = spy.mock.calls[spy.mock.calls.length - 1][0] as string;
+      const entry = JSON.parse(line) as LogEntry;
+      return entry.data;
+    }
+
+    it('keeps name, message and stack of a raw Error', () => {
+      const err = new TypeError('boom');
+      expect(logData(err)).toEqual({
+        name: 'TypeError',
+        message: 'boom',
+        stack: err.stack,
+      });
+    });
+
+    it('keeps enumerable own props such as code', () => {
+      const err = Object.assign(new Error('in use'), { code: 'EADDRINUSE', port: 28741 });
+      expect(logData(err)).toMatchObject({
+        name: 'Error',
+        message: 'in use',
+        code: 'EADDRINUSE',
+        port: 28741,
+      });
+    });
+
+    it('includes a nested cause chain', () => {
+      const root = new RangeError('root');
+      const mid = new Error('mid', { cause: root });
+      const top = new Error('top', { cause: mid });
+      const data = logData(top) as Record<string, Record<string, Record<string, unknown>>>;
+      expect(data.message).toBe('top');
+      expect(data.cause.message).toBe('mid');
+      expect(data.cause.cause).toEqual({
+        name: 'RangeError',
+        message: 'root',
+        stack: root.stack,
+      });
+    });
+
+    it('serialises a non-Error cause through the normal path', () => {
+      const err = new Error('top', { cause: { reason: 'timeout' } });
+      expect(logData(err)).toMatchObject({ cause: { reason: 'timeout' } });
+    });
+
+    it('serialises an Error nested inside a data object', () => {
+      const err = new Error('inner');
+      expect(logData({ error: err, attempt: 2 })).toEqual({
+        error: { name: 'Error', message: 'inner', stack: err.stack },
+        attempt: 2,
+      });
+    });
+
+    it('redacts the access key in message, stack and props', () => {
+      const err = Object.assign(new Error(`bad key ${accessKey}`), {
+        header: `Bearer ${accessKey}`,
+      });
+      const data = logData(err) as Record<string, string>;
+      expect(JSON.stringify(data)).not.toContain(accessKey);
+      expect(data.message).toBe('bad key [REDACTED]');
+      expect(data.stack).toContain('bad key [REDACTED]');
+      expect(data.header).toBe('Bearer [REDACTED]');
+    });
+
+    it('redacts the access key in the sink line too', () => {
+      const sink = vi.fn();
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      createLogger('m', { debugMode: false, accessKey: 'sekrit', sink }).error(
+        'failed',
+        new Error('sekrit leaked', { cause: new Error('again sekrit') }),
+      );
+      const line = sink.mock.calls[0][0] as string;
+      expect(line).not.toContain('sekrit');
+      expect(line).toContain('[REDACTED] leaked');
+    });
+
+    it('does not hang or throw on a circular cause', () => {
+      const a = new Error('a');
+      const b = new Error('b', { cause: a });
+      Object.defineProperty(a, 'cause', { value: b, enumerable: false });
+      const data = logData(a) as Record<string, Record<string, unknown>>;
+      expect(data.message).toBe('a');
+      expect(data.cause.message).toBe('b');
+      expect(data.cause.cause).toBe('[Circular]');
+    });
+
+    it('does not throw on an Error that references itself via a prop', () => {
+      const err = new Error('self') as Error & { self?: unknown };
+      err.self = err;
+      const data = logData(err) as Record<string, unknown>;
+      expect(data.message).toBe('self');
+      expect(data.self).toBe('[Circular]');
+    });
+
+    it('caps a very deep cause chain', () => {
+      let err = new Error('e0');
+      for (let i = 1; i <= 50; i++) err = new Error(`e${String(i)}`, { cause: err });
+      let node = logData(err) as Record<string, unknown> | string;
+      let depth = 0;
+      while (typeof node === 'object' && 'cause' in node) {
+        node = node.cause as Record<string, unknown> | string;
+        depth++;
+      }
+      expect(depth).toBeLessThan(50);
+      expect(node).toBe('[Truncated]');
+    });
+
+    it('serialises non-Error data exactly as before', () => {
+      const shared = { k: 'v' };
+      const data = {
+        s: `x ${accessKey}`,
+        n: 1,
+        b: true,
+        nil: null,
+        arr: [shared, shared, [accessKey]],
+        nested: { a: { b: shared } },
+      };
+      expect(logData(data)).toEqual({
+        s: 'x [REDACTED]',
+        n: 1,
+        b: true,
+        nil: null,
+        arr: [{ k: 'v' }, { k: 'v' }, ['[REDACTED]']],
+        nested: { a: { b: { k: 'v' } } },
+      });
+      expect(logData('plain string')).toBe('plain string');
+      expect(logData(42)).toBe(42);
+    });
+  });
+
   describe('updateOptions', () => {
     it('should update debug mode dynamically', () => {
       logger = createLogger('test', { debugMode: false, accessKey: '' });
