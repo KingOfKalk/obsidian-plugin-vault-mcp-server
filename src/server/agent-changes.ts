@@ -20,6 +20,7 @@ export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
   {
     version: '5.1.0',
     notes: [
+      '`vault_get_aspect` with `aspect: "outgoing_links"` or `"embeds"`: each entry adds `path`, the vault path Obsidian resolves the link to from this note (pass it to `vault_read`; `null` when unresolved or inside the config folder), and `subpath`, the `#Heading` or `#^block` part when present. `link` is unchanged.',
       'New tool `search_by_name`: find files of any type by name or path. `query` is a case-insensitive substring of the path, or a glob with `*`/`?` (without `/` matched against the file name, e.g. "*Atlas*.md"; with `/` against the whole path, e.g. "notes/**/*.pdf"). Optional `folder` limits the search; results are sorted by path and paged with `limit`/`offset` like `search_by_tag`. The server instructions point to it instead of `vault_list_recursive` for finding a note by name.',
     ],
   },

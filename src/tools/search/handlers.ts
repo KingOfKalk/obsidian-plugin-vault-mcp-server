@@ -2,6 +2,7 @@ import { CallToolResult } from '@modelcontextprotocol/server';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { filesWithTag, groupTagsByCase, tagKey } from '../../obsidian/tag-index';
 import {
+  isInConfigDir,
   validateFolderListPath,
   validateToolPath,
   withoutConfigDir,
@@ -156,9 +157,49 @@ function backlinkPageFields(page: {
   };
 }
 
+/** An outgoing link or embed with the file it resolves to (#485). */
+interface LinkTarget {
+  link: string;
+  path: string | null;
+  subpath?: string;
+  displayText?: string;
+}
+
+/**
+ * Split a link as written into the part Obsidian resolves and its
+ * `#Heading` / `#^block` subpath, on the first `#` as Obsidian does.
+ */
+export function splitLinkSubpath(link: string): { linkpath: string; subpath?: string } {
+  const hash = link.indexOf('#');
+  if (hash === -1) return { linkpath: link };
+  const linkpath = link.slice(0, hash);
+  const subpath = link.slice(hash);
+  return subpath.length > 1 ? { linkpath, subpath } : { linkpath };
+}
+
 export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
   const vaultPath = adapter.getVaultPath();
   const configDir = adapter.getConfigDir();
+
+  /**
+   * Add the resolved `path` and the `subpath` to each link of `source`. A
+   * target inside the config folder is reported as unresolved (#462).
+   */
+  function withTargets(
+    refs: Array<{ link: string; displayText?: string }>,
+    source: string,
+  ): LinkTarget[] {
+    return refs.map((ref) => {
+      const { linkpath, subpath } = splitLinkSubpath(ref.link);
+      const resolved = adapter.resolveLinkpath(linkpath, source);
+      return {
+        link: ref.link,
+        path: resolved === null || isInConfigDir(resolved, configDir) ? null : resolved,
+        ...(subpath === undefined ? {} : { subpath }),
+        ...(ref.displayText === undefined ? {} : { displayText: ref.displayText }),
+      };
+    });
+  }
 
   /**
    * The sources of a link map, narrowed to one note when `path` is given
@@ -286,7 +327,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
     searchOutgoingLinks(params): Promise<CallToolResult> {
       try {
         const path = validateToolPath(params.path, vaultPath, configDir);
-        const links = adapter.getLinks(path);
+        const links = withTargets(adapter.getLinks(path), path);
         return Promise.resolve(
           dataResponse({ path, links }),
         );
@@ -298,7 +339,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
     searchEmbeds(params): Promise<CallToolResult> {
       try {
         const path = validateToolPath(params.path, vaultPath, configDir);
-        const embeds = adapter.getEmbeds(path);
+        const embeds = withTargets(adapter.getEmbeds(path), path);
         return Promise.resolve(
           dataResponse({ path, embeds }),
         );

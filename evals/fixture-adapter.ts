@@ -2,11 +2,11 @@
  * Read a fixture vault from disk into a MockObsidianAdapter, with the
  * metadata Obsidian's metadataCache would provide (#393).
  *
- * The mock adapter resolves links by exact path only. Real Obsidian resolves
- * `[[Atlas]]` to `projects/Atlas.md` by basename, counts embeds in
+ * The mock adapter's link maps match by exact path only. Real Obsidian
+ * resolves `[[Atlas]]` to `projects/Atlas.md` by file name, counts embeds in
  * resolvedLinks, and keys unresolved links by their raw link text. The
- * FixtureAdapter below overrides the three link-map methods to behave like
- * that, so the eval sees the same shapes a real vault would produce.
+ * FixtureAdapter below overrides the link-map methods to behave like that,
+ * so the eval sees the same shapes a real vault would produce.
  *
  * Eval-only code: nothing under evals/ is imported by src/, so it never
  * ends up in main.js.
@@ -14,6 +14,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { MockObsidianAdapter } from '../src/obsidian/mock-adapter';
+import { resolveLinkpath } from '../src/obsidian/link-resolver';
 import type { GeneratedNote } from './fixture-generator';
 
 /** Fixed timestamp for every fixture file so stat output is deterministic. */
@@ -146,20 +147,16 @@ function walk(dir: string): string[] {
   return out;
 }
 
-function stripMd(path: string): string {
-  return path.endsWith('.md') ? path.slice(0, -3) : path;
-}
-
-function basename(path: string): string {
+function dirname(path: string): string {
   const i = path.lastIndexOf('/');
-  return i === -1 ? path : path.slice(i + 1);
+  return i === -1 ? '' : path.slice(0, i);
 }
 
 /** MockObsidianAdapter with Obsidian-style link resolution. */
 export class FixtureAdapter extends MockObsidianAdapter {
   private notes = new Map<string, ParsedNote>();
   private paths: string[] = [];
-  /** Resolved link targets by lower-cased link path; cleared on every addNote. */
+  /** Resolved link targets by source folder and link path; cleared on every addNote. */
   private resolveCache = new Map<string, string | null>();
   private linkMaps: { resolved: Record<string, Record<string, number>>; unresolved: Record<string, Record<string, number>> } | null = null;
 
@@ -186,32 +183,24 @@ export class FixtureAdapter extends MockObsidianAdapter {
 
   /**
    * Resolve a link like `Atlas#Risks` from `source` to a vault path, the
-   * way Obsidian does: exact path first, then a unique basename match.
+   * way Obsidian does (shared rule in src/obsidian/link-resolver.ts, #485).
    */
   resolveLink(link: string, source: string): string | null {
     const hash = link.indexOf('#');
-    const linkpath = (hash === -1 ? link : link.slice(0, hash)).trim();
-    if (linkpath === '') return source;
-    const lower = linkpath.toLowerCase();
-    const cached = this.resolveCache.get(lower);
-    if (cached !== undefined) return cached;
-    const resolved = this.resolveUncached(lower);
-    this.resolveCache.set(lower, resolved);
-    return resolved;
+    return this.resolveLinkpath((hash === -1 ? link : link.slice(0, hash)).trim(), source);
   }
 
-  private resolveUncached(lower: string): string | null {
-    const exact = this.paths.find(
-      (p) => p.toLowerCase() === lower || stripMd(p).toLowerCase() === lower,
-    );
-    if (exact) return exact;
-    const byName = this.paths
-      .filter(
-        (p) =>
-          basename(p).toLowerCase() === lower || stripMd(basename(p)).toLowerCase() === lower,
-      )
-      .sort((a, b) => a.length - b.length || a.localeCompare(b));
-    return byName[0] ?? null;
+  /**
+   * Cached: the result depends only on the lower-cased link path and the
+   * source folder (the source itself for an empty link path).
+   */
+  override resolveLinkpath(linkpath: string, sourcePath: string): string | null {
+    const key = `${linkpath === '' ? sourcePath : dirname(sourcePath)}\0${linkpath.toLowerCase()}`;
+    const cached = this.resolveCache.get(key);
+    if (cached !== undefined) return cached;
+    const resolved = resolveLinkpath(linkpath, sourcePath, this.paths);
+    this.resolveCache.set(key, resolved);
+    return resolved;
   }
 
   private linkTargets(path: string): LinkRef[] {

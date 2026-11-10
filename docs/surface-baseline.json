@@ -4,12 +4,12 @@
     "toolCount": 52,
     "totals": {
       "instructions": 963,
-      "toolsList": 60860,
-      "modelView": 42911,
-      "toolDescriptions": 17375,
+      "toolsList": 61036,
+      "modelView": 42949,
+      "toolDescriptions": 17413,
       "inputSchemas": 21885,
       "inputSchemaDescriptions": 9180,
-      "outputSchemas": 11052,
+      "outputSchemas": 11190,
       "promptsList": 1425
     },
     "modules": {
@@ -20,8 +20,8 @@
       },
       "vault": {
         "tools": 20,
-        "toolsList": 31075,
-        "modelView": 23449
+        "toolsList": 31251,
+        "modelView": 23487
       },
       "editor": {
         "tools": 10,
@@ -152,7 +152,7 @@
       },
       "vault_get_aspect": {
         "module": "vault",
-        "toolsList": 2994,
+        "toolsList": 3132,
         "modelView": 1610
       },
       "vault_daily_note": {
@@ -162,8 +162,8 @@
       },
       "vault_set_frontmatter": {
         "module": "vault",
-        "toolsList": 2250,
-        "modelView": 1916
+        "toolsList": 2288,
+        "modelView": 1954
       },
       "editor_get_content": {
         "module": "editor",
@@ -326,12 +326,12 @@
     "toolCount": 34,
     "totals": {
       "instructions": 782,
-      "toolsList": 46522,
-      "modelView": 33540,
-      "toolDescriptions": 13388,
+      "toolsList": 46698,
+      "modelView": 33578,
+      "toolDescriptions": 13426,
       "inputSchemas": 17732,
       "inputSchemaDescriptions": 8060,
-      "outputSchemas": 8501,
+      "outputSchemas": 8639,
       "promptsList": 1425
     }
   }
