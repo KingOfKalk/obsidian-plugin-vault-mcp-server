@@ -4,9 +4,9 @@
     "toolCount": 52,
     "totals": {
       "instructions": 1248,
-      "toolsList": 62459,
-      "modelView": 44372,
-      "toolDescriptions": 18619,
+      "toolsList": 62628,
+      "modelView": 44541,
+      "toolDescriptions": 18787,
       "inputSchemas": 22089,
       "inputSchemaDescriptions": 9382,
       "outputSchemas": 11190,
@@ -20,8 +20,8 @@
       },
       "vault": {
         "tools": 20,
-        "toolsList": 31677,
-        "modelView": 23913
+        "toolsList": 31796,
+        "modelView": 24032
       },
       "editor": {
         "tools": 10,
@@ -30,8 +30,8 @@
       },
       "search": {
         "tools": 7,
-        "toolsList": 9614,
-        "modelView": 6339
+        "toolsList": 9664,
+        "modelView": 6389
       },
       "workspace": {
         "tools": 5,
@@ -137,8 +137,8 @@
       },
       "vault_list_recursive": {
         "module": "vault",
-        "toolsList": 1433,
-        "modelView": 917
+        "toolsList": 1444,
+        "modelView": 928
       },
       "vault_read_binary": {
         "module": "vault",
@@ -152,8 +152,8 @@
       },
       "vault_get_aspect": {
         "module": "vault",
-        "toolsList": 3270,
-        "modelView": 1748
+        "toolsList": 3378,
+        "modelView": 1856
       },
       "vault_daily_note": {
         "module": "vault",
@@ -217,8 +217,8 @@
       },
       "search_fulltext": {
         "module": "search",
-        "toolsList": 1804,
-        "modelView": 1178
+        "toolsList": 1854,
+        "modelView": 1228
       },
       "search_tags": {
         "module": "search",
@@ -326,9 +326,9 @@
     "toolCount": 34,
     "totals": {
       "instructions": 1067,
-      "toolsList": 48121,
-      "modelView": 35001,
-      "toolDescriptions": 14632,
+      "toolsList": 48290,
+      "modelView": 35170,
+      "toolDescriptions": 14800,
       "inputSchemas": 17936,
       "inputSchemaDescriptions": 8262,
       "outputSchemas": 8639,

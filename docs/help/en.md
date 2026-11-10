@@ -600,8 +600,9 @@ clients and agents commonly trip over:
     read.
   - `vault_list` pages over the folder's entries, folders first, then
     files.
-  - `vault_list_recursive` pages folders too: each page holds the folders
-    and files from `offset` on, and `folderTotal` counts all folders.
+  - `vault_list_recursive` pages folders too: each page holds the files
+    (`items`) and `folders` from `offset` on; `total` counts all files and
+    `folderTotal` all folders.
     Before 4.1.0 every page repeated all folders.
 
   When a page would be longer than the limit, it holds fewer items than
@@ -685,7 +686,8 @@ clients and agents commonly trip over:
   text of Markdown (`.md`) notes only, not file names or other file types;
   to find a file by name, use `search_by_name`. It returns at most
   `maxMatchesPerFile` matching lines per file (default 5, maximum 100);
-  `matchCount` always reports the real number of matches. `limit` and
+  `matchCount` always reports the real number of matching lines in the
+  file. `limit` and
   `offset` page over files, and `total` and `count` count files. Each item
   has `matches`, the full matching lines, and `lines`, their 1-based line
   numbers (since 5.0).
@@ -863,7 +865,9 @@ clients and agents commonly trip over:
   including, (`toLine`, `toCh`): to replace `abc` starting at column 4 of
   line 3, pass `fromLine: 3, fromCh: 4, toLine: 3, toCh: 7`.
 - **Backlinks with context.** `vault_get_aspect` with
-  `aspect: "backlinks"` returns the paths of the linking files. Add
+  `aspect: "backlinks"` returns the paths of the linking files. Links,
+  embeds and frontmatter links all count, including links to a heading or
+  block (`[[note#heading]]`, `[[note#^block]]`). Add
   `includeContext: true` to also get `backlinkContext`: for each linking
   file, the 1-based line number and the text of every line that links to
   the note (wikilinks and embeds, taken from Obsidian's metadata cache).
