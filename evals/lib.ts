@@ -131,6 +131,26 @@ export function loadDotEnv(path: string, env: NodeJS.ProcessEnv): string[] {
   return set;
 }
 
+/**
+ * A function to await before every model API request so that requests
+ * start at least `minIntervalMs` apart (EVAL_MIN_INTERVAL_MS, #483). With 0
+ * it never waits.
+ */
+export function createPacer(
+  minIntervalMs: number,
+  sleep: (ms: number) => Promise<void>,
+  now: () => number = Date.now,
+): () => Promise<void> {
+  let last: number | null = null;
+  return async (): Promise<void> => {
+    if (minIntervalMs > 0 && last !== null) {
+      const wait = last + minIntervalMs - now();
+      if (wait > 0) await sleep(wait);
+    }
+    last = now();
+  };
+}
+
 export type ProviderName = 'anthropic' | 'openai';
 
 /** A tool call the model asked for, in provider-neutral form. */

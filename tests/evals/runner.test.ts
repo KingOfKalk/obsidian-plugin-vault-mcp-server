@@ -173,6 +173,7 @@ describe('runner configuration', () => {
       effort: 'high',
       maxTurns: 30,
       schemaDrop: [],
+      minIntervalMs: 0,
     });
     expect(
       readConfig({ ANTHROPIC_API_KEY: ' k ', EVAL_MODEL: 'claude-sonnet-5-5', EVAL_EFFORT: 'low', EVAL_MAX_TURNS: '7' }),
@@ -199,11 +200,20 @@ describe('runner configuration', () => {
       effort: 'high',
       maxTurns: 30,
       schemaDrop: ['additionalProperties', 'minLength'],
+      minIntervalMs: 0,
     });
     expect(
       readConfig(env, { baseUrl: 'http://localhost:11434/v1', model: 'qwen3', apiKeyEnv: 'MISTRAL_API_KEY' }),
     ).toMatchObject({ baseUrl: 'http://localhost:11434/v1', model: 'qwen3', apiKeyEnv: 'MISTRAL_API_KEY', apiKey: 'other' });
     expect(readConfig({ EVAL_BASE_URL: 'http://localhost:11434/v1', EVAL_MODEL: 'm' }).apiKey).toBeNull();
+  });
+
+  it('reads the minimum request interval from the flag or EVAL_MIN_INTERVAL_MS', () => {
+    expect(readConfig({ EVAL_MIN_INTERVAL_MS: '1100' }).minIntervalMs).toBe(1100);
+    expect(readConfig({ EVAL_MIN_INTERVAL_MS: '1100' }, { minIntervalMs: '250' }).minIntervalMs).toBe(250);
+    expect(() => readConfig({ EVAL_MIN_INTERVAL_MS: '-1' })).toThrow(/EVAL_MIN_INTERVAL_MS/);
+    expect(() => readConfig({}, { minIntervalMs: '1.5s' })).toThrow(/--min-interval-ms/);
+    expect(parseArgs(['--min-interval-ms', '1100']).minIntervalMs).toBe('1100');
   });
 
   it('fails clearly when the openai provider lacks a base URL or model', () => {

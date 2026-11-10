@@ -6,14 +6,15 @@
  * tests/evals/openai.test.ts against a mocked fetch.
  */
 import type { Tool } from '@modelcontextprotocol/client';
-import type { ChatSession, Provider, ToolCall, ToolOutcome, TurnResult } from './lib';
+import { createPacer, type ChatSession, type Provider, type ToolCall, type ToolOutcome, type TurnResult } from './lib';
 
 /** JSON Schema keywords always dropped from function parameters: metadata no model needs. */
 export const ALWAYS_DROPPED_KEYWORDS: readonly string[] = ['$schema'];
 
-/** Retry-After cap and fallback for the one retry after HTTP 429. */
-const MAX_RETRY_AFTER_MS = 60_000;
-const DEFAULT_RETRY_AFTER_MS = 5_000;
+/** Retries after HTTP 429/503, and the cap of one wait (backoff 2, 4, 8, 16, 32, 60 s). */
+export const MAX_RETRIES = 6;
+const MAX_RETRY_WAIT_MS = 60_000;
+const RETRY_STATUSES = new Set([429, 503]);
 /** One request may take long on a slow local model, but never hang forever. */
 const REQUEST_TIMEOUT_MS = 300_000;
 
@@ -50,8 +51,12 @@ export interface OpenAIOptions {
   model: string;
   /** Extra JSON Schema keywords to drop from tool parameters (EVAL_SCHEMA_DROP). */
   schemaDrop?: readonly string[];
+  /** Minimum gap between two requests in ms (EVAL_MIN_INTERVAL_MS); 0 sends at once. */
+  minIntervalMs?: number;
   fetch?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
+  /** Where retry notes go; defaults to stderr. */
+  log?: (line: string) => void;
 }
 
 /** 401/403 from the provider: stops the whole run instead of failing every question. */
@@ -140,10 +145,18 @@ function excerpt(text: string, max = 500): string {
   return flat.length > max ? `${flat.slice(0, max)}...` : flat;
 }
 
-function retryAfterMs(header: string | null): number {
-  const seconds = header === null ? NaN : Number(header);
-  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1000, MAX_RETRY_AFTER_MS);
-  return DEFAULT_RETRY_AFTER_MS;
+/**
+ * Wait before retry `attempt` (1-based): Retry-After in seconds when the
+ * server sends it, else exponential backoff 2, 4, 8, 16, 32 s; capped at 60 s.
+ */
+export function retryWaitMs(attempt: number, retryAfter: string | null): number {
+  const seconds = retryAfter === null || retryAfter.trim() === '' ? NaN : Number(retryAfter);
+  const wait = Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : 2 ** attempt * 1000;
+  return Math.min(wait, MAX_RETRY_WAIT_MS);
+}
+
+function defaultSleep(ms: number): Promise<void> {
+  return new Promise<void>((r) => setTimeout(r, ms));
 }
 
 export function chatCompletionsUrl(baseUrl: string): string {
@@ -151,17 +164,25 @@ export function chatCompletionsUrl(baseUrl: string): string {
 }
 
 /**
- * One Chat Completions request. Retries once after HTTP 429 (honouring
- * Retry-After, capped at 60 s); 401/403 throw ProviderAuthError naming the
- * base URL and the env variable the key came from.
+ * One Chat Completions request. Retries up to MAX_RETRIES times after HTTP
+ * 429 or 503 (Retry-After or exponential backoff, at most 60 s per wait),
+ * logging one line per wait; 401/403 throw ProviderAuthError naming the
+ * base URL and the env variable the key came from. `pace` runs before every
+ * request, retries included (minimum interval, see createPacer).
  */
-export async function postChatCompletion(opts: OpenAIOptions, body: OpenAIRequest): Promise<unknown> {
+export async function postChatCompletion(
+  opts: OpenAIOptions,
+  body: OpenAIRequest,
+  pace: () => Promise<void> = (): Promise<void> => Promise.resolve(),
+): Promise<unknown> {
   const doFetch = opts.fetch ?? fetch;
-  const sleep = opts.sleep ?? ((ms: number): Promise<void> => new Promise<void>((r) => setTimeout(r, ms)));
+  const sleep = opts.sleep ?? defaultSleep;
+  const log = opts.log ?? ((line: string): void => void process.stderr.write(`${line}\n`));
   const url = chatCompletionsUrl(opts.baseUrl);
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (opts.apiKey !== null) headers.authorization = `Bearer ${opts.apiKey}`;
-  for (let attempt = 0; ; attempt++) {
+  for (let retry = 0; ; retry++) {
+    await pace();
     let res: Response;
     try {
       res = await doFetch(url, {
@@ -175,8 +196,12 @@ export async function postChatCompletion(opts: OpenAIOptions, body: OpenAIReques
         `openai provider: request to ${url} failed: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
-    if (res.status === 429 && attempt === 0) {
-      await sleep(retryAfterMs(res.headers.get('retry-after')));
+    if (RETRY_STATUSES.has(res.status) && retry < MAX_RETRIES) {
+      await res.text().catch(() => '');
+      const wait = retryWaitMs(retry + 1, res.headers.get('retry-after'));
+      const what = res.status === 429 ? 'rate limited' : 'service unavailable (HTTP 503)';
+      log(`  ${what}, waiting ${String(Math.round(wait / 1000))}s (attempt ${String(retry + 1)}/${String(MAX_RETRIES)})`);
+      await sleep(wait);
       continue;
     }
     const text = await res.text();
@@ -190,7 +215,8 @@ export async function postChatCompletion(opts: OpenAIOptions, body: OpenAIReques
       );
     }
     if (!res.ok) {
-      throw new Error(`openai provider: HTTP ${String(res.status)} from ${url}: ${excerpt(text)}`);
+      const after = RETRY_STATUSES.has(res.status) ? ` after ${String(MAX_RETRIES)} retries` : '';
+      throw new Error(`openai provider: HTTP ${String(res.status)} from ${url}${after}: ${excerpt(text)}`);
     }
     try {
       return JSON.parse(text) as unknown;
@@ -242,6 +268,8 @@ export function parseCompletion(response: unknown, nextId: () => string): {
 
 /** The OpenAI-compatible provider: one message history per question. */
 export function openAIProvider(opts: OpenAIOptions): Provider {
+  // One pacer for the whole run, so the gap holds across questions too.
+  const pace = createPacer(opts.minIntervalMs ?? 0, opts.sleep ?? defaultSleep);
   return {
     name: 'openai',
     isFatal: (error) => error instanceof ProviderAuthError,
@@ -264,12 +292,11 @@ export function openAIProvider(opts: OpenAIOptions): Provider {
               content: r.isError ? `Error: ${r.text || '(no message)'}` : r.text || '(empty result)',
             });
           }
-          const response = await postChatCompletion(opts, {
-            model: opts.model,
-            messages,
-            tools: openAITools,
-            tool_choice: 'auto',
-          });
+          const response = await postChatCompletion(
+            opts,
+            { model: opts.model, messages, tools: openAITools, tool_choice: 'auto' },
+            pace,
+          );
           const { turn, assistant } = parseCompletion(response, nextId);
           messages.push(assistant);
           return turn;

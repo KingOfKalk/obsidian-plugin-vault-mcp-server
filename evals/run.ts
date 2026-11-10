@@ -26,6 +26,7 @@ import { connectClient, startHarness } from './harness';
 import {
   answersMatch,
   extractTagged,
+  createPacer,
   loadDotEnv,
   parseEvaluationXml,
   type ChatSession,
@@ -80,6 +81,8 @@ export interface RunConfig {
   maxTurns: number;
   /** Extra JSON Schema keywords dropped from openai tool parameters (EVAL_SCHEMA_DROP). */
   schemaDrop: string[];
+  /** Minimum gap between two model API requests in ms (EVAL_MIN_INTERVAL_MS); 0 = none. */
+  minIntervalMs: number;
 }
 
 /** Provider settings given as CLI flags; each wins over its env variable. */
@@ -88,6 +91,7 @@ export interface ProviderFlags {
   baseUrl?: string;
   apiKeyEnv?: string;
   model?: string;
+  minIntervalMs?: string;
 }
 
 function trimmed(value: string | undefined): string | undefined {
@@ -139,6 +143,11 @@ export function readConfig(env: NodeJS.ProcessEnv, flags: ProviderFlags = {}): R
   if (!Number.isInteger(maxTurns) || maxTurns < 1) {
     throw new Error(`EVAL_MAX_TURNS must be a positive integer (got "${String(env.EVAL_MAX_TURNS)}").`);
   }
+  const intervalRaw = trimmed(flags.minIntervalMs) ?? trimmed(env.EVAL_MIN_INTERVAL_MS) ?? '0';
+  const minIntervalMs = Number(intervalRaw);
+  if (!Number.isInteger(minIntervalMs) || minIntervalMs < 0) {
+    throw new Error(`EVAL_MIN_INTERVAL_MS / --min-interval-ms must be a whole number of ms >= 0 (got "${intervalRaw}").`);
+  }
   const provider = selectProvider(env, flags);
   const apiKeyEnv =
     trimmed(flags.apiKeyEnv) ?? (provider === 'anthropic' ? ANTHROPIC_KEY_ENV : OPENAI_DEFAULT_KEY_ENV);
@@ -169,6 +178,7 @@ export function readConfig(env: NodeJS.ProcessEnv, flags: ProviderFlags = {}): R
     effort,
     maxTurns,
     schemaDrop,
+    minIntervalMs,
   };
 }
 
@@ -215,6 +225,7 @@ export function parseArgs(argv: string[]): CliArgs {
     else if (arg === '--provider') args.provider = next();
     else if (arg === '--base-url') args.baseUrl = next();
     else if (arg === '--api-key-env') args.apiKeyEnv = next();
+    else if (arg === '--min-interval-ms') args.minIntervalMs = next();
     else if (arg === '--model') args.model = next();
     else if (arg === '--only') {
       args.only = next()
@@ -260,6 +271,8 @@ export interface QuestionResult {
   expected: string;
   actual: string | null;
   passed: boolean;
+  /** `error`: the question ended on an API or harness error (rate limit, network, 5xx), not on a wrong answer. */
+  outcome: 'pass' | 'fail' | 'error';
   toolCalls: Record<string, number>;
   totalToolCalls: number;
   turns: number;
@@ -372,7 +385,10 @@ export async function runAgent(
   const toolCalls: Record<string, number> = {};
   const harness = await startHarness();
   const mcp = await connectClient(harness);
-  const base: Omit<QuestionResult, 'actual' | 'passed' | 'turns' | 'stopReason' | 'summary' | 'feedback'> = {
+  const base: Omit<
+    QuestionResult,
+    'actual' | 'passed' | 'outcome' | 'turns' | 'stopReason' | 'summary' | 'feedback'
+  > = {
     index,
     question: qa.question,
     expected: qa.answer,
@@ -401,10 +417,12 @@ export async function runAgent(
       pending = await Promise.all(turn.calls.map((call) => executeToolCall(mcp, call, toolCalls)));
     }
     const actual = extractTagged(finalText, 'response');
+    const passed = answersMatch(actual, qa.answer);
     return {
       ...base,
       actual,
-      passed: answersMatch(actual, qa.answer),
+      passed,
+      outcome: passed ? 'pass' : 'fail',
       totalToolCalls: Object.values(toolCalls).reduce((a, b) => a + b, 0),
       turns,
       stopReason,
@@ -418,6 +436,7 @@ export async function runAgent(
       ...base,
       actual: null,
       passed: false,
+      outcome: 'error',
       totalToolCalls: Object.values(toolCalls).reduce((a, b) => a + b, 0),
       turns: 0,
       stopReason: 'error',
@@ -501,6 +520,7 @@ function providerLines(config: RunConfig): string[] {
     `Base URL: ${config.baseUrl}`,
     `Model:    ${config.model}${config.provider === 'anthropic' ? `, effort ${config.effort}` : ''}`,
     `API key:  from ${config.apiKeyEnv} (${config.apiKey === null ? 'not set' : 'set'})`,
+    `Pacing:   ${config.minIntervalMs > 0 ? `at least ${String(config.minIntervalMs)} ms between requests` : 'none'}`,
   ];
 }
 
@@ -531,11 +551,15 @@ async function dryRun(config: RunConfig, pairs: Array<{ qa: QaPair; index: numbe
   }
 }
 
-/** Injectable pieces for tests: the HTTP client of the openai provider and its retry wait. */
+/** Injectable pieces for tests: the HTTP client of the openai provider, its waits and retry log. */
 export interface MainDeps {
   fetch?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
+  log?: (line: string) => void;
 }
+
+/** Retries of the Anthropic SDK on 429/5xx (it honours Retry-After), matching the openai provider. */
+const ANTHROPIC_MAX_RETRIES = 6;
 
 function createProvider(config: RunConfig, deps: MainDeps): Provider {
   if (config.provider === 'openai') {
@@ -545,12 +569,25 @@ function createProvider(config: RunConfig, deps: MainDeps): Provider {
       apiKeyEnv: config.apiKeyEnv,
       model: config.model,
       schemaDrop: config.schemaDrop,
+      minIntervalMs: config.minIntervalMs,
       fetch: deps.fetch,
       sleep: deps.sleep,
+      log: deps.log,
     });
   }
-  const anthropic = new Anthropic({ apiKey: config.apiKey, baseURL: config.baseUrl });
-  const createMessage: CreateMessage = (params) => anthropic.beta.messages.create(params);
+  const anthropic = new Anthropic({
+    apiKey: config.apiKey,
+    baseURL: config.baseUrl,
+    maxRetries: ANTHROPIC_MAX_RETRIES,
+  });
+  const pace = createPacer(
+    config.minIntervalMs,
+    deps.sleep ?? ((ms: number): Promise<void> => new Promise<void>((r) => setTimeout(r, ms))),
+  );
+  const createMessage: CreateMessage = async (params) => {
+    await pace();
+    return anthropic.beta.messages.create(params);
+  };
   return anthropicProvider(createMessage, config);
 }
 
@@ -583,7 +620,9 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv, deps: MainDep
     `Running ${String(selected.length)} question(s) with ${config.provider} ${config.model} at ` +
       `${baseUrlHost(config.baseUrl)} (` +
       (config.provider === 'anthropic' ? `effort ${config.effort}, ` : '') +
-      `max ${String(config.maxTurns)} turns)\n`,
+      `max ${String(config.maxTurns)} turns` +
+      (config.minIntervalMs > 0 ? `, at least ${String(config.minIntervalMs)} ms between requests` : '') +
+      ')\n',
   );
   const results: QuestionResult[] = [];
   for (const { qa, index } of selected) {
@@ -601,7 +640,7 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv, deps: MainDep
     }
     results.push(r);
     print(
-      `${r.passed ? 'PASS' : 'FAIL'}  Q${String(index)}  ` +
+      `${r.outcome.toUpperCase()}${r.outcome === 'error' ? ' ' : '  '}Q${String(index)}  ` +
         `${String(r.totalToolCalls)} tool calls (${formatToolCalls(r.toolCalls)}), ` +
         `${String(r.turns)} turns, ${(r.durationMs / 1000).toFixed(1)}s`,
     );
@@ -612,10 +651,13 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv, deps: MainDep
     }
   }
 
-  const passed = results.filter((r) => r.passed).length;
+  const passed = results.filter((r) => r.outcome === 'pass').length;
+  const failed = results.filter((r) => r.outcome === 'fail').length;
+  const errored = results.filter((r) => r.outcome === 'error');
   const totalCalls = results.reduce((a, r) => a + r.totalToolCalls, 0);
   print('');
   print(`Accuracy: ${String(passed)}/${String(results.length)} (${((passed / results.length) * 100).toFixed(1)}%)`);
+  print(`Results: ${String(passed)} passed, ${String(failed)} failed, ${String(errored.length)} errored`);
   print(`Tool calls: ${String(totalCalls)} total, ${(totalCalls / results.length).toFixed(1)} per question`);
   const baseline: BaselineInput = {
     date: new Date().toISOString().slice(0, 10),
@@ -630,8 +672,17 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv, deps: MainDep
   };
   if (args.only === null) {
     print('');
-    print('Baseline row for evals/README.md (full run only):');
-    print(baselineRow(baseline));
+    if (errored.length > 0) {
+      const which = errored.map((r) => String(r.index)).join(',');
+      print(
+        `Not a valid baseline: ${String(errored.length)} question(s) errored, so no baseline row is printed. ` +
+          `Re-run them with --only ${which}, or slow down with EVAL_MIN_INTERVAL_MS, and record a baseline ` +
+          'only from a full run without errors.',
+      );
+    } else {
+      print('Baseline row for evals/README.md (full run only):');
+      print(baselineRow(baseline));
+    }
   }
 
   if (args.report) {
@@ -647,6 +698,8 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv, deps: MainDep
           effort: baseline.effort,
           bulkSeed: BULK_SEED,
           passed,
+          failed,
+          errored: errored.length,
           total: results.length,
           results,
         },
