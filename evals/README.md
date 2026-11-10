@@ -196,9 +196,11 @@ Record a new row when tools or server instructions change in a way the model see
 
 | Date | Version | Provider | Host | Model | Effort | Seed | Score | Tool calls per question |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| | | | | | | | | |
+| 2026-11-10 | 5.0.0 | openai | api.mistral.ai | mistral-large-latest | - | 505 | 5/10 (50%) | 31.0 |
+| 2026-11-10 | 5.0.0 | openai | api.mistral.ai | mistral-large-latest | - | 505 | 7/10 (70%) | 19.7 |
+| 2026-11-10 | 5.0.0 | openai | api.mistral.ai | mistral-large-latest | - | 505 | 4/10 (40%) | 28.4 |
 
-No baseline has been recorded yet. The first full local run after #466 should fill in the first row.
+The three Mistral rows of 2026-11-10 are three full runs of the same commit, back to back: one run of 10 questions swings by 30 points, so compare a change against the mean of several runs (here 5.3/10), not against one row. In all three runs Q2, Q5 and Q7 failed and Q3, Q4, Q8 and Q10 passed.
 
 ## Adding or changing questions
 
