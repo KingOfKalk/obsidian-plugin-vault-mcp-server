@@ -78,6 +78,13 @@ export interface ObsidianAdapter {
   getHeadings(path: string): Array<{ heading: string; level: number }>;
   getLinks(path: string): Array<{ link: string; displayText?: string }>;
   getEmbeds(path: string): Array<{ link: string; displayText?: string }>;
+  /**
+   * Vault path a link resolves to from `sourcePath`, the way Obsidian
+   * resolves it (`metadataCache.getFirstLinkpathDest`), or null when
+   * unresolved. `linkpath` is the link without its `#subpath`; an empty one
+   * is the source itself.
+   */
+  resolveLinkpath(linkpath: string, sourcePath: string): string | null;
   /** Files that link to `path`. Throws "File not found" if it does not exist. */
   getBacklinks(path: string): string[];
   /**
@@ -413,6 +420,11 @@ export class RealObsidianAdapter implements ObsidianAdapter {
       link: e.link,
       displayText: e.displayText,
     }));
+  }
+
+  resolveLinkpath(linkpath: string, sourcePath: string): string | null {
+    const dest = this.app.metadataCache.getFirstLinkpathDest(linkpath, sourcePath);
+    return dest instanceof TFile ? dest.path : null;
   }
 
   getBacklinks(path: string): string[] {

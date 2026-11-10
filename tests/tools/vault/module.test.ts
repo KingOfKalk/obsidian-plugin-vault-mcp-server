@@ -256,12 +256,15 @@ describe('vault read tools — outputSchema declarations', () => {
         expected: {
           aspect: 'outgoing_links',
           path: 'a.md',
-          links: [{ link: 'b', displayText: 'Bee' }, { link: 'c' }],
+          links: [
+            { link: 'b', path: 'b.md', displayText: 'Bee' },
+            { link: 'c', path: null },
+          ],
         },
       },
       {
         aspect: 'embeds' as const,
-        expected: { aspect: 'embeds', path: 'a.md', embeds: [{ link: 'image.png' }] },
+        expected: { aspect: 'embeds', path: 'a.md', embeds: [{ link: 'image.png', path: null }] },
       },
       {
         aspect: 'backlinks' as const,
@@ -354,7 +357,7 @@ describe('vault_get_aspect dispatcher', () => {
       frontmatter: { tag: 'x' },
       headings: [{ heading: 'H', level: 1 }],
       links: [{ link: 'b' }],
-      embeds: [{ link: 'img.png' }],
+      embeds: [{ link: 'img.png', path: null }],
     });
     adapter.addFile('b.md', '');
     adapter.setMetadata('b.md', { links: [{ link: 'a' }] });
@@ -380,14 +383,14 @@ describe('vault_get_aspect dispatcher', () => {
     expect(out.structuredContent).toEqual({
       aspect: 'outgoing_links',
       path: 'a.md',
-      links: [{ link: 'b' }],
+      links: [{ link: 'b', path: 'b.md' }],
     });
 
     const emb = await handlers.getAspect({ path: 'a.md', aspect: 'embeds' });
     expect(emb.structuredContent).toEqual({
       aspect: 'embeds',
       path: 'a.md',
-      embeds: [{ link: 'img.png' }],
+      embeds: [{ link: 'img.png', path: null }],
     });
 
     const back = await handlers.getAspect({ path: 'a.md', aspect: 'backlinks' });
