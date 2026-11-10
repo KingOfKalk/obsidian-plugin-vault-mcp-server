@@ -37,6 +37,10 @@ const context = await esbuild.context({
   treeShaking: true,
   outfile: 'main.js',
   minify: production,
+  // No stray `debugger` statements in release builds (#531). Legal comments
+  // stay (esbuild's default `eof`): main.js is the only file a release
+  // ships, so it carries the bundled packages' license notices.
+  drop: production ? ['debugger'] : [],
   platform: 'node',
   plugins: [zodEnglishOnly()],
 });
