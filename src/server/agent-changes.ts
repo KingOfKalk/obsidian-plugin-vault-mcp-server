@@ -21,6 +21,7 @@ export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
     version: '5.2.0',
     notes: [
       'New user setting "Read and edit only" (off by default). While on, `vault_delete`, `vault_delete_folder`, `vault_update` and `vault_write_binary` are not listed, and a call fails with "Tool <name> disabled" (or "not found"). It switches live with `notifications/tools/list_changed`. Edit in place instead (`vault_replace`, `vault_insert`, `vault_append`, `vault_set_frontmatter`); if the user wants a file deleted or replaced, ask them to do it or to switch the setting off.',
+      '`template_expand` and `template_create_from`: `{{date:FORMAT}}` and `{{time:FORMAT}}` use `variables.date` when it is a `YYYY-MM-DD` date and `variables.time` when it is a 24-hour `HH:mm` or `HH:mm:ss` time (was always now), so `{{date:dddd}}` matches `{{date}}`. Other values are ignored and the current date or time is used. A variable named like the whole placeholder (e.g. `"date:dddd"`) still wins.',
     ],
   },
   {
