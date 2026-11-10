@@ -4,9 +4,9 @@
     "toolCount": 54,
     "totals": {
       "instructions": 997,
-      "toolsList": 67111,
-      "modelView": 47517,
-      "toolDescriptions": 17835,
+      "toolsList": 67016,
+      "modelView": 47422,
+      "toolDescriptions": 17743,
       "inputSchemas": 25867,
       "inputSchemaDescriptions": 10174,
       "outputSchemas": 12336,
@@ -50,8 +50,8 @@
       },
       "plugin-interop": {
         "tools": 6,
-        "toolsList": 5301,
-        "modelView": 3607
+        "toolsList": 5206,
+        "modelView": 3512
       },
       "extras": {
         "tools": 1,
@@ -322,8 +322,8 @@
       },
       "plugin_execute_command": {
         "module": "plugin-interop",
-        "toolsList": 1008,
-        "modelView": 735
+        "toolsList": 913,
+        "modelView": 640
       },
       "extras_get_date": {
         "module": "extras",
@@ -333,15 +333,15 @@
     }
   },
   "defaults": {
-    "toolCount": 53,
+    "toolCount": 36,
     "totals": {
-      "instructions": 997,
-      "toolsList": 66502,
-      "modelView": 47105,
-      "toolDescriptions": 17687,
-      "inputSchemas": 25665,
-      "inputSchemaDescriptions": 10135,
-      "outputSchemas": 12261,
+      "instructions": 816,
+      "toolsList": 51282,
+      "modelView": 36906,
+      "toolDescriptions": 13869,
+      "inputSchemas": 20453,
+      "inputSchemaDescriptions": 8703,
+      "outputSchemas": 9550,
       "promptsList": 1425
     }
   }

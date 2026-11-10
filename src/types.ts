@@ -105,7 +105,7 @@ export const DEFAULT_ALLOWED_HOSTS: readonly string[] = [
 ] as const;
 
 export const DEFAULT_SETTINGS: McpPluginSettings = {
-  schemaVersion: 12,
+  schemaVersion: 13,
   serverAddress: '127.0.0.1',
   port: 28741,
   authEnabled: true,

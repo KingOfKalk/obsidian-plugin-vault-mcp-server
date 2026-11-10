@@ -434,3 +434,76 @@ describe('McpPlugin.onload autoStart behaviour', () => {
     expect(startSpy).not.toHaveBeenCalled();
   });
 });
+
+describe('McpPlugin module defaults and plugin tools (#469)', () => {
+  const OPEN_NOTE_MODULES = ['editor', 'workspace', 'ui'];
+
+  it('a new install starts with editor, workspace and ui off', async () => {
+    const plugin = createPlugin(null);
+    await plugin.onload();
+    for (const id of OPEN_NOTE_MODULES) {
+      expect(plugin.registry.isModuleEnabled(id)).toBe(false);
+    }
+    for (const id of ['vault', 'search', 'templates', 'plugin-interop']) {
+      expect(plugin.registry.isModuleEnabled(id)).toBe(true);
+    }
+    plugin.onunload();
+  });
+
+  it('an existing 4.x install keeps editor, workspace and ui on', async () => {
+    const plugin = createPlugin({
+      schemaVersion: 12,
+      accessKey: 'k',
+      authEnabled: true,
+      seenInsecureWarning: true,
+      moduleStates: {},
+    });
+    await plugin.onload();
+    for (const id of OPEN_NOTE_MODULES) {
+      expect(plugin.registry.isModuleEnabled(id)).toBe(true);
+    }
+    plugin.onunload();
+  });
+
+  it('an existing install keeps a module it had switched off', async () => {
+    const plugin = createPlugin({
+      schemaVersion: 12,
+      accessKey: 'k',
+      authEnabled: true,
+      seenInsecureWarning: true,
+      moduleStates: { editor: { enabled: false } },
+    });
+    await plugin.onload();
+    expect(plugin.registry.isModuleEnabled('editor')).toBe(false);
+    expect(plugin.registry.isModuleEnabled('workspace')).toBe(true);
+    plugin.onunload();
+  });
+
+  it('polls tool availability while loaded and stops on unload', async () => {
+    vi.useFakeTimers();
+    try {
+      const plugin = createPlugin(null);
+      await plugin.onload();
+      const refresh = vi.spyOn(plugin.registry, 'refreshAvailability');
+      vi.advanceTimersByTime(10_000);
+      expect(refresh).toHaveBeenCalled();
+      plugin.onunload();
+      refresh.mockClear();
+      vi.advanceTimersByTime(10_000);
+      expect(refresh).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('lists plugin_execute_command only once the allowlist has an entry', async () => {
+    const plugin = createPlugin(null);
+    await plugin.onload();
+    const names = (): string[] => plugin.registry.getActiveTools().map((t) => t.name);
+    expect(names()).not.toContain('plugin_execute_command');
+    plugin.settings.executeCommandAllowlist = ['editor:save-file'];
+    expect(plugin.registry.refreshAvailability()).toBe(true);
+    expect(names()).toContain('plugin_execute_command');
+    plugin.onunload();
+  });
+});

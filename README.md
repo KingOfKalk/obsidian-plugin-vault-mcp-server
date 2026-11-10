@@ -7,9 +7,9 @@ An Obsidian desktop plugin that runs an MCP (Model Context Protocol) server, exp
 - **54 MCP tools** across 9 modules (the exact, always-current breakdown is in [`docs/tools.generated.md`](docs/tools.generated.md))
 - **Vault Operations**: Create, read, update, delete, move, copy files and folders
 - **Search & Metadata**: Full-text search, frontmatter, tags, headings, links, backlinks
-- **Editor Operations**: Access and manipulate the active editor
-- **Workspace**: Manage panes, open files, navigate the workspace
-- **UI Interactions**: Show notices, modals, and prompts
+- **Editor Operations**: Access and manipulate the active editor (off by default)
+- **Workspace**: Manage panes, open files, navigate the workspace (off by default)
+- **UI Interactions**: Show notices, modals, and prompts (off by default)
 - **Templates**: List, create from, and expand templates
 - **Plugin Interop**: List plugins, execute commands, Dataview/Templater integration
 - **Extras**: Utility tools toggled per tool (e.g. `get_date`)
@@ -73,7 +73,7 @@ claude mcp add obsidian --transport http --url http://127.0.0.1:28741/mcp --head
 | HTTPS | Off | Enable HTTPS with self-signed certificate |
 | Debug Mode | Off | Verbose logging of requests/responses |
 
-Feature modules can be individually enabled or disabled in the settings tab. When a module is enabled, all of its tools are exposed.
+Feature modules can be individually enabled or disabled in the settings tab. When a module is enabled, all of its tools are exposed. A new install has Vault, Search, Templates and Plugin Interop on; Editor, Workspace and UI (which act on the note open in Obsidian) are off by default since 5.0, and installs updated from 4.x keep their switches. `plugin_dataview_query` is listed only while Dataview is enabled, `plugin_execute_command` only while the command allowlist is non-empty.
 
 ## Commands
 

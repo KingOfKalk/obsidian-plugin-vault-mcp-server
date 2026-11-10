@@ -31,6 +31,8 @@ describe('eval harness', () => {
   it('serves every registered tool over authenticated Streamable HTTP', async () => {
     const expected = discoverModules(new MockObsidianAdapter())
       .flatMap((m) => m.tools())
+      // No Dataview and an empty allowlist in the fixture (#469).
+      .filter((t) => t.name !== 'plugin_dataview_query' && t.name !== 'plugin_execute_command')
       .map((t) => t.name)
       .concat('server_info') // always on, outside the registry (#402)
       .sort();

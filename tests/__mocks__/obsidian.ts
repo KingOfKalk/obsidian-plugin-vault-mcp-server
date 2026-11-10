@@ -527,7 +527,11 @@ export function mockVault(overrides: Partial<MockVault> = {}): MockVault {
 export function mockApp(overrides: Partial<MockApp> = {}): MockApp {
   return {
     vault: mockVault(),
-    workspace: {},
+    workspace: {
+      onLayoutReady: (callback: () => void): void => {
+        callback();
+      },
+    },
     metadataCache: {},
     ...overrides,
   };

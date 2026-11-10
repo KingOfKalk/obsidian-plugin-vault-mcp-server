@@ -118,6 +118,8 @@ const en = {
   // Settings — Feature Modules / Extras section
   heading_feature_modules: 'Feature Modules',
   heading_extras: 'Extras',
+  message_modules_open_note:
+    'Editor, Workspace and UI tools act on the note open in Obsidian, not on files in the vault. They are off by default; switch them on if your assistant should work with the open note.',
   message_no_modules:
     'No modules registered. Click "Refresh Modules" to re-run discovery.',
   button_refresh_modules: 'Refresh Modules',

@@ -7,12 +7,17 @@ describe('migrateSettings', () => {
   it('should migrate v0 (no schemaVersion) to current schema', () => {
     const data: Record<string, unknown> = {};
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(12);
+    expect(result.schemaVersion).toBe(13);
     expect(result.port).toBe(28741);
     expect(result.accessKey).toBe('');
     expect(result.httpsEnabled).toBe(false);
     expect(result.debugMode).toBe(false);
-    expect(result.moduleStates).toEqual({});
+    // Pre-5.0 installs keep editor, workspace and ui on (#469).
+    expect(result.moduleStates).toEqual({
+      editor: { enabled: true },
+      workspace: { enabled: true },
+      ui: { enabled: true },
+    });
     expect(result.serverAddress).toBe('127.0.0.1');
     expect(result.autoStart).toBe(false);
     expect(result.authEnabled).toBe(false);
@@ -25,7 +30,7 @@ describe('migrateSettings', () => {
       debugMode: true,
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(12);
+    expect(result.schemaVersion).toBe(13);
     expect(result.port).toBe(9999);
     expect(result.accessKey).toBe('my-key');
     expect(result.debugMode).toBe(true);
@@ -43,7 +48,7 @@ describe('migrateSettings', () => {
       moduleStates: {},
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(12);
+    expect(result.schemaVersion).toBe(13);
     expect(result.serverAddress).toBe('127.0.0.1');
     expect(result.autoStart).toBe(false);
   });
@@ -59,7 +64,7 @@ describe('migrateSettings', () => {
       moduleStates: {},
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(12);
+    expect(result.schemaVersion).toBe(13);
     expect(result.autoStart).toBe(false);
   });
 
@@ -78,10 +83,12 @@ describe('migrateSettings', () => {
       },
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(12);
+    expect(result.schemaVersion).toBe(13);
     expect(result.moduleStates).toEqual({
       vault: { enabled: true },
       editor: { enabled: false },
+      workspace: { enabled: true },
+      ui: { enabled: true },
     });
   });
 
@@ -97,7 +104,7 @@ describe('migrateSettings', () => {
       moduleStates: {},
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(12);
+    expect(result.schemaVersion).toBe(13);
     expect(result.tlsCertificate).toBeNull();
   });
 
@@ -114,7 +121,7 @@ describe('migrateSettings', () => {
       moduleStates: {},
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(12);
+    expect(result.schemaVersion).toBe(13);
     expect(result.authEnabled).toBe(false);
   });
 
@@ -124,7 +131,7 @@ describe('migrateSettings', () => {
       accessKey: 'pre-existing-key',
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(12);
+    expect(result.schemaVersion).toBe(13);
     expect(result.authEnabled).toBe(false);
     expect(result.accessKey).toBe('pre-existing-key');
   });
@@ -135,7 +142,7 @@ describe('migrateSettings', () => {
       authEnabled: true,
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(12);
+    expect(result.schemaVersion).toBe(13);
     expect(result.authEnabled).toBe(true);
   });
 
@@ -173,7 +180,7 @@ describe('migrateSettings', () => {
       moduleStates: {},
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(12);
+    expect(result.schemaVersion).toBe(13);
     expect(result.useCustomTls).toBe(false);
     expect(result.customTlsCertPath).toBeNull();
     expect(result.customTlsKeyPath).toBeNull();
@@ -189,7 +196,7 @@ describe('migrateSettings', () => {
       customTlsKeyPath: '/etc/ssl/my.key',
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(12);
+    expect(result.schemaVersion).toBe(13);
     expect(result.useCustomTls).toBe(true);
     expect(result.customTlsCertPath).toBe('/etc/ssl/my.crt');
     expect(result.customTlsKeyPath).toBe('/etc/ssl/my.key');
@@ -201,7 +208,7 @@ describe('migrateSettings', () => {
       tlsCertificate: { cert: 'EXISTING_CERT', key: 'EXISTING_KEY' },
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(12);
+    expect(result.schemaVersion).toBe(13);
     expect(result.tlsCertificate).toEqual({
       cert: 'EXISTING_CERT',
       key: 'EXISTING_KEY',
@@ -213,10 +220,15 @@ describe('migrateSettings', () => {
       port: 3000,
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(12);
+    expect(result.schemaVersion).toBe(13);
     expect(result.port).toBe(3000);
     expect(result.accessKey).toBe('');
-    expect(result.moduleStates).toEqual({});
+    // Pre-5.0 installs keep editor, workspace and ui on (#469).
+    expect(result.moduleStates).toEqual({
+      editor: { enabled: true },
+      workspace: { enabled: true },
+      ui: { enabled: true },
+    });
     expect(result.serverAddress).toBe('127.0.0.1');
     expect(result.autoStart).toBe(false);
     expect(result.authEnabled).toBe(false);
@@ -234,7 +246,7 @@ describe('migrateSettings', () => {
       moduleStates: { extras: { enabled: true, readOnly: false } },
     };
     const result = migrateSettings(data);
-    expect(result.schemaVersion).toBe(12);
+    expect(result.schemaVersion).toBe(13);
     const states = result.moduleStates as Record<
       string,
       { enabled: boolean; readOnly: boolean; toolStates?: Record<string, boolean> }
@@ -287,8 +299,8 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.authEnabled).toBe(true);
   });
 
-  it('declares schemaVersion 12', () => {
-    expect(DEFAULT_SETTINGS.schemaVersion).toBe(12);
+  it('declares schemaVersion 13', () => {
+    expect(DEFAULT_SETTINGS.schemaVersion).toBe(13);
   });
 
   it('defaults custom TLS fields to off/null', () => {

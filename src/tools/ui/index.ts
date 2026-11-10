@@ -47,7 +47,7 @@ function createHandlers(adapter: ObsidianAdapter): UiHandlers {
 export function createUiModule(adapter: ObsidianAdapter): ToolModule {
   const h = createHandlers(adapter);
   return {
-    metadata: { id: 'ui', name: 'UI Interactions', description: 'Show notices, modals, and prompts in Obsidian' },
+    metadata: { id: 'ui', name: 'UI Interactions', description: 'Show notices, modals, and prompts in Obsidian', defaultEnabled: false },
     tools(): ToolDefinition[] {
       return [
         defineTool({

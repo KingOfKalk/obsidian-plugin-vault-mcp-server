@@ -297,3 +297,50 @@ describe('plugin-interop read tools — outputSchema declarations', () => {
     expect(typeof parsed.note).toBe('string');
   });
 });
+
+describe('plugin interop runtime availability (#469)', () => {
+  let adapter: MockObsidianAdapter;
+
+  beforeEach(() => {
+    adapter = new MockObsidianAdapter();
+  });
+
+  function availability(module: ReturnType<typeof createPluginInteropModule>): Record<string, boolean> {
+    const out: Record<string, boolean> = {};
+    for (const t of module.tools()) out[t.name] = t.isAvailable?.() ?? true;
+    return out;
+  }
+
+  it('plugin_dataview_query is available only while Dataview is enabled', () => {
+    const module = createPluginInteropModule(adapter);
+    expect(availability(module).plugin_dataview_query).toBe(false);
+    adapter.addInstalledPlugin('dataview', 'Dataview', false);
+    expect(availability(module).plugin_dataview_query).toBe(false);
+    adapter.setPluginEnabled('dataview', true);
+    expect(availability(module).plugin_dataview_query).toBe(true);
+    adapter.setPluginEnabled('dataview', false);
+    expect(availability(module).plugin_dataview_query).toBe(false);
+  });
+
+  it('plugin_execute_command is available only while the allowlist has an entry', () => {
+    let allowlist: string[] = [];
+    const module = createPluginInteropModule(adapter, {
+      getExecuteCommandAllowlist: () => allowlist,
+    });
+    expect(availability(module).plugin_execute_command).toBe(false);
+    allowlist = ['editor:save-file'];
+    expect(availability(module).plugin_execute_command).toBe(true);
+  });
+
+  it('without an allowlist getter the command tool is unavailable', () => {
+    expect(availability(createPluginInteropModule(adapter)).plugin_execute_command).toBe(false);
+  });
+
+  it('the other plugin tools are always available', () => {
+    const a = availability(createPluginInteropModule(adapter));
+    expect(a.plugin_list).toBe(true);
+    expect(a.plugin_check).toBe(true);
+    expect(a.plugin_dataview_describe_js_query).toBe(true);
+    expect(a.plugin_templater_describe_template).toBe(true);
+  });
+});

@@ -21,6 +21,11 @@ export function renderModulesSection(
   );
 
   containerEl.createEl('h2', { text: t('heading_feature_modules') });
+  // Editor, workspace and UI are off by default since 5.0 (#469).
+  containerEl.createEl('p', {
+    text: t('message_modules_open_note'),
+    cls: 'setting-item-description',
+  });
 
   if (modules.length === 0) {
     containerEl.createEl('p', {

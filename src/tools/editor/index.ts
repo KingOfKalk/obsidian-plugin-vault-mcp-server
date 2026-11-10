@@ -422,7 +422,7 @@ function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
 export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
   const h = createHandlers(adapter);
   return {
-    metadata: { id: 'editor', name: 'Editor Operations', description: 'Access and manipulate the active editor' },
+    metadata: { id: 'editor', name: 'Editor Operations', description: 'Access and manipulate the active editor', defaultEnabled: false },
     tools(): ToolDefinition[] {
       return [
         defineTool({

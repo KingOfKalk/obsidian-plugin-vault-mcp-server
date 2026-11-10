@@ -3,6 +3,7 @@ import { randomBytes } from 'crypto';
 import { DEFAULT_SETTINGS, McpPluginSettings, TlsCertificateData } from './types';
 import { createLogger, Logger } from './utils/logger';
 import { ModuleRegistry } from './registry/module-registry';
+import { startAvailabilityPolling } from './registry/availability';
 import { createMcpServer } from './server/mcp-server';
 import { HttpMcpServer } from './server/http-server';
 import { generateSelfSignedCert } from './server/tls';
@@ -28,6 +29,7 @@ export default class McpPlugin extends Plugin {
   lastStartError: { port: number; message: string } | null = null;
   private statusBarItem: HTMLElement | null = null;
   private ribbonIconEl: HTMLElement | null = null;
+  private stopAvailabilityPolling: (() => void) | null = null;
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -46,6 +48,15 @@ export default class McpPlugin extends Plugin {
     this.registry = new ModuleRegistry(this.logger);
 
     this.registerDiscoveredModules();
+
+    // Plugin tools follow their plugin (#469): Obsidian has no public event
+    // for a community plugin being enabled or disabled, so poll. Dataview
+    // may load after this plugin; the check once the layout is ready and
+    // the one at every session start cover that without waiting a poll.
+    this.stopAvailabilityPolling = startAvailabilityPolling(this.registry);
+    this.app.workspace.onLayoutReady(() => {
+      this.registry.refreshAvailability();
+    });
 
     // Add settings tab
     this.addSettingTab(new McpSettingsTab(this.app, this));
@@ -182,6 +193,8 @@ export default class McpPlugin extends Plugin {
   }
 
   onunload(): void {
+    this.stopAvailabilityPolling?.();
+    this.stopAvailabilityPolling = null;
     this.stopServer().catch(reportError('stop server', this.logger));
   }
 
