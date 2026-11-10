@@ -138,6 +138,16 @@ describe('large vault: link maps (#464)', () => {
     expect(page.total).toBe(NOTES);
   });
 
+  it('search_unresolved_links groupBy target pages over targets and returns each once (#505)', async () => {
+    const { items } = await walk<Paged & { targets: Array<{ target: string; count: number }> }, string>(
+      'search_unresolved_links',
+      { groupBy: 'target', limit: 100 },
+      (p) => p.targets.map((t) => t.target),
+    );
+    expect(new Set(items).size).toBe(items.length);
+    for (const i of [0, 1234, NOTES - 1]) expect(items).toContain(`missing-${String(i)}`);
+  });
+
   it('search_resolved_links defaults to 50 sources per page', async () => {
     const page = await callJson('search_resolved_links', {});
     expect(page.count).toBe(50);
@@ -163,13 +173,37 @@ describe('large vault: search_tags (#468)', () => {
     >('search_tags', {}, (p) => Object.entries(p.tags));
     expect(items).toHaveLength(NOTES + 1 + before);
     expect(new Set(items.map(([tag]) => tag)).size).toBe(items.length);
-    expect(pages).toBe(Math.ceil(items.length / 100));
+    expect(pages).toBe(Math.ceil(items.length / 50));
     expect(Object.fromEntries(items)['#bulk']).toEqual({ files: NOTES, occurrences: NOTES });
   });
 
   it('a page holds no file paths', async () => {
     const result = await call('search_tags', {});
     expect(textOf(result)).not.toContain('.md');
+  });
+});
+
+describe('large vault: search_by_name (#491)', () => {
+  it('finds one note by name among thousands', async () => {
+    const page = await callJson('search_by_name', { query: 'NOTE-01234 with' });
+    expect(page.items).toEqual([notePath(1234)]);
+    expect(page.total).toBe(1);
+  });
+
+  it('pages every glob match once, sorted by path', async () => {
+    const { items } = await walk<Paged & { items: string[] }, string>(
+      'search_by_name',
+      { query: 'notes/area-3/*.md', limit: 100 },
+      (p) => p.items,
+    );
+    expect(items).toHaveLength(NOTES / 10);
+    expect(items).toEqual([...items].sort());
+    expect(new Set(items).size).toBe(items.length);
+  });
+
+  it('limits the search to a folder', async () => {
+    const page = await callJson('search_by_name', { query: 'f-0000', folder: 'flat' });
+    expect(page.total).toBe(10);
   });
 });
 
@@ -198,7 +232,7 @@ describe('large vault: folder listings (#464)', () => {
       { path: 'flat' },
       (p) => p.files,
     );
-    expect(pages).toBe(FLAT_FILES / 100);
+    expect(pages).toBe(FLAT_FILES / 50);
     expect(new Set(items).size).toBe(FLAT_FILES);
   });
 

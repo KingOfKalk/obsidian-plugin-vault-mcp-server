@@ -1,7 +1,12 @@
 import { CallToolResult } from '@modelcontextprotocol/server';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { filesWithTag, groupTagsByCase, tagKey } from '../../obsidian/tag-index';
-import { validateToolPath } from '../../utils/path-guard';
+import {
+  isInConfigDir,
+  validateFolderListPath,
+  validateToolPath,
+  withoutConfigDir,
+} from '../../utils/path-guard';
 import { CHARACTER_LIMIT } from '../../constants';
 import { FileNotFoundError, handleToolError } from '../shared/errors';
 import {
@@ -11,16 +16,18 @@ import {
   type PaginatedResponse,
 } from '../shared/pagination';
 import { dataResponse } from '../shared/response';
+import { createNameMatcher } from './name-match';
 import type { InferredParams } from '../../registry/types';
 import type { ToolContext } from '../../registry/tool-context';
-import { LINKS_PAGE_LIMIT, TAGS_PAGE_LIMIT } from './schemas';
 import type {
   searchFulltextSchema,
   filePathSchema,
   searchByTagSchema,
   searchByFrontmatterSchema,
+  searchByNameSchema,
   searchTagsSchema,
   linksMapSchema,
+  unresolvedLinksSchema,
 } from './schemas';
 
 export interface SearchHandlers {
@@ -41,10 +48,13 @@ export interface SearchHandlers {
     },
   ) => Promise<CallToolResult>;
   searchResolvedLinks: (params: InferredParams<typeof linksMapSchema>) => Promise<CallToolResult>;
-  searchUnresolvedLinks: (params: InferredParams<typeof linksMapSchema>) => Promise<CallToolResult>;
+  searchUnresolvedLinks: (
+    params: InferredParams<typeof unresolvedLinksSchema>,
+  ) => Promise<CallToolResult>;
   searchBlockReferences: (params: InferredParams<typeof filePathSchema>) => Promise<CallToolResult>;
   searchByTag: (params: InferredParams<typeof searchByTagSchema>) => Promise<CallToolResult>;
   searchByFrontmatter: (params: InferredParams<typeof searchByFrontmatterSchema>) => Promise<CallToolResult>;
+  searchByName: (params: InferredParams<typeof searchByNameSchema>) => Promise<CallToolResult>;
 }
 
 const DEFAULT_MAX_MATCHES_PER_FILE = 5;
@@ -100,6 +110,42 @@ function toLinkMapPage(page: PaginatedResponse<LinkMapEntry>): LinkMapPage {
   };
 }
 
+/** Sources listed per target by search_unresolved_links groupBy target (#505). */
+export const MAX_SOURCES_PER_TARGET = 10;
+
+/** One missing link target, summed over its sources (#505). */
+interface UnresolvedTarget {
+  target: string;
+  count: number;
+  sourceCount: number;
+  sources: string[];
+}
+
+/**
+ * Group link-map entries by target: counts summed, sorted by count desc then
+ * target; each lists its first {@link MAX_SOURCES_PER_TARGET} sources by path.
+ */
+function groupByTarget(entries: LinkMapEntry[]): UnresolvedTarget[] {
+  const byTarget = new Map<string, { count: number; sources: string[] }>();
+  for (const [source, targets] of entries) {
+    for (const [target, count] of Object.entries(targets)) {
+      const group = byTarget.get(target) ?? { count: 0, sources: [] };
+      group.count += count;
+      group.sources.push(source);
+      byTarget.set(target, group);
+    }
+  }
+  const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+  return [...byTarget.entries()]
+    .map(([target, { count, sources }]) => ({
+      target,
+      count,
+      sourceCount: sources.length,
+      sources: sources.sort(compare).slice(0, MAX_SOURCES_PER_TARGET),
+    }))
+    .sort((a, b) => b.count - a.count || compare(a.target, b.target));
+}
+
 /** What search_tags reports per tag (#468): counts, not the files. */
 interface TagCounts {
   files: number;
@@ -149,9 +195,49 @@ function backlinkPageFields(page: {
   };
 }
 
+/** An outgoing link or embed with the file it resolves to (#485). */
+interface LinkTarget {
+  link: string;
+  path: string | null;
+  subpath?: string;
+  displayText?: string;
+}
+
+/**
+ * Split a link as written into the part Obsidian resolves and its
+ * `#Heading` / `#^block` subpath, on the first `#` as Obsidian does.
+ */
+export function splitLinkSubpath(link: string): { linkpath: string; subpath?: string } {
+  const hash = link.indexOf('#');
+  if (hash === -1) return { linkpath: link };
+  const linkpath = link.slice(0, hash);
+  const subpath = link.slice(hash);
+  return subpath.length > 1 ? { linkpath, subpath } : { linkpath };
+}
+
 export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
   const vaultPath = adapter.getVaultPath();
   const configDir = adapter.getConfigDir();
+
+  /**
+   * Add the resolved `path` and the `subpath` to each link of `source`. A
+   * target inside the config folder is reported as unresolved (#462).
+   */
+  function withTargets(
+    refs: Array<{ link: string; displayText?: string }>,
+    source: string,
+  ): LinkTarget[] {
+    return refs.map((ref) => {
+      const { linkpath, subpath } = splitLinkSubpath(ref.link);
+      const resolved = adapter.resolveLinkpath(linkpath, source);
+      return {
+        link: ref.link,
+        path: resolved === null || isInConfigDir(resolved, configDir) ? null : resolved,
+        ...(subpath === undefined ? {} : { subpath }),
+        ...(ref.displayText === undefined ? {} : { displayText: ref.displayText }),
+      };
+    });
+  }
 
   /**
    * The sources of a link map, narrowed to one note when `path` is given
@@ -177,7 +263,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
     entries: LinkMapEntry[],
     params: { limit?: number; offset?: number },
   ): CallToolResult {
-    const page = paginate(entries, readPagination(params, LINKS_PAGE_LIMIT));
+    const page = paginate(entries, readPagination(params));
     return fitPage(page, (p) => dataResponse(toLinkMapPage(p)));
   }
 
@@ -185,7 +271,13 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
     async searchFulltext(params, ctx): Promise<CallToolResult> {
       try {
         const lowerQuery = params.query.toLowerCase();
-        const allFiles = adapter.getAllFiles();
+        // Same folder rules as search_by_name (#504).
+        const folder = validateFolderListPath(params.folder ?? '', vaultPath, configDir);
+        let allFiles = adapter.getAllFiles();
+        if (folder !== '') {
+          const inFolder = new Set(adapter.listRecursive(folder).files);
+          allFiles = allFiles.filter((path) => inFolder.has(path));
+        }
         const total = allFiles.length;
         const maxMatchesPerFile = params.maxMatchesPerFile ?? DEFAULT_MAX_MATCHES_PER_FILE;
         const matched: Array<{
@@ -208,7 +300,10 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
             lines.forEach((line, index) => {
               if (line.toLowerCase().includes(lowerQuery)) hits.push(index);
             });
-            const shown = hits.slice(0, maxMatchesPerFile);
+            // lastMatches: the end of the file, e.g. newest log rows (#504).
+            const shown = params.lastMatches
+              ? hits.slice(-maxMatchesPerFile)
+              : hits.slice(0, maxMatchesPerFile);
             matched.push({
               path,
               matches: shown.map((index) => lines[index].replace(/\r$/, '')),
@@ -257,7 +352,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
         const entries: TagEntry[] = Object.entries(groupTagsByCase(adapter.getAllTags()))
           .map(([tag, usage]): TagEntry => [tag, { files: usage.files.length, occurrences: usage.count }])
           .sort(([a], [b]) => compareTags(a, b));
-        const page = paginate(entries, readPagination(params, TAGS_PAGE_LIMIT));
+        const page = paginate(entries, readPagination(params));
         return Promise.resolve(fitPage(page, (p) => dataResponse(toTagsPage(p))));
       } catch (error) {
         return Promise.resolve(handleToolError(error));
@@ -279,7 +374,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
     searchOutgoingLinks(params): Promise<CallToolResult> {
       try {
         const path = validateToolPath(params.path, vaultPath, configDir);
-        const links = adapter.getLinks(path);
+        const links = withTargets(adapter.getLinks(path), path);
         return Promise.resolve(
           dataResponse({ path, links }),
         );
@@ -291,7 +386,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
     searchEmbeds(params): Promise<CallToolResult> {
       try {
         const path = validateToolPath(params.path, vaultPath, configDir);
-        const embeds = adapter.getEmbeds(path);
+        const embeds = withTargets(adapter.getEmbeds(path), path);
         return Promise.resolve(
           dataResponse({ path, embeds }),
         );
@@ -303,7 +398,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
     async searchBacklinks(params): Promise<CallToolResult> {
       try {
         const path = validateToolPath(params.path, vaultPath, configDir);
-        const pagination = readPagination(params, LINKS_PAGE_LIMIT);
+        const pagination = readPagination(params);
         // vault_get_aspect adds `"aspect": …` to the JSON text afterwards.
         const limit = CHARACTER_LIMIT - ASPECT_HEADROOM;
         if (params.includeContext === true) {
@@ -346,7 +441,9 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
       try {
         // A source without broken links carries no information (#464).
         const entries = await linkMapEntries(adapter.getUnresolvedLinks(), params, true);
-        return fitLinkMap(entries, params);
+        if (params.groupBy !== 'target') return fitLinkMap(entries, params);
+        const page = paginate(groupByTarget(entries), readPagination(params));
+        return fitPage(page, ({ items, ...rest }) => dataResponse({ targets: items, ...rest }));
       } catch (error) {
         return handleToolError(error);
       }
@@ -390,20 +487,35 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
       try {
         const key = params.key;
         const value = params.value;
+        const prefix = params.match === 'prefix';
         const allFiles = adapter.getAllFiles();
-        const matching: string[] = [];
+        const matching: FrontmatterHit[] = [];
         for (const filePath of allFiles) {
           const fm = adapter.getFrontmatter(filePath);
           if (!fm || !Object.prototype.hasOwnProperty.call(fm, key)) continue;
           // No value: "has this key" query (#388).
-          if (value === undefined || frontmatterValueMatches(fm[key], value)) {
-            matching.push(filePath);
+          if (value === undefined || frontmatterValueMatches(fm[key], value, prefix)) {
+            // The value too, so no extra call per hit is needed (#503).
+            matching.push({ path: filePath, ...hitValue(fm[key]) });
           }
         }
         const page = paginate(matching, readPagination(params));
-        return Promise.resolve(
-          dataResponse(page),
-        );
+        return Promise.resolve(fitPage(page, (p) => dataResponse(p)));
+      } catch (error) {
+        return Promise.resolve(handleToolError(error));
+      }
+    },
+
+    searchByName(params): Promise<CallToolResult> {
+      try {
+        // Any file type, config folder left out (#491).
+        const folder = validateFolderListPath(params.folder ?? '', vaultPath, configDir);
+        const matches = createNameMatcher(params.query);
+        const files = withoutConfigDir(adapter.listRecursive(folder), configDir)
+          .files.filter(matches)
+          .sort();
+        const page = paginate(files, readPagination(params));
+        return Promise.resolve(fitPage(page, (p) => dataResponse(p)));
       } catch (error) {
         return Promise.resolve(handleToolError(error));
       }
@@ -411,13 +523,54 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
   };
 }
 
+/** A search_by_frontmatter hit: the note and its value of `key` (#503). */
+interface FrontmatterHit {
+  path: string;
+  value: unknown;
+  valueTruncated?: true;
+}
+
 /**
- * A list value (`tags: [a, b]`) matches when any element equals `value`;
- * anything else is compared as a string (#405).
+ * Longest value a hit carries, in characters of its JSON (#503). Pages
+ * stay useful with long values (e.g. a summary), and one hit can never
+ * exceed CHARACTER_LIMIT on its own; the full value is in
+ * vault_get_aspect frontmatter.
  */
-function frontmatterValueMatches(actual: unknown, value: string): boolean {
-  if (Array.isArray(actual)) {
-    return actual.some((item) => String(item) === value);
+export const FRONTMATTER_VALUE_LIMIT = 1000;
+
+/**
+ * The value as Obsidian parsed it, or, when its JSON is longer than
+ * FRONTMATTER_VALUE_LIMIT, the start of the string (of the JSON for
+ * anything else) and `valueTruncated: true`.
+ */
+function hitValue(raw: unknown): { value: unknown; valueTruncated?: true } {
+  const value = raw === undefined ? null : raw;
+  const json = JSON.stringify(value);
+  if (json.length <= FRONTMATTER_VALUE_LIMIT) return { value };
+  const text = typeof value === 'string' ? value : json;
+  return { value: text.slice(0, FRONTMATTER_VALUE_LIMIT), valueTruncated: true };
+}
+
+/**
+ * Whether one frontmatter value matches `value`. Exact: compared as a
+ * string, case-sensitive. Prefix (#503): the string form of a string,
+ * number or boolean starts with `value`; objects and null never match.
+ */
+function scalarMatches(item: unknown, value: string, prefix: boolean): boolean {
+  if (!prefix) return String(item) === value;
+  if (typeof item !== 'string' && typeof item !== 'number' && typeof item !== 'boolean') {
+    return false;
   }
-  return String(actual) === value;
+  return String(item).startsWith(value);
+}
+
+/**
+ * A list value (`tags: [a, b]`) matches when any element matches `value`;
+ * anything else is compared as a whole (#405).
+ */
+function frontmatterValueMatches(actual: unknown, value: string, prefix: boolean): boolean {
+  if (Array.isArray(actual)) {
+    return actual.some((item) => scalarMatches(item, value, prefix));
+  }
+  return scalarMatches(actual, value, prefix);
 }

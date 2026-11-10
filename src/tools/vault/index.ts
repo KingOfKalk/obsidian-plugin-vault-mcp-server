@@ -87,8 +87,16 @@ const linkItem = z.object({
   link: z
     .string()
     .describe(
-      'Link text as written (e.g. `Note#Heading`), not a resolved path; may lack the extension.',
+      'Link text as written (e.g. `Note#Heading`); may lack the extension.',
     ),
+  path: z
+    .string()
+    .nullable()
+    .describe('Vault path the link resolves to, or null if unresolved.'),
+  subpath: z
+    .string()
+    .optional()
+    .describe('`#Heading` or `#^block` part, when present.'),
   displayText: z
     .string()
     .optional()
@@ -544,7 +552,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'List folder',
           description: describeTool({
             summary: 'List files and folders directly under a path (non-recursive), as full vault-relative paths.',
-            returns: 'Folders first, then files, paged together with limit/offset.',
+            paging: 'folders first, then files',
             errors: ['"Folder not found" if path does not exist.'],
             seeAlso: [
               'vault_list_recursive — to include subfolders.',
@@ -560,7 +568,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'List folder (recursive)',
           description: describeTool({
             summary: 'List all files and folders under a path, recursively.',
-            returns: 'Files and folders are paged with the same limit/offset, each list on its own.',
+            paging: 'items (files, total) and folders (folderTotal), each from the same offset',
             examples: [
               'Don\'t use when: the folder is very large — list a narrower subfolder.',
             ],
@@ -609,10 +617,12 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary:
               'Get one metadata aspect of a file: frontmatter, headings, ' +
-              'outgoing links, embeds, backlinks, or block references.',
+              'outgoing links, embeds, backlinks (notes that link to it), or block references.',
+            returns: 'backlinks counts links, embeds and frontmatter links, incl. [[note#heading]] and [[note#^block]].',
+            paging: 'aspect=backlinks only, over linking files',
             examples: [
               'Use when: "list the headings in README.md" → { path: "README.md", aspect: "headings" }',
-              'Use when: "what links to this note?" → { path: "ideas.md", aspect: "backlinks" }',
+              'Use when: "which notes link to ideas.md?" → { path: "ideas.md", aspect: "backlinks" }',
               'Use when: "how is this note referenced?" → { ..., aspect: "backlinks", includeContext: true }',
             ],
             errors: [FILE_NOT_FOUND_ERROR],
@@ -630,8 +640,10 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
               "Resolve the daily note's path for today or date from the Daily notes core plugin settings and return the note if it exists. " +
               'Does not open it in the editor. Creates a missing note (from the configured template) only with create=true.',
             returns:
-              'Text: "key: value" header lines (path, exists, created, warning, paging), a blank line, the note (continue a long one with vault_read). ' +
-              "In a new note {{date}} is the note's date (YYYY-MM-DD), {{time}} the local time (HH:mm), {{title}} the file name without .md. " +
+              'Text: "key: value" header lines (path, exists, created, modified, warning, paging), a blank line, the note (continue a long one with vault_read). ' +
+              'modified (ISO-8601, only when the note exists) is usable as the next expectedMtime. ' +
+              "In a new note {{date}} is the note's date (YYYY-MM-DD), {{time}} the current local time (HH:mm), {{title}} the file name without .md; " +
+              "{{date:FORMAT}} / {{time:FORMAT}} format the note's date with the current time by a moment.js format (e.g. {{date:dddd}}). " +
               'Templater syntax (<%) is copied unchanged; a configured template that is missing gives an empty note and a warning.',
             examples: [
               "Use when: you need today's note, creating it if missing → { create: true }",
@@ -653,9 +665,9 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Set frontmatter',
           description: describeTool({
             summary:
-              'Set or remove YAML frontmatter keys of a Markdown note without rewriting the rest of the file.',
+              'Set or remove YAML frontmatter keys of a Markdown note; the body is untouched. Obsidian rewrites the YAML block, so quoting of other keys can change.',
             returns:
-              'The resulting frontmatter and the new modified timestamp. Obsidian writes the YAML, keeps key order and creates the block if missing.',
+              'The resulting frontmatter and the new modified timestamp. Key order and values are kept; a missing block is created.',
             examples: [
               'Use when: marking a note done -> { path: "projects/alpha.md", set: { status: "done" } }',
               'Use when: dropping a key -> { path: "projects/alpha.md", set: {}, remove: ["draft"] }',

@@ -23,6 +23,20 @@ import manifest from '../../manifest.json';
 import { createServerModule, SERVER_DISPLAY_NAME } from '../tools/server';
 import { PATH_RULE_HINT } from '../tools/shared/descriptions';
 
+/** Tools whose results are paged with `hasMore` / `nextOffset` (#490). */
+const PAGED_TOOLS: readonly string[] = [
+  'search_fulltext',
+  'search_tags',
+  'search_by_tag',
+  'search_by_frontmatter',
+  'search_by_name',
+  'search_resolved_links',
+  'search_unresolved_links',
+  'vault_list',
+  'vault_list_recursive',
+  'vault_get_aspect',
+];
+
 /**
  * Tool-use hints injected into Claude's session-long system prompt via the
  * MCP protocol-level `instructions` field. These tokens are paid every turn,
@@ -44,12 +58,22 @@ export function buildServerInstructions(
     active === null || [...active].some((name) => name.startsWith(prefix));
 
   const hints: string[] = [];
-  if (has('search_fulltext')) {
-    // search_fulltext searches note text, not file names (#449).
-    hints.push(
-      '- Find notes by content with `search_fulltext` (note text, not file names)' +
-        (has('vault_list_recursive') ? '; by name with `vault_list_recursive`.' : '.'),
-    );
+  // Which tool for which question (#449, #491, #499): weaker models reach
+  // for search_fulltext and many vault_read calls for structured questions.
+  const which: string[] = [];
+  if (has('search_fulltext')) which.push('note text → `search_fulltext`');
+  if (has('search_by_name')) which.push('file name → `search_by_name`');
+  if (has('search_by_tag')) which.push('tag → `search_by_tag`');
+  if (has('search_by_frontmatter')) {
+    which.push('frontmatter value (e.g. `status: retired`) → `search_by_frontmatter`');
+  }
+  if (has('vault_get_aspect')) which.push('notes linking to X → `vault_get_aspect` backlinks');
+  if (has('search_unresolved_links')) {
+    which.push('link targets without a note → `search_unresolved_links`');
+  }
+  if (which.length > 0) hints.push(`- Which tool: ${which.join('; ')}.`);
+  if (PAGED_TOOLS.some(has)) {
+    hints.push('- Paged results: while `hasMore` is true, call again with offset=nextOffset.');
   }
   if (hasPrefix('editor_')) {
     hints.push(
@@ -74,7 +98,7 @@ export function buildServerInstructions(
   }
   if (has('vault_get_aspect')) {
     hints.push(
-      "- Frontmatter, headings, links, embeds, backlinks, block refs: use `vault_get_aspect`, don't parse `vault_read` output.",
+      "- One note's frontmatter, headings, links, embeds, backlinks, block refs: use `vault_get_aspect`, don't parse `vault_read` output.",
     );
   }
 

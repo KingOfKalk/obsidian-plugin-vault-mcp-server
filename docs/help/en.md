@@ -139,10 +139,10 @@ and scripts that call them. `server_info` lists the changes under version
     file lists and the separate `counts` map are gone (on a large vault
     the old result reached about 300,000 characters). Tags are sorted by
     name, a nested tag right after its parent, and paged with `limit` and
-    `offset` (100 per page by default) with `total`, `hasMore` and
-    `nextOffset`. **What to do:** call `search_by_tag` for the files of a
-    tag; on a vault with more than 100 tags, call again with `nextOffset`
-    while `hasMore` is true.
+    `offset` (50 per page by default since 5.1, 100 in 5.0) with `total`,
+    `hasMore` and `nextOffset`. **What to do:** call `search_by_tag` for
+    the files of a tag; call again with `nextOffset` while `hasMore` is
+    true.
   - **`plugin_dataview_describe_js_query` and
     `plugin_templater_describe_template` are gone.** They ran nothing and
     only returned what they were given. DataviewJS and Templater code is
@@ -203,8 +203,9 @@ LLM client or scripts hard-code the old names, update calls as follows:
 ## Installation
 
 If you are building the plugin from source or running the repository's `npm`
-tasks yourself, use **Node.js 22.12.0 or newer**. The packaged release assets
-do not require a separate Node install inside Obsidian.
+tasks yourself, use **Node.js 24.22.1** (the version CI uses). Node 22.23.4+
+and 26.12.1+ also work. The packaged release assets do not require a separate
+Node install inside Obsidian.
 
 ### Option A — Install via BRAT (recommended while in beta)
 
@@ -372,7 +373,7 @@ are sent once when a client connects and keep the state from that moment.
 | Module | Default | Tools | Notes |
 |---|---|---|---|
 | Vault and File Operations | on | 20 | Create / read / update / delete files and folders, read one section, replace a passage or insert into a section, rename, move, copy, list, binary I/O, metadata, set frontmatter, daily note. |
-| Search and Metadata | on | 6 | Full-text search, list tags, find notes by tag / frontmatter, find resolved / unresolved links. |
+| Search and Metadata | on | 7 | Full-text search, find files by name, list tags, find notes by tag / frontmatter, find resolved / unresolved links. |
 | Editor Operations | off | 10 | Read/insert/replace/delete text in the active editor, cursor and selection management. |
 | Workspace and Navigation | off | 5 | Inspect / open / focus leaves, read the layout. |
 | UI Interactions | off | 1 | Show notices. |
@@ -469,10 +470,10 @@ without being repeated in each tool description.
 
 The text is built when a client connects (MCP `initialize`) from the tools
 that are switched on at that moment: a hint about a tool you switched off
-is left out (the `search_fulltext` line without the Search module, the
-`editor_*` line without the Editor module, the `workspace_open_file` and
-`vault_list_recursive` parts without their tools, and the write-tool and
-`vault_get_aspect` lines without the Vault module). A client that is already
+is left out (each part of the "Which tool" line without its tool, the
+paging line when no paged tool is on, the `editor_*` line without the
+Editor module, the `workspace_open_file` part without its tool, and the
+write-tool and `vault_get_aspect` lines without the Vault module). A client that is already
 connected keeps the text it got. With every module on, the text is (the
 first line carries the running plugin version, here shown as `<version>`):
 
@@ -482,11 +483,12 @@ Call `server_info` for agent-relevant changes (renamed parameters or fields, new
 
 This server exposes an Obsidian vault as MCP tools.
 
-- Find notes by content with `search_fulltext` (note text, not file names); by name with `vault_list_recursive`.
+- Which tool: note text → `search_fulltext`; file name → `search_by_name`; tag → `search_by_tag`; frontmatter value (e.g. `status: retired`) → `search_by_frontmatter`; notes linking to X → `vault_get_aspect` backlinks; link targets without a note → `search_unresolved_links`.
+- Paged results: while `hasMore` is true, call again with offset=nextOffset.
 - `editor_*` tools work on the **active** file only (open one with `workspace_open_file`); no expectedMtime check; most fail with "No active editor" if no Markdown view is focused.
 - Paths: vault-relative, forward slashes, case-sensitive; files with the extension (e.g. `notes/foo.md`); a leading / is ignored. Never absolute filesystem paths; leaving the vault fails with "Path must not traverse outside the vault". The config folder (usually `.obsidian`) is blocked.
 - To edit a note, prefer `vault_replace` or `vault_insert`; `vault_update` only to rewrite a whole file read in one window.
-- Frontmatter, headings, links, embeds, backlinks, block refs: use `vault_get_aspect`, don't parse `vault_read` output.
+- One note's frontmatter, headings, links, embeds, backlinks, block refs: use `vault_get_aspect`, don't parse `vault_read` output.
 ```
 
 The text is sent once per session, in the `initialize` response, so it
@@ -577,21 +579,37 @@ clients and agents commonly trip over:
   the same way since 4.1.0 (`offset`, `length`, `totalLength`, `hasMore`,
   `nextOffset`); before, it returned the whole note.
 - **Large results come in pages.** No tool answer is longer than 25 000
-  characters. Since 4.1.0 these tools page their results with `limit` and
-  `offset` and return `total`, `hasMore` and `nextOffset`; while `hasMore`
-  is `true`, call again with `offset: <nextOffset>`:
+  characters. Paged tools take `limit` and `offset` and return `total`,
+  `hasMore` and `nextOffset`; while `hasMore` is `true`, call again with
+  `offset: <nextOffset>`. Since 5.1 every paged tool has the same page
+  size: `limit` defaults to 50 and is at most 100, and each paged tool's
+  description says so in a `Paging:` line. The paged tools are
+  `search_fulltext`, `search_by_name`, `search_tags`, `search_by_tag`,
+  `search_by_frontmatter`, `search_resolved_links`,
+  `search_unresolved_links`, `vault_list`, `vault_list_recursive` and
+  `vault_get_aspect` with `aspect: "backlinks"`. Before 5.1 the defaults
+  differed: 20 for `search_by_tag`, `search_by_frontmatter`,
+  `search_fulltext` and `vault_list_recursive`, 100 for `vault_list` and
+  `search_tags`. Pass `limit: 100` for fewer calls on a large folder.
   - `search_resolved_links` and `search_unresolved_links` page over the
-    notes that hold links (default 50 per page, at most 100). Pass `path`
-    to get one note's links. `search_unresolved_links` leaves out notes
-    without broken links. Before 4.1.0 both returned the whole vault in one
-    answer.
+    notes that hold links. Pass `path` to get one note's links.
+    `search_unresolved_links` leaves out notes without broken links.
+    Before 4.1.0 both returned the whole vault in one answer.
+  - `search_unresolved_links` with `groupBy: "target"` pages over the
+    missing link targets instead: each item is `{ target, count,
+    sourceCount, sources }`, sorted by `count` (most-linked first, ties by
+    `target`). `sources` lists at most 10 linking notes, sorted by path;
+    `sourceCount` says how many there are. Targets are grouped as written
+    (case-sensitive). Use it to answer "which missing note is linked most
+    often?" in one call.
   - `vault_get_aspect` with `aspect: "backlinks"` pages over the linking
-    files (default 50); with `includeContext: true` only the files of the
-    page are read.
+    files; with `includeContext: true` only the files of the page are
+    read.
   - `vault_list` pages over the folder's entries, folders first, then
-    files (default 100, so most folders still come back whole).
-  - `vault_list_recursive` pages folders too: each page holds the folders
-    and files from `offset` on, and `folderTotal` counts all folders.
+    files.
+  - `vault_list_recursive` pages folders too: each page holds the files
+    (`items`) and `folders` from `offset` on; `total` counts all files and
+    `folderTotal` all folders.
     Before 4.1.0 every page repeated all folders.
 
   When a page would be longer than the limit, it holds fewer items than
@@ -673,18 +691,58 @@ clients and agents commonly trip over:
   write unconditionally, as before.
 - **Full-text search results per file.** `search_fulltext` searches the
   text of Markdown (`.md`) notes only, not file names or other file types;
-  to find a file by name, use `vault_list_recursive`. It returns at most
+  to find a file by name, use `search_by_name`. It returns at most
   `maxMatchesPerFile` matching lines per file (default 5, maximum 100);
-  `matchCount` always reports the real number of matches. `limit` and
+  `matchCount` always reports the real number of matching lines in the
+  file. `limit` and
   `offset` page over files, and `total` and `count` count files. Each item
   has `matches`, the full matching lines, and `lines`, their 1-based line
-  numbers (since 5.0).
+  numbers (since 5.0). A `matchCount` higher than the number of `matches`
+  means lines were left out. Since 5.1, `lastMatches: true` returns the
+  last matching lines of each file instead of the first (useful for
+  oldest-first logs, where the newest rows are at the end), still in line
+  order, and `folder` limits the search to one folder and its subfolders
+  (e.g. `projects`; empty, `/` or `.` is the whole vault, like in
+  `search_by_name`).
+- **Find files by name.** `search_by_name` finds files of any type (notes,
+  PDFs, images) by name or path, without reading them. The `query` ignores
+  case:
+  - Plain text matches anywhere in the vault-relative path, so `atlas`
+    finds `Atlas/World Atlas.md` and `notes/atlas-notes.md`, and `daily/`
+    finds everything in a `daily` folder.
+  - With `*` or `?` it is a glob. Without `/` it matches the file name
+    (`*Atlas*.md`, `2026-??-??.md`); with `/` the whole path
+    (`notes/*.md` for files directly in `notes`, `notes/**/*.pdf` for PDFs
+    in `notes` and its subfolders). `*` stays within one folder, `**`
+    crosses folders, `?` is one character.
+  - `folder` limits the search to a folder and its subfolders; omit it for
+    the whole vault. The config folder (usually `.obsidian`) is never
+    searched.
+  - Results are sorted by path and paged with `limit` and `offset` like the
+    other search tools: pass `nextOffset` as `offset` while `hasMore` is
+    true.
+  Before 5.1 the server instructions pointed to `vault_list_recursive` for
+  this, which has no filter.
 - **Frontmatter key search.** `search_by_frontmatter` with only `key` finds
   every note that has that frontmatter property; add `value` to match a
   specific value. For a list property such as `tags: [project, idea]`, a
   note matches when any item equals `value`, so `value: "idea"` finds it.
   Other values are compared as text (the number `5` matches `"5"`, `true`
-  matches `"true"`). The key is a top-level key and case-sensitive.
+  matches `"true"`). The key is a top-level key and case-sensitive, and so
+  is the value.
+  - Since 5.1 each result item is `{ path, value }`: the note's value of
+    `key` as Obsidian read it from the YAML (text, number, `true`/`false`,
+    `null`, a list or an object). "Which stations are retired, and since
+    when?" is one call with `key: "retired"`, no need to open every note.
+    Before 5.1 the items were bare paths. A value longer than 1000
+    characters is shortened to its first 1000 characters (of its JSON for
+    a list or object) and the item gets `valueTruncated: true`; read the
+    note's frontmatter with `vault_get_aspect` for the full value.
+  - Add `match: "prefix"` to find values that start with `value`, for
+    example `{ key: "date", value: "2025-07", match: "prefix" }` for dates
+    in July 2025. Dates and numbers are compared as written in the YAML;
+    for a list, any item may match; objects and empty values never match.
+    The default is `match: "exact"`.
 - **Where deleted files go.** `vault_delete` and `vault_delete_folder`
   follow Obsidian's **Settings → Files and links → Deleted files** option:
   the system trash, the vault's `.trash` folder, or permanent deletion.
@@ -733,12 +791,14 @@ clients and agents commonly trip over:
   the vault and are marked `openWorldHint: false` (before 4.1.0 they were
   `true`).
 - **Changing frontmatter.** `vault_set_frontmatter` sets and removes
-  frontmatter keys of a Markdown note without touching the rest of the file:
+  frontmatter keys of a Markdown note without touching the note body:
   `{ "path": "notes/a.md", "set": { "status": "done" }, "remove": ["draft"] }`.
   Values can be any JSON value (text, number, true/false, null, list or
-  object). Obsidian writes the YAML itself, so key order and formatting are
-  kept, and the frontmatter block is created if the note has none. Keys you
-  do not list stay as they are; removing a key that is not there is not an
+  object). Obsidian rewrites the whole YAML block itself: key order and
+  values are kept, but the quoting or formatting of keys you did not list
+  can change (for example `date: "2099-01-02"` becomes `date: 2099-01-02`).
+  The frontmatter block is created if the note has none. Keys you do not
+  list keep their values; removing a key that is not there is not an
   error. The result's `structuredContent` holds the `path`, the whole
   `frontmatter` after the change and the new `modified` timestamp. Pass
   `expectedMtime` to refuse the change if the note was edited since you
@@ -758,7 +818,7 @@ clients and agents commonly trip over:
   files (a file using the tag several times counts once) and its number
   of occurrences (every use counts), not the files themselves; use
   `search_by_tag` for those, which lists each file once. The tags are
-  sorted by name and come in pages of 100 by default: pass `nextOffset`
+  sorted by name and come in pages of 50 by default: pass `nextOffset`
   as `offset` while `hasMore` is true. Before 5.0 `search_tags` listed the
   files of every tag.
 - **Frontmatter tags count.** `search_tags` and `search_by_tag` see the
@@ -786,11 +846,18 @@ clients and agents commonly trip over:
   nothing is written. With `create: true` a missing note is created from
   the configured template and the header says `created: true`. Every
   response has the `path` and `exists` header lines, followed by the note
-  text when the note exists. Before 4.0 the default was `create: true`; see
+  text when the note exists. When the note exists (or was just created)
+  the header also has `modified`, the same ISO-8601 time as in
+  `vault_read`; pass it as `expectedMtime` to the next write (since 5.0.1). Before 4.0 the default was `create: true`; see
   [Upgrading to 4.0](#upgrading-to-40). The tool does not open the note;
   the `/daily-note` prompt opens it with `workspace_open_file`. In a new
-  note `{{date}}` is the note's date, `{{time}}` the local time (`HH:mm`)
-  and `{{title}}` the file name. The template is the one set in the Daily
+  note `{{date}}` is the note's date, `{{time}}` the current local time
+  (`HH:mm`) and `{{title}}` the file name. `{{date:FORMAT}}` and
+  `{{time:FORMAT}}` work as in Obsidian (see **Template placeholders**
+  below) and format the note's date at the current time of day, so
+  `# {{date:dddd}}, {{date:YYYY-MM-DD}}` gives `# Thursday, 2099-01-01` for
+  `date: "2099-01-01"` (before 5.1 they stayed as written, and `{{time}}`
+  in a note for another day was `00:00`). The template is the one set in the Daily
   notes plugin, with or without `.md`. If that file is missing, the note
   is created empty and the response carries a `warning` naming the
   template (before 5.0 there was no warning).
@@ -801,6 +868,18 @@ clients and agents commonly trip over:
   the new file's name without `.md` (`template_create_from` only;
   `template_expand` leaves `{{title}}` as written). Unknown placeholders
   and Templater `<% %>` code stay as written.
+  - **Format variants.** As in Obsidian's core Templates plugin,
+    `{{date:FORMAT}}` and `{{time:FORMAT}}` format the date or time with a
+    [moment.js format](https://momentjs.com/docs/#/displaying/format/),
+    e.g. `{{date:dddd}}` (`Thursday`), `{{date:D MMMM YYYY}}`,
+    `{{time:HH:mm:ss}}`. The format is the text after the first `:`,
+    trimmed; an empty one (`{{date:}}`) gives the plain `YYYY-MM-DD` /
+    `HH:mm`. Names of days and months follow Obsidian's language (moment's
+    locale). Letters moment does not know are copied as they are, so an
+    invalid format never fails; put literal text in `[brackets]`. A
+    variable whose key is the whole placeholder, such as `"date:dddd"`,
+    overrides the formatted value. Before 5.1 the format variants stayed
+    as written.
 - **Template folder.** `template_list` lists every file in the folder set
   in Obsidian's core **Templates** plugin (**Settings → Templates →
   Template folder location**), including subfolders, and returns that
@@ -813,7 +892,9 @@ clients and agents commonly trip over:
   including, (`toLine`, `toCh`): to replace `abc` starting at column 4 of
   line 3, pass `fromLine: 3, fromCh: 4, toLine: 3, toCh: 7`.
 - **Backlinks with context.** `vault_get_aspect` with
-  `aspect: "backlinks"` returns the paths of the linking files. Add
+  `aspect: "backlinks"` returns the paths of the linking files. Links,
+  embeds and frontmatter links all count, including links to a heading or
+  block (`[[note#heading]]`, `[[note#^block]]`). Add
   `includeContext: true` to also get `backlinkContext`: for each linking
   file, the 1-based line number and the text of every line that links to
   the note (wikilinks and embeds, taken from Obsidian's metadata cache).
@@ -822,6 +903,17 @@ clients and agents commonly trip over:
   Backlinks come in pages of 50 (see "Large results come in pages").
   A path that does not exist fails with `File not found` for every aspect;
   before 4.1.0 `backlinks` answered "has no backlinks" instead.
+- **Where links and embeds point.** `vault_get_aspect` with
+  `aspect: "outgoing_links"` or `aspect: "embeds"` returns each link as
+  written in `link` (for example `Field Protocol#Calibration`), plus
+  `path`, the file Obsidian opens for it (for example
+  `reference/Field Protocol.md`), and `subpath`, the `#Heading` or
+  `#^block` part when the link has one. The agent can pass `path` straight
+  to `vault_read`, without searching for the file first. `path` is `null`
+  when the link points to no file, or to a file in the config folder.
+  When two files have the same name, `path` is the one Obsidian picks: the
+  file under the linking note's folder first, else the one with the
+  shortest path. Since 5.1.0.
 - **Opening a note in a view mode.** `workspace_open_file` opens the file
   in the active tab (a new tab if that tab is pinned) and focuses it. Pass
   `mode` to choose the view of a Markdown note: `"source"` (Source mode),
@@ -1108,6 +1200,14 @@ ambiguous" lists the matching headings: if they have different levels, add
 the `#` marks (`"## Log"` instead of `"Log"`); if they are identical, rename
 one of them or use `vault_replace`. `vault_insert` writes nothing when it
 fails.
+
+### `vault_set_frontmatter` changed keys I did not touch
+
+Obsidian rewrites the whole YAML block when it changes frontmatter, so keys
+you did not list keep their values and order but can lose quotes or change
+formatting (`date: "2099-01-02"` becomes `date: 2099-01-02`). The note body
+is not changed. If a diff-based backup or review needs the exact text, edit
+the frontmatter lines with `vault_replace` instead.
 
 ### A tool call fails with "Path is inside the Obsidian config folder"
 

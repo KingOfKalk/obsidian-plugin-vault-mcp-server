@@ -32,10 +32,10 @@ describe('search module', () => {
     expect(module.metadata.id).toBe('search');
   });
 
-  it('should register 6 tools', () => {
+  it('should register 7 tools', () => {
     const adapter = new MockObsidianAdapter();
     const module = createSearchModule(adapter);
-    expect(module.tools()).toHaveLength(6);
+    expect(module.tools()).toHaveLength(7);
   });
 
   it('should have all read-only tools', () => {
@@ -151,6 +151,74 @@ describe('search handlers', () => {
       };
       expect(page.items[0].matches).toHaveLength(20);
       expect(page.items[0].matchCount).toBe(50);
+    });
+
+    it('returns the last matches with lastMatches, in line order (#504)', async () => {
+      const lines = Array.from({ length: 50 }, (_, i) => `hit ${String(i)}`).join('\n');
+      adapter.addFile('ledger.md', lines);
+      const result = await handlers.searchFulltext({
+        query: 'hit',
+        maxMatchesPerFile: 3,
+        lastMatches: true,
+      });
+      const page = result.structuredContent as {
+        items: Array<{ matches: string[]; lines: number[]; matchCount: number }>;
+      };
+      expect(page.items[0]).toEqual({
+        path: 'ledger.md',
+        matches: ['hit 47', 'hit 48', 'hit 49'],
+        lines: [48, 49, 50],
+        matchCount: 50,
+      });
+    });
+
+    it('returns all matches with lastMatches when there are fewer than the cap (#504)', async () => {
+      adapter.addFile('a.md', 'hit one\nno\nhit two');
+      const result = await handlers.searchFulltext({ query: 'hit', lastMatches: true });
+      expect(result.structuredContent).toMatchObject({
+        items: [{ path: 'a.md', matches: ['hit one', 'hit two'], lines: [1, 3], matchCount: 2 }],
+      });
+    });
+
+    describe('folder (#504)', () => {
+      beforeEach(() => {
+        adapter.addFile('projects/a.md', 'needle');
+        adapter.addFile('projects/sub/b.md', 'needle');
+        adapter.addFile('projects-old/c.md', 'needle');
+        adapter.addFile('d.md', 'needle');
+      });
+
+      async function pathsFor(folder?: string): Promise<string[]> {
+        const result = await handlers.searchFulltext({ query: 'needle', folder });
+        expect(result.isError, getText(result)).toBeUndefined();
+        return (result.structuredContent as { items: Array<{ path: string }> }).items
+          .map((i) => i.path)
+          .sort();
+      }
+
+      it('limits the search to a folder and its subfolders', async () => {
+        expect(await pathsFor('projects')).toEqual(['projects/a.md', 'projects/sub/b.md']);
+        expect(await pathsFor('projects/sub')).toEqual(['projects/sub/b.md']);
+      });
+
+      it('treats "", "/" and "." as the whole vault', async () => {
+        for (const folder of ['', '/', '.']) {
+          expect(await pathsFor(folder), folder).toHaveLength(4);
+        }
+      });
+
+      it('fails for a folder that does not exist', async () => {
+        const result = await handlers.searchFulltext({ query: 'needle', folder: 'missing' });
+        expect(result.isError).toBe(true);
+        expect(getText(result)).toContain('missing');
+      });
+
+      it('rejects the config folder and paths outside the vault', async () => {
+        for (const folder of ['.obsidian', '../outside']) {
+          const result = await handlers.searchFulltext({ query: 'needle', folder });
+          expect(result.isError, folder).toBe(true);
+        }
+      });
     });
 
     it('rejects maxMatchesPerFile outside 1..100 at the schema level', () => {
@@ -395,11 +463,11 @@ describe('search handlers', () => {
       expect(seen).toEqual(all);
     });
 
-    it('defaults to pages of 100 tags', async () => {
+    it('defaults to pages of 50 tags (#490)', async () => {
       adapter.addFile('a.md', 'content');
       adapter.setMetadata('a.md', { tags: Array.from({ length: 150 }, (_, i) => `#t${String(i)}`) });
       const data = tagsOf(await handlers.searchTags({}));
-      expect(data).toMatchObject({ total: 150, count: 100, hasMore: true, nextOffset: 100 });
+      expect(data).toMatchObject({ total: 150, count: 50, hasMore: true, nextOffset: 50 });
     });
   });
 
@@ -618,6 +686,11 @@ describe('search handlers', () => {
   });
 
   describe('searchByFrontmatter', () => {
+    type Hit = { path: string; value: unknown; valueTruncated?: boolean };
+    const hitsOf = (result: CallToolResult): Hit[] =>
+      (result.structuredContent as { items: Hit[] }).items;
+    const pathsOf = (result: CallToolResult): string[] => hitsOf(result).map((h) => h.path);
+
     it('should find files by frontmatter value (json)', async () => {
       adapter.addFile('a.md', 'content');
       adapter.setMetadata('a.md', { frontmatter: { status: 'done' } });
@@ -627,8 +700,8 @@ describe('search handlers', () => {
         key: 'status',
         value: 'done',
       });
-      const page = JSON.parse(getText(result)) as { items: string[] };
-      expect(page.items).toEqual(['a.md']);
+      const page = JSON.parse(getText(result)) as { items: Hit[] };
+      expect(page.items).toEqual([{ path: 'a.md', value: 'done' }]);
     });
 
     it('matches every file that has the key when value is omitted (#388)', async () => {
@@ -640,8 +713,7 @@ describe('search handlers', () => {
       adapter.setMetadata('c.md', { frontmatter: { title: 'no status' } });
       adapter.addFile('d.md', 'no frontmatter');
       const result = await handlers.searchByFrontmatter({ key: 'status' });
-      const page = result.structuredContent as { items: string[] };
-      expect(page.items.sort()).toEqual(['a.md', 'b.md']);
+      expect(pathsOf(result).sort()).toEqual(['a.md', 'b.md']);
     });
 
     it('still compares the value when it is given, including an empty string', async () => {
@@ -650,8 +722,7 @@ describe('search handlers', () => {
       adapter.addFile('b.md', 'content');
       adapter.setMetadata('b.md', { frontmatter: { status: '' } });
       const result = await handlers.searchByFrontmatter({ key: 'status', value: '' });
-      const page = result.structuredContent as { items: string[] };
-      expect(page.items).toEqual(['b.md']);
+      expect(pathsOf(result)).toEqual(['b.md']);
     });
 
     it('matches a list property when any element equals the value (#405)', async () => {
@@ -665,16 +736,292 @@ describe('search handlers', () => {
       adapter.setMetadata('d.md', { frontmatter: { tags: [1, 'gamma'] } });
 
       const alpha = await handlers.searchByFrontmatter({ key: 'tags', value: 'alpha' });
-      expect((alpha.structuredContent as { items: string[] }).items).toEqual(['a.md']);
+      expect(pathsOf(alpha)).toEqual(['a.md']);
 
       const beta = await handlers.searchByFrontmatter({ key: 'tags', value: 'beta' });
-      expect((beta.structuredContent as { items: string[] }).items.sort()).toEqual(['a.md', 'b.md']);
+      expect(pathsOf(beta).sort()).toEqual(['a.md', 'b.md']);
 
       const joined = await handlers.searchByFrontmatter({ key: 'tags', value: 'alpha,beta' });
-      expect((joined.structuredContent as { items: string[] }).items).toEqual(['c.md']);
+      expect(pathsOf(joined)).toEqual(['c.md']);
 
       const numeric = await handlers.searchByFrontmatter({ key: 'tags', value: '1' });
-      expect((numeric.structuredContent as { items: string[] }).items).toEqual(['d.md']);
+      expect(pathsOf(numeric)).toEqual(['d.md']);
+    });
+
+    it('exact match stays case-sensitive', async () => {
+      adapter.addFile('a.md', 'content');
+      adapter.setMetadata('a.md', { frontmatter: { status: 'Done' } });
+      const result = await handlers.searchByFrontmatter({ key: 'status', value: 'done' });
+      expect(pathsOf(result)).toEqual([]);
+    });
+
+    describe('value of each hit (#503)', () => {
+      it('returns the raw value as parsed, whatever its type', async () => {
+        const values: Record<string, unknown> = {
+          's.md': 'retired',
+          'n.md': 5,
+          'b.md': true,
+          'z.md': null,
+          'l.md': ['a', 2],
+          'o.md': { lat: 1, lon: 2 },
+        };
+        for (const [path, value] of Object.entries(values)) {
+          adapter.addFile(path, 'x');
+          adapter.setMetadata(path, { frontmatter: { k: value } });
+        }
+        const result = await handlers.searchByFrontmatter({ key: 'k' });
+        const hits = hitsOf(result);
+        expect(hits).toHaveLength(6);
+        for (const hit of hits) {
+          expect(hit.value).toEqual(values[hit.path]);
+          expect(hit.valueTruncated).toBeUndefined();
+        }
+        expect(getText(result)).toBe(JSON.stringify(result.structuredContent));
+      });
+
+      it('returns the whole list when one element matched', async () => {
+        adapter.addFile('a.md', 'x');
+        adapter.setMetadata('a.md', { frontmatter: { tags: ['alpha', 'beta'] } });
+        const result = await handlers.searchByFrontmatter({ key: 'tags', value: 'beta' });
+        expect(hitsOf(result)).toEqual([{ path: 'a.md', value: ['alpha', 'beta'] }]);
+      });
+
+      it('leaves out notes without the key or without frontmatter', async () => {
+        adapter.addFile('a.md', 'x');
+        adapter.setMetadata('a.md', { frontmatter: { other: 1 } });
+        adapter.addFile('b.md', 'x');
+        const result = await handlers.searchByFrontmatter({ key: 'status' });
+        expect(result.structuredContent).toEqual({
+          total: 0,
+          count: 0,
+          offset: 0,
+          items: [],
+          hasMore: false,
+        });
+      });
+
+      it('shortens a value over 1000 characters and flags it', async () => {
+        adapter.addFile('long.md', 'x');
+        adapter.setMetadata('long.md', { frontmatter: { summary: 'y'.repeat(5000) } });
+        adapter.addFile('list.md', 'x');
+        adapter.setMetadata('list.md', { frontmatter: { summary: ['z'.repeat(3000)] } });
+        const hits = hitsOf(await handlers.searchByFrontmatter({ key: 'summary' }));
+        const long = hits.find((h) => h.path === 'long.md');
+        expect(long).toEqual({ path: 'long.md', value: 'y'.repeat(1000), valueTruncated: true });
+        const list = hits.find((h) => h.path === 'list.md');
+        expect(list?.valueTruncated).toBe(true);
+        expect(list?.value).toBe(JSON.stringify(['z'.repeat(3000)]).slice(0, 1000));
+      });
+
+      it('keeps a page under CHARACTER_LIMIT and continues at nextOffset', async () => {
+        for (let i = 0; i < 100; i++) {
+          const path = `n-${String(i).padStart(3, '0')}.md`;
+          adapter.addFile(path, 'x');
+          adapter.setMetadata(path, { frontmatter: { summary: 'w'.repeat(900) } });
+        }
+        const first = await handlers.searchByFrontmatter({ key: 'summary', limit: 100 });
+        expect(getText(first).length).toBeLessThanOrEqual(CHARACTER_LIMIT);
+        expect(getText(first)).toBe(JSON.stringify(first.structuredContent));
+        const page = first.structuredContent as {
+          count: number;
+          hasMore: boolean;
+          nextOffset?: number;
+          total: number;
+        };
+        expect(page.total).toBe(100);
+        expect(page.count).toBeLessThan(100);
+        expect(page.hasMore).toBe(true);
+        expect(page.nextOffset).toBe(page.count);
+
+        const second = await handlers.searchByFrontmatter({
+          key: 'summary',
+          limit: 100,
+          offset: page.nextOffset,
+        });
+        expect(hitsOf(second)[0].path).toBe(`n-${String(page.count).padStart(3, '0')}.md`);
+      });
+
+      it('pages with limit and offset', async () => {
+        for (let i = 0; i < 5; i++) {
+          adapter.addFile(`p${String(i)}.md`, 'x');
+          adapter.setMetadata(`p${String(i)}.md`, { frontmatter: { n: i } });
+        }
+        const result = await handlers.searchByFrontmatter({ key: 'n', limit: 2, offset: 2 });
+        expect(result.structuredContent).toEqual({
+          total: 5,
+          count: 2,
+          offset: 2,
+          items: [
+            { path: 'p2.md', value: 2 },
+            { path: 'p3.md', value: 3 },
+          ],
+          hasMore: true,
+          nextOffset: 4,
+        });
+      });
+    });
+
+    describe('match: "prefix" (#503)', () => {
+      beforeEach(() => {
+        const notes: Record<string, unknown> = {
+          'v1.md': '2025-07-03',
+          'v2.md': '2025-07-28',
+          'v3.md': '2025-08-01',
+          'v4.md': ['2024-01-01', '2025-07-15'],
+          'v5.md': 20250712,
+          'v6.md': { start: '2025-07-01' },
+          'v7.md': null,
+          'v8.md': 'Done',
+        };
+        for (const [path, date] of Object.entries(notes)) {
+          adapter.addFile(path, 'x');
+          adapter.setMetadata(path, { frontmatter: { date } });
+        }
+      });
+
+      it('matches strings, numbers and list elements that start with value', async () => {
+        const result = await handlers.searchByFrontmatter({
+          key: 'date',
+          value: '2025-07',
+          match: 'prefix',
+        });
+        expect(hitsOf(result)).toEqual([
+          { path: 'v1.md', value: '2025-07-03' },
+          { path: 'v2.md', value: '2025-07-28' },
+          { path: 'v4.md', value: ['2024-01-01', '2025-07-15'] },
+        ]);
+        const numeric = await handlers.searchByFrontmatter({
+          key: 'date',
+          value: '202507',
+          match: 'prefix',
+        });
+        expect(pathsOf(numeric)).toEqual(['v5.md']);
+      });
+
+      it('never matches an object or null', async () => {
+        const object = await handlers.searchByFrontmatter({ key: 'date', value: '[object', match: 'prefix' });
+        expect(pathsOf(object)).toEqual([]);
+        const nul = await handlers.searchByFrontmatter({ key: 'date', value: 'nu', match: 'prefix' });
+        expect(pathsOf(nul)).toEqual([]);
+      });
+
+      it('is case-sensitive like the exact match', async () => {
+        const lower = await handlers.searchByFrontmatter({ key: 'date', value: 'do', match: 'prefix' });
+        expect(pathsOf(lower)).toEqual([]);
+        const upper = await handlers.searchByFrontmatter({ key: 'date', value: 'Do', match: 'prefix' });
+        expect(pathsOf(upper)).toEqual(['v8.md']);
+      });
+
+      it('match: "exact" is the default', async () => {
+        const result = await handlers.searchByFrontmatter({ key: 'date', value: '2025-07' });
+        expect(pathsOf(result)).toEqual([]);
+        const exact = await handlers.searchByFrontmatter({
+          key: 'date',
+          value: '2025-07-03',
+          match: 'exact',
+        });
+        expect(pathsOf(exact)).toEqual(['v1.md']);
+      });
+
+      it('is ignored without value', async () => {
+        const result = await handlers.searchByFrontmatter({ key: 'date', match: 'prefix' });
+        expect(pathsOf(result)).toHaveLength(8);
+      });
+    });
+  });
+
+  describe('searchByName (#491)', () => {
+    beforeEach(() => {
+      adapter.addFile('Atlas/World Atlas.md', 'x');
+      adapter.addFile('notes/atlas-notes.md', 'x');
+      adapter.addFile('notes/daily/2026-11-10.md', 'x');
+      adapter.addFile('notes/map.png', 'x');
+      adapter.addFile('readme.md', 'x');
+    });
+
+    async function itemsFor(params: { query: string; folder?: string }): Promise<string[]> {
+      const result = await handlers.searchByName(params);
+      expect(result.isError, getText(result)).toBeUndefined();
+      return (result.structuredContent as { items: string[] }).items;
+    }
+
+    it('matches a substring of the path, case-insensitively, sorted by path', async () => {
+      expect(await itemsFor({ query: 'ATLAS' })).toEqual([
+        'Atlas/World Atlas.md',
+        'notes/atlas-notes.md',
+      ]);
+    });
+
+    it('matches folder names in the path', async () => {
+      expect(await itemsFor({ query: 'daily/' })).toEqual(['notes/daily/2026-11-10.md']);
+    });
+
+    it('finds files of any type', async () => {
+      expect(await itemsFor({ query: '.png' })).toEqual(['notes/map.png']);
+    });
+
+    it('matches a glob without a slash against the file name', async () => {
+      expect(await itemsFor({ query: '*atlas*.md' })).toEqual([
+        'Atlas/World Atlas.md',
+        'notes/atlas-notes.md',
+      ]);
+      expect(await itemsFor({ query: '2026-??-??.md' })).toEqual(['notes/daily/2026-11-10.md']);
+      expect(await itemsFor({ query: 'atlas*' })).toEqual(['notes/atlas-notes.md']);
+    });
+
+    it('matches a glob with a slash against the whole path', async () => {
+      expect(await itemsFor({ query: 'notes/*.md' })).toEqual(['notes/atlas-notes.md']);
+      expect(await itemsFor({ query: 'notes/**/*.md' })).toEqual([
+        'notes/atlas-notes.md',
+        'notes/daily/2026-11-10.md',
+      ]);
+      expect(await itemsFor({ query: '**/*.md' })).toHaveLength(4);
+    });
+
+    it('treats regex characters in the query literally', async () => {
+      adapter.addFile('a (1).md', 'x');
+      adapter.addFile('a+b.md', 'x');
+      expect(await itemsFor({ query: '(1)' })).toEqual(['a (1).md']);
+      expect(await itemsFor({ query: 'a+b*' })).toEqual(['a+b.md']);
+    });
+
+    it('limits the search to a folder', async () => {
+      expect(await itemsFor({ query: '.md', folder: 'notes' })).toEqual([
+        'notes/atlas-notes.md',
+        'notes/daily/2026-11-10.md',
+      ]);
+      expect(await itemsFor({ query: '.md', folder: '/' })).toHaveLength(4);
+    });
+
+    it('fails for a folder that does not exist', async () => {
+      const result = await handlers.searchByName({ query: 'x', folder: 'missing' });
+      expect(result.isError).toBe(true);
+      expect(getText(result)).toContain('missing');
+    });
+
+    it('never returns files in the config folder', async () => {
+      adapter.addFile('.obsidian/plugins/atlas/data.json', '{}');
+      expect(await itemsFor({ query: 'atlas' })).not.toContain('.obsidian/plugins/atlas/data.json');
+      expect(await itemsFor({ query: '**/*.json' })).toEqual([]);
+    });
+
+    it('rejects the config folder and paths outside the vault as folder', async () => {
+      for (const folder of ['.obsidian', '../outside']) {
+        const result = await handlers.searchByName({ query: 'x', folder });
+        expect(result.isError, folder).toBe(true);
+      }
+    });
+
+    it('pages with limit/offset', async () => {
+      const result = await handlers.searchByName({ query: '.md', limit: 2, offset: 1 });
+      expect(result.structuredContent).toEqual({
+        total: 4,
+        count: 2,
+        offset: 1,
+        items: ['notes/atlas-notes.md', 'notes/daily/2026-11-10.md'],
+        hasMore: true,
+        nextOffset: 3,
+      });
     });
   });
 
@@ -702,6 +1049,7 @@ describe('search handlers', () => {
         await handlers.searchBlockReferences({ path: 'a.md' }),
         await handlers.searchByTag({ tag: 'project' }),
         await handlers.searchByFrontmatter({ key: 'status', value: 'active' }),
+        await handlers.searchByName({ query: 'a' }),
       ];
       for (const result of results) {
         expect(result.isError).toBeUndefined();
@@ -762,7 +1110,7 @@ describe('search tools document shared args in inputSchema', () => {
   }
 
   it('paginated search tools expose described limit and offset', () => {
-    for (const name of ['search_fulltext', 'search_by_tag', 'search_by_frontmatter']) {
+    for (const name of ['search_fulltext', 'search_by_tag', 'search_by_frontmatter', 'search_by_name']) {
       const schema = schemaFor(name);
       expect(schema.limit.description, name).toContain('Maximum items');
       expect(schema.offset.description, name).toContain('skip');
@@ -774,10 +1122,14 @@ describe('search tools document shared args in inputSchema', () => {
     expect(Object.keys(schemaFor('search_tags'))).toEqual(['limit', 'offset']);
   });
 
-  it('link maps take path, limit and offset (#464)', () => {
-    for (const name of ['search_resolved_links', 'search_unresolved_links']) {
-      expect(Object.keys(schemaFor(name))).toEqual(['path', 'limit', 'offset']);
-    }
+  it('link maps take path, limit and offset (#464); unresolved adds groupBy (#505)', () => {
+    expect(Object.keys(schemaFor('search_resolved_links'))).toEqual(['path', 'limit', 'offset']);
+    expect(Object.keys(schemaFor('search_unresolved_links'))).toEqual([
+      'path',
+      'groupBy',
+      'limit',
+      'offset',
+    ]);
   });
 });
 
@@ -938,6 +1290,22 @@ describe('search read tools — outputSchema declarations', () => {
     expect(parsed.nextOffset).toBe(2);
   });
 
+  it('search_by_name declares outputSchema and parses with hasMore=true and nextOffset', async () => {
+    const tool = findTool('search_by_name');
+    const schema = getStructured(tool);
+
+    const adapter = new MockObsidianAdapter();
+    for (let i = 0; i < 5; i++) adapter.addFile(`f-${String(i)}.md`, '');
+    const handlers = createSearchHandlers(adapter);
+
+    const result = await handlers.searchByName({ query: 'f-', limit: 2 });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.total).toBe(5);
+    expect(parsed.items).toEqual(['f-0.md', 'f-1.md']);
+    expect(parsed.hasMore).toBe(true);
+    expect(parsed.nextOffset).toBe(2);
+  });
+
   it('search_by_frontmatter declares outputSchema and parses against handler output', async () => {
     const tool = findTool('search_by_frontmatter');
     const schema = getStructured(tool);
@@ -954,7 +1322,14 @@ describe('search read tools — outputSchema declarations', () => {
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.total).toBe(1);
     expect(parsed.hasMore).toBe(false);
-    expect(parsed.items).toEqual(['a.md']);
+    expect(parsed.items).toEqual([{ path: 'a.md', value: 'done' }]);
+
+    adapter.addFile('b.md', '');
+    adapter.setMetadata('b.md', { frontmatter: { status: 'x'.repeat(2000) } });
+    const truncated = await handlers.searchByFrontmatter({ key: 'status', value: 'x', match: 'prefix' });
+    expect(schema.parse(truncated.structuredContent).items).toEqual([
+      { path: 'b.md', value: 'x'.repeat(1000), valueTruncated: true },
+    ]);
   });
 });
 
@@ -1027,5 +1402,111 @@ describe('link maps: paging and path (#464)', () => {
     adapter.setMetadata('clean.md', { links: [{ link: 'missing' }] });
     const result = await handlers.searchResolvedLinks({ path: 'clean.md' });
     expect(result.structuredContent).toMatchObject({ links: { 'clean.md': {} } });
+  });
+});
+
+describe('search_unresolved_links groupBy target (#505)', () => {
+  let adapter: MockObsidianAdapter;
+  let handlers: SearchHandlers;
+
+  function addNote(path: string, links: string[]): void {
+    adapter.addFile(path, '');
+    adapter.setMetadata(path, { links: links.map((link) => ({ link })) });
+  }
+
+  interface TargetItem {
+    target: string;
+    count: number;
+    sourceCount: number;
+    sources: string[];
+  }
+
+  function targetsOf(result: CallToolResult): TargetItem[] {
+    return (result.structuredContent as { targets: TargetItem[] }).targets;
+  }
+
+  beforeEach(() => {
+    adapter = new MockObsidianAdapter();
+    handlers = createSearchHandlers(adapter);
+    addNote('c.md', ['Antenna', 'Antenna', 'Bolt']);
+    addNote('a.md', ['Antenna', 'Cable']);
+    addNote('b.md', ['Bolt', 'Cable', 'Cable']);
+    addNote('clean.md', []);
+  });
+
+  it('defaults to groupBy source', async () => {
+    const result = await handlers.searchUnresolvedLinks({});
+    expect(result.structuredContent).toHaveProperty('links');
+    expect(result.structuredContent).not.toHaveProperty('targets');
+  });
+
+  it('sums counts per target, sorted by count desc then target', async () => {
+    const result = await handlers.searchUnresolvedLinks({ groupBy: 'target' });
+    expect(result.structuredContent).toEqual({
+      targets: [
+        { target: 'Antenna', count: 3, sourceCount: 2, sources: ['a.md', 'c.md'] },
+        { target: 'Cable', count: 3, sourceCount: 2, sources: ['a.md', 'b.md'] },
+        { target: 'Bolt', count: 2, sourceCount: 2, sources: ['b.md', 'c.md'] },
+      ],
+      total: 3,
+      count: 3,
+      offset: 0,
+      hasMore: false,
+    });
+    expect(JSON.parse(getText(result))).toEqual(result.structuredContent);
+  });
+
+  it('pages over targets', async () => {
+    const first = await handlers.searchUnresolvedLinks({ groupBy: 'target', limit: 2 });
+    expect(targetsOf(first).map((t) => t.target)).toEqual(['Antenna', 'Cable']);
+    expect(first.structuredContent).toMatchObject({ total: 3, count: 2, hasMore: true, nextOffset: 2 });
+    const next = await handlers.searchUnresolvedLinks({ groupBy: 'target', limit: 2, offset: 2 });
+    expect(targetsOf(next).map((t) => t.target)).toEqual(['Bolt']);
+    expect(next.structuredContent).toMatchObject({ hasMore: false });
+  });
+
+  it('narrows to one source note with path', async () => {
+    const result = await handlers.searchUnresolvedLinks({ groupBy: 'target', path: 'b.md' });
+    expect(targetsOf(result)).toEqual([
+      { target: 'Cable', count: 2, sourceCount: 1, sources: ['b.md'] },
+      { target: 'Bolt', count: 1, sourceCount: 1, sources: ['b.md'] },
+    ]);
+  });
+
+  it('lists at most 10 sources per target, sorted, with the full sourceCount', async () => {
+    for (let i = 0; i < 15; i++) addNote(`many/n${String(i).padStart(2, '0')}.md`, ['Popular']);
+    const result = await handlers.searchUnresolvedLinks({ groupBy: 'target', limit: 1 });
+    const [top] = targetsOf(result);
+    expect(top.target).toBe('Popular');
+    expect(top.count).toBe(15);
+    expect(top.sourceCount).toBe(15);
+    expect(top.sources).toEqual(
+      Array.from({ length: 10 }, (_, i) => `many/n${String(i).padStart(2, '0')}.md`),
+    );
+  });
+
+  it('keeps a page under CHARACTER_LIMIT by returning fewer targets', async () => {
+    for (let i = 0; i < 100; i++) {
+      addNote(`long/${'x'.repeat(200)}-${String(i)}.md`, [`${'t'.repeat(200)}-${String(i)}`]);
+    }
+    const result = await handlers.searchUnresolvedLinks({ groupBy: 'target', limit: 100 });
+    expect(getText(result).length).toBeLessThanOrEqual(CHARACTER_LIMIT);
+    const page = result.structuredContent as { count: number; hasMore: boolean; nextOffset: number };
+    expect(page.count).toBeLessThan(100);
+    expect(page.hasMore).toBe(true);
+    expect(page.nextOffset).toBe(page.count);
+  });
+
+  it('output parses against the declared outputSchema in both groupings', async () => {
+    const tool = createSearchModule(adapter).tools().find((t) => t.name === 'search_unresolved_links');
+    const schema = z.object(tool?.outputSchema as z.ZodRawShape).strict();
+    const byTarget = await handlers.searchUnresolvedLinks({ groupBy: 'target' });
+    expect(schema.parse(byTarget.structuredContent).targets).toHaveLength(3);
+    const bySource = await handlers.searchUnresolvedLinks({ groupBy: 'source' });
+    expect(Object.keys(schema.parse(bySource.structuredContent).links ?? {})).toEqual([
+      'c.md',
+      'a.md',
+      'b.md',
+    ]);
   });
 });

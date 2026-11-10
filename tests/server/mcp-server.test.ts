@@ -261,12 +261,41 @@ describe('createMcpServer', () => {
       const { buildServerInstructions } = await import('../../src/server/mcp-server');
       const all = buildServerInstructions('1.0.0');
       expect(all).toContain('prefer `vault_replace` or `vault_insert`; `vault_update` only to rewrite');
-      expect(all).toContain('not file names); by name with `vault_list_recursive`');
+      expect(all).toContain('note text → `search_fulltext`; file name → `search_by_name`');
+      expect(all).not.toContain('vault_list_recursive');
       const some = buildServerInstructions('1.0.0', ['search_fulltext', 'vault_replace']);
       expect(some).toContain('prefer `vault_replace`.');
-      expect(some).not.toMatch(/vault_insert|vault_update|vault_list_recursive/);
+      expect(some).not.toMatch(/vault_insert|vault_update|search_by_name/);
+      const byName = buildServerInstructions('1.0.0', ['search_by_name']);
+      expect(byName).toContain('- Which tool: file name → `search_by_name`.');
       const none = buildServerInstructions('1.0.0', ['vault_read']);
       expect(none).not.toContain('vault_replace');
+    });
+
+    it('maps each kind of question to its tool, only for tools that are on (#499)', async () => {
+      const { buildServerInstructions } = await import('../../src/server/mcp-server');
+      const all = buildServerInstructions('1.0.0');
+      expect(all).toContain(
+        '- Which tool: note text → `search_fulltext`; file name → `search_by_name`; tag → `search_by_tag`; ' +
+          'frontmatter value (e.g. `status: retired`) → `search_by_frontmatter`; ' +
+          'notes linking to X → `vault_get_aspect` backlinks; link targets without a note → `search_unresolved_links`.',
+      );
+      const some = buildServerInstructions('1.0.0', ['search_by_frontmatter', 'search_unresolved_links']);
+      expect(some).toContain(
+        '- Which tool: frontmatter value (e.g. `status: retired`) → `search_by_frontmatter`; ' +
+          'link targets without a note → `search_unresolved_links`.',
+      );
+      expect(some).not.toMatch(/search_fulltext|search_by_tag|vault_get_aspect/);
+      const none = buildServerInstructions('1.0.0', ['vault_read', 'editor_insert']);
+      expect(none).not.toContain('Which tool');
+    });
+
+    it('reminds to follow hasMore / nextOffset only when a paged tool is on (#499)', async () => {
+      const { buildServerInstructions } = await import('../../src/server/mcp-server');
+      const line = '- Paged results: while `hasMore` is true, call again with offset=nextOffset.';
+      expect(buildServerInstructions('1.0.0')).toContain(line);
+      expect(buildServerInstructions('1.0.0', ['vault_list'])).toContain(line);
+      expect(buildServerInstructions('1.0.0', ['vault_read', 'editor_insert'])).not.toContain(line);
     });
   });
 
@@ -745,15 +774,16 @@ describe('SERVER_INSTRUCTIONS', () => {
     expect(SERVER_INSTRUCTIONS.length).toBeGreaterThan(0);
   });
 
-  it('stays within the 1000-character budget (paid every turn)', async () => {
+  it('stays within the 1300-character budget (paid every turn)', async () => {
     const { SERVER_INSTRUCTIONS } = await import(
       '../../src/server/mcp-server'
     );
     // Hard cap so we notice if the string drifts toward bloat. Current
     // length is ~995 chars including the version line (#402, #449, #462). It
     // grew when the full path rule moved here from ~30 path parameters
-    // (#457), which saved far more in tools/list.
-    expect(SERVER_INSTRUCTIONS.length).toBeLessThanOrEqual(1000);
+    // (#457), which saved far more in tools/list. The "which tool" guide and
+    // the paging reminder (#499) took it to ~1245.
+    expect(SERVER_INSTRUCTIONS.length).toBeLessThanOrEqual(1300);
   });
 
   it.each([
@@ -762,6 +792,9 @@ describe('SERVER_INSTRUCTIONS', () => {
     ['editor_'],
     ['workspace_open_file'],
     ['vault_get_aspect'],
+    ['search_by_frontmatter'],
+    ['search_unresolved_links'],
+    ['nextOffset'],
   ])('mentions the load-bearing tool name "%s"', async (token: string) => {
     const { SERVER_INSTRUCTIONS } = await import(
       '../../src/server/mcp-server'

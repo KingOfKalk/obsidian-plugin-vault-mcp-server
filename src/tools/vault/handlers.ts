@@ -28,7 +28,7 @@ import { BINARY_BYTE_LIMIT } from '../../constants';
 import { getMimeType, isTextMime, vaultUri } from '../../server/resources';
 import type { InferredParams } from '../../registry/types';
 import type { SearchHandlers } from '../search/handlers';
-import { LIST_PAGE_LIMIT, READ_MAX_LENGTH, parseExpectedMtime } from './schemas';
+import { READ_MAX_LENGTH, parseExpectedMtime } from './schemas';
 import {
   findSection,
   formatHeading,
@@ -192,17 +192,19 @@ function decorateAspect(inner: CallToolResult, aspect: string, path: string): Ca
 /**
  * `vault_daily_note` result for a note that exists (#467): the note text,
  * windowed like `vault_read` so a long note stays under CHARACTER_LIMIT.
- * A `warning` (missing template, #470) is a header line.
+ * A `warning` (missing template, #470) is a header line. `modified` is the
+ * note's mtime like `vault_read`'s, usable as the next `expectedMtime` (#489).
  */
 function dailyNoteResponse(
   path: string,
   created: boolean,
   content: string,
+  modified: string,
   warning?: string,
 ): CallToolResult {
   const w = sliceTextWindow(content, 0, READ_MAX_LENGTH);
   return documentResponse(
-    { path, exists: true, created, warning, ...windowMeta(w, content.length) },
+    { path, exists: true, created, modified, warning, ...windowMeta(w, content.length) },
     windowBody('vault_read', w, content.length),
   );
 }
@@ -283,9 +285,18 @@ async function resolveInitialBody(
   // Templater syntax: never expanded here — Templater can run arbitrary
   // user JS, so execution stays client-side (mirrors plugin_templater_*).
   if (templateBody.includes('<%')) return { body: templateBody };
+  // Date placeholders use the note's date, time placeholders the current
+  // time of day on that date (#488), like Obsidian's Daily notes plugin.
+  const current = moment();
+  const reference = targetMoment.clone().set({
+    hour: current.hour(),
+    minute: current.minute(),
+    second: current.second(),
+    millisecond: current.millisecond(),
+  });
   return {
     body: expandPlaceholders(templateBody, {}, {
-      now: targetMoment.toDate(),
+      now: reference.toDate(),
       title: noteTitle(filename),
     }),
   };
@@ -669,7 +680,7 @@ export function createHandlers(
           ...listing.folders.map((p) => ({ path: p, folder: true })),
           ...listing.files.map((p) => ({ path: p, folder: false })),
         ];
-        const page = paginate(entries, readPagination(params, LIST_PAGE_LIMIT));
+        const page = paginate(entries, readPagination(params));
         return Promise.resolve(
           fitPage(page, (p) => {
             const { items, ...paging } = p;
@@ -786,7 +797,8 @@ export function createHandlers(
         const exists = await adapter.exists(path);
         if (exists) {
           const content = await adapter.readFile(path);
-          return dailyNoteResponse(path, false, content);
+          const modified = await modifiedIso(adapter, path);
+          return dailyNoteResponse(path, false, content, modified);
         }
         // Lookup by default (#432): only create when explicitly asked.
         if (params.create !== true) {
@@ -802,7 +814,8 @@ export function createHandlers(
           filename,
         );
         await adapter.createFile(path, body);
-        return dailyNoteResponse(path, true, body, warning);
+        const modified = await modifiedIso(adapter, path);
+        return dailyNoteResponse(path, true, body, modified, warning);
       } catch (error) {
         return handleToolError(error);
       }

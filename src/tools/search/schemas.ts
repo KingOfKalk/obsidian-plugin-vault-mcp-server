@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { searchQuerySchema } from '../../utils/validation';
-import { paginationFields, paginationFieldsWithDefault } from '../shared/pagination';
+import { paginationFields } from '../shared/pagination';
 import { FILE_PATH_DESC, vaultPathField } from '../shared/descriptions';
 
 export const searchFulltextSchema = {
@@ -14,6 +14,15 @@ export const searchFulltextSchema = {
     .describe(
       'Maximum matching lines returned per file; matchCount always reports the full count.',
     ),
+  lastMatches: z
+    .boolean()
+    .default(false)
+    .describe('Return the last maxMatchesPerFile matches of each file instead of the first (e.g. newest rows of a log).'),
+  folder: z
+    .string()
+    .max(4096)
+    .optional()
+    .describe('Only notes in this folder and its subfolders, e.g. "projects". Omit for the whole vault.'),
   ...paginationFields,
 };
 
@@ -21,23 +30,28 @@ export const filePathSchema = {
   path: vaultPathField(FILE_PATH_DESC),
 };
 
-/** Default page size of search_tags (#468). */
-export const TAGS_PAGE_LIMIT = 100;
-
 /** `search_tags`: counts per tag, paged (#468). */
 export const searchTagsSchema = {
-  ...paginationFieldsWithDefault(TAGS_PAGE_LIMIT),
+  ...paginationFields,
 };
-
-/** Default page size of the link maps and backlinks (#464). */
-export const LINKS_PAGE_LIMIT = 50;
 
 /** `search_resolved_links` / `search_unresolved_links` (#464). */
 export const linksMapSchema = {
   path: vaultPathField(FILE_PATH_DESC)
     .optional()
     .describe('Only this note\'s links. Omit for the whole vault.'),
-  ...paginationFieldsWithDefault(LINKS_PAGE_LIMIT),
+  ...paginationFields,
+};
+
+/** `search_unresolved_links`: the link map, or grouped by target (#505). */
+export const unresolvedLinksSchema = {
+  path: linksMapSchema.path,
+  groupBy: z
+    .enum(['source', 'target'])
+    .default('source')
+    .describe('"target": one item per missing link target with its total count, most linked first.'),
+  limit: linksMapSchema.limit,
+  offset: linksMapSchema.offset,
 };
 
 export const searchByTagSchema = {
@@ -62,7 +76,27 @@ export const searchByFrontmatterSchema = {
     .max(1000)
     .optional()
     .describe(
-      'Value to match exactly, compared as text (5 matches "5", true matches "true"); for a list, any element may match. Omit to match every note with the key.',
+      'Value to match, compared as text, case-sensitive (5 matches "5", true matches "true"); for a list, any element may match. Omit to match every note with the key.',
     ),
+  match: z
+    .enum(['exact', 'prefix'])
+    .default('exact')
+    .describe(
+      'With value: "prefix" matches text starting with value (e.g. "2025-07"); objects and null never match.',
+    ),
+  ...paginationFields,
+};
+
+/** `search_by_name` (#491). */
+export const searchByNameSchema = {
+  query: searchQuerySchema.describe(
+    'Case-insensitive substring of the path, or a glob with * and ?: ' +
+      'without / it matches the file name (e.g. "*Atlas*.md"), with / the whole path (e.g. "notes/**/*.pdf").',
+  ),
+  folder: z
+    .string()
+    .max(4096)
+    .optional()
+    .describe('Only files in this folder and its subfolders, e.g. "projects". Omit for the whole vault.'),
   ...paginationFields,
 };

@@ -9,9 +9,12 @@ Auto-generated schema reference for the `search` module. See [../tools.generated
 **Full-text search**
 
 Case-insensitive substring search in the text of Markdown (.md) notes. Does not match file names or other file types.
-Returns: Pages over matching files (total and count are files). Each item has up to maxMatchesPerFile matching lines and their 1-based line numbers.
+Returns: Each item has up to maxMatchesPerFile matching lines and their 1-based line numbers; matchCount counts all matching lines in the file, so a higher matchCount means lines were left out.
+Paging: over matching files (total and count are files); limit default 50, max 100; next page: offset=nextOffset.
 See also:
-- vault_list_recursive — to find a file by its name.
+- search_by_name — to find a file by its name.
+- search_by_frontmatter — to filter notes by a property (e.g. status).
+- vault_get_aspect backlinks — for the notes that link to a note.
 
 #### Input
 
@@ -19,7 +22,9 @@ See also:
 |---|---|---|---|
 | `query` | string (1–500) | yes | Case-insensitive substring to find. |
 | `maxMatchesPerFile` | number (1–100) | no (default `5`) | Maximum matching lines returned per file; matchCount always reports the full count. |
-| `limit` | number (1–100) | no (default `20`) | Maximum items per page. |
+| `lastMatches` | boolean | no (default `false`) | Return the last maxMatchesPerFile matches of each file instead of the first (e.g. newest rows of a log). |
+| `folder` | string (≤4096) | no | Only notes in this folder and its subfolders, e.g. "projects". Omit for the whole vault. |
+| `limit` | number (1–100) | no (default `50`) | Maximum items per page. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
 
 #### Output
@@ -94,7 +99,7 @@ Response (`structuredContent`):
 **List tags**
 
 List the tags in the vault's Markdown notes (inline and frontmatter) with how many files use each and how often. Case variants are merged under the most common spelling; nested tags have their own entry.
-Returns: Pages over tags sorted by name, with limit/offset.
+Paging: over tags sorted by name; limit default 50, max 100; next page: offset=nextOffset.
 See also:
 - search_by_tag — for the notes carrying a tag.
 
@@ -102,7 +107,7 @@ See also:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `limit` | number (1–100) | no (default `100`) | Maximum items per page. |
+| `limit` | number (1–100) | no (default `50`) | Maximum items per page. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
 
 #### Output
@@ -148,7 +153,8 @@ Response (`structuredContent`):
 
 **Find resolved links**
 
-Get the map of resolved links (targets that exist). Pages over source notes with limit/offset; pass path to check one note.
+Get the map of resolved links (targets that exist) per source note; pass path for one note. Answers "what does each note link to?".
+Paging: over source notes; limit default 50, max 100; next page: offset=nextOffset.
 See also:
 - search_unresolved_links — for broken links.
 
@@ -208,7 +214,8 @@ Response (`structuredContent`):
 
 **Find unresolved links**
 
-Get the map of unresolved links (link text that matches no file). Pages over source notes with limit/offset; pass path to check one note.
+Get the map of unresolved links (link text that matches no file); pass path for one note. Answers "which link targets have no note?"; groupBy "target" ranks them by link count.
+Paging: over source notes, or targets with groupBy "target"; limit default 50, max 100; next page: offset=nextOffset.
 See also:
 - search_resolved_links — for links that resolve.
 
@@ -217,6 +224,7 @@ See also:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `path` | string (1–4096) | no | Only this note's links. Omit for the whole vault. |
+| `groupBy` | enum: `source` \| `target` | no (default `source`) | "target": one item per missing link target with its total count, most linked first. |
 | `limit` | number (1–100) | no (default `50`) | Maximum items per page. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
 
@@ -224,7 +232,8 @@ See also:
 
 | Field | Type | Description |
 |---|---|---|
-| `links` | object | Map of source note path to { link text that matches no file, as written (e.g. "Missing Note"): count }, for the sources in this page; notes without broken links are left out. |
+| `links` | object | groupBy "source": map of source note path to { link text that matches no file, as written (e.g. "Missing Note"): count }, for the sources in this page; notes without broken links are left out. |
+| `targets` | object[] | groupBy "target": missing targets in this page, by count desc, then target. |
 | `total` | number | Total number of items before paging. |
 | `count` | number | Number of items in this page. |
 | `offset` | number | Offset of the first item in this page. |
@@ -259,6 +268,7 @@ Response (`structuredContent`):
 **Find notes by tag**
 
 Find Markdown notes that carry a tag (inline #tag or frontmatter tags), matched like Obsidian's tag search: any case, nested tags included.
+Paging: limit default 50, max 100; next page: offset=nextOffset.
 See also:
 - search_tags — for the list of tags.
 
@@ -267,7 +277,7 @@ See also:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `tag` | string (1–200) | yes | Tag with or without the leading # (e.g. "project" also finds "#Project" and "#project/alpha"). |
-| `limit` | number (1–100) | no (default `20`) | Maximum items per page. |
+| `limit` | number (1–100) | no (default `50`) | Maximum items per page. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
 
 #### Output
@@ -312,18 +322,82 @@ Response (`structuredContent`):
 
 **Find notes by frontmatter**
 
-Find Markdown notes whose YAML frontmatter has a key, optionally with a given value.
+Filter Markdown notes by frontmatter (YAML property) values, e.g. status: retired or type: station; without value, notes that have the key. Prefer it over search_fulltext for property questions.
+Returns: Each item has path and the note's value of key.
+Paging: limit default 50, max 100; next page: offset=nextOffset.
 Examples:
 - Use when: "find all notes where status == done" -> { key: "status", value: "done" }
 - Use when: "which notes have a status?" -> { key: "status" }
+- Use when: "dates in July 2025" -> { key: "date", value: "2025-07", match: "prefix" }
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `key` | string (1–200) | yes | Top-level frontmatter key (exact, case-sensitive). |
-| `value` | string (≤1000) | no | Value to match exactly, compared as text (5 matches "5", true matches "true"); for a list, any element may match. Omit to match every note with the key. |
-| `limit` | number (1–100) | no (default `20`) | Maximum items per page. |
+| `value` | string (≤1000) | no | Value to match, compared as text, case-sensitive (5 matches "5", true matches "true"); for a list, any element may match. Omit to match every note with the key. |
+| `match` | enum: `exact` \| `prefix` | no (default `exact`) | With value: "prefix" matches text starting with value (e.g. "2025-07"); objects and null never match. |
+| `limit` | number (1–100) | no (default `50`) | Maximum items per page. |
+| `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
+
+#### Output
+
+| Field | Type | Description |
+|---|---|---|
+| `items` | object[] | Matching notes in this page. |
+| `total` | number | Total number of items before paging. |
+| `count` | number | Number of items in this page. |
+| `offset` | number | Offset of the first item in this page. |
+| `hasMore` | boolean | True when more items follow this page. |
+| `nextOffset` | number | Offset to pass in the next call when hasMore is true. |
+
+#### Example
+
+Request (`tools/call` params):
+
+```json
+{
+  "name": "search_by_frontmatter",
+  "arguments": {
+    "key": "status",
+    "value": "active"
+  }
+}
+```
+
+Response (`structuredContent`):
+
+```json
+{
+  "total": 1,
+  "count": 1,
+  "offset": 0,
+  "items": [
+    {
+      "path": "projects/alpha.md",
+      "value": "active"
+    }
+  ],
+  "hasMore": false
+}
+```
+
+### search_by_name
+
+**Find files by name**
+
+Find files of any type by name or path. Results are sorted by path.
+Paging: limit default 50, max 100; next page: offset=nextOffset.
+See also:
+- search_fulltext — to search note text.
+
+#### Input
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `query` | string (1–500) | yes | Case-insensitive substring of the path, or a glob with * and ?: without / it matches the file name (e.g. "*Atlas*.md"), with / the whole path (e.g. "notes/**/*.pdf"). |
+| `folder` | string (≤4096) | no | Only files in this folder and its subfolders, e.g. "projects". Omit for the whole vault. |
+| `limit` | number (1–100) | no (default `50`) | Maximum items per page. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
 
 #### Output
@@ -343,10 +417,9 @@ Request (`tools/call` params):
 
 ```json
 {
-  "name": "search_by_frontmatter",
+  "name": "search_by_name",
   "arguments": {
-    "key": "status",
-    "value": "active"
+    "query": "alpha"
   }
 }
 ```

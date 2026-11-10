@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { base64Schema } from '../../utils/validation';
-import { paginationFields, paginationFieldsWithDefault } from '../shared/pagination';
-import { LINKS_PAGE_LIMIT } from '../search/schemas';
+import { paginationFields } from '../shared/pagination';
 import { READ_MAX_LENGTH, windowLengthField, windowOffsetField } from '../shared/window';
 import { frontmatterKeySchema } from '../shared/frontmatter';
 import {
@@ -48,9 +47,6 @@ export const createFileSchema = {
 };
 
 export { READ_MAX_LENGTH };
-
-/** Default page size of `vault_list`: whole folders up to 100 entries (#464). */
-export const LIST_PAGE_LIMIT = 100;
 
 /**
  * A heading to address a section by (#428): its text without the `#`
@@ -229,7 +225,7 @@ export const listFolderSchema = {
   path: listFolderPath.describe(
     'Vault-relative folder path, e.g. "projects"; "" (or "/" or ".") for the vault root.',
   ),
-  ...paginationFieldsWithDefault(LIST_PAGE_LIMIT),
+  ...paginationFields,
 };
 
 export const listRecursiveSchema = {
@@ -283,7 +279,7 @@ export const getAspectSchema = {
       'aspect=backlinks only (default false): also return backlinkContext, the 1-based line number and text ' +
         'of every line in each linking file that links here.',
     ),
-  limit: paginationFieldsWithDefault(LINKS_PAGE_LIMIT).limit.describe(
+  limit: paginationFields.limit.describe(
     'aspect=backlinks only: maximum linking files per page.',
   ),
   offset: paginationFields.offset,

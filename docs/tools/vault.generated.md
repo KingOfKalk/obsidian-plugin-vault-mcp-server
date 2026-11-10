@@ -699,7 +699,7 @@ Response (`structuredContent`):
 **List folder**
 
 List files and folders directly under a path (non-recursive), as full vault-relative paths.
-Returns: Folders first, then files, paged together with limit/offset.
+Paging: folders first, then files; limit default 50, max 100; next page: offset=nextOffset.
 See also:
 - vault_list_recursive — to include subfolders.
 Errors:
@@ -710,7 +710,7 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `path` | string (≤4096) | yes | Vault-relative folder path, e.g. "projects"; "" (or "/" or ".") for the vault root. |
-| `limit` | number (1–100) | no (default `100`) | Maximum items per page. |
+| `limit` | number (1–100) | no (default `50`) | Maximum items per page. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
 
 #### Output
@@ -758,7 +758,7 @@ Response (`structuredContent`):
 **List folder (recursive)**
 
 List all files and folders under a path, recursively.
-Returns: Files and folders are paged with the same limit/offset, each list on its own.
+Paging: items (files, total) and folders (folderTotal), each from the same offset; limit default 50, max 100; next page: offset=nextOffset.
 Examples:
 - Don't use when: the folder is very large — list a narrower subfolder.
 See also:
@@ -771,7 +771,7 @@ Errors:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `path` | string (≤4096) | yes | Vault-relative folder path, e.g. "projects"; "" (or "/" or ".") for the vault root. |
-| `limit` | number (1–100) | no (default `20`) | Maximum items per page. |
+| `limit` | number (1–100) | no (default `50`) | Maximum items per page. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
 
 #### Output
@@ -922,10 +922,12 @@ Response (`structuredContent`):
 
 **Get file aspect**
 
-Get one metadata aspect of a file: frontmatter, headings, outgoing links, embeds, backlinks, or block references.
+Get one metadata aspect of a file: frontmatter, headings, outgoing links, embeds, backlinks (notes that link to it), or block references.
+Returns: backlinks counts links, embeds and frontmatter links, incl. [[note#heading]] and [[note#^block]].
+Paging: aspect=backlinks only, over linking files; limit default 50, max 100; next page: offset=nextOffset.
 Examples:
 - Use when: "list the headings in README.md" → { path: "README.md", aspect: "headings" }
-- Use when: "what links to this note?" → { path: "ideas.md", aspect: "backlinks" }
+- Use when: "which notes link to ideas.md?" → { path: "ideas.md", aspect: "backlinks" }
 - Use when: "how is this note referenced?" → { ..., aspect: "backlinks", includeContext: true }
 Errors:
 - "File not found" if path does not exist.
@@ -1012,7 +1014,7 @@ Response (`structuredContent`):
 **Get or create a daily note**
 
 Resolve the daily note's path for today or date from the Daily notes core plugin settings and return the note if it exists. Does not open it in the editor. Creates a missing note (from the configured template) only with create=true.
-Returns: Text: "key: value" header lines (path, exists, created, warning, paging), a blank line, the note (continue a long one with vault_read). In a new note {{date}} is the note's date (YYYY-MM-DD), {{time}} the local time (HH:mm), {{title}} the file name without .md. Templater syntax (<%) is copied unchanged; a configured template that is missing gives an empty note and a warning.
+Returns: Text: "key: value" header lines (path, exists, created, modified, warning, paging), a blank line, the note (continue a long one with vault_read). modified (ISO-8601, only when the note exists) is usable as the next expectedMtime. In a new note {{date}} is the note's date (YYYY-MM-DD), {{time}} the current local time (HH:mm), {{title}} the file name without .md; {{date:FORMAT}} / {{time:FORMAT}} format the note's date with the current time by a moment.js format (e.g. {{date:dddd}}). Templater syntax (<%) is copied unchanged; a configured template that is missing gives an empty note and a warning.
 Examples:
 - Use when: you need today's note, creating it if missing → { create: true }
 - Use when: checking whether a past daily note exists → { date: "2026-01-02" }
@@ -1055,6 +1057,7 @@ Text block:
 path: daily/2026-11-08.md
 exists: true
 created: true
+modified: 2026-01-15T09:30:00.000Z
 totalLength: 0
 offset: 0
 hasMore: false
@@ -1065,8 +1068,8 @@ hasMore: false
 
 **Set frontmatter**
 
-Set or remove YAML frontmatter keys of a Markdown note without rewriting the rest of the file.
-Returns: The resulting frontmatter and the new modified timestamp. Obsidian writes the YAML, keeps key order and creates the block if missing.
+Set or remove YAML frontmatter keys of a Markdown note; the body is untouched. Obsidian rewrites the YAML block, so quoting of other keys can change.
+Returns: The resulting frontmatter and the new modified timestamp. Key order and values are kept; a missing block is created.
 Examples:
 - Use when: marking a note done -> { path: "projects/alpha.md", set: { status: "done" } }
 - Use when: dropping a key -> { path: "projects/alpha.md", set: {}, remove: ["draft"] }

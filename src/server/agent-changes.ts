@@ -18,6 +18,19 @@ export interface AgentChangeEntry {
 
 export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
   {
+    version: '5.1.0',
+    notes: [
+      '`vault_get_aspect` with `aspect: "outgoing_links"` or `"embeds"`: each entry adds `path`, the vault path Obsidian resolves the link to from this note (pass it to `vault_read`; `null` when unresolved or inside the config folder), and `subpath`, the `#Heading` or `#^block` part when present. `link` is unchanged.',
+      'Template placeholders `{{date:FORMAT}}` and `{{time:FORMAT}}` are expanded with a moment.js format (e.g. `{{date:dddd}}`), like Obsidian, in `template_expand`, `template_create_from` and `vault_daily_note`; an empty format gives `YYYY-MM-DD` / `HH:mm`. A variable named like the whole placeholder (e.g. `"date:dddd"`) still overrides it. In `vault_daily_note` they use the note\'s date, and `{{time}}` is the current time (was `00:00` for another day).',
+      '`vault_daily_note` adds the `modified` header line (ISO-8601, as in `vault_read`) when the note exists or was just created; pass it as `expectedMtime` to the next write.',
+      'Every paged tool has the same page size: `limit` defaults to 50 (max 100) in `search_fulltext`, `search_tags`, `search_by_tag`, `search_by_frontmatter`, `search_resolved_links`, `search_unresolved_links`, `vault_list`, `vault_list_recursive` and `vault_get_aspect` backlinks. Before, it was 20 for `search_by_tag`, `search_by_frontmatter`, `search_fulltext` and `vault_list_recursive`, and 100 for `vault_list` and `search_tags`. Their descriptions state the rule in a `Paging:` line; while `hasMore` is true, call again with `offset` = `nextOffset`.',
+      '`search_by_frontmatter` items are `{ path, value }` objects, no longer path strings; `value` is the note\'s value of `key` as parsed from YAML (string, number, boolean, null, list or object). A value over 1000 characters is cut to its first 1000 (of its JSON for a list or object) and the item adds `valueTruncated: true`. New `match: "exact" | "prefix"` (default `exact`): with `prefix`, a string, number or boolean (or any list element) matches when its text starts with `value`, case-sensitive, e.g. `value: "2025-07"` for July 2025 dates.',
+      '`search_unresolved_links` adds `groupBy: "source" | "target"` (default `source`, unchanged). With `target` it returns `targets`, one item per missing link target `{ target, count, sourceCount, sources }`, sorted by `count` desc then `target`, paged with `limit`/`offset`; `sources` lists at most 10 linking notes (sorted), `sourceCount` all of them. `path` still narrows to one source note.',
+      'New tool `search_by_name`: find files of any type by name or path. `query` is a case-insensitive substring of the path, or a glob with `*`/`?` (without `/` matched against the file name, e.g. "*Atlas*.md"; with `/` against the whole path, e.g. "notes/**/*.pdf"). Optional `folder` limits the search; results are sorted by path and paged with `limit`/`offset` like `search_by_tag`. The server instructions point to it instead of `vault_list_recursive` for finding a note by name.',
+      '`search_fulltext` takes an optional `folder` (only notes in that folder and its subfolders; same rules as in `search_by_name`) and `lastMatches: true`, which returns the last `maxMatchesPerFile` matches of each file instead of the first (e.g. the newest rows of a log), still in line order.',
+    ],
+  },
+  {
     version: '5.0.0',
     notes: [
       'Breaking: document tools return plain text. `vault_read`, `vault_daily_note`, `editor_get_content`, `template_expand` and `plugin_dataview_query` return one text block: `key: value` header lines (e.g. `path`, `modified`, `totalLength`, `offset`, `hasMore`, `nextOffset`), a blank line, then the raw text, not JSON-escaped. They have no `structuredContent` or `outputSchema` any more; read `modified` and `nextOffset` from the header.',
