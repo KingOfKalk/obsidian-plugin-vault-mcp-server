@@ -138,6 +138,16 @@ describe('large vault: link maps (#464)', () => {
     expect(page.total).toBe(NOTES);
   });
 
+  it('search_unresolved_links groupBy target pages over targets and returns each once (#505)', async () => {
+    const { items } = await walk<Paged & { targets: Array<{ target: string; count: number }> }, string>(
+      'search_unresolved_links',
+      { groupBy: 'target', limit: 100 },
+      (p) => p.targets.map((t) => t.target),
+    );
+    expect(new Set(items).size).toBe(items.length);
+    for (const i of [0, 1234, NOTES - 1]) expect(items).toContain(`missing-${String(i)}`);
+  });
+
   it('search_resolved_links defaults to 50 sources per page', async () => {
     const page = await callJson('search_resolved_links', {});
     expect(page.count).toBe(50);

@@ -595,6 +595,13 @@ clients and agents commonly trip over:
     notes that hold links. Pass `path` to get one note's links.
     `search_unresolved_links` leaves out notes without broken links.
     Before 4.1.0 both returned the whole vault in one answer.
+  - `search_unresolved_links` with `groupBy: "target"` pages over the
+    missing link targets instead: each item is `{ target, count,
+    sourceCount, sources }`, sorted by `count` (most-linked first, ties by
+    `target`). `sources` lists at most 10 linking notes, sorted by path;
+    `sourceCount` says how many there are. Targets are grouped as written
+    (case-sensitive). Use it to answer "which missing note is linked most
+    often?" in one call.
   - `vault_get_aspect` with `aspect: "backlinks"` pages over the linking
     files; with `includeContext: true` only the files of the page are
     read.

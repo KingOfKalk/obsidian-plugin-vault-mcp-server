@@ -1122,10 +1122,14 @@ describe('search tools document shared args in inputSchema', () => {
     expect(Object.keys(schemaFor('search_tags'))).toEqual(['limit', 'offset']);
   });
 
-  it('link maps take path, limit and offset (#464)', () => {
-    for (const name of ['search_resolved_links', 'search_unresolved_links']) {
-      expect(Object.keys(schemaFor(name))).toEqual(['path', 'limit', 'offset']);
-    }
+  it('link maps take path, limit and offset (#464); unresolved adds groupBy (#505)', () => {
+    expect(Object.keys(schemaFor('search_resolved_links'))).toEqual(['path', 'limit', 'offset']);
+    expect(Object.keys(schemaFor('search_unresolved_links'))).toEqual([
+      'path',
+      'groupBy',
+      'limit',
+      'offset',
+    ]);
   });
 });
 
@@ -1398,5 +1402,111 @@ describe('link maps: paging and path (#464)', () => {
     adapter.setMetadata('clean.md', { links: [{ link: 'missing' }] });
     const result = await handlers.searchResolvedLinks({ path: 'clean.md' });
     expect(result.structuredContent).toMatchObject({ links: { 'clean.md': {} } });
+  });
+});
+
+describe('search_unresolved_links groupBy target (#505)', () => {
+  let adapter: MockObsidianAdapter;
+  let handlers: SearchHandlers;
+
+  function addNote(path: string, links: string[]): void {
+    adapter.addFile(path, '');
+    adapter.setMetadata(path, { links: links.map((link) => ({ link })) });
+  }
+
+  interface TargetItem {
+    target: string;
+    count: number;
+    sourceCount: number;
+    sources: string[];
+  }
+
+  function targetsOf(result: CallToolResult): TargetItem[] {
+    return (result.structuredContent as { targets: TargetItem[] }).targets;
+  }
+
+  beforeEach(() => {
+    adapter = new MockObsidianAdapter();
+    handlers = createSearchHandlers(adapter);
+    addNote('c.md', ['Antenna', 'Antenna', 'Bolt']);
+    addNote('a.md', ['Antenna', 'Cable']);
+    addNote('b.md', ['Bolt', 'Cable', 'Cable']);
+    addNote('clean.md', []);
+  });
+
+  it('defaults to groupBy source', async () => {
+    const result = await handlers.searchUnresolvedLinks({});
+    expect(result.structuredContent).toHaveProperty('links');
+    expect(result.structuredContent).not.toHaveProperty('targets');
+  });
+
+  it('sums counts per target, sorted by count desc then target', async () => {
+    const result = await handlers.searchUnresolvedLinks({ groupBy: 'target' });
+    expect(result.structuredContent).toEqual({
+      targets: [
+        { target: 'Antenna', count: 3, sourceCount: 2, sources: ['a.md', 'c.md'] },
+        { target: 'Cable', count: 3, sourceCount: 2, sources: ['a.md', 'b.md'] },
+        { target: 'Bolt', count: 2, sourceCount: 2, sources: ['b.md', 'c.md'] },
+      ],
+      total: 3,
+      count: 3,
+      offset: 0,
+      hasMore: false,
+    });
+    expect(JSON.parse(getText(result))).toEqual(result.structuredContent);
+  });
+
+  it('pages over targets', async () => {
+    const first = await handlers.searchUnresolvedLinks({ groupBy: 'target', limit: 2 });
+    expect(targetsOf(first).map((t) => t.target)).toEqual(['Antenna', 'Cable']);
+    expect(first.structuredContent).toMatchObject({ total: 3, count: 2, hasMore: true, nextOffset: 2 });
+    const next = await handlers.searchUnresolvedLinks({ groupBy: 'target', limit: 2, offset: 2 });
+    expect(targetsOf(next).map((t) => t.target)).toEqual(['Bolt']);
+    expect(next.structuredContent).toMatchObject({ hasMore: false });
+  });
+
+  it('narrows to one source note with path', async () => {
+    const result = await handlers.searchUnresolvedLinks({ groupBy: 'target', path: 'b.md' });
+    expect(targetsOf(result)).toEqual([
+      { target: 'Cable', count: 2, sourceCount: 1, sources: ['b.md'] },
+      { target: 'Bolt', count: 1, sourceCount: 1, sources: ['b.md'] },
+    ]);
+  });
+
+  it('lists at most 10 sources per target, sorted, with the full sourceCount', async () => {
+    for (let i = 0; i < 15; i++) addNote(`many/n${String(i).padStart(2, '0')}.md`, ['Popular']);
+    const result = await handlers.searchUnresolvedLinks({ groupBy: 'target', limit: 1 });
+    const [top] = targetsOf(result);
+    expect(top.target).toBe('Popular');
+    expect(top.count).toBe(15);
+    expect(top.sourceCount).toBe(15);
+    expect(top.sources).toEqual(
+      Array.from({ length: 10 }, (_, i) => `many/n${String(i).padStart(2, '0')}.md`),
+    );
+  });
+
+  it('keeps a page under CHARACTER_LIMIT by returning fewer targets', async () => {
+    for (let i = 0; i < 100; i++) {
+      addNote(`long/${'x'.repeat(200)}-${String(i)}.md`, [`${'t'.repeat(200)}-${String(i)}`]);
+    }
+    const result = await handlers.searchUnresolvedLinks({ groupBy: 'target', limit: 100 });
+    expect(getText(result).length).toBeLessThanOrEqual(CHARACTER_LIMIT);
+    const page = result.structuredContent as { count: number; hasMore: boolean; nextOffset: number };
+    expect(page.count).toBeLessThan(100);
+    expect(page.hasMore).toBe(true);
+    expect(page.nextOffset).toBe(page.count);
+  });
+
+  it('output parses against the declared outputSchema in both groupings', async () => {
+    const tool = createSearchModule(adapter).tools().find((t) => t.name === 'search_unresolved_links');
+    const schema = z.object(tool?.outputSchema as z.ZodRawShape).strict();
+    const byTarget = await handlers.searchUnresolvedLinks({ groupBy: 'target' });
+    expect(schema.parse(byTarget.structuredContent).targets).toHaveLength(3);
+    const bySource = await handlers.searchUnresolvedLinks({ groupBy: 'source' });
+    expect(Object.keys(schema.parse(bySource.structuredContent).links ?? {})).toEqual([
+      'c.md',
+      'a.md',
+      'b.md',
+    ]);
   });
 });

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { ToolModule, ToolDefinition, annotations, defineTool } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
-import { createSearchHandlers } from './handlers';
+import { createSearchHandlers, MAX_SOURCES_PER_TARGET } from './handlers';
 import { describeTool } from '../shared/describe';
 import {
   searchFulltextSchema,
@@ -10,6 +10,7 @@ import {
   searchByNameSchema,
   searchTagsSchema,
   linksMapSchema,
+  unresolvedLinksSchema,
 } from './schemas';
 import { pageOutputFields } from '../shared/pagination';
 
@@ -67,13 +68,28 @@ const resolvedLinksOutputSchema = {
   ...pageOutputFields,
 };
 
+/** One shape per `groupBy`: `links` for "source", `targets` for "target" (#505). */
 const unresolvedLinksOutputSchema = {
   links: z
     .record(z.string(), z.record(z.string(), z.number()))
+    .optional()
     .describe(
-      'Map of source note path to { link text that matches no file, as written (e.g. "Missing Note"): count }, ' +
+      'groupBy "source": map of source note path to { link text that matches no file, as written (e.g. "Missing Note"): count }, ' +
         'for the sources in this page; notes without broken links are left out.',
     ),
+  targets: z
+    .array(
+      z.object({
+        target: z.string().describe('Link text that matches no file, as written (case-sensitive).'),
+        count: z.number().describe('Links to it in all sources.'),
+        sourceCount: z.number().describe('Notes that link to it.'),
+        sources: z
+          .array(z.string())
+          .describe(`Linking note paths, sorted; at most ${String(MAX_SOURCES_PER_TARGET)}.`),
+      }),
+    )
+    .optional()
+    .describe('groupBy "target": missing targets in this page, by count desc, then target.'),
   ...pageOutputFields,
 };
 
@@ -184,11 +200,11 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary:
               'Get the map of unresolved links (link text that matches no file); pass path for one note. ' +
-              'Answers "which link targets have no note?"; for the most-linked missing note, sum the counts per target over all pages.',
-            paging: LINK_PAGES,
+              'Answers "which link targets have no note?"; groupBy "target" ranks them by link count.',
+            paging: 'over source notes, or targets with groupBy "target"',
             seeAlso: ['search_resolved_links — for links that resolve.'],
           }),
-          schema: linksMapSchema,
+          schema: unresolvedLinksSchema,
           outputSchema: unresolvedLinksOutputSchema,
           handler: handlers.searchUnresolvedLinks,
           annotations: annotations.read,

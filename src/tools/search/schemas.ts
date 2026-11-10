@@ -43,6 +43,17 @@ export const linksMapSchema = {
   ...paginationFields,
 };
 
+/** `search_unresolved_links`: the link map, or grouped by target (#505). */
+export const unresolvedLinksSchema = {
+  path: linksMapSchema.path,
+  groupBy: z
+    .enum(['source', 'target'])
+    .default('source')
+    .describe('"target": one item per missing link target with its total count, most linked first.'),
+  limit: linksMapSchema.limit,
+  offset: linksMapSchema.offset,
+};
+
 export const searchByTagSchema = {
   tag: z
     .string()
