@@ -437,20 +437,20 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
       try {
         const key = params.key;
         const value = params.value;
+        const prefix = params.match === 'prefix';
         const allFiles = adapter.getAllFiles();
-        const matching: string[] = [];
+        const matching: FrontmatterHit[] = [];
         for (const filePath of allFiles) {
           const fm = adapter.getFrontmatter(filePath);
           if (!fm || !Object.prototype.hasOwnProperty.call(fm, key)) continue;
           // No value: "has this key" query (#388).
-          if (value === undefined || frontmatterValueMatches(fm[key], value)) {
-            matching.push(filePath);
+          if (value === undefined || frontmatterValueMatches(fm[key], value, prefix)) {
+            // The value too, so no extra call per hit is needed (#503).
+            matching.push({ path: filePath, ...hitValue(fm[key]) });
           }
         }
         const page = paginate(matching, readPagination(params));
-        return Promise.resolve(
-          dataResponse(page),
-        );
+        return Promise.resolve(fitPage(page, (p) => dataResponse(p)));
       } catch (error) {
         return Promise.resolve(handleToolError(error));
       }
@@ -473,13 +473,54 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
   };
 }
 
+/** A search_by_frontmatter hit: the note and its value of `key` (#503). */
+interface FrontmatterHit {
+  path: string;
+  value: unknown;
+  valueTruncated?: true;
+}
+
 /**
- * A list value (`tags: [a, b]`) matches when any element equals `value`;
- * anything else is compared as a string (#405).
+ * Longest value a hit carries, in characters of its JSON (#503). Pages
+ * stay useful with long values (e.g. a summary), and one hit can never
+ * exceed CHARACTER_LIMIT on its own; the full value is in
+ * vault_get_aspect frontmatter.
  */
-function frontmatterValueMatches(actual: unknown, value: string): boolean {
-  if (Array.isArray(actual)) {
-    return actual.some((item) => String(item) === value);
+export const FRONTMATTER_VALUE_LIMIT = 1000;
+
+/**
+ * The value as Obsidian parsed it, or, when its JSON is longer than
+ * FRONTMATTER_VALUE_LIMIT, the start of the string (of the JSON for
+ * anything else) and `valueTruncated: true`.
+ */
+function hitValue(raw: unknown): { value: unknown; valueTruncated?: true } {
+  const value = raw === undefined ? null : raw;
+  const json = JSON.stringify(value);
+  if (json.length <= FRONTMATTER_VALUE_LIMIT) return { value };
+  const text = typeof value === 'string' ? value : json;
+  return { value: text.slice(0, FRONTMATTER_VALUE_LIMIT), valueTruncated: true };
+}
+
+/**
+ * Whether one frontmatter value matches `value`. Exact: compared as a
+ * string, case-sensitive. Prefix (#503): the string form of a string,
+ * number or boolean starts with `value`; objects and null never match.
+ */
+function scalarMatches(item: unknown, value: string, prefix: boolean): boolean {
+  if (!prefix) return String(item) === value;
+  if (typeof item !== 'string' && typeof item !== 'number' && typeof item !== 'boolean') {
+    return false;
   }
-  return String(actual) === value;
+  return String(item).startsWith(value);
+}
+
+/**
+ * A list value (`tags: [a, b]`) matches when any element matches `value`;
+ * anything else is compared as a whole (#405).
+ */
+function frontmatterValueMatches(actual: unknown, value: string, prefix: boolean): boolean {
+  if (Array.isArray(actual)) {
+    return actual.some((item) => scalarMatches(item, value, prefix));
+  }
+  return scalarMatches(actual, value, prefix);
 }

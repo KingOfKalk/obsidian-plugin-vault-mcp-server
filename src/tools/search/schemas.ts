@@ -56,7 +56,13 @@ export const searchByFrontmatterSchema = {
     .max(1000)
     .optional()
     .describe(
-      'Value to match exactly, compared as text (5 matches "5", true matches "true"); for a list, any element may match. Omit to match every note with the key.',
+      'Value to match, compared as text, case-sensitive (5 matches "5", true matches "true"); for a list, any element may match. Omit to match every note with the key.',
+    ),
+  match: z
+    .enum(['exact', 'prefix'])
+    .default('exact')
+    .describe(
+      'With value: "prefix" matches text starting with value (e.g. "2025-07"); objects and null never match.',
     ),
   ...paginationFields,
 };

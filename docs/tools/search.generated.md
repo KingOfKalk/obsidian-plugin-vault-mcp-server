@@ -319,17 +319,20 @@ Response (`structuredContent`):
 **Find notes by frontmatter**
 
 Filter Markdown notes by frontmatter (YAML property) values, e.g. status: retired or type: station; without value, notes that have the key. Prefer it over search_fulltext for property questions.
+Returns: Each item has path and the note's value of key.
 Paging: limit default 50, max 100; next page: offset=nextOffset.
 Examples:
 - Use when: "find all notes where status == done" -> { key: "status", value: "done" }
 - Use when: "which notes have a status?" -> { key: "status" }
+- Use when: "dates in July 2025" -> { key: "date", value: "2025-07", match: "prefix" }
 
 #### Input
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `key` | string (1–200) | yes | Top-level frontmatter key (exact, case-sensitive). |
-| `value` | string (≤1000) | no | Value to match exactly, compared as text (5 matches "5", true matches "true"); for a list, any element may match. Omit to match every note with the key. |
+| `value` | string (≤1000) | no | Value to match, compared as text, case-sensitive (5 matches "5", true matches "true"); for a list, any element may match. Omit to match every note with the key. |
+| `match` | enum: `exact` \| `prefix` | no (default `exact`) | With value: "prefix" matches text starting with value (e.g. "2025-07"); objects and null never match. |
 | `limit` | number (1–100) | no (default `50`) | Maximum items per page. |
 | `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
 
@@ -337,12 +340,12 @@ Examples:
 
 | Field | Type | Description |
 |---|---|---|
-| `total` | number | Total number of matching files before pagination. |
-| `count` | number | Number of files in this page. |
+| `items` | object[] | Matching notes in this page. |
+| `total` | number | Total number of items before paging. |
+| `count` | number | Number of items in this page. |
 | `offset` | number | Offset of the first item in this page. |
-| `items` | string[] | Vault-relative file paths in this page. |
-| `hasMore` | boolean | True when there are more files past this page. |
-| `nextOffset` | number | Offset to use in the next request when hasMore is true. |
+| `hasMore` | boolean | True when more items follow this page. |
+| `nextOffset` | number | Offset to pass in the next call when hasMore is true. |
 
 #### Example
 
@@ -366,7 +369,10 @@ Response (`structuredContent`):
   "count": 1,
   "offset": 0,
   "items": [
-    "projects/alpha.md"
+    {
+      "path": "projects/alpha.md",
+      "value": "active"
+    }
   ],
   "hasMore": false
 }

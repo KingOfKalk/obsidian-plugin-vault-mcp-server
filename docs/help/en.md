@@ -713,7 +713,21 @@ clients and agents commonly trip over:
   specific value. For a list property such as `tags: [project, idea]`, a
   note matches when any item equals `value`, so `value: "idea"` finds it.
   Other values are compared as text (the number `5` matches `"5"`, `true`
-  matches `"true"`). The key is a top-level key and case-sensitive.
+  matches `"true"`). The key is a top-level key and case-sensitive, and so
+  is the value.
+  - Since 5.1 each result item is `{ path, value }`: the note's value of
+    `key` as Obsidian read it from the YAML (text, number, `true`/`false`,
+    `null`, a list or an object). "Which stations are retired, and since
+    when?" is one call with `key: "retired"`, no need to open every note.
+    Before 5.1 the items were bare paths. A value longer than 1000
+    characters is shortened to its first 1000 characters (of its JSON for
+    a list or object) and the item gets `valueTruncated: true`; read the
+    note's frontmatter with `vault_get_aspect` for the full value.
+  - Add `match: "prefix"` to find values that start with `value`, for
+    example `{ key: "date", value: "2025-07", match: "prefix" }` for dates
+    in July 2025. Dates and numbers are compared as written in the YAML;
+    for a list, any item may match; objects and empty values never match.
+    The default is `match: "exact"`.
 - **Where deleted files go.** `vault_delete` and `vault_delete_folder`
   follow Obsidian's **Settings → Files and links → Deleted files** option:
   the system trash, the vault's `.trash` folder, or permanent deletion.
