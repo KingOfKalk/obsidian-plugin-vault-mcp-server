@@ -19,7 +19,6 @@ import { dataResponse } from '../shared/response';
 import { createNameMatcher } from './name-match';
 import type { InferredParams } from '../../registry/types';
 import type { ToolContext } from '../../registry/tool-context';
-import { LINKS_PAGE_LIMIT, TAGS_PAGE_LIMIT } from './schemas';
 import type {
   searchFulltextSchema,
   filePathSchema,
@@ -225,7 +224,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
     entries: LinkMapEntry[],
     params: { limit?: number; offset?: number },
   ): CallToolResult {
-    const page = paginate(entries, readPagination(params, LINKS_PAGE_LIMIT));
+    const page = paginate(entries, readPagination(params));
     return fitPage(page, (p) => dataResponse(toLinkMapPage(p)));
   }
 
@@ -305,7 +304,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
         const entries: TagEntry[] = Object.entries(groupTagsByCase(adapter.getAllTags()))
           .map(([tag, usage]): TagEntry => [tag, { files: usage.files.length, occurrences: usage.count }])
           .sort(([a], [b]) => compareTags(a, b));
-        const page = paginate(entries, readPagination(params, TAGS_PAGE_LIMIT));
+        const page = paginate(entries, readPagination(params));
         return Promise.resolve(fitPage(page, (p) => dataResponse(toTagsPage(p))));
       } catch (error) {
         return Promise.resolve(handleToolError(error));
@@ -351,7 +350,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
     async searchBacklinks(params): Promise<CallToolResult> {
       try {
         const path = validateToolPath(params.path, vaultPath, configDir);
-        const pagination = readPagination(params, LINKS_PAGE_LIMIT);
+        const pagination = readPagination(params);
         // vault_get_aspect adds `"aspect": …` to the JSON text afterwards.
         const limit = CHARACTER_LIMIT - ASPECT_HEADROOM;
         if (params.includeContext === true) {

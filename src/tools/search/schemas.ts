@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { searchQuerySchema } from '../../utils/validation';
-import { paginationFields, paginationFieldsWithDefault } from '../shared/pagination';
+import { paginationFields } from '../shared/pagination';
 import { FILE_PATH_DESC, vaultPathField } from '../shared/descriptions';
 
 export const searchFulltextSchema = {
@@ -21,23 +21,17 @@ export const filePathSchema = {
   path: vaultPathField(FILE_PATH_DESC),
 };
 
-/** Default page size of search_tags (#468). */
-export const TAGS_PAGE_LIMIT = 100;
-
 /** `search_tags`: counts per tag, paged (#468). */
 export const searchTagsSchema = {
-  ...paginationFieldsWithDefault(TAGS_PAGE_LIMIT),
+  ...paginationFields,
 };
-
-/** Default page size of the link maps and backlinks (#464). */
-export const LINKS_PAGE_LIMIT = 50;
 
 /** `search_resolved_links` / `search_unresolved_links` (#464). */
 export const linksMapSchema = {
   path: vaultPathField(FILE_PATH_DESC)
     .optional()
     .describe('Only this note\'s links. Omit for the whole vault.'),
-  ...paginationFieldsWithDefault(LINKS_PAGE_LIMIT),
+  ...paginationFields,
 };
 
 export const searchByTagSchema = {

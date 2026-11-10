@@ -78,7 +78,7 @@ const unresolvedLinksOutputSchema = {
 };
 
 /** The link maps page over source notes (#464). */
-const LINK_PAGES = 'Pages over source notes with limit/offset; pass path to check one note.';
+const LINK_PAGES = 'over source notes';
 
 const paginatedPathPageOutputSchema = {
   total: z
@@ -116,9 +116,8 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary:
               'Case-insensitive substring search in the text of Markdown (.md) notes. Does not match file names or other file types.',
-            returns:
-              'Pages over matching files (total and count are files). Each item has up to maxMatchesPerFile matching lines ' +
-              'and their 1-based line numbers.',
+            returns: 'Each item has up to maxMatchesPerFile matching lines and their 1-based line numbers.',
+            paging: 'over matching files (total and count are files)',
             seeAlso: ['search_by_name — to find a file by its name.'],
           }),
           schema: searchFulltextSchema,
@@ -133,7 +132,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
             summary:
               'List the tags in the vault\'s Markdown notes (inline and frontmatter) with how many files use each and how often. ' +
               'Case variants are merged under the most common spelling; nested tags have their own entry.',
-            returns: 'Pages over tags sorted by name, with limit/offset.',
+            paging: 'over tags sorted by name',
             seeAlso: ['search_by_tag — for the notes carrying a tag.'],
           }),
           schema: searchTagsSchema,
@@ -145,7 +144,8 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           name: 'search_resolved_links',
           title: 'Find resolved links',
           description: describeTool({
-            summary: `Get the map of resolved links (targets that exist). ${LINK_PAGES}`,
+            summary: 'Get the map of resolved links (targets that exist); pass path for one note.',
+            paging: LINK_PAGES,
             seeAlso: ['search_unresolved_links — for broken links.'],
           }),
           schema: linksMapSchema,
@@ -157,7 +157,8 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           name: 'search_unresolved_links',
           title: 'Find unresolved links',
           description: describeTool({
-            summary: `Get the map of unresolved links (link text that matches no file). ${LINK_PAGES}`,
+            summary: 'Get the map of unresolved links (link text that matches no file); pass path for one note.',
+            paging: LINK_PAGES,
             seeAlso: ['search_resolved_links — for links that resolve.'],
           }),
           schema: linksMapSchema,
@@ -170,6 +171,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Find notes by tag',
           description: describeTool({
             summary: 'Find Markdown notes that carry a tag (inline #tag or frontmatter tags), matched like Obsidian\'s tag search: any case, nested tags included.',
+            paging: '',
             seeAlso: ['search_tags — for the list of tags.'],
           }),
           schema: searchByTagSchema,
@@ -182,6 +184,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Find notes by frontmatter',
           description: describeTool({
             summary: 'Find Markdown notes whose YAML frontmatter has a key, optionally with a given value.',
+            paging: '',
             examples: [
               'Use when: "find all notes where status == done" -> { key: "status", value: "done" }',
               'Use when: "which notes have a status?" -> { key: "status" }',
@@ -197,6 +200,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           title: 'Find files by name',
           description: describeTool({
             summary: 'Find files of any type by name or path. Results are sorted by path.',
+            paging: '',
             seeAlso: ['search_fulltext — to search note text.'],
           }),
           schema: searchByNameSchema,

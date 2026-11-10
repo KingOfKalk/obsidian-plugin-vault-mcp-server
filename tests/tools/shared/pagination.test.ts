@@ -3,7 +3,7 @@ import {
   fitItems,
   fitPage,
   paginate,
-  paginationFieldsWithDefault,
+  paginationFields,
   readPagination,
   resultTextLength,
   shrinkPage,
@@ -163,8 +163,10 @@ describe('fitting a page into CHARACTER_LIMIT (#464)', () => {
     ).toBe(5);
   });
 
-  it('readPagination falls back to the given default limit', () => {
-    expect(readPagination({}, 50)).toEqual({ limit: 50, offset: 0 });
-    expect(paginationFieldsWithDefault(100).limit.parse(undefined)).toBe(100);
+  it('defaults to one page size of 50, max 100, for every paged tool (#490)', () => {
+    expect(readPagination({})).toEqual({ limit: 50, offset: 0 });
+    expect(paginationFields.limit.parse(undefined)).toBe(50);
+    expect(paginationFields.limit.safeParse(100).success).toBe(true);
+    expect(paginationFields.limit.safeParse(101).success).toBe(false);
   });
 });

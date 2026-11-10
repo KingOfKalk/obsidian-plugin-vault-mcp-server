@@ -163,7 +163,7 @@ describe('large vault: search_tags (#468)', () => {
     >('search_tags', {}, (p) => Object.entries(p.tags));
     expect(items).toHaveLength(NOTES + 1 + before);
     expect(new Set(items.map(([tag]) => tag)).size).toBe(items.length);
-    expect(pages).toBe(Math.ceil(items.length / 100));
+    expect(pages).toBe(Math.ceil(items.length / 50));
     expect(Object.fromEntries(items)['#bulk']).toEqual({ files: NOTES, occurrences: NOTES });
   });
 
@@ -222,7 +222,7 @@ describe('large vault: folder listings (#464)', () => {
       { path: 'flat' },
       (p) => p.files,
     );
-    expect(pages).toBe(FLAT_FILES / 100);
+    expect(pages).toBe(FLAT_FILES / 50);
     expect(new Set(items).size).toBe(FLAT_FILES);
   });
 

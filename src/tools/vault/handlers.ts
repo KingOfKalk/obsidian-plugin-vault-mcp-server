@@ -28,7 +28,7 @@ import { BINARY_BYTE_LIMIT } from '../../constants';
 import { getMimeType, isTextMime, vaultUri } from '../../server/resources';
 import type { InferredParams } from '../../registry/types';
 import type { SearchHandlers } from '../search/handlers';
-import { LIST_PAGE_LIMIT, READ_MAX_LENGTH, parseExpectedMtime } from './schemas';
+import { READ_MAX_LENGTH, parseExpectedMtime } from './schemas';
 import {
   findSection,
   formatHeading,
@@ -680,7 +680,7 @@ export function createHandlers(
           ...listing.folders.map((p) => ({ path: p, folder: true })),
           ...listing.files.map((p) => ({ path: p, folder: false })),
         ];
-        const page = paginate(entries, readPagination(params, LIST_PAGE_LIMIT));
+        const page = paginate(entries, readPagination(params));
         return Promise.resolve(
           fitPage(page, (p) => {
             const { items, ...paging } = p;
