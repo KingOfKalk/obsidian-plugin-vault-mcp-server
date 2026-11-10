@@ -43,7 +43,7 @@ import {
   sectionText,
   splitLines,
 } from './sections';
-import { applyReplaceEdits, type ReplaceEdit } from './replace-edits';
+import { applyReplaceEdits, findOccurrences, type ReplaceEdit } from './replace-edits';
 import { renameWithLinkReport } from './link-report';
 import type {
   createFileSchema,
@@ -122,17 +122,6 @@ async function assertExpectedMtime(
   if (currentMs !== expectedMs) {
     throw new MtimeConflictError(path, expectedMs, currentMs);
   }
-}
-
-/** Count non-overlapping occurrences of `needle` (non-empty) in `haystack`. */
-function countOccurrences(haystack: string, needle: string): number {
-  let count = 0;
-  let index = haystack.indexOf(needle);
-  while (index !== -1) {
-    count += 1;
-    index = haystack.indexOf(needle, index + needle.length);
-  }
-  return count;
 }
 
 /**
@@ -509,7 +498,7 @@ export function createHandlers(
         // Matching runs inside vault.process so the read-modify-write is
         // atomic with respect to Obsidian; throwing here writes nothing.
         await adapter.processFile(path, (content) => {
-          const count = countOccurrences(content, oldString);
+          const count = findOccurrences(content, oldString).length;
           if (count === 0) {
             throw new ValidationError(
               `oldString not found in ${path} (0 matches). Nothing was written.`,
