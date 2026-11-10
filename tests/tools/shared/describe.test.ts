@@ -106,6 +106,7 @@ describe('paged tools (#490)', () => {
   it('finds the paged tools', () => {
     expect(paged.map((t) => t.name).sort()).toEqual([
       'search_by_frontmatter',
+      'search_by_name',
       'search_by_tag',
       'search_fulltext',
       'search_resolved_links',

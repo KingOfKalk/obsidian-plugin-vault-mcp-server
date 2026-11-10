@@ -60,3 +60,17 @@ export const searchByFrontmatterSchema = {
     ),
   ...paginationFields,
 };
+
+/** `search_by_name` (#491). */
+export const searchByNameSchema = {
+  query: searchQuerySchema.describe(
+    'Case-insensitive substring of the path, or a glob with * and ?: ' +
+      'without / it matches the file name (e.g. "*Atlas*.md"), with / the whole path (e.g. "notes/**/*.pdf").',
+  ),
+  folder: z
+    .string()
+    .max(4096)
+    .optional()
+    .describe('Only files in this folder and its subfolders, e.g. "projects". Omit for the whole vault.'),
+  ...paginationFields,
+};

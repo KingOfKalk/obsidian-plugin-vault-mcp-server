@@ -372,7 +372,7 @@ are sent once when a client connects and keep the state from that moment.
 | Module | Default | Tools | Notes |
 |---|---|---|---|
 | Vault and File Operations | on | 20 | Create / read / update / delete files and folders, read one section, replace a passage or insert into a section, rename, move, copy, list, binary I/O, metadata, set frontmatter, daily note. |
-| Search and Metadata | on | 6 | Full-text search, list tags, find notes by tag / frontmatter, find resolved / unresolved links. |
+| Search and Metadata | on | 7 | Full-text search, find files by name, list tags, find notes by tag / frontmatter, find resolved / unresolved links. |
 | Editor Operations | off | 10 | Read/insert/replace/delete text in the active editor, cursor and selection management. |
 | Workspace and Navigation | off | 5 | Inspect / open / focus leaves, read the layout. |
 | UI Interactions | off | 1 | Show notices. |
@@ -469,9 +469,9 @@ without being repeated in each tool description.
 
 The text is built when a client connects (MCP `initialize`) from the tools
 that are switched on at that moment: a hint about a tool you switched off
-is left out (the `search_fulltext` line without the Search module, the
-`editor_*` line without the Editor module, the `workspace_open_file` and
-`vault_list_recursive` parts without their tools, and the write-tool and
+is left out (the `search_fulltext` / `search_by_name` line without the
+Search module, the `editor_*` line without the Editor module, the
+`workspace_open_file` and `search_by_name` parts without their tools, and the write-tool and
 `vault_get_aspect` lines without the Vault module). A client that is already
 connected keeps the text it got. With every module on, the text is (the
 first line carries the running plugin version, here shown as `<version>`):
@@ -482,7 +482,7 @@ Call `server_info` for agent-relevant changes (renamed parameters or fields, new
 
 This server exposes an Obsidian vault as MCP tools.
 
-- Find notes by content with `search_fulltext` (note text, not file names); by name with `vault_list_recursive`.
+- Find notes by content with `search_fulltext`; by name with `search_by_name`.
 - `editor_*` tools work on the **active** file only (open one with `workspace_open_file`); no expectedMtime check; most fail with "No active editor" if no Markdown view is focused.
 - Paths: vault-relative, forward slashes, case-sensitive; files with the extension (e.g. `notes/foo.md`); a leading / is ignored. Never absolute filesystem paths; leaving the vault fails with "Path must not traverse outside the vault". The config folder (usually `.obsidian`) is blocked.
 - To edit a note, prefer `vault_replace` or `vault_insert`; `vault_update` only to rewrite a whole file read in one window.
@@ -582,7 +582,7 @@ clients and agents commonly trip over:
   `offset: <nextOffset>`. Since 5.1 every paged tool has the same page
   size: `limit` defaults to 50 and is at most 100, and each paged tool's
   description says so in a `Paging:` line. The paged tools are
-  `search_fulltext`, `search_tags`, `search_by_tag`,
+  `search_fulltext`, `search_by_name`, `search_tags`, `search_by_tag`,
   `search_by_frontmatter`, `search_resolved_links`,
   `search_unresolved_links`, `vault_list`, `vault_list_recursive` and
   `vault_get_aspect` with `aspect: "backlinks"`. Before 5.1 the defaults
@@ -681,12 +681,31 @@ clients and agents commonly trip over:
   write unconditionally, as before.
 - **Full-text search results per file.** `search_fulltext` searches the
   text of Markdown (`.md`) notes only, not file names or other file types;
-  to find a file by name, use `vault_list_recursive`. It returns at most
+  to find a file by name, use `search_by_name`. It returns at most
   `maxMatchesPerFile` matching lines per file (default 5, maximum 100);
   `matchCount` always reports the real number of matches. `limit` and
   `offset` page over files, and `total` and `count` count files. Each item
   has `matches`, the full matching lines, and `lines`, their 1-based line
   numbers (since 5.0).
+- **Find files by name.** `search_by_name` finds files of any type (notes,
+  PDFs, images) by name or path, without reading them. The `query` ignores
+  case:
+  - Plain text matches anywhere in the vault-relative path, so `atlas`
+    finds `Atlas/World Atlas.md` and `notes/atlas-notes.md`, and `daily/`
+    finds everything in a `daily` folder.
+  - With `*` or `?` it is a glob. Without `/` it matches the file name
+    (`*Atlas*.md`, `2026-??-??.md`); with `/` the whole path
+    (`notes/*.md` for files directly in `notes`, `notes/**/*.pdf` for PDFs
+    in `notes` and its subfolders). `*` stays within one folder, `**`
+    crosses folders, `?` is one character.
+  - `folder` limits the search to a folder and its subfolders; omit it for
+    the whole vault. The config folder (usually `.obsidian`) is never
+    searched.
+  - Results are sorted by path and paged with `limit` and `offset` like the
+    other search tools: pass `nextOffset` as `offset` while `hasMore` is
+    true.
+  Before 5.1 the server instructions pointed to `vault_list_recursive` for
+  this, which has no filter.
 - **Frontmatter key search.** `search_by_frontmatter` with only `key` finds
   every note that has that frontmatter property; add `value` to match a
   specific value. For a list property such as `tags: [project, idea]`, a

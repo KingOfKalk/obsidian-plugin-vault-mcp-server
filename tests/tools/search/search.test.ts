@@ -32,10 +32,10 @@ describe('search module', () => {
     expect(module.metadata.id).toBe('search');
   });
 
-  it('should register 6 tools', () => {
+  it('should register 7 tools', () => {
     const adapter = new MockObsidianAdapter();
     const module = createSearchModule(adapter);
-    expect(module.tools()).toHaveLength(6);
+    expect(module.tools()).toHaveLength(7);
   });
 
   it('should have all read-only tools', () => {
@@ -678,6 +678,101 @@ describe('search handlers', () => {
     });
   });
 
+  describe('searchByName (#491)', () => {
+    beforeEach(() => {
+      adapter.addFile('Atlas/World Atlas.md', 'x');
+      adapter.addFile('notes/atlas-notes.md', 'x');
+      adapter.addFile('notes/daily/2026-11-10.md', 'x');
+      adapter.addFile('notes/map.png', 'x');
+      adapter.addFile('readme.md', 'x');
+    });
+
+    async function itemsFor(params: { query: string; folder?: string }): Promise<string[]> {
+      const result = await handlers.searchByName(params);
+      expect(result.isError, getText(result)).toBeUndefined();
+      return (result.structuredContent as { items: string[] }).items;
+    }
+
+    it('matches a substring of the path, case-insensitively, sorted by path', async () => {
+      expect(await itemsFor({ query: 'ATLAS' })).toEqual([
+        'Atlas/World Atlas.md',
+        'notes/atlas-notes.md',
+      ]);
+    });
+
+    it('matches folder names in the path', async () => {
+      expect(await itemsFor({ query: 'daily/' })).toEqual(['notes/daily/2026-11-10.md']);
+    });
+
+    it('finds files of any type', async () => {
+      expect(await itemsFor({ query: '.png' })).toEqual(['notes/map.png']);
+    });
+
+    it('matches a glob without a slash against the file name', async () => {
+      expect(await itemsFor({ query: '*atlas*.md' })).toEqual([
+        'Atlas/World Atlas.md',
+        'notes/atlas-notes.md',
+      ]);
+      expect(await itemsFor({ query: '2026-??-??.md' })).toEqual(['notes/daily/2026-11-10.md']);
+      expect(await itemsFor({ query: 'atlas*' })).toEqual(['notes/atlas-notes.md']);
+    });
+
+    it('matches a glob with a slash against the whole path', async () => {
+      expect(await itemsFor({ query: 'notes/*.md' })).toEqual(['notes/atlas-notes.md']);
+      expect(await itemsFor({ query: 'notes/**/*.md' })).toEqual([
+        'notes/atlas-notes.md',
+        'notes/daily/2026-11-10.md',
+      ]);
+      expect(await itemsFor({ query: '**/*.md' })).toHaveLength(4);
+    });
+
+    it('treats regex characters in the query literally', async () => {
+      adapter.addFile('a (1).md', 'x');
+      adapter.addFile('a+b.md', 'x');
+      expect(await itemsFor({ query: '(1)' })).toEqual(['a (1).md']);
+      expect(await itemsFor({ query: 'a+b*' })).toEqual(['a+b.md']);
+    });
+
+    it('limits the search to a folder', async () => {
+      expect(await itemsFor({ query: '.md', folder: 'notes' })).toEqual([
+        'notes/atlas-notes.md',
+        'notes/daily/2026-11-10.md',
+      ]);
+      expect(await itemsFor({ query: '.md', folder: '/' })).toHaveLength(4);
+    });
+
+    it('fails for a folder that does not exist', async () => {
+      const result = await handlers.searchByName({ query: 'x', folder: 'missing' });
+      expect(result.isError).toBe(true);
+      expect(getText(result)).toContain('missing');
+    });
+
+    it('never returns files in the config folder', async () => {
+      adapter.addFile('.obsidian/plugins/atlas/data.json', '{}');
+      expect(await itemsFor({ query: 'atlas' })).not.toContain('.obsidian/plugins/atlas/data.json');
+      expect(await itemsFor({ query: '**/*.json' })).toEqual([]);
+    });
+
+    it('rejects the config folder and paths outside the vault as folder', async () => {
+      for (const folder of ['.obsidian', '../outside']) {
+        const result = await handlers.searchByName({ query: 'x', folder });
+        expect(result.isError, folder).toBe(true);
+      }
+    });
+
+    it('pages with limit/offset', async () => {
+      const result = await handlers.searchByName({ query: '.md', limit: 2, offset: 1 });
+      expect(result.structuredContent).toEqual({
+        total: 4,
+        count: 2,
+        offset: 1,
+        items: ['notes/atlas-notes.md', 'notes/daily/2026-11-10.md'],
+        hasMore: true,
+        nextOffset: 3,
+      });
+    });
+  });
+
   describe('JSON text of every search tool (#467)', () => {
     it('mirrors structuredContent exactly', async () => {
       adapter.addFile('a.md', '# h1\nsee [[b]] ^blk');
@@ -702,6 +797,7 @@ describe('search handlers', () => {
         await handlers.searchBlockReferences({ path: 'a.md' }),
         await handlers.searchByTag({ tag: 'project' }),
         await handlers.searchByFrontmatter({ key: 'status', value: 'active' }),
+        await handlers.searchByName({ query: 'a' }),
       ];
       for (const result of results) {
         expect(result.isError).toBeUndefined();
@@ -762,7 +858,7 @@ describe('search tools document shared args in inputSchema', () => {
   }
 
   it('paginated search tools expose described limit and offset', () => {
-    for (const name of ['search_fulltext', 'search_by_tag', 'search_by_frontmatter']) {
+    for (const name of ['search_fulltext', 'search_by_tag', 'search_by_frontmatter', 'search_by_name']) {
       const schema = schemaFor(name);
       expect(schema.limit.description, name).toContain('Maximum items');
       expect(schema.offset.description, name).toContain('skip');
@@ -934,6 +1030,22 @@ describe('search read tools — outputSchema declarations', () => {
     const parsed = schema.parse(result.structuredContent);
     expect(parsed.total).toBe(5);
     expect(parsed.count).toBe(2);
+    expect(parsed.hasMore).toBe(true);
+    expect(parsed.nextOffset).toBe(2);
+  });
+
+  it('search_by_name declares outputSchema and parses with hasMore=true and nextOffset', async () => {
+    const tool = findTool('search_by_name');
+    const schema = getStructured(tool);
+
+    const adapter = new MockObsidianAdapter();
+    for (let i = 0; i < 5; i++) adapter.addFile(`f-${String(i)}.md`, '');
+    const handlers = createSearchHandlers(adapter);
+
+    const result = await handlers.searchByName({ query: 'f-', limit: 2 });
+    const parsed = schema.parse(result.structuredContent);
+    expect(parsed.total).toBe(5);
+    expect(parsed.items).toEqual(['f-0.md', 'f-1.md']);
     expect(parsed.hasMore).toBe(true);
     expect(parsed.nextOffset).toBe(2);
   });

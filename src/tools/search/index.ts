@@ -7,6 +7,7 @@ import {
   searchFulltextSchema,
   searchByTagSchema,
   searchByFrontmatterSchema,
+  searchByNameSchema,
   searchTagsSchema,
   linksMapSchema,
 } from './schemas';
@@ -104,7 +105,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
     metadata: {
       id: 'search',
       name: 'Search and Metadata',
-      description: 'Vault-wide search across contents, tags, frontmatter, and link maps',
+      description: 'Vault-wide search across contents, file names, tags, frontmatter, and link maps',
     },
 
     tools(): ToolDefinition[] {
@@ -117,7 +118,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
               'Case-insensitive substring search in the text of Markdown (.md) notes. Does not match file names or other file types.',
             returns: 'Each item has up to maxMatchesPerFile matching lines and their 1-based line numbers.',
             paging: 'over matching files (total and count are files)',
-            seeAlso: ['vault_list_recursive — to find a file by its name.'],
+            seeAlso: ['search_by_name — to find a file by its name.'],
           }),
           schema: searchFulltextSchema,
           outputSchema: searchFulltextOutputSchema,
@@ -192,6 +193,19 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           schema: searchByFrontmatterSchema,
           outputSchema: paginatedPathPageOutputSchema,
           handler: handlers.searchByFrontmatter,
+          annotations: annotations.read,
+        }),
+        defineTool({
+          name: 'search_by_name',
+          title: 'Find files by name',
+          description: describeTool({
+            summary: 'Find files of any type by name or path. Results are sorted by path.',
+            paging: '',
+            seeAlso: ['search_fulltext — to search note text.'],
+          }),
+          schema: searchByNameSchema,
+          outputSchema: paginatedPathPageOutputSchema,
+          handler: handlers.searchByName,
           annotations: annotations.read,
         }),
       ];
