@@ -21,7 +21,7 @@ interface MatchSpan {
 }
 
 /** Start offsets of the non-overlapping occurrences of `needle` (non-empty). */
-function findOccurrences(haystack: string, needle: string): number[] {
+export function findOccurrences(haystack: string, needle: string): number[] {
   const starts: number[] = [];
   let index = haystack.indexOf(needle);
   while (index !== -1) {

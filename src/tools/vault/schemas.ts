@@ -3,6 +3,8 @@ import { base64Schema } from '../../utils/validation';
 import { paginationFields } from '../shared/pagination';
 import { READ_MAX_LENGTH, windowLengthField, windowOffsetField } from '../shared/window';
 import { frontmatterKeySchema } from '../shared/frontmatter';
+import { textInput } from '../shared/schemas';
+import { ASPECTS } from './aspect';
 import {
   ENTRY_PATH_DESC,
   EXPECTED_MTIME_DESC,
@@ -40,10 +42,7 @@ const expectedMtime = z
 
 export const createFileSchema = {
   path,
-  content: z
-    .string()
-    .max(5_000_000)
-    .describe('Initial UTF-8 text content.'),
+  content: textInput.describe('Initial UTF-8 text content.'),
 };
 
 export { READ_MAX_LENGTH };
@@ -72,32 +71,21 @@ export const readFileSchema = {
 
 export const updateFileSchema = {
   path,
-  content: z
-    .string()
-    .max(5_000_000)
-    .describe('New content of the whole file.'),
+  content: textInput.describe('New content of the whole file.'),
   expectedMtime,
-};
-
-export const deleteFileSchema = {
-  path,
 };
 
 export const appendFileSchema = {
   path,
-  content: z
-    .string()
-    .min(1)
-    .max(5_000_000)
-    .describe('Content to append.'),
+  content: textInput.min(1).describe('Content to append.'),
   expectedMtime,
 };
 
 /** Most edits one `vault_replace` call may carry (#429). */
 export const MAX_REPLACE_EDITS = 100;
 
-const replaceOldString = z.string().min(1).max(5_000_000);
-const replaceNewString = z.string().max(5_000_000);
+const replaceOldString = textInput.min(1);
+const replaceNewString = textInput;
 
 /**
  * One entry of `vault_replace`'s `edits` array (#429). Strict, so a typo
@@ -164,10 +152,8 @@ export const insertSchema = {
         '"start": before the first non-blank line below the heading (blank lines after the heading stay above the text; ' +
         'in an empty section, right below the heading).',
     ),
-  text: z
-    .string()
+  text: textInput
     .min(1)
-    .max(5_000_000)
     .describe(
       'Inserted as whole lines; one trailing newline is ignored. Start it with a newline to leave a blank line before it.',
     ),
@@ -179,10 +165,6 @@ export const insertSchema = {
         'replace that line with text instead of keeping it; position is then ignored.',
     ),
   expectedMtime,
-};
-
-export const getMetadataSchema = {
-  path,
 };
 
 export const renameFileSchema = {
@@ -232,22 +214,12 @@ export const deleteFolderSchema = {
  */
 const listFolderPath = z.string().max(4096);
 
+/** `vault_list` and `vault_list_recursive`. */
 export const listFolderSchema = {
   path: listFolderPath.describe(
     'Vault-relative folder path, e.g. "projects"; "" (or "/" or ".") for the vault root.',
   ),
   ...paginationFields,
-};
-
-export const listRecursiveSchema = {
-  path: listFolderPath.describe(
-    'Vault-relative folder path, e.g. "projects"; "" (or "/" or ".") for the vault root.',
-  ),
-  ...paginationFields,
-};
-
-export const readBinarySchema = {
-  path,
 };
 
 export const writeBinarySchema = {
@@ -270,14 +242,7 @@ export const writeBinarySchema = {
 export const getAspectSchema = {
   path,
   aspect: z
-    .enum([
-      'frontmatter',
-      'headings',
-      'outgoing_links',
-      'embeds',
-      'backlinks',
-      'block_references',
-    ])
+    .enum(ASPECTS)
     .describe(
       'frontmatter, headings, outgoing_links ([[...]] and [text](note.md) links), embeds (![[...]]), ' +
         'backlinks (files linking TO this file) or block_references (^block-ids). ' +

@@ -3,9 +3,27 @@ import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/server';
 import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
 import { createEditorModule } from '../../../src/tools/editor/index';
+import { createToolDispatcher } from '../../../src/server/mcp-server';
+import { Logger } from '../../../src/utils/logger';
+import type { ToolDefinition } from '../../../src/registry/types';
 
 function getText(r: CallToolResult): string {
   return r.content[0].type === 'text' ? r.content[0].text : '';
+}
+
+/** Call `tool` the way a client does: through the dispatcher's input check. */
+function dispatch(tool: ToolDefinition, args: Record<string, unknown>): Promise<CallToolResult> {
+  const logger = new Logger('test', { debugMode: false, accessKey: '' });
+  const extra = {
+    mcpReq: {
+      id: 1,
+      method: 'tools/call',
+      signal: new AbortController().signal,
+      notify: (): Promise<void> => Promise.resolve(),
+      send: (): void => undefined,
+    },
+  };
+  return createToolDispatcher(tool, logger)(args, extra as never);
 }
 
 describe('editor module', () => {
@@ -82,9 +100,9 @@ describe('editor module', () => {
         adapter.setActiveEditor('test.md', 'line1\nline2');
         const module = createEditorModule(adapter);
         const tool = module.tools().find((t) => t.name === 'editor_set_cursor')!;
-        const result = await tool.handler({ line: -1, ch: 0 });
+        const result = await dispatch(tool, { line: -1, ch: 0 });
         expect(result.isError).toBe(true);
-        expect(getText(result)).toContain('non-negative');
+        expect(getText(result)).toMatch(/^Invalid arguments: line: /);
       });
 
       it('rejects line beyond EOF in editor_set_cursor', async () => {
@@ -100,8 +118,9 @@ describe('editor module', () => {
         adapter.setActiveEditor('test.md', 'hello');
         const module = createEditorModule(adapter);
         const tool = module.tools().find((t) => t.name === 'editor_insert')!;
-        const result = await tool.handler({ line: 0.5, ch: 0, text: 'x' });
+        const result = await dispatch(tool, { line: 0.5, ch: 0, text: 'x' });
         expect(result.isError).toBe(true);
+        expect(getText(result)).toMatch(/^Invalid arguments: line: /);
       });
 
       it('accepts editor_insert at the last valid line', async () => {
@@ -132,13 +151,14 @@ describe('editor module', () => {
         adapter.setActiveEditor('test.md', 'hello');
         const module = createEditorModule(adapter);
         const tool = module.tools().find((t) => t.name === 'editor_delete')!;
-        const result = await tool.handler({
+        const result = await dispatch(tool, {
           fromLine: 0,
           fromCh: 0,
           toLine: 0,
           toCh: -1,
         });
         expect(result.isError).toBe(true);
+        expect(getText(result)).toMatch(/^Invalid arguments: toCh: /);
       });
     });
   });

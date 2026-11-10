@@ -190,6 +190,11 @@ export function handleToolError(error: unknown): CallToolResult {
   return errorFrom(redactFilesystemPaths(message));
 }
 
+/** `handleToolError` for a plain message: `Error: <message>`, `isError: true`. */
+export function errorResult(message: string): CallToolResult {
+  return handleToolError(new Error(message));
+}
+
 /**
  * Absolute vault base paths registered by the plugin at startup. Errors
  * from the filesystem (e.g. a raw ENOENT) embed them; the generic
