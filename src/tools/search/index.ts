@@ -12,18 +12,15 @@ import {
   linksMapSchema,
   unresolvedLinksSchema,
 } from './schemas';
-import { pageOutputFields } from '../shared/pagination';
+import { itemsPageOutputFields, pageOutputFields } from '../shared/pagination';
 
 /**
  * Output schemas of the search tools, all data tools (#467). Each shape
  * mirrors what the handler in `./handlers.ts` puts on `structuredContent`,
  * which is also the JSON text of the result.
  */
-const searchFulltextOutputSchema = {
-  total: z.number().describe('Total number of matched files before pagination.'),
-  count: z.number().describe('Number of files in this page.'),
-  offset: z.number().describe('Offset of the first item in this page.'),
-  items: z
+const searchFulltextOutputSchema = itemsPageOutputFields(
+  z
     .array(
       z.object({
         path: z.string().describe('Vault-relative path of the matching file.'),
@@ -39,14 +36,12 @@ const searchFulltextOutputSchema = {
       }),
     )
     .describe('Matching files in this page.'),
-  hasMore: z
-    .boolean()
-    .describe('True when more results are available past this page.'),
-  nextOffset: z
-    .number()
-    .optional()
-    .describe('Offset to use in the next request when hasMore is true.'),
-};
+  {
+    total: 'Total number of matched files before pagination.',
+    count: 'Number of files in this page.',
+    hasMore: 'True when more results are available past this page.',
+  },
+);
 
 const searchTagsOutputSchema = {
   tags: z
@@ -115,23 +110,14 @@ const frontmatterHitsOutputSchema = {
   ...pageOutputFields,
 };
 
-const paginatedPathPageOutputSchema = {
-  total: z
-    .number()
-    .describe('Total number of matching files before pagination.'),
-  count: z.number().describe('Number of files in this page.'),
-  offset: z.number().describe('Offset of the first item in this page.'),
-  items: z
-    .array(z.string())
-    .describe('Vault-relative file paths in this page.'),
-  hasMore: z
-    .boolean()
-    .describe('True when there are more files past this page.'),
-  nextOffset: z
-    .number()
-    .optional()
-    .describe('Offset to use in the next request when hasMore is true.'),
-};
+const paginatedPathPageOutputSchema = itemsPageOutputFields(
+  z.array(z.string()).describe('Vault-relative file paths in this page.'),
+  {
+    total: 'Total number of matching files before pagination.',
+    count: 'Number of files in this page.',
+    hasMore: 'True when there are more files past this page.',
+  },
+);
 
 export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
   const handlers = createSearchHandlers(adapter);

@@ -4,7 +4,7 @@ import { ObsidianAdapter } from '../../obsidian/adapter';
 import { createHandlers, WriteMutex } from './handlers';
 import { describeTool } from '../shared/describe';
 import { MODIFIED_DESC, NEW_MODIFIED_DESC } from '../shared/descriptions';
-import { pageOutputFields } from '../shared/pagination';
+import { itemsPageOutputFields, pageOutputFields } from '../shared/pagination';
 import { ASPECTS } from './aspect';
 import {
   createFileSchema,
@@ -59,21 +59,11 @@ const listRecursiveOutputSchema = {
     .array(z.string())
     .describe('Folders under the listed path (recursive) in this page, paged with the same offset as the files.'),
   folderTotal: z.number().describe('Total number of folders before paging.'),
-  total: z
-    .number()
-    .describe('Total number of files matched before pagination.'),
-  count: z.number().describe('Number of files in this page.'),
-  offset: z.number().describe('Offset of the first item in this page.'),
-  items: z
-    .array(z.string())
-    .describe('Files in this page (vault-relative paths).'),
-  hasMore: z
-    .boolean()
-    .describe('True when more files or folders follow this page.'),
-  nextOffset: z
-    .number()
-    .optional()
-    .describe('Offset to use in the next request when hasMore is true.'),
+  ...itemsPageOutputFields(z.array(z.string()).describe('Files in this page (vault-relative paths).'), {
+    total: 'Total number of files matched before pagination.',
+    count: 'Number of files in this page.',
+    hasMore: 'True when more files or folders follow this page.',
+  }),
 };
 
 /**

@@ -19,7 +19,7 @@ import {
   PluginApiUnavailableError,
   ValidationError,
 } from '../shared/errors';
-import { fitItems, fitPage, paginate, readPagination } from '../shared/pagination';
+import { fitItems, fitPage, pageOf, paginate, readPagination } from '../shared/pagination';
 import { dataResponse, documentResponse, documentText } from '../shared/response';
 import { expandPlaceholders, noteTitle } from '../shared/placeholders';
 import {
@@ -650,14 +650,17 @@ export function createHandlers(
         ...listing.files.map((p) => ({ path: p, folder: false })),
       ];
       const page = paginate(entries, readPagination(params));
-      return fitPage(page, (p) => {
-        const { items, ...paging } = p;
-        return dataResponse({
-          files: items.filter((e) => !e.folder).map((e) => e.path),
-          folders: items.filter((e) => e.folder).map((e) => e.path),
-          ...paging,
-        });
-      });
+      return fitPage(page, (p) =>
+        dataResponse(
+          pageOf(
+            {
+              files: p.items.filter((e) => !e.folder).map((e) => e.path),
+              folders: p.items.filter((e) => e.folder).map((e) => e.path),
+            },
+            p,
+          ),
+        ),
+      );
     },
 
     listRecursive(params): CallToolResult {

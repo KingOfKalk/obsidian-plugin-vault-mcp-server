@@ -12,7 +12,7 @@ import {
   fitPage,
   paginate,
   readPagination,
-  type PaginatedResponse,
+  pageOf,
 } from '../shared/pagination';
 import { dataResponse } from '../shared/response';
 import { createNameMatcher } from './name-match';
@@ -47,27 +47,6 @@ const DEFAULT_MAX_MATCHES_PER_FILE = 5;
 
 type LinkMap = Record<string, Record<string, number>>;
 type LinkMapEntry = [string, Record<string, number>];
-
-/** One page of a link map: `links` holds the page's sources (#464). */
-interface LinkMapPage {
-  links: LinkMap;
-  total: number;
-  count: number;
-  offset: number;
-  hasMore: boolean;
-  nextOffset?: number;
-}
-
-function toLinkMapPage(page: PaginatedResponse<LinkMapEntry>): LinkMapPage {
-  return {
-    links: Object.fromEntries(page.items),
-    total: page.total,
-    count: page.count,
-    offset: page.offset,
-    hasMore: page.hasMore,
-    ...(page.hasMore ? { nextOffset: page.nextOffset } : {}),
-  };
-}
 
 /** Sources listed per target by search_unresolved_links groupBy target (#505). */
 export const MAX_SOURCES_PER_TARGET = 10;
@@ -127,17 +106,6 @@ function compareTags(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-function toTagsPage(page: PaginatedResponse<TagEntry>): Record<string, unknown> {
-  return {
-    tags: Object.fromEntries(page.items),
-    total: page.total,
-    count: page.count,
-    offset: page.offset,
-    hasMore: page.hasMore,
-    ...(page.hasMore ? { nextOffset: page.nextOffset } : {}),
-  };
-}
-
 export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
   const vaultPath = adapter.getVaultPath();
   const configDir = adapter.getConfigDir();
@@ -167,7 +135,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
     params: { limit?: number; offset?: number },
   ): CallToolResult {
     const page = paginate(entries, readPagination(params));
-    return fitPage(page, (p) => dataResponse(toLinkMapPage(p)));
+    return fitPage(page, (p) => dataResponse(pageOf({ links: Object.fromEntries(p.items) }, p)));
   }
 
   return safeHandlers<SearchHandlers>({
@@ -239,7 +207,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
         .map(([tag, usage]): TagEntry => [tag, { files: usage.files.length, occurrences: usage.count }])
         .sort(([a], [b]) => compareTags(a, b));
       const page = paginate(entries, readPagination(params));
-      return fitPage(page, (p) => dataResponse(toTagsPage(p)));
+      return fitPage(page, (p) => dataResponse(pageOf({ tags: Object.fromEntries(p.items) }, p)));
     },
 
     async searchResolvedLinks(params): Promise<CallToolResult> {
@@ -252,7 +220,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
       const entries = await linkMapEntries(adapter.getUnresolvedLinks(), params, true);
       if (params.groupBy !== 'target') return fitLinkMap(entries, params);
       const page = paginate(groupByTarget(entries), readPagination(params));
-      return fitPage(page, ({ items, ...rest }) => dataResponse({ targets: items, ...rest }));
+      return fitPage(page, (p) => dataResponse(pageOf({ targets: p.items }, p)));
     },
 
     searchByTag(params): CallToolResult {

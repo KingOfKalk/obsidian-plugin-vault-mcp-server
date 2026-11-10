@@ -54,6 +54,34 @@ export const pageOutputFields = {
     .describe('Offset to pass in the next call when hasMore is true.'),
 };
 
+/**
+ * Output-schema fields of a page whose items sit in `items` (#464), with
+ * each tool's own wording of `total`, `count` and `hasMore`.
+ */
+export function itemsPageOutputFields<T extends z.ZodType>(
+  items: T,
+  text: { total: string; count: string; hasMore: string },
+): {
+  total: z.ZodNumber;
+  count: z.ZodNumber;
+  offset: z.ZodNumber;
+  items: T;
+  hasMore: z.ZodBoolean;
+  nextOffset: z.ZodOptional<z.ZodNumber>;
+} {
+  return {
+    total: z.number().describe(text.total),
+    count: z.number().describe(text.count),
+    offset: pageOutputFields.offset,
+    items,
+    hasMore: z.boolean().describe(text.hasMore),
+    nextOffset: z
+      .number()
+      .optional()
+      .describe('Offset to use in the next request when hasMore is true.'),
+  };
+}
+
 export interface PaginationInput {
   limit: number;
   offset: number;
@@ -66,6 +94,27 @@ export interface PaginatedResponse<T> {
   items: T[];
   hasMore: boolean;
   nextOffset?: number;
+}
+
+/** The paging fields of a page: everything but its items. */
+export type PageFields = Omit<PaginatedResponse<unknown>, 'items'>;
+
+/**
+ * `fields` followed by the paging fields of `page` (#464), for tools whose
+ * items sit in fields of their own (e.g. `links`) rather than in `items`.
+ */
+export function pageOf<T extends object>(
+  fields: T,
+  page: PaginatedResponse<unknown>,
+): T & PageFields {
+  return {
+    ...fields,
+    total: page.total,
+    count: page.count,
+    offset: page.offset,
+    hasMore: page.hasMore,
+    ...(page.nextOffset === undefined ? {} : { nextOffset: page.nextOffset }),
+  };
 }
 
 /**
