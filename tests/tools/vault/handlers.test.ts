@@ -314,11 +314,20 @@ describe('vault handlers', () => {
     });
   });
 
-  describe('renameFolder', () => {
-    it('should rename a folder', async () => {
+  describe('folders via moveFile / renameFile (#468)', () => {
+    it('moveFile renames a folder', async () => {
       adapter.addFolder('old');
-      const result = await handlers.renameFolder({ path: 'old', newPath: 'new' });
+      const result = await handlers.moveFile({ path: 'old', newPath: 'new' });
       expect(result.isError).toBeUndefined();
+      expect(await adapter.exists('new')).toBe(true);
+      expect(await adapter.exists('old')).toBe(false);
+    });
+
+    it('renameFile renames a folder', async () => {
+      adapter.addFolder('old');
+      const result = await handlers.renameFile({ path: 'old', newName: 'new' });
+      expect(result.isError).toBeUndefined();
+      expect(await adapter.exists('new')).toBe(true);
     });
   });
 

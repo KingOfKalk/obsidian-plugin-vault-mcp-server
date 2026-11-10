@@ -51,7 +51,6 @@ const WRITE_TOOLS_WITH_OUTPUT = [
   'vault_delete',
   'vault_create_folder',
   'vault_delete_folder',
-  'vault_rename_folder',
   'vault_write_binary',
   'editor_insert',
   'editor_replace',
@@ -291,10 +290,6 @@ describe('write tools return their data as JSON text and structuredContent (#388
       { path: 'empty', deleted: true, recursive: false, trashedTo: 'system' },
     ],
     [
-      'vault_rename_folder',
-      { from: 'empty', to: 'renamed', linksUpdated: 0, updatedFiles: [], autoUpdateLinks: true },
-    ],
-    [
       'vault_write_binary',
       { path: 'bin/data.bin', sizeBytes: 3, modified: expect.any(String) as unknown },
     ],
@@ -496,9 +491,10 @@ describe('vault_daily_note through a real SDK client (#408)', () => {
       });
       expect(refs.structuredContent).toMatchObject({
         aspect: 'block_references',
-        blockRefs: [{ id: 'goal-1' }],
+        blockRefs: [{ id: 'goal-1', text: expect.stringContaining('^goal-1') as unknown }],
       });
-      expect(JSON.parse(textOf(refs))).toMatchObject({ aspect: 'block_references' });
+      expect((refs.structuredContent as { blockRefs: object[] }).blockRefs[0]).not.toHaveProperty('line');
+      expect(JSON.parse(textOf(refs))).toEqual(refs.structuredContent);
     } finally {
       await h.close();
     }

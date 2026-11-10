@@ -42,8 +42,15 @@ describe('rename, move and copy onto an existing destination', function () {
     expect(await readFromDisk('dest/b.md')).toBe('B\n');
   });
 
-  it('vault_rename_folder onto an existing folder fails with "Destination already exists"', async function () {
-    const text = await callToolError(client, 'vault_rename_folder', { path: 'dest/f1', newPath: 'dest/f2' });
+  it('vault_move of a folder onto an existing folder fails with "Destination already exists"', async function () {
+    const text = await callToolError(client, 'vault_move', { path: 'dest/f1', newPath: 'dest/f2' });
+    expect(text).toContain('Destination already exists: dest/f2.');
+    expect(await readFromDisk('dest/f1/x.md')).toBe('x\n');
+    expect(await readFromDisk('dest/f2/x.md')).toBeNull();
+  });
+
+  it('vault_rename of a folder onto an existing folder fails with "Destination already exists"', async function () {
+    const text = await callToolError(client, 'vault_rename', { path: 'dest/f1', newName: 'f2' });
     expect(text).toContain('Destination already exists: dest/f2.');
     expect(await readFromDisk('dest/f1/x.md')).toBe('x\n');
     expect(await readFromDisk('dest/f2/x.md')).toBeNull();

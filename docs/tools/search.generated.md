@@ -93,20 +93,28 @@ Response (`structuredContent`):
 
 **List tags**
 
-List every tag in the vault's Markdown notes (inline and frontmatter) with the files using it (each once) and its total occurrence count. Case variants are merged under the most common spelling.
+List the tags in the vault's Markdown notes (inline and frontmatter) with how many files use each and how often. Case variants are merged under the most common spelling; nested tags have their own entry.
+Returns: Pages over tags sorted by name, with limit/offset.
 See also:
 - search_by_tag — for the notes carrying a tag.
 
 #### Input
 
-_No input parameters._
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `limit` | number (1–100) | no (default `100`) | Maximum items per page. |
+| `offset` | number (0–9007199254740991) | no (default `0`) | Items to skip; pass nextOffset to get the next page. |
 
 #### Output
 
 | Field | Type | Description |
 |---|---|---|
-| `tags` | object | Map of tag (with leading #) to the vault-relative paths of the files that use it. Each file is listed once per tag. Spellings that differ only in case are one entry, keyed by the most common spelling. |
-| `counts` | object | Map of tag (with leading #) to its total number of occurrences across the vault; a file using a tag twice counts twice. The number of files is the length of the matching tags entry. |
+| `tags` | object | Map of tag (with leading #) to its counts, for the tags in this page. |
+| `total` | number | Total number of items before paging. |
+| `count` | number | Number of items in this page. |
+| `offset` | number | Offset of the first item in this page. |
+| `hasMore` | boolean | True when more items follow this page. |
+| `nextOffset` | number | Offset to pass in the next call when hasMore is true. |
 
 #### Example
 
@@ -124,13 +132,15 @@ Response (`structuredContent`):
 ```json
 {
   "tags": {
-    "#project": [
-      "projects/alpha.md"
-    ]
+    "#project": {
+      "files": 1,
+      "occurrences": 1
+    }
   },
-  "counts": {
-    "#project": 1
-  }
+  "total": 1,
+  "count": 1,
+  "offset": 0,
+  "hasMore": false
 }
 ```
 

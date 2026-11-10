@@ -21,7 +21,13 @@ export const filePathSchema = {
   path: vaultPathField(FILE_PATH_DESC),
 };
 
-export const readOnlySchema = {};
+/** Default page size of search_tags (#468). */
+export const TAGS_PAGE_LIMIT = 100;
+
+/** `search_tags`: counts per tag, paged (#468). */
+export const searchTagsSchema = {
+  ...paginationFieldsWithDefault(TAGS_PAGE_LIMIT),
+};
 
 /** Default page size of the link maps and backlinks (#464). */
 export const LINKS_PAGE_LIMIT = 50;

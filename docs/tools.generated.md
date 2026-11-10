@@ -6,17 +6,17 @@ This file is regenerated from the tool registry and committed so CI can detect d
 
 | Module ID | Module Name | Count | Tools |
 |---|---|---|---|
-| `vault` | Vault and File Operations | 21 | vault_create, vault_read, vault_update, vault_delete, vault_append, vault_replace, vault_insert, vault_get_metadata, vault_rename, vault_move, vault_copy, vault_create_folder, vault_delete_folder, vault_rename_folder, vault_list, vault_list_recursive, vault_read_binary, vault_write_binary, vault_get_aspect, vault_daily_note, vault_set_frontmatter |
+| `vault` | Vault and File Operations | 20 | vault_create, vault_read, vault_update, vault_delete, vault_append, vault_replace, vault_insert, vault_get_metadata, vault_rename, vault_move, vault_copy, vault_create_folder, vault_delete_folder, vault_list, vault_list_recursive, vault_read_binary, vault_write_binary, vault_get_aspect, vault_daily_note, vault_set_frontmatter |
 | `editor` | Editor Operations | 10 | editor_get_content, editor_get_active_file, editor_insert, editor_replace, editor_delete, editor_get_cursor, editor_set_cursor, editor_get_selection, editor_set_selection, editor_get_line_count |
 | `search` | Search and Metadata | 6 | search_fulltext, search_tags, search_resolved_links, search_unresolved_links, search_by_tag, search_by_frontmatter |
 | `workspace` | Workspace and Navigation | 5 | workspace_get_active_leaf, workspace_open_file, workspace_list_leaves, workspace_set_active_leaf, workspace_get_layout |
 | `ui` | UI Interactions | 1 | ui_notice |
 | `templates` | Templates and Content Generation | 3 | template_list, template_create_from, template_expand |
-| `plugin-interop` | Plugin Interop | 6 | plugin_list, plugin_check, plugin_dataview_query, plugin_dataview_describe_js_query, plugin_templater_describe_template, plugin_execute_command |
+| `plugin-interop` | Plugin Interop | 4 | plugin_list, plugin_check, plugin_dataview_query, plugin_execute_command |
 | `extras` | Extras | 1 | extras_get_date |
 | `server` | Server | 1 | server_info |
 
-**Total tools:** 54 across 9 modules.
+**Total tools:** 51 across 9 modules.
 
 ## Tools by module
 
@@ -34,12 +34,11 @@ Schemas → [docs/tools/vault.generated.md](tools/vault.generated.md)
 | `vault_replace` | Replace text in file |  | ✓ |
 | `vault_insert` | Insert into section |  |  |
 | `vault_get_metadata` | Get file metadata | ✓ |  |
-| `vault_rename` | Rename file |  | ✓ |
-| `vault_move` | Move file |  | ✓ |
+| `vault_rename` | Rename file or folder |  | ✓ |
+| `vault_move` | Move file or folder |  | ✓ |
 | `vault_copy` | Copy file |  |  |
 | `vault_create_folder` | Create folder |  |  |
 | `vault_delete_folder` | Delete folder |  | ✓ |
-| `vault_rename_folder` | Rename folder |  | ✓ |
 | `vault_list` | List folder | ✓ |  |
 | `vault_list_recursive` | List folder (recursive) | ✓ |  |
 | `vault_read_binary` | Read binary file | ✓ |  |
@@ -117,8 +116,6 @@ Schemas → [docs/tools/plugin-interop.generated.md](tools/plugin-interop.genera
 | `plugin_list` | List plugins | ✓ |  |
 | `plugin_check` | Check plugin enabled | ✓ |  |
 | `plugin_dataview_query` | Run Dataview query | ✓ |  |
-| `plugin_dataview_describe_js_query` | Describe Dataview JS query | ✓ |  |
-| `plugin_templater_describe_template` | Describe Templater template | ✓ |  |
 | `plugin_execute_command` | Execute command |  | ✓ |
 
 ### Extras (`extras`)

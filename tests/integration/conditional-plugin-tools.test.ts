@@ -119,7 +119,8 @@ describe('plugin tools follow their plugin (#469)', () => {
     expect(names).not.toContain('plugin_execute_command');
     // The rest of the module stays.
     expect(names).toContain('plugin_list');
-    expect(names).toContain('plugin_dataview_describe_js_query');
+    expect(names).toContain('plugin_check');
+    expect(names).not.toContain('plugin_dataview_describe_js_query');
     await expect(
       client.callTool({ name: 'plugin_execute_command', arguments: { commandId: 'x' } }),
     ).rejects.toThrow(/plugin_execute_command (disabled|not found)/);

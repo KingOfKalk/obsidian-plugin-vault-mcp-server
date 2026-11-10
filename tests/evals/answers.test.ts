@@ -189,11 +189,11 @@ const solutions: Array<() => Promise<string>> = [
     const blockEmbeds = (await aspectLinks(kickoff ?? '', 'embeds')).filter((e) => e.link.includes('#^'));
     expect(blockEmbeds).toHaveLength(1);
     const [note, block] = blockEmbeds[0].link.split('#^');
-    const { blockRefs } = await data<{ blockRefs: Array<{ id: string; line: string }> }>('vault_get_aspect', {
+    const { blockRefs } = await data<{ blockRefs: Array<{ id: string; text: string }> }>('vault_get_aspect', {
       path: await notePath(note),
       aspect: 'block_references',
     });
-    const line = blockRefs.find((b) => b.id === block)?.line ?? '';
+    const line = blockRefs.find((b) => b.id === block)?.text ?? '';
     const amount = /([\d,]+)\s*EUR/.exec(line);
     return (amount?.[1] ?? '').replace(/,/g, '');
   },
@@ -252,8 +252,9 @@ const solutions: Array<() => Promise<string>> = [
   // Q8: stations on the Corra -> each #issue/<kind> tag (paged) -> most frequent kind
   async (): Promise<string> => {
     const corra = await stationsWhere('river', 'Corra');
-    const { tags } = await data<{ tags: Record<string, string[]> }>('search_tags');
-    const kinds = Object.keys(tags)
+    const tagPages = await pages<PageInfo & { tags: Record<string, { files: number }> }>('search_tags');
+    const kinds = tagPages
+      .flatMap((p) => Object.keys(p.tags))
       .filter((t) => t.startsWith('#issue/'))
       .map((t) => t.slice('#issue/'.length));
     expect(kinds.length).toBeGreaterThan(1);

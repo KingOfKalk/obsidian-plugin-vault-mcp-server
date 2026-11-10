@@ -2,8 +2,8 @@ import type { ObsidianAdapter } from '../../obsidian/adapter';
 import { withDestinationCheck } from '../shared/errors';
 
 /**
- * What `vault_rename`, `vault_move` and `vault_rename_folder` report about
- * internal links after the rename (#430).
+ * What `vault_rename` and `vault_move` report about internal links
+ * after the rename (#430).
  */
 export interface LinkUpdateReport {
   /** Links to the moved file(s) in the files whose content changed. */

@@ -68,13 +68,13 @@ and scripts that call them. `server_info` lists the changes under version
     with `project` now finds `#project`, `#Project` and `#project/alpha`
     (but not `#projects`), like Obsidian's `tag:#project` search. Before,
     it matched only the exact spelling. Results are sorted by path.
-    **What to do:** nothing for most calls. To leave nested tags out, take
-    the files of the exact tag from `search_tags` instead.
+    **What to do:** nothing for most calls. To leave nested tags out,
+    check the found notes for the exact tag, e.g. with `search_fulltext`.
   - **`search_tags` merges spellings.** Tags that differ only in case are
     one entry, keyed by the most common spelling (`#Project` and
-    `#project` become one entry), with their files and `counts` combined.
-    Nested tags keep their own entries. **What to do:** don't rely on
-    finding every spelling as its own key.
+    `#project` become one entry), with their counts combined. Nested tags
+    keep their own entries. **What to do:** don't rely on finding every
+    spelling as its own key.
   - **`{{title}}` is the new file's name.** `template_create_from` fills
     `{{title}}` with the file name of `destPath` without `.md`
     (`people/Ada.md` gives `Ada`); before, it was `Untitled`.
@@ -133,6 +133,32 @@ and scripts that call them. `server_info` lists the changes under version
     confirmation texts parses the JSON text, or reads
     `structuredContent`, instead. Agents need no change: the model reads
     the same information as before, in fewer characters.
+- **Fewer, leaner tools (54 to 51).**
+  - **`search_tags` returns counts, not files.** Each tag maps to
+    `{ "files": <number of files>, "occurrences": <total uses> }`; the
+    file lists and the separate `counts` map are gone (on a large vault
+    the old result reached about 300,000 characters). Tags are sorted by
+    name, a nested tag right after its parent, and paged with `limit` and
+    `offset` (100 per page by default) with `total`, `hasMore` and
+    `nextOffset`. **What to do:** call `search_by_tag` for the files of a
+    tag; on a vault with more than 100 tags, call again with `nextOffset`
+    while `hasMore` is true.
+  - **`plugin_dataview_describe_js_query` and
+    `plugin_templater_describe_template` are gone.** They ran nothing and
+    only returned what they were given. DataviewJS and Templater code is
+    still never run by this plugin. **What to do:** remove calls to them;
+    read a template's text with `vault_read`.
+  - **`blockRefs[].line` is now `blockRefs[].text`.** In
+    `vault_get_aspect` with `aspect: "block_references"`, each entry is
+    `{ "id", "text" }`. The value is the same: the text of the line that
+    ends with the block id, not a line number. **What to do:** read `text`
+    instead of `line`.
+  - **`vault_rename_folder` is gone.** `vault_move` and `vault_rename`
+    rename and move folders too, with the same result: the same link
+    report (`linksUpdated`, `updatedFiles`, `autoUpdateLinks`), the same
+    `warning` and the same errors. **What to do:** call `vault_move` with
+    the same `path` and `newPath`, or `vault_rename` with the folder's new
+    name as `newName`.
 
 ## Upgrading to 4.0
 
@@ -345,13 +371,13 @@ are sent once when a client connects and keep the state from that moment.
 
 | Module | Default | Tools | Notes |
 |---|---|---|---|
-| Vault and File Operations | on | 21 | Create / read / update / delete files and folders, read one section, replace a passage or insert into a section, rename, move, copy, list, binary I/O, metadata, set frontmatter, daily note. |
+| Vault and File Operations | on | 20 | Create / read / update / delete files and folders, read one section, replace a passage or insert into a section, rename, move, copy, list, binary I/O, metadata, set frontmatter, daily note. |
 | Search and Metadata | on | 6 | Full-text search, list tags, find notes by tag / frontmatter, find resolved / unresolved links. |
 | Editor Operations | off | 10 | Read/insert/replace/delete text in the active editor, cursor and selection management. |
 | Workspace and Navigation | off | 5 | Inspect / open / focus leaves, read the layout. |
 | UI Interactions | off | 1 | Show notices. |
 | Templates | on | 3 | List templates, create from template, expand variables. |
-| Plugin Interop | on | 6 | List / check plugins, run / describe Dataview queries, describe Templater templates, execute commands. `plugin_dataview_query` is listed only while Dataview is enabled, `plugin_execute_command` only while the allowlist has a command. |
+| Plugin Interop | on | 4 | List / check plugins, run Dataview queries, execute commands. `plugin_dataview_query` is listed only while Dataview is enabled, `plugin_execute_command` only while the allowlist has a command. |
 
 Plugin Interop's two conditional tools follow their plugin while the module
 is on: when Dataview is enabled or disabled, or the allowlist is saved,
@@ -527,8 +553,8 @@ clients and agents commonly trip over:
   too). It holds plugin code, settings and this plugin's `data.json` with
   the access key. A path in it fails with "Path is inside the Obsidian
   config folder (.obsidian); it cannot be read or written", also when it
-  is only the destination of `vault_rename`, `vault_move`, `vault_copy`,
-  `vault_rename_folder` or `template_create_from`, and whatever the case
+  is only the destination of `vault_rename`, `vault_move`, `vault_copy`
+  or `template_create_from`, and whatever the case
   (`.Obsidian/…`). `vault_list`, `vault_list_recursive` and the
   `obsidian://vault/index` resource leave it out.
 - **Two result formats.** Since 5.0, document tools (`vault_read`,
@@ -666,8 +692,8 @@ clients and agents commonly trip over:
   be able to restore what an agent deletes. The result's `trashedTo` says
   where it went: `system`, `vault` (the `.trash` folder), `permanent`, or
   `unknown` if the plugin cannot read the setting.
-- **Links follow renamed and moved files.** `vault_rename`, `vault_move` and
-  `vault_rename_folder` rename through Obsidian, so links to the file are
+- **Links follow renamed and moved files.** `vault_rename` and `vault_move`
+  rename files and folders through Obsidian, so links to the file are
   updated when **Settings → Files and links → Automatically update internal
   links** is on. With it off, links are not updated and keep pointing at
   the old path, and Obsidian's "Update links" prompt does not appear, so
@@ -677,9 +703,9 @@ clients and agents commonly trip over:
   `linksUpdated` counts those links. When the setting is off and other notes
   link to the moved file or folder, the result carries a `warning`, so the
   agent can tell you the links are now stale. The tools never update links
-  against your setting. `vault_rename` and `vault_move` also accept a
-  folder; like `vault_rename_folder` they then count the links to every
-  file in it (before 4.1.0 they missed those links and gave no warning).
+  against your setting. For a folder they count the links to every file
+  in it (before 4.1.0 they missed those links and gave no warning; until
+  5.0 `vault_rename_folder` did the same job and is now gone).
   Renaming, moving or copying onto a path that already exists fails with
   `Destination already exists: <path>. Choose another path or delete it
   first; nothing was changed.`; nothing is overwritten. (Before 4.1.0 the
@@ -728,16 +754,19 @@ clients and agents commonly trip over:
   overwrite them. The result's `structuredContent` then also carries the
   note's whole `frontmatter`. Only `.md` destinations accept `frontmatter`;
   otherwise the call fails before any file is created.
-- **Tag list with counts.** `search_tags` lists each file once per tag,
-  even when the file uses the tag several times. `counts` gives the total
-  number of occurrences of each tag; the number of files is the length of
-  its `tags` entry. `search_by_tag` also lists each file once.
+- **Tag list with counts.** `search_tags` gives each tag's number of
+  files (a file using the tag several times counts once) and its number
+  of occurrences (every use counts), not the files themselves; use
+  `search_by_tag` for those, which lists each file once. The tags are
+  sorted by name and come in pages of 100 by default: pass `nextOffset`
+  as `offset` while `hasMore` is true. Before 5.0 `search_tags` listed the
+  files of every tag.
 - **Frontmatter tags count.** `search_tags` and `search_by_tag` see the
   same tags as Obsidian's tag pane: inline `#tags` in the note body and
   the frontmatter `tags` (or `tag`) property, as a list (`tags: [project,
   idea]`) or as a comma- or space-separated string (`tags: project, idea`),
   with or without `#`. A note tagged only in its frontmatter is found by
-  `search_by_tag`, and `counts` adds up frontmatter and inline occurrences.
+  `search_by_tag`, and `occurrences` adds up frontmatter and inline uses.
   Before 4.0.1 only inline tags were seen.
 - **Tag case and nested tags.** Like Obsidian, the tag tools ignore case.
   `search_by_tag` with `project` (or `#Project`) finds notes tagged
@@ -745,7 +774,7 @@ clients and agents commonly trip over:
   `#projects`; with `project/alpha` it finds only that branch. Each note is
   listed once, sorted by path. `search_tags` lists `#Project` and
   `#project` as one tag under the spelling used most often, with their
-  files and counts combined; nested tags keep their own entries. Before
+  counts combined; nested tags keep their own entries. Before
   5.0 both tools matched the exact spelling only.
 - **Dataview lists as plain text.** `plugin_dataview_query` asks Dataview
   for Markdown without HTML, so a list field in a `TABLE` cell comes back

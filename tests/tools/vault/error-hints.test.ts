@@ -148,10 +148,17 @@ describe('error hints (#463)', () => {
       expect(getText(result)).toContain('Destination already exists: n/b.md.');
     });
 
-    it('vault_rename_folder onto an existing folder names the destination', async () => {
+    it('vault_move of a folder onto an existing folder names the destination', async () => {
       adapter.addFile('f1/x.md', 'x');
       adapter.addFile('f2/y.md', 'y');
-      const result = await handlers.renameFolder({ path: 'f1', newPath: 'f2' });
+      const result = await handlers.moveFile({ path: 'f1', newPath: 'f2' });
+      expect(getText(result)).toContain('Destination already exists: f2.');
+    });
+
+    it('vault_rename of a folder onto an existing folder names the destination', async () => {
+      adapter.addFile('f1/x.md', 'x');
+      adapter.addFile('f2/y.md', 'y');
+      const result = await handlers.renameFile({ path: 'f1', newName: 'f2' });
       expect(getText(result)).toContain('Destination already exists: f2.');
     });
 

@@ -7,7 +7,7 @@ import {
   searchFulltextSchema,
   searchByTagSchema,
   searchByFrontmatterSchema,
-  readOnlySchema,
+  searchTagsSchema,
   linksMapSchema,
 } from './schemas';
 import { pageOutputFields } from '../shared/pagination';
@@ -48,11 +48,15 @@ const searchFulltextOutputSchema = {
 
 const searchTagsOutputSchema = {
   tags: z
-    .record(z.string(), z.array(z.string()))
-    .describe('Map of tag (with leading #) to the vault-relative paths of the files that use it. Each file is listed once per tag. Spellings that differ only in case are one entry, keyed by the most common spelling.'),
-  counts: z
-    .record(z.string(), z.number())
-    .describe('Map of tag (with leading #) to its total number of occurrences across the vault; a file using a tag twice counts twice. The number of files is the length of the matching tags entry.'),
+    .record(
+      z.string(),
+      z.object({
+        files: z.number().describe('Number of files using the tag.'),
+        occurrences: z.number().describe('Total uses of the tag; a file using it twice counts twice.'),
+      }),
+    )
+    .describe('Map of tag (with leading #) to its counts, for the tags in this page.'),
+  ...pageOutputFields,
 };
 
 const resolvedLinksOutputSchema = {
@@ -125,10 +129,13 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
           name: 'search_tags',
           title: 'List tags',
           description: describeTool({
-            summary: 'List every tag in the vault\'s Markdown notes (inline and frontmatter) with the files using it (each once) and its total occurrence count. Case variants are merged under the most common spelling.',
+            summary:
+              'List the tags in the vault\'s Markdown notes (inline and frontmatter) with how many files use each and how often. ' +
+              'Case variants are merged under the most common spelling; nested tags have their own entry.',
+            returns: 'Pages over tags sorted by name, with limit/offset.',
             seeAlso: ['search_by_tag — for the notes carrying a tag.'],
           }),
-          schema: readOnlySchema,
+          schema: searchTagsSchema,
           outputSchema: searchTagsOutputSchema,
           handler: handlers.searchTags,
           annotations: annotations.read,
