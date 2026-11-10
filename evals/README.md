@@ -16,6 +16,7 @@ It runs **locally only**, on demand. It calls a model API (Anthropic, or any Ope
 | `run.ts` | The runner behind `npm run eval`: settings, the agent loop shared by both providers, the Anthropic provider, report and baseline row. |
 | `openai.ts` | The OpenAI-compatible provider (plain `fetch`): tool conversion, request, response parsing, retries and auth errors. |
 | `lib.ts` | XML parsing, answer comparison, `.env` loading and the provider interface. |
+| `tool-cli.ts` | A command-line MCP client for the harness, for checking questions with a coding agent instead of a model API (see [Cross-check with a coding agent](#cross-check-with-a-coding-agent)). |
 
 Nothing here is imported by `src/`, so none of it ends up in `main.js`.
 
@@ -201,6 +202,49 @@ Record a new row when tools or server instructions change in a way the model see
 | 2026-11-10 | 5.0.0 | openai | api.mistral.ai | mistral-large-latest | - | 505 | 4/10 (40%) | 28.4 |
 
 The three Mistral rows of 2026-11-10 are three full runs of the same commit, back to back: one run of 10 questions swings by 30 points, so compare a change against the mean of several runs (here 5.3/10), not against one row. In all three runs Q2, Q5 and Q7 failed and Q3, Q4, Q8 and Q10 passed.
+
+## Cross-check with a coding agent
+
+When no model API key is at hand, or to see whether a question is solvable at all with the current tools, a coding agent (for example a Claude Code subagent) can answer the questions through `tool-cli.ts`. It talks to the same harness and prints tool results the way the runner shows them to the model. This is a check, not a baseline: the prompt and the tool loop differ from `npm run eval`, nothing is graded automatically, and the agent could read the answer key if it ignored its instructions. Do not add such results to the baseline table.
+
+1. Start the harness on a fixed port and leave it running:
+
+   ```bash
+   EVAL_PORT=47811 npx tsx evals/harness.ts
+   ```
+
+2. Check the CLI in another shell:
+
+   ```bash
+   npx tsx evals/tool-cli.ts tools
+   ```
+
+   Commands: `instructions`, `tools` (one line per tool), `schema <tool>`, `call <tool> '<json-args>'`. A tool error prints `Error: ...` and exits with 1.
+
+3. Give each question to a fresh agent that has not seen `vault.xml`, with a prompt like this:
+
+   ```text
+   You are connected to an Obsidian vault through MCP tools, exposed via a command-line client.
+   Answer one question using only what these tools return.
+
+   Run from the repository root:
+   - npx tsx evals/tool-cli.ts instructions    (read first)
+   - npx tsx evals/tool-cli.ts tools
+   - npx tsx evals/tool-cli.ts schema <tool>
+   - npx tsx evals/tool-cli.ts call <tool> '<json arguments>'
+
+   Rules: use only tool-cli.ts to get information. Do not read, list or search any file in the
+   repository. Do not call tools that change the vault. Use as many tool calls as you need; do not guess.
+
+   Question: <question from vault.xml>
+
+   Reply with a short <summary> of your steps, <feedback> on the tools, the answer in
+   <response> tags, and the number of tool calls you made.
+   ```
+
+4. Compare each `<response>` with the answer in `vault.xml` yourself. The `<feedback>` is the useful part: it names tools whose descriptions or results got in the way.
+
+On 2026-11-10 Claude subagents answered the five questions Mistral failed most often (Q2, Q5, Q6, Q7, Q9) correctly, with 10 to about 60 tool calls each. That shows the answer key holds and the questions are solvable with the tools as they are; the findings are in #499.
 
 ## Adding or changing questions
 
