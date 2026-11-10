@@ -25,7 +25,7 @@
 | `npm run docs:tools` | Regenerate the tool reference (`docs/tools.generated.md`, `docs/tools/`) after changing the tool registry |
 | `npm run surface:measure` | Print the size of the agent-facing surface (instructions, `tools/list`, `prompts/list`) per part, module and tool (see [Tool surface budget](#tool-surface-budget)) |
 | `npm run surface:update` | Measure and rewrite the committed baseline `docs/surface-baseline.json` |
-| `npm run eval` | LLM evaluation of the MCP tools (needs `ANTHROPIC_API_KEY`, costs money; see [`evals/README.md`](evals/README.md)) |
+| `npm run eval` | LLM evaluation of the MCP tools against Anthropic or any OpenAI-compatible API such as Mistral (needs a key, usually in `.env`, costs money; see [`evals/README.md`](evals/README.md)) |
 
 ## E2E tests (headless Obsidian)
 

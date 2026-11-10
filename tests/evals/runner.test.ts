@@ -2,7 +2,8 @@
  * Plumbing of the LLM eval (#393), checked without a model or API key:
  * the harness serves every tool, the runner converts them for Claude, the
  * tool-use loop runs tool calls through MCP and grades the final answer,
- * and a missing key fails with a clear message.
+ * and a missing key fails with a clear message. Provider selection and
+ * configuration for Anthropic and OpenAI-compatible APIs (#483).
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type Anthropic from '@anthropic-ai/sdk';
@@ -10,13 +11,17 @@ import { BULK_SEED } from '../../evals/fixture-generator';
 import { connectClient, startHarness } from '../../evals/harness';
 import {
   DEFAULT_MODEL,
+  MISSING_BASE_URL_MESSAGE,
   MISSING_KEY_MESSAGE,
+  MISSING_MODEL_MESSAGE,
+  baseUrlHost,
   baselineRow,
   main,
   pluginVersion,
   parseArgs,
   readConfig,
   runQuestion,
+  selectProvider,
   toClaudeTool,
   type CreateMessage,
 } from '../../evals/run';
@@ -130,7 +135,7 @@ describe('runQuestion', () => {
 
     expect(result.passed).toBe(true);
     expect(result.actual).toBe('hydrology');
-    expect(result.toolCalls).toEqual({ vault_get_aspect: 1, no_such_tool: 1 });
+    expect(result.toolCalls).toEqual({ vault_get_aspect: 1, '(unknown tool)': 1 });
     expect(result.totalToolCalls).toBe(2);
     expect(result.feedback).toBe('f');
     expect(requests[0].model).toBe(DEFAULT_MODEL);
@@ -158,13 +163,77 @@ describe('runQuestion', () => {
 });
 
 describe('runner configuration', () => {
-  it('defaults to the current Opus model and reads overrides', () => {
-    expect(readConfig({})).toEqual({ apiKey: null, model: 'claude-opus-5-5', effort: 'high', maxTurns: 30 });
+  it('defaults to Anthropic with the current Opus model and reads overrides', () => {
+    expect(readConfig({})).toEqual({
+      provider: 'anthropic',
+      baseUrl: 'https://api.anthropic.com',
+      apiKeyEnv: 'ANTHROPIC_API_KEY',
+      apiKey: null,
+      model: 'claude-opus-5-5',
+      effort: 'high',
+      maxTurns: 30,
+      schemaDrop: [],
+      minIntervalMs: 0,
+    });
     expect(
       readConfig({ ANTHROPIC_API_KEY: ' k ', EVAL_MODEL: 'claude-sonnet-5-5', EVAL_EFFORT: 'low', EVAL_MAX_TURNS: '7' }),
-    ).toEqual({ apiKey: 'k', model: 'claude-sonnet-5-5', effort: 'low', maxTurns: 7 });
+    ).toMatchObject({ provider: 'anthropic', apiKey: 'k', model: 'claude-sonnet-5-5', effort: 'low', maxTurns: 7 });
+    expect(readConfig({ ANTHROPIC_BASE_URL: 'https://proxy.example/' }).baseUrl).toBe('https://proxy.example/');
     expect(() => readConfig({ EVAL_EFFORT: 'extreme' })).toThrow(/EVAL_EFFORT/);
     expect(() => readConfig({ EVAL_MAX_TURNS: '0' })).toThrow(/EVAL_MAX_TURNS/);
+  });
+
+  it('reads the openai provider settings from the environment and flags', () => {
+    const env = {
+      EVAL_BASE_URL: 'https://api.mistral.ai/v1/',
+      EVAL_MODEL: 'mistral-large-latest',
+      EVAL_API_KEY: ' sk ',
+      MISTRAL_API_KEY: 'other',
+      EVAL_SCHEMA_DROP: 'additionalProperties, minLength,',
+    };
+    expect(readConfig(env)).toEqual({
+      provider: 'openai',
+      baseUrl: 'https://api.mistral.ai/v1',
+      apiKeyEnv: 'EVAL_API_KEY',
+      apiKey: 'sk',
+      model: 'mistral-large-latest',
+      effort: 'high',
+      maxTurns: 30,
+      schemaDrop: ['additionalProperties', 'minLength'],
+      minIntervalMs: 0,
+    });
+    expect(
+      readConfig(env, { baseUrl: 'http://localhost:11434/v1', model: 'qwen3', apiKeyEnv: 'MISTRAL_API_KEY' }),
+    ).toMatchObject({ baseUrl: 'http://localhost:11434/v1', model: 'qwen3', apiKeyEnv: 'MISTRAL_API_KEY', apiKey: 'other' });
+    expect(readConfig({ EVAL_BASE_URL: 'http://localhost:11434/v1', EVAL_MODEL: 'm' }).apiKey).toBeNull();
+  });
+
+  it('reads the minimum request interval from the flag or EVAL_MIN_INTERVAL_MS', () => {
+    expect(readConfig({ EVAL_MIN_INTERVAL_MS: '1100' }).minIntervalMs).toBe(1100);
+    expect(readConfig({ EVAL_MIN_INTERVAL_MS: '1100' }, { minIntervalMs: '250' }).minIntervalMs).toBe(250);
+    expect(() => readConfig({ EVAL_MIN_INTERVAL_MS: '-1' })).toThrow(/EVAL_MIN_INTERVAL_MS/);
+    expect(() => readConfig({}, { minIntervalMs: '1.5s' })).toThrow(/--min-interval-ms/);
+    expect(parseArgs(['--min-interval-ms', '1100']).minIntervalMs).toBe('1100');
+  });
+
+  it('fails clearly when the openai provider lacks a base URL or model', () => {
+    expect(() => readConfig({ EVAL_PROVIDER: 'openai', EVAL_MODEL: 'm' })).toThrow(MISSING_BASE_URL_MESSAGE);
+    expect(() => readConfig({ EVAL_BASE_URL: 'https://api.mistral.ai/v1' })).toThrow(MISSING_MODEL_MESSAGE);
+    expect(() => readConfig({ EVAL_BASE_URL: 'api.mistral.ai', EVAL_MODEL: 'm' })).toThrow(/EVAL_BASE_URL is not a valid URL/);
+    expect(() => readConfig({}, { provider: 'openai', baseUrl: 'ftp://x', model: 'm' })).toThrow(/--base-url must be an http/);
+  });
+
+  it('selects the provider from the flag, EVAL_PROVIDER or the base URL', () => {
+    expect(selectProvider({})).toBe('anthropic');
+    expect(selectProvider({ EVAL_BASE_URL: 'https://api.mistral.ai/v1' })).toBe('openai');
+    expect(selectProvider({}, { baseUrl: 'http://localhost:11434/v1' })).toBe('openai');
+    expect(selectProvider({ EVAL_PROVIDER: 'openai' })).toBe('openai');
+    expect(selectProvider({ EVAL_BASE_URL: 'https://x/v1', EVAL_PROVIDER: 'anthropic' })).toBe('anthropic');
+    expect(selectProvider({ EVAL_PROVIDER: 'openai' }, { provider: 'anthropic' })).toBe('anthropic');
+    expect(selectProvider({ EVAL_PROVIDER: ' ' })).toBe('anthropic');
+    expect(() => selectProvider({ EVAL_PROVIDER: 'gemini' })).toThrow(/anthropic, openai/);
+    expect(baseUrlHost('http://localhost:11434/v1')).toBe('localhost:11434');
+    expect(baseUrlHost('not a url')).toBe('not a url');
   });
 
   it('parses CLI flags', () => {
@@ -172,6 +241,10 @@ describe('runner configuration', () => {
     expect(args.only).toEqual([2, 5]);
     expect(args.dryRun).toBe(true);
     expect(args.file).toMatch(/evals[/\\]vault\.xml$/);
+    expect(
+      parseArgs(['--provider', 'openai', '--base-url', 'https://api.mistral.ai/v1', '--model', 'm', '--api-key-env', 'K']),
+    ).toMatchObject({ provider: 'openai', baseUrl: 'https://api.mistral.ai/v1', model: 'm', apiKeyEnv: 'K' });
+    expect(() => parseArgs(['--model'])).toThrow(/--model needs a value/);
     expect(() => parseArgs(['--only', 'x'])).toThrow(/--only/);
     expect(() => parseArgs(['--nope'])).toThrow(/Unknown argument/);
   });
@@ -187,8 +260,30 @@ describe('runner configuration', () => {
     await expect(main(['--dry-run', '--only', '1'], {})).resolves.toBe(0);
     const out = stdout.mock.calls.map((c) => String(c[0])).join('');
     expect(out).toMatch(/\d+ tools converted for Claude/);
+    expect(out).toContain('Provider: anthropic (Claude Messages API)');
+    expect(out).toContain('Base URL: https://api.anthropic.com');
+    expect(out).toContain('Model:    claude-opus-5-5, effort high');
+    expect(out).toContain('API key:  from ANTHROPIC_API_KEY (not set)');
     expect(out).toContain('No model calls were made.');
     expect(out).toMatch(/Fixture: \d+ files \(\d+ from evals\/fixture-vault\/, \d+ generated with seed \d+\)/);
+  });
+
+  it('dry run shows the openai provider, base URL and model without a key', async () => {
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    const env = {
+      EVAL_BASE_URL: 'https://api.mistral.ai/v1',
+      EVAL_MODEL: 'mistral-large-latest',
+      EVAL_SCHEMA_DROP: 'additionalProperties',
+    };
+    await expect(main(['--dry-run', '--only', '1'], env)).resolves.toBe(0);
+    const out = stdout.mock.calls.map((c) => String(c[0])).join('');
+    expect(out).toContain('Provider: openai (OpenAI-compatible Chat Completions)');
+    expect(out).toContain('Base URL: https://api.mistral.ai/v1');
+    expect(out).toContain('Model:    mistral-large-latest\n');
+    expect(out).toContain('API key:  from EVAL_API_KEY (not set)');
+    expect(out).toContain('Dropped schema keywords: $schema, additionalProperties');
+    expect(out).toMatch(/\d+ tools converted for the OpenAI-compatible API/);
+    expect(out).toContain('No model calls were made.');
   });
 
   it('formats a baseline row for the README table', () => {
@@ -196,13 +291,30 @@ describe('runner configuration', () => {
       baselineRow({
         date: '2026-11-09',
         version: '4.0.1',
+        provider: 'anthropic',
+        host: 'api.anthropic.com',
         model: 'claude-opus-5-5',
         effort: 'high',
         passed: 9,
         total: 10,
         toolCalls: 123,
       }),
-    ).toBe(`| 2026-11-09 | 4.0.1 | claude-opus-5-5 | high | ${String(BULK_SEED)} | 9/10 (90%) | 12.3 |`);
+    ).toBe(
+      `| 2026-11-09 | 4.0.1 | anthropic | api.anthropic.com | claude-opus-5-5 | high | ${String(BULK_SEED)} | 9/10 (90%) | 12.3 |`,
+    );
+    expect(
+      baselineRow({
+        date: '2026-11-10',
+        version: '5.0.0',
+        provider: 'openai',
+        host: 'api.mistral.ai',
+        model: 'mistral-large-latest',
+        effort: '-',
+        passed: 0,
+        total: 0,
+        toolCalls: 0,
+      }),
+    ).toBe(`| 2026-11-10 | 5.0.0 | openai | api.mistral.ai | mistral-large-latest | - | ${String(BULK_SEED)} | 0/0 (0%) | 0.0 |`);
     expect(pluginVersion()).toMatch(/^\d+\.\d+\.\d+/);
   });
 });
