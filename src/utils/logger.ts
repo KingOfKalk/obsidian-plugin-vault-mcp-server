@@ -26,6 +26,13 @@ const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
   error: 3,
 };
 
+/** Placeholder for a value that refers back to one of its ancestors. */
+const CIRCULAR = '[Circular]';
+/** Placeholder for an error `cause` past {@link MAX_CAUSE_DEPTH}. */
+const TRUNCATED = '[Truncated]';
+/** How many `cause` links of a logged error are followed. */
+const MAX_CAUSE_DEPTH = 10;
+
 export class Logger {
   private module: string;
   private options: LoggerOptions;
@@ -105,21 +112,68 @@ export class Logger {
     return value.split(this.options.accessKey).join('[REDACTED]');
   }
 
-  private redactUnknown(value: unknown): unknown {
+  /**
+   * Copy `value` for the log entry with the access key redacted from every
+   * string. `Error`s become plain objects (#542): `message` and `stack` are
+   * non-enumerable, so a plain copy of own enumerable props would drop them.
+   * `ancestors` turns reference cycles into `[Circular]`; `causeDepth` caps
+   * how many `cause` links are followed.
+   */
+  private redactUnknown(
+    value: unknown,
+    ancestors: readonly object[] = [],
+    causeDepth = 0,
+  ): unknown {
     if (typeof value === 'string') {
       return this.redact(value);
     }
-    if (typeof value === 'object' && value !== null) {
-      if (Array.isArray(value)) {
-        return value.map((item) => this.redactUnknown(item));
-      }
-      const result: Record<string, unknown> = {};
-      for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
-        result[key] = this.redactUnknown(val);
-      }
-      return result;
+    if (typeof value !== 'object' || value === null) {
+      return value;
     }
-    return value;
+    if (ancestors.includes(value)) {
+      return CIRCULAR;
+    }
+    const path = [...ancestors, value];
+    if (Array.isArray(value)) {
+      return value.map((item) => this.redactUnknown(item, path, causeDepth));
+    }
+    if (value instanceof Error) {
+      return this.redactError(value, path, causeDepth);
+    }
+    const result: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+      result[key] = this.redactUnknown(val, path, causeDepth);
+    }
+    return result;
+  }
+
+  /**
+   * `{ name, message, stack?, ...own enumerable props, cause? }`, each value
+   * redacted like any other log data.
+   */
+  private redactError(
+    error: Error,
+    path: readonly object[],
+    causeDepth: number,
+  ): Record<string, unknown> {
+    const result: Record<string, unknown> = {
+      name: this.redact(String(error.name)),
+      message: this.redact(String(error.message)),
+    };
+    if (typeof error.stack === 'string') {
+      result.stack = this.redact(error.stack);
+    }
+    for (const [key, val] of Object.entries(error as unknown as Record<string, unknown>)) {
+      if (key === 'cause') continue;
+      result[key] = this.redactUnknown(val, path, causeDepth);
+    }
+    if (error.cause !== undefined) {
+      result.cause =
+        causeDepth < MAX_CAUSE_DEPTH
+          ? this.redactUnknown(error.cause, path, causeDepth + 1)
+          : TRUNCATED;
+    }
+    return result;
   }
 }
 

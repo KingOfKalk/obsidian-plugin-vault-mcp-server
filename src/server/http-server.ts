@@ -380,7 +380,7 @@ export class HttpMcpServer {
       sendJsonRpcError(res, 400, -32000, 'Bad Request: No valid session ID provided');
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error handling MCP request: ${message}`);
+      this.logger.error(`Error handling MCP request: ${message}`, error);
       if (!res.headersSent) {
         sendJsonRpcError(res, 500, -32603, 'Internal server error');
       }

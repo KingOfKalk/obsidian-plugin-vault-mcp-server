@@ -669,3 +669,28 @@ describe('HttpMcpServer — CORS', () => {
     expect(res.headers['access-control-allow-origin']).toBe('http://localhost');
   });
 });
+
+describe('HttpMcpServer — request error logging (#542)', () => {
+  let server: HttpMcpServer;
+
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    await server.stop();
+  });
+
+  it('passes the error as log data when an MCP request fails', async () => {
+    const crash = new Error('factory exploded');
+    const factory = vi.fn((): never => {
+      throw crash;
+    });
+    const error = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    server = createServer(factory);
+    await server.start();
+
+    const res = await initialize(getPort(server));
+
+    expect(res.status).toBe(500);
+    expect(res.body).not.toContain('factory exploded');
+    expect(error).toHaveBeenCalledWith('Error handling MCP request: factory exploded', crash);
+  });
+});
