@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { App, TFile, TFolder } from 'obsidian';
 import { RealObsidianAdapter } from '../../src/obsidian/adapter';
 import { createHandlers, WriteMutex } from '../../src/tools/vault/handlers';
-import { createSearchHandlers } from '../../src/tools/search/handlers';
 
 function makeFile(path: string): TFile {
   const f = new TFile();
@@ -153,7 +152,7 @@ describe('vault handlers on the real adapter report link updates (#430)', () => 
   it('counts the rewritten links when "Automatically update internal links" is on', async () => {
     const { app, contents, managerRename, vaultRename } = makeApp({ alwaysUpdateLinks: true }, files, links);
     const adapter = new RealObsidianAdapter(app);
-    const handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
+    const handlers = createHandlers(adapter, new WriteMutex());
 
     const result = await handlers.renameFile({ path: 'a.md', newName: 'z.md' });
 
@@ -172,7 +171,7 @@ describe('vault handlers on the real adapter report link updates (#430)', () => 
   it('warns when the setting is off and renames without the "Update links" prompt (#445)', async () => {
     const { app, contents, managerRename, vaultRename } = makeApp({ alwaysUpdateLinks: false }, files, links);
     const adapter = new RealObsidianAdapter(app);
-    const handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
+    const handlers = createHandlers(adapter, new WriteMutex());
 
     const result = await handlers.moveFile({ path: 'a.md', newPath: 'z.md' });
 
@@ -191,7 +190,7 @@ describe('vault handlers on the real adapter report link updates (#430)', () => 
   it('renames via vault.rename and warns when the setting cannot be read (#445)', async () => {
     const { app, contents, managerRename, vaultRename } = makeApp({}, files, links);
     const adapter = new RealObsidianAdapter(app);
-    const handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
+    const handlers = createHandlers(adapter, new WriteMutex());
 
     const result = await handlers.renameFile({ path: 'a.md', newName: 'z.md' });
 
@@ -209,7 +208,7 @@ describe('vault handlers on the real adapter report link updates (#430)', () => 
   it('vault_delete reports where the file went', async () => {
     const { app, trashFile } = makeApp({ trashOption: 'local' }, files, links);
     const adapter = new RealObsidianAdapter(app);
-    const handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
+    const handlers = createHandlers(adapter, new WriteMutex());
 
     const result = await handlers.deleteFile({ path: 'c.md' });
 

@@ -2,27 +2,24 @@ import { z } from 'zod';
 import { ToolModule, ToolDefinition, annotations, defineTool } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { createHandlers, WriteMutex } from './handlers';
-import { createSearchHandlers } from '../search/handlers';
 import { describeTool } from '../shared/describe';
 import { MODIFIED_DESC, NEW_MODIFIED_DESC } from '../shared/descriptions';
-import { pageOutputFields } from '../shared/pagination';
+import { itemsPageOutputFields, pageOutputFields } from '../shared/pagination';
+import { ASPECTS } from './aspect';
+import { filePathSchema } from '../shared/schemas';
 import {
   createFileSchema,
   readFileSchema,
   updateFileSchema,
-  deleteFileSchema,
   appendFileSchema,
   replaceInFileSchema,
   insertSchema,
-  getMetadataSchema,
   renameFileSchema,
   moveFileSchema,
   copyFileSchema,
   createFolderSchema,
   deleteFolderSchema,
   listFolderSchema,
-  listRecursiveSchema,
-  readBinarySchema,
   writeBinarySchema,
   getAspectSchema,
   dailyNoteSchema,
@@ -59,21 +56,11 @@ const listRecursiveOutputSchema = {
     .array(z.string())
     .describe('Folders under the listed path (recursive) in this page, paged with the same offset as the files.'),
   folderTotal: z.number().describe('Total number of folders before paging.'),
-  total: z
-    .number()
-    .describe('Total number of files matched before pagination.'),
-  count: z.number().describe('Number of files in this page.'),
-  offset: z.number().describe('Offset of the first item in this page.'),
-  items: z
-    .array(z.string())
-    .describe('Files in this page (vault-relative paths).'),
-  hasMore: z
-    .boolean()
-    .describe('True when more files or folders follow this page.'),
-  nextOffset: z
-    .number()
-    .optional()
-    .describe('Offset to use in the next request when hasMore is true.'),
+  ...itemsPageOutputFields(z.array(z.string()).describe('Files in this page (vault-relative paths).'), {
+    total: 'Total number of files matched before pagination.',
+    count: 'Number of files in this page.',
+    hasMore: 'True when more files or folders follow this page.',
+  }),
 };
 
 /**
@@ -105,14 +92,7 @@ const linkItem = z.object({
 
 const getAspectOutputSchema = {
   aspect: z
-    .enum([
-      'frontmatter',
-      'headings',
-      'outgoing_links',
-      'embeds',
-      'backlinks',
-      'block_references',
-    ])
+    .enum(ASPECTS)
     .describe('The aspect that was returned; selects which field below is set.'),
   path: z.string().describe('Vault-relative path that was inspected.'),
   frontmatter: z
@@ -311,8 +291,7 @@ const setFrontmatterOutputSchema = {
 
 export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
   const mutex = new WriteMutex();
-  const searchHandlers = createSearchHandlers(adapter);
-  const handlers = createHandlers(adapter, mutex, searchHandlers);
+  const handlers = createHandlers(adapter, mutex);
 
   return {
     metadata: {
@@ -389,7 +368,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             returns: TRASH_RETURNS,
             errors: [FILE_NOT_FOUND_ERROR],
           }),
-          schema: deleteFileSchema,
+          schema: filePathSchema,
           outputSchema: deletedOutputSchema,
           handler: handlers.deleteFile,
           annotations: annotations.destructiveIdempotent,
@@ -482,7 +461,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
               'extras_get_date — for the current date and time, not a file\'s timestamp.',
             ],
           }),
-          schema: getMetadataSchema,
+          schema: filePathSchema,
           outputSchema: getMetadataOutputSchema,
           handler: handlers.getMetadata,
           annotations: annotations.read,
@@ -594,7 +573,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
               'vault_list — for the direct children of one folder only.',
             ],
           }),
-          schema: listRecursiveSchema,
+          schema: listFolderSchema,
           outputSchema: listRecursiveOutputSchema,
           handler: handlers.listRecursive,
           annotations: annotations.read,
@@ -612,7 +591,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
               '"Binary file too large" if the file exceeds 1 MiB.',
             ],
           }),
-          schema: readBinarySchema,
+          schema: filePathSchema,
           handler: handlers.readBinary,
           annotations: annotations.read,
         }),

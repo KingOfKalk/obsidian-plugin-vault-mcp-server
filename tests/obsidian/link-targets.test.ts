@@ -4,7 +4,7 @@ import { CallToolResult } from '@modelcontextprotocol/server';
 import { RealObsidianAdapter, type ObsidianAdapter } from '../../src/obsidian/adapter';
 import { MockObsidianAdapter } from '../../src/obsidian/mock-adapter';
 import { resolveLinkpath } from '../../src/obsidian/link-resolver';
-import { createSearchHandlers, splitLinkSubpath } from '../../src/tools/search/handlers';
+import { createAspectHandlers, splitLinkSubpath } from '../../src/tools/vault/aspect';
 
 /** Resolved link targets in vault_get_aspect (#485). */
 
@@ -21,12 +21,12 @@ function structured(result: CallToolResult): Record<string, unknown> {
 }
 
 async function linksOf(adapter: ObsidianAdapter, path: string): Promise<LinkTarget[]> {
-  const result = await createSearchHandlers(adapter).searchOutgoingLinks({ path });
+  const result = await createAspectHandlers(adapter).outgoing_links({ path });
   return structured(result).links as LinkTarget[];
 }
 
 async function embedsOf(adapter: ObsidianAdapter, path: string): Promise<LinkTarget[]> {
-  const result = await createSearchHandlers(adapter).searchEmbeds({ path });
+  const result = await createAspectHandlers(adapter).embeds({ path });
   return structured(result).embeds as LinkTarget[];
 }
 
@@ -140,7 +140,7 @@ describe('vault_get_aspect link targets, mock adapter', () => {
 
   it('keeps the JSON text identical to structuredContent', async () => {
     adapter.setMetadata('Home.md', { links: [{ link: 'Dup#^b' }, { link: 'x' }] });
-    const result = await createSearchHandlers(adapter).searchOutgoingLinks({ path: 'Home.md' });
+    const result = await createAspectHandlers(adapter).outgoing_links({ path: 'Home.md' });
     const text = result.content[0].type === 'text' ? result.content[0].text : '';
     expect(text).toBe(JSON.stringify(result.structuredContent));
   });

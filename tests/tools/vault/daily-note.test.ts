@@ -3,7 +3,6 @@ import moment from 'moment';
 import { CallToolResult } from '@modelcontextprotocol/server';
 import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
 import { createHandlers, WriteMutex } from '../../../src/tools/vault/handlers';
-import { createSearchHandlers } from '../../../src/tools/search/handlers';
 import { windowOf } from '../../helpers/result';
 
 function getText(result: CallToolResult): string {
@@ -34,7 +33,7 @@ describe('vault_daily_note handler', () => {
 
   beforeEach(() => {
     adapter = new MockObsidianAdapter();
-    handlers = createHandlers(adapter, new WriteMutex(), createSearchHandlers(adapter));
+    handlers = createHandlers(adapter, new WriteMutex());
   });
 
   describe('plugin-disabled error', () => {

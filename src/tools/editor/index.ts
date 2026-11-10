@@ -5,11 +5,12 @@ import {
   ToolDefinition,
   annotations,
   defineTool,
-  type InferredParams,
 } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
-import { handleToolError } from '../shared/errors';
+import { errorResult } from '../shared/errors';
 import { describeTool } from '../shared/describe';
+import { safeHandler } from '../shared/handler';
+import { noParamsSchema, textInput } from '../shared/schemas';
 import { dataResponse, documentResponse } from '../shared/response';
 import {
   READ_MAX_LENGTH,
@@ -20,47 +21,9 @@ import {
   windowOffsetField,
 } from '../shared/window';
 
-function err(m: string): CallToolResult { return handleToolError(new Error(m)); }
-
-/**
- * Require a value to be a non-negative safe integer. Kept as a runtime guard
- * alongside the Zod schema; the dispatcher has already parsed numbers by the
- * time the handler is called, but the helper is useful in other call sites.
- */
-function isNonNegativeInt(value: unknown): value is number {
-  return (
-    typeof value === 'number' &&
-    Number.isFinite(value) &&
-    Number.isInteger(value) &&
-    value >= 0
-  );
-}
-
-/**
- * Validate a `(line, ch)` position against the editor's current line count.
- * `allowEnd` extends the upper line bound by one to cover operations that can
- * legitimately target EOF (e.g. inserting at the end of the last line).
- */
-function assertEditorPosition(
-  line: unknown,
-  ch: unknown,
-  lineCount: number,
-  { allowEnd = false }: { allowEnd?: boolean } = {},
-): void {
-  if (!isNonNegativeInt(line) || !isNonNegativeInt(ch)) {
-    throw new RangeError('Position must be a non-negative integer pair');
-  }
-  const maxLine = allowEnd ? lineCount : lineCount - 1;
-  if (line > maxLine) {
-    throw new RangeError('Position is out of range for the active editor');
-  }
-}
-
 // Schemas as module-level consts so handler signatures can reference them
 // via `typeof <schema>` for automatic parameter typing through
 // `InferredParams<Shape>`.
-
-const readOnlySchema = {};
 
 /** `editor_get_content`: a character window like `vault_read` (#464). */
 const getContentSchema = {
@@ -73,23 +36,20 @@ const getContentSchema = {
  * The end is a CodeMirror position: the range stops before the character
  * at (toLine, toCh), so an edit within one line has toLine == fromLine.
  */
-const rangeFields = {
-  fromLine: z.number().int().min(0).describe('Start line (0-based).'),
-  fromCh: z
-    .number()
-    .int()
-    .min(0)
-    .describe('Start column (0-based); included.'),
-  toLine: z
-    .number()
-    .int()
-    .min(0)
-    .describe('End line (0-based); equals fromLine for a range within one line.'),
-  toCh: z
-    .number()
-    .int()
-    .min(0)
-    .describe('End column (0-based); not included.'),
+/** A 0-based line or column. */
+const editorIndex = z.number().int().min(0);
+
+const rangeSchema = {
+  fromLine: editorIndex.describe('Start line (0-based).'),
+  fromCh: editorIndex.describe('Start column (0-based); included.'),
+  toLine: editorIndex.describe('End line (0-based); equals fromLine for a range within one line.'),
+  toCh: editorIndex.describe('End column (0-based); not included.'),
+};
+
+/** A (line, ch) position: editor_insert and editor_set_cursor. */
+const pointSchema = {
+  line: editorIndex.describe('Line (0-based).'),
+  ch: editorIndex.describe('Column (0-based).'),
 };
 
 /** One sentence on how ranges work, for the range tools' summaries. */
@@ -109,30 +69,14 @@ const NO_EDITOR_HINT =
 const NO_ACTIVE_EDITOR = `No active editor. ${NO_EDITOR_HINT}`;
 
 const insertSchema = {
-  line: z.number().int().min(0).describe('Line (0-based).'),
-  ch: z.number().int().min(0).describe('Column (0-based).'),
-  text: z
-    .string()
-    .max(5_000_000)
-    .describe('Text to insert; may contain newlines.'),
+  ...pointSchema,
+  text: textInput.describe('Text to insert; may contain newlines.'),
 };
 
 const replaceSchema = {
-  ...rangeFields,
-  text: z
-    .string()
-    .max(5_000_000)
-    .describe('Replacement text.'),
+  ...rangeSchema,
+  text: textInput.describe('Replacement text.'),
 };
-
-const deleteRangeSchema = { ...rangeFields };
-
-const setCursorSchema = {
-  line: z.number().int().min(0).describe('Line (0-based).'),
-  ch: z.number().int().min(0).describe('Column (0-based).'),
-};
-
-const setSelectionSchema = { ...rangeFields };
 
 /**
  * Output schemas of the editor data tools (#467): each shape mirrors what
@@ -182,183 +126,65 @@ const rangeOutputSchema = {
   to: z.object(positionOutputSchema).describe('End position (not included).'),
 };
 
-function rangeOf(params: {
+/** A range tool's parameters (#449). */
+interface RangeParams {
   fromLine: number;
   fromCh: number;
   toLine: number;
   toCh: number;
-}): { from: { line: number; ch: number }; to: { line: number; ch: number } } {
+}
+
+function rangeOf(params: RangeParams): {
+  from: { line: number; ch: number };
+  to: { line: number; ch: number };
+} {
   return {
     from: { line: params.fromLine, ch: params.fromCh },
     to: { line: params.toLine, ch: params.toCh },
   };
 }
 
-interface EditorHandlers {
-  getContent: (params: InferredParams<typeof getContentSchema>) => Promise<CallToolResult>;
-  getActivePath: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
-  insert: (params: InferredParams<typeof insertSchema>) => Promise<CallToolResult>;
-  replace: (params: InferredParams<typeof replaceSchema>) => Promise<CallToolResult>;
-  deleteRange: (params: InferredParams<typeof deleteRangeSchema>) => Promise<CallToolResult>;
-  getCursor: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
-  setCursor: (params: InferredParams<typeof setCursorSchema>) => Promise<CallToolResult>;
-  getSelection: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
-  setSelection: (params: InferredParams<typeof setSelectionSchema>) => Promise<CallToolResult>;
-  getLineCount: (params: InferredParams<typeof readOnlySchema>) => Promise<CallToolResult>;
+/**
+ * A line an edit touches. `allowEnd` lets it be the line count itself, for
+ * edits that may target the end of the text (e.g. inserting after the last
+ * line). Columns are not checked. The schemas make lines non-negative
+ * integers.
+ */
+interface LineCheck {
+  line: number;
+  allowEnd: boolean;
 }
 
-function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
-  return {
-    getContent: (params): Promise<CallToolResult> => {
-      const text = adapter.getActiveFileContent();
-      if (text === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
-      const w = sliceTextWindow(text, params.offset ?? 0, params.length ?? READ_MAX_LENGTH);
-      return Promise.resolve(
-        documentResponse(
-          windowMeta(w, text.length),
-          windowBody('editor_get_content', w, text.length),
-        ),
-      );
-    },
-    getActivePath: (): Promise<CallToolResult> => {
-      const path = adapter.getActiveFilePath();
-      if (path === null) return Promise.resolve(err('No active file'));
-      return Promise.resolve(
-        dataResponse({ path }),
-      );
-    },
-    insert: (params): Promise<CallToolResult> => {
-      const lineCount = adapter.getActiveLineCount();
-      if (lineCount === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
-      try {
-        assertEditorPosition(params.line, params.ch, lineCount, {
-          allowEnd: true,
-        });
-      } catch (error) {
-        return Promise.resolve(
-          err(error instanceof Error ? error.message : String(error)),
-        );
-      }
-      const ok = adapter.insertTextAt(params.line, params.ch, params.text);
-      return Promise.resolve(
-        ok
-          ? dataResponse({ line: params.line, ch: params.ch })
-          : err(NO_ACTIVE_EDITOR),
-      );
-    },
-    replace: (params): Promise<CallToolResult> => {
-      const lineCount = adapter.getActiveLineCount();
-      if (lineCount === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
-      try {
-        assertEditorPosition(params.fromLine, params.fromCh, lineCount);
-        assertEditorPosition(params.toLine, params.toCh, lineCount, {
-          allowEnd: true,
-        });
-      } catch (error) {
-        return Promise.resolve(
-          err(error instanceof Error ? error.message : String(error)),
-        );
-      }
-      const ok = adapter.replaceRange(
-        params.fromLine,
-        params.fromCh,
-        params.toLine,
-        params.toCh,
-        params.text,
-      );
-      return Promise.resolve(
-        ok ? dataResponse(rangeOf(params)) : err(NO_ACTIVE_EDITOR),
-      );
-    },
-    deleteRange: (params): Promise<CallToolResult> => {
-      const lineCount = adapter.getActiveLineCount();
-      if (lineCount === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
-      try {
-        assertEditorPosition(params.fromLine, params.fromCh, lineCount);
-        assertEditorPosition(params.toLine, params.toCh, lineCount, {
-          allowEnd: true,
-        });
-      } catch (error) {
-        return Promise.resolve(
-          err(error instanceof Error ? error.message : String(error)),
-        );
-      }
-      const ok = adapter.deleteRange(
-        params.fromLine,
-        params.fromCh,
-        params.toLine,
-        params.toCh,
-      );
-      return Promise.resolve(
-        ok ? dataResponse(rangeOf(params)) : err(NO_ACTIVE_EDITOR),
-      );
-    },
-    getCursor: (): Promise<CallToolResult> => {
-      const pos = adapter.getCursorPosition();
-      if (!pos) return Promise.resolve(err(NO_ACTIVE_EDITOR));
-      return Promise.resolve(
-        dataResponse({ line: pos.line, ch: pos.ch }),
-      );
-    },
-    setCursor: (params): Promise<CallToolResult> => {
-      const lineCount = adapter.getActiveLineCount();
-      if (lineCount === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
-      try {
-        assertEditorPosition(params.line, params.ch, lineCount);
-      } catch (error) {
-        return Promise.resolve(
-          err(error instanceof Error ? error.message : String(error)),
-        );
-      }
-      const ok = adapter.setCursorPosition(params.line, params.ch);
-      return Promise.resolve(
-        ok
-          ? dataResponse({ line: params.line, ch: params.ch })
-          : err(NO_ACTIVE_EDITOR),
-      );
-    },
-    getSelection: (): Promise<CallToolResult> => {
-      const sel = adapter.getSelection();
-      if (!sel) return Promise.resolve(err(`No active editor or selection. ${NO_EDITOR_HINT}`));
-      return Promise.resolve(
-        dataResponse({ from: sel.from, to: sel.to, text: sel.text }),
-      );
-    },
-    setSelection: (params): Promise<CallToolResult> => {
-      const lineCount = adapter.getActiveLineCount();
-      if (lineCount === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
-      try {
-        assertEditorPosition(params.fromLine, params.fromCh, lineCount);
-        assertEditorPosition(params.toLine, params.toCh, lineCount, {
-          allowEnd: true,
-        });
-      } catch (error) {
-        return Promise.resolve(
-          err(error instanceof Error ? error.message : String(error)),
-        );
-      }
-      const ok = adapter.setSelection(
-        params.fromLine,
-        params.fromCh,
-        params.toLine,
-        params.toCh,
-      );
-      return Promise.resolve(
-        ok ? dataResponse(rangeOf(params)) : err(NO_ACTIVE_EDITOR),
-      );
-    },
-    getLineCount: (): Promise<CallToolResult> => {
-      const count = adapter.getActiveLineCount();
-      if (count === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
-      return Promise.resolve(
-        dataResponse({ lineCount: count }),
-      );
-    },
-  };
+/** The start of a range must be a line; its end may be the end of the text. */
+function rangeLines(params: RangeParams): LineCheck[] {
+  return [
+    { line: params.fromLine, allowEnd: false },
+    { line: params.toLine, allowEnd: true },
+  ];
+}
+
+/**
+ * Edit the active editor: check `lines` against its line count, run `edit`
+ * and return `result` as data. "No active editor" when there is none or
+ * `edit` reports false; "Position is out of range" for a line past the end.
+ */
+function withEditor(
+  adapter: ObsidianAdapter,
+  lines: readonly LineCheck[],
+  edit: () => boolean,
+  result: object,
+): CallToolResult {
+  const lineCount = adapter.getActiveLineCount();
+  if (lineCount === null) return errorResult(NO_ACTIVE_EDITOR);
+  for (const { line, allowEnd } of lines) {
+    if (line > (allowEnd ? lineCount : lineCount - 1)) {
+      throw new RangeError('Position is out of range for the active editor');
+    }
+  }
+  return edit() ? dataResponse(result) : errorResult(NO_ACTIVE_EDITOR);
 }
 
 export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
-  const h = createHandlers(adapter);
   return {
     metadata: { id: 'editor', name: 'Editor Operations', description: 'Access and manipulate the active editor', defaultEnabled: false },
     tools(): ToolDefinition[] {
@@ -372,7 +198,15 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             seeAlso: ['vault_read — to read any file by path.'],
           }),
           schema: getContentSchema,
-          handler: h.getContent,
+          handler: safeHandler((params): CallToolResult => {
+            const text = adapter.getActiveFileContent();
+            if (text === null) return errorResult(NO_ACTIVE_EDITOR);
+            const w = sliceTextWindow(text, params.offset ?? 0, params.length ?? READ_MAX_LENGTH);
+            return documentResponse(
+              windowMeta(w, text.length),
+              windowBody('editor_get_content', w, text.length),
+            );
+          }),
           annotations: annotations.read,
         }),
         defineTool({
@@ -383,9 +217,13 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             errors: ['"No active file" if no file is open.'],
             seeAlso: ['workspace_get_active_leaf — for the active leaf (id and view type), not just the path.'],
           }),
-          schema: readOnlySchema,
+          schema: noParamsSchema,
           outputSchema: getActiveFileOutputSchema,
-          handler: h.getActivePath,
+          handler: safeHandler((): CallToolResult => {
+            const path = adapter.getActiveFilePath();
+            if (path === null) return errorResult('No active file');
+            return dataResponse({ path });
+          }),
           annotations: annotations.read,
         }),
         defineTool({
@@ -404,7 +242,14 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           }),
           schema: insertSchema,
           outputSchema: positionOutputSchema,
-          handler: h.insert,
+          handler: safeHandler((params): CallToolResult =>
+            withEditor(
+              adapter,
+              [{ line: params.line, allowEnd: true }],
+              () => adapter.insertTextAt(params.line, params.ch, params.text),
+              { line: params.line, ch: params.ch },
+            ),
+          ),
           annotations: annotations.additive,
         }),
         defineTool({
@@ -424,7 +269,15 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           }),
           schema: replaceSchema,
           outputSchema: rangeOutputSchema,
-          handler: h.replace,
+          handler: safeHandler((params): CallToolResult =>
+            withEditor(
+              adapter,
+              rangeLines(params),
+              () =>
+                adapter.replaceRange(params.fromLine, params.fromCh, params.toLine, params.toCh, params.text),
+              rangeOf(params),
+            ),
+          ),
           annotations: annotations.destructive,
         }),
         defineTool({
@@ -438,9 +291,16 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
               'editor_replace — to overwrite a range.',
             ],
           }),
-          schema: deleteRangeSchema,
+          schema: rangeSchema,
           outputSchema: rangeOutputSchema,
-          handler: h.deleteRange,
+          handler: safeHandler((params): CallToolResult =>
+            withEditor(
+              adapter,
+              rangeLines(params),
+              () => adapter.deleteRange(params.fromLine, params.fromCh, params.toLine, params.toCh),
+              rangeOf(params),
+            ),
+          ),
           annotations: annotations.destructive,
         }),
         defineTool({
@@ -449,9 +309,13 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary: 'Get the cursor position (0-based line, ch) in the active editor.',
           }),
-          schema: readOnlySchema,
+          schema: noParamsSchema,
           outputSchema: getCursorOutputSchema,
-          handler: h.getCursor,
+          handler: safeHandler((): CallToolResult => {
+            const pos = adapter.getCursorPosition();
+            if (!pos) return errorResult(NO_ACTIVE_EDITOR);
+            return dataResponse({ line: pos.line, ch: pos.ch });
+          }),
           annotations: annotations.read,
         }),
         defineTool({
@@ -462,9 +326,16 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             errors: ['"Position is out of range" if line is past the last line (ch is not checked).'],
             seeAlso: ['editor_set_selection — to select a range.'],
           }),
-          schema: setCursorSchema,
+          schema: pointSchema,
           outputSchema: positionOutputSchema,
-          handler: h.setCursor,
+          handler: safeHandler((params): CallToolResult =>
+            withEditor(
+              adapter,
+              [{ line: params.line, allowEnd: false }],
+              () => adapter.setCursorPosition(params.line, params.ch),
+              { line: params.line, ch: params.ch },
+            ),
+          ),
           annotations: annotations.additive,
         }),
         defineTool({
@@ -474,9 +345,13 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             summary: 'Get the selected text and its range (0-based) in the active editor. With nothing selected, from equals to (the cursor) and text is "".',
             errors: ['"No active editor or selection" if no editor is open.'],
           }),
-          schema: readOnlySchema,
+          schema: noParamsSchema,
           outputSchema: getSelectionOutputSchema,
-          handler: h.getSelection,
+          handler: safeHandler((): CallToolResult => {
+            const sel = adapter.getSelection();
+            if (!sel) return errorResult(`No active editor or selection. ${NO_EDITOR_HINT}`);
+            return dataResponse({ from: sel.from, to: sel.to, text: sel.text });
+          }),
           annotations: annotations.read,
         }),
         defineTool({
@@ -487,9 +362,16 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
             errors: [RANGE_OUT_OF_RANGE_ERROR],
             seeAlso: ['editor_set_cursor — to place the caret at a point.'],
           }),
-          schema: setSelectionSchema,
+          schema: rangeSchema,
           outputSchema: rangeOutputSchema,
-          handler: h.setSelection,
+          handler: safeHandler((params): CallToolResult =>
+            withEditor(
+              adapter,
+              rangeLines(params),
+              () => adapter.setSelection(params.fromLine, params.fromCh, params.toLine, params.toCh),
+              rangeOf(params),
+            ),
+          ),
           annotations: annotations.additive,
         }),
         defineTool({
@@ -498,9 +380,13 @@ export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
           description: describeTool({
             summary: 'Get the number of lines in the active editor.',
           }),
-          schema: readOnlySchema,
+          schema: noParamsSchema,
           outputSchema: getLineCountOutputSchema,
-          handler: h.getLineCount,
+          handler: safeHandler((): CallToolResult => {
+            const count = adapter.getActiveLineCount();
+            if (count === null) return errorResult(NO_ACTIVE_EDITOR);
+            return dataResponse({ lineCount: count });
+          }),
           annotations: annotations.read,
         }),
       ];
