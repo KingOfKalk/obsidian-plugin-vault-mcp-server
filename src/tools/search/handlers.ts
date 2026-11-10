@@ -1,5 +1,6 @@
 import { CallToolResult } from '@modelcontextprotocol/server';
 import { ObsidianAdapter } from '../../obsidian/adapter';
+import { filesWithTag, groupTagsByCase } from '../../obsidian/tag-index';
 import { validateToolPath } from '../../utils/path-guard';
 import { CHARACTER_LIMIT } from '../../constants';
 import { FileNotFoundError, handleToolError } from '../shared/errors';
@@ -313,7 +314,7 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
       try {
         const tags: Record<string, string[]> = {};
         const counts: Record<string, number> = {};
-        for (const [tag, usage] of Object.entries(adapter.getAllTags())) {
+        for (const [tag, usage] of Object.entries(groupTagsByCase(adapter.getAllTags()))) {
           tags[tag] = usage.files;
           counts[tag] = usage.count;
         }
@@ -503,8 +504,8 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
       try {
         const tag = params.tag;
         const normalizedTag = tag.startsWith('#') ? tag : `#${tag}`;
-        const allTags = adapter.getAllTags();
-        const files = allTags[normalizedTag]?.files ?? [];
+        // Case-insensitive, nested tags included (#470).
+        const files = filesWithTag(adapter.getAllTags(), tag);
         const page = paginate(files, readPagination(params));
         return Promise.resolve(
           makeResponse(

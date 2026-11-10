@@ -343,6 +343,29 @@ describe('search handlers', () => {
       });
       expect(data.counts).toEqual({ '#Project': 3, '#area/work': 1, '#inline': 1 });
     });
+
+    it('groups tags that differ only in case under the most common spelling (#470)', async () => {
+      adapter.addFile('a.md', 'content');
+      adapter.setMetadata('a.md', {
+        frontmatter: { tags: ['project'] },
+        tags: ['#Project', '#Project/Alpha'],
+      });
+      adapter.addFile('b.md', 'content');
+      adapter.setMetadata('b.md', { tags: ['#Project', '#PROJECT', '#project/alpha'] });
+      const result = await handlers.searchTags({ responseFormat: 'json' });
+      const data = JSON.parse(getText(result)) as {
+        tags: Record<string, string[]>;
+        counts: Record<string, number>;
+      };
+      // #Project: 2 occurrences, #project: 1, #PROJECT: 1. Nested tags
+      // keep their own entry; #Project/Alpha and #project/alpha tie, so
+      // the first seen spelling wins.
+      expect(data.tags).toEqual({
+        '#Project': ['a.md', 'b.md'],
+        '#Project/Alpha': ['a.md', 'b.md'],
+      });
+      expect(data.counts).toEqual({ '#Project': 4, '#Project/Alpha': 2 });
+    });
   });
 
   describe('searchHeadings', () => {
@@ -519,8 +542,59 @@ describe('search handlers', () => {
       adapter.setMetadata('none.md', { frontmatter: { title: 'Project' } });
       const result = await handlers.searchByTag({ tag: 'Project', responseFormat: 'json' });
       const page = JSON.parse(getText(result)) as { items: string[]; total: number };
-      expect(page.items).toEqual(['list.md', 'string.md', 'both.md']);
+      expect(page.items).toEqual(['both.md', 'list.md', 'string.md']);
       expect(page.total).toBe(3);
+    });
+
+    it('matches tags case-insensitively (#470)', async () => {
+      adapter.addFile('upper.md', 'content');
+      adapter.setMetadata('upper.md', { tags: ['#Project'] });
+      adapter.addFile('fm.md', 'content');
+      adapter.setMetadata('fm.md', { frontmatter: { tags: ['PROJECT'] } });
+      adapter.addFile('lower.md', 'content');
+      adapter.setMetadata('lower.md', { tags: ['#project'] });
+      for (const tag of ['project', '#PROJECT', 'Project']) {
+        const result = await handlers.searchByTag({ tag, responseFormat: 'json' });
+        const page = JSON.parse(getText(result)) as { items: string[] };
+        expect(page.items).toEqual(['fm.md', 'lower.md', 'upper.md']);
+      }
+    });
+
+    it('includes nested tags but not tags that only share a prefix (#470)', async () => {
+      adapter.addFile('parent.md', 'content');
+      adapter.setMetadata('parent.md', { tags: ['#project'] });
+      adapter.addFile('child.md', 'content');
+      adapter.setMetadata('child.md', { tags: ['#Project/Alpha'] });
+      adapter.addFile('deep.md', 'content');
+      adapter.setMetadata('deep.md', { frontmatter: { tags: 'project/alpha/beta' } });
+      adapter.addFile('prefix.md', 'content');
+      adapter.setMetadata('prefix.md', { tags: ['#projects', '#myproject/alpha'] });
+      const all = await handlers.searchByTag({ tag: 'project', responseFormat: 'json' });
+      expect((JSON.parse(getText(all)) as { items: string[] }).items).toEqual([
+        'child.md',
+        'deep.md',
+        'parent.md',
+      ]);
+      const nested = await handlers.searchByTag({ tag: '#project/ALPHA/', responseFormat: 'json' });
+      expect((JSON.parse(getText(nested)) as { items: string[] }).items).toEqual([
+        'child.md',
+        'deep.md',
+      ]);
+    });
+
+    it('lists a file carrying the tag and a nested tag once (#470)', async () => {
+      adapter.addFile('a.md', 'content');
+      adapter.setMetadata('a.md', { tags: ['#project', '#project/alpha'] });
+      const result = await handlers.searchByTag({ tag: 'project' });
+      expect(getText(result)).toContain('**1 file tagged #project**');
+      expect(result.structuredContent).toMatchObject({ items: ['a.md'], total: 1 });
+    });
+
+    it('finds nothing for a bare #', async () => {
+      adapter.addFile('a.md', 'content');
+      adapter.setMetadata('a.md', { tags: ['#project'] });
+      const result = await handlers.searchByTag({ tag: '#', responseFormat: 'json' });
+      expect((JSON.parse(getText(result)) as { total: number }).total).toBe(0);
     });
   });
 

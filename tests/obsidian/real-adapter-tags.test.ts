@@ -1,7 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { App, TFile } from 'obsidian';
 import { RealObsidianAdapter } from '../../src/obsidian/adapter';
-import { buildTagIndex, parseFrontmatterTags } from '../../src/obsidian/tag-index';
+import {
+  buildTagIndex,
+  filesWithTag,
+  groupTagsByCase,
+  parseFrontmatterTags,
+  tagKey,
+} from '../../src/obsidian/tag-index';
 
 function file(path: string): TFile {
   const f = new TFile();
@@ -137,5 +143,52 @@ describe('parseFrontmatterTags (#440)', () => {
       '#2024',
     ]);
     expect(parseFrontmatterTags({ tags: null })).toEqual([]);
+  });
+});
+
+describe('tagKey (#470)', () => {
+  it('drops leading # and trailing /, trims and lowercases', () => {
+    expect(tagKey('#Project/Alpha/')).toBe('project/alpha');
+    expect(tagKey('  ##TODO ')).toBe('todo');
+    expect(tagKey('#')).toBe('');
+  });
+});
+
+describe('filesWithTag (#470)', () => {
+  const index = buildTagIndex([
+    { path: 'z.md', tags: ['#Project'] },
+    { path: 'a.md', tags: ['#project/alpha', '#project'] },
+    { path: 'm.md', tags: ['#projects'] },
+  ]);
+
+  it('matches any case and nested tags, each file once, sorted', () => {
+    expect(filesWithTag(index, 'PROJECT')).toEqual(['a.md', 'z.md']);
+    expect(filesWithTag(index, '#project/Alpha')).toEqual(['a.md']);
+    expect(filesWithTag(index, 'projects')).toEqual(['m.md']);
+  });
+
+  it('matches nothing for an empty tag', () => {
+    expect(filesWithTag(index, '#')).toEqual([]);
+  });
+});
+
+describe('groupTagsByCase (#470)', () => {
+  it('keys each group by the spelling with the most occurrences', () => {
+    const index = buildTagIndex([
+      { path: 'a.md', tags: ['#todo', '#ToDo'] },
+      { path: 'b.md', tags: ['#ToDo', '#ToDo', '#other'] },
+    ]);
+    expect(groupTagsByCase(index)).toEqual({
+      '#ToDo': { files: ['a.md', 'b.md'], count: 4 },
+      '#other': { files: ['b.md'], count: 1 },
+    });
+  });
+
+  it('keeps the first spelling on a tie', () => {
+    const index = buildTagIndex([
+      { path: 'a.md', tags: ['#Area'] },
+      { path: 'b.md', tags: ['#area'] },
+    ]);
+    expect(groupTagsByCase(index)).toEqual({ '#Area': { files: ['a.md', 'b.md'], count: 2 } });
   });
 });
