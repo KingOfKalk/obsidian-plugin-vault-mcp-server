@@ -1,8 +1,13 @@
 /**
  * Deterministic helpers for the eval runner (#393): reading the qa_pair XML
- * file, pulling the tagged answer out of a model reply, and comparing it
- * with the expected answer. Covered by tests/evals/lib.test.ts.
+ * file, pulling the tagged answer out of a model reply, comparing it with
+ * the expected answer, loading `.env`, and the provider interface shared by
+ * the Anthropic and OpenAI-compatible providers (#483). Covered by
+ * tests/evals/lib.test.ts.
  */
+import { existsSync, readFileSync } from 'node:fs';
+import { parseEnv } from 'node:util';
+import type { Tool } from '@modelcontextprotocol/client';
 
 export interface QaPair {
   question: string;
@@ -107,4 +112,58 @@ export function answersMatch(actual: string | null, expected: string): boolean {
   const e = normaliseAnswer(expected);
   if (a === e) return true;
   return NUMBER_RE.test(a) && NUMBER_RE.test(e) && Number(a) === Number(e);
+}
+
+/**
+ * Load a `.env` file into `env` if it exists, the way `process.loadEnvFile`
+ * does: variables that are already set win over the file. Returns the
+ * names it set.
+ */
+export function loadDotEnv(path: string, env: NodeJS.ProcessEnv): string[] {
+  if (!existsSync(path)) return [];
+  const parsed = parseEnv(readFileSync(path, 'utf8'));
+  const set: string[] = [];
+  for (const [name, value] of Object.entries(parsed)) {
+    if (value === undefined || env[name] !== undefined) continue;
+    env[name] = value;
+    set.push(name);
+  }
+  return set;
+}
+
+export type ProviderName = 'anthropic' | 'openai';
+
+/** A tool call the model asked for, in provider-neutral form. */
+export interface ToolCall {
+  id: string;
+  name: string;
+  input: Record<string, unknown>;
+  /** Set when the arguments could not be parsed; the tool is then not called. */
+  inputError?: string;
+}
+
+/** The result of one tool call, as text for the model. */
+export interface ToolOutcome {
+  call: ToolCall;
+  text: string;
+  isError: boolean;
+}
+
+/** What one model turn produced. */
+export type TurnResult =
+  | { kind: 'tool_calls'; calls: ToolCall[] }
+  | { kind: 'final'; text: string; stopReason: string }
+  /** The model paused (Anthropic `pause_turn`); send again without results. */
+  | { kind: 'continue' };
+
+/** One question's conversation: send the previous turn's tool results, get the next turn. */
+export interface ChatSession {
+  send(results: ToolOutcome[]): Promise<TurnResult>;
+}
+
+export interface Provider {
+  name: ProviderName;
+  start(setup: { tools: Tool[]; system: string; question: string }): ChatSession;
+  /** Errors that stop the whole run (bad key) instead of failing one question. */
+  isFatal(error: unknown): boolean;
 }
