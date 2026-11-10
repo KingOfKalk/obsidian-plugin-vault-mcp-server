@@ -59,7 +59,8 @@ Response (`structuredContent`):
     {
       "version": "5.1.0",
       "notes": [
-        "`vault_get_aspect` with `aspect: \"outgoing_links\"` or `\"embeds\"`: each entry adds `path`, the vault path Obsidian resolves the link to from this note (pass it to `vault_read`; `null` when unresolved or inside the config folder), and `subpath`, the `#Heading` or `#^block` part when present. `link` is… [truncated, 11 more chars]"
+        "`vault_get_aspect` with `aspect: \"outgoing_links\"` or `\"embeds\"`: each entry adds `path`, the vault path Obsidian resolves the link to from this note (pass it to `vault_read`; `null` when unresolved or inside the config folder), and `subpath`, the `#Heading` or `#^block` part when present. `link` is… [truncated, 11 more chars]",
+        "Template placeholders `{{date:FORMAT}}` and `{{time:FORMAT}}` are expanded with a moment.js format (e.g. `{{date:dddd}}`), like Obsidian, in `template_expand`, `template_create_from` and `vault_daily_note`; an empty format gives `YYYY-MM-DD` / `HH:mm`. A variable named like the whole placeholder (e.… [truncated, 151 more chars]"
       ]
     },
     {
