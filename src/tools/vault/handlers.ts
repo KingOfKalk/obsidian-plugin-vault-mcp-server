@@ -409,6 +409,23 @@ export function createHandlers(
   const configDir = adapter.getConfigDir();
 
   /**
+   * A write under the path's lock (#406): check `expectedMtime`, run
+   * `write`, then return `{ path, ...fields, modified }` with the new mtime.
+   */
+  async function guardedWrite(
+    path: string,
+    expectedMtime: string | undefined,
+    write: () => Promise<object>,
+  ): Promise<CallToolResult> {
+    return await mutex.acquire(path, async () => {
+      await assertExpectedMtime(adapter, path, expectedMtime);
+      const fields = await write();
+      const modified = await modifiedIso(adapter, path);
+      return dataResponse({ path, ...fields, modified });
+    });
+  }
+
+  /**
    * `vault_replace`'s multi-edit form (#429): one mtime check, then every
    * edit is validated and applied inside a single `processFile` call, so a
    * failing edit writes nothing.
@@ -418,32 +435,26 @@ export function createHandlers(
     edits: readonly ReplaceEdit[],
     expectedMtime: string | undefined,
   ): Promise<CallToolResult> {
-    return await mutex.acquire(path, async () => {
-      await assertExpectedMtime(adapter, path, expectedMtime);
+    return await guardedWrite(path, expectedMtime, async () => {
       let perEdit: number[] = [];
       await adapter.processFile(path, (content) => {
         const applied = applyReplaceEdits(content, edits, path);
         perEdit = applied.replacements;
         return applied.content;
       });
-      const modified = await modifiedIso(adapter, path);
-      const replacements = perEdit.reduce((sum, count) => sum + count, 0);
-      return dataResponse({
-        path,
-        replacements,
+      return {
+        replacements: perEdit.reduce((sum, count) => sum + count, 0),
         edits: perEdit.map((count, index) => ({ index, replacements: count })),
-        modified,
-      });
+      };
     });
   }
 
   return safeHandlers<VaultHandlers>({
     async createFile(params): Promise<CallToolResult> {
       const path = validateToolPath(params.path, vaultPath, configDir);
-      return await mutex.acquire(path, async () => {
+      return await guardedWrite(path, undefined, async () => {
         await adapter.createFile(path, params.content);
-        const modified = await modifiedIso(adapter, path);
-        return dataResponse({ path, created: true, modified });
+        return { created: true };
       });
     },
 
@@ -472,11 +483,9 @@ export function createHandlers(
 
     async updateFile(params): Promise<CallToolResult> {
       const path = validateToolPath(params.path, vaultPath, configDir);
-      return await mutex.acquire(path, async () => {
-        await assertExpectedMtime(adapter, path, params.expectedMtime);
+      return await guardedWrite(path, params.expectedMtime, async () => {
         await adapter.modifyFile(path, params.content);
-        const modified = await modifiedIso(adapter, path);
-        return dataResponse({ path, updated: true, modified });
+        return { updated: true };
       });
     },
 
@@ -495,15 +504,9 @@ export function createHandlers(
 
     async appendFile(params): Promise<CallToolResult> {
       const path = validateToolPath(params.path, vaultPath, configDir);
-      return await mutex.acquire(path, async () => {
-        await assertExpectedMtime(adapter, path, params.expectedMtime);
+      return await guardedWrite(path, params.expectedMtime, async () => {
         await adapter.processFile(path, (existing) => appendText(existing, params.content));
-        const modified = await modifiedIso(adapter, path);
-        return dataResponse({
-          path,
-          appended: true,
-          modified,
-        });
+        return { appended: true };
       });
     },
 
@@ -532,8 +535,7 @@ export function createHandlers(
             : 'oldString and newString must be given together. Nothing was written.',
         );
       }
-      return await mutex.acquire(path, async () => {
-        await assertExpectedMtime(adapter, path, params.expectedMtime);
+      return await guardedWrite(path, params.expectedMtime, async () => {
         let replacements = 0;
         // Matching runs inside vault.process so the read-modify-write is
         // atomic with respect to Obsidian; throwing here writes nothing.
@@ -556,16 +558,14 @@ export function createHandlers(
             ? content.split(oldString).join(newString)
             : content.replace(oldString, () => newString);
         });
-        const modified = await modifiedIso(adapter, path);
-        return dataResponse({ path, replacements, modified });
+        return { replacements };
       });
     },
 
     async insert(params): Promise<CallToolResult> {
       const path = validateToolPath(params.path, vaultPath, configDir);
       const position = params.position ?? 'end';
-      return await mutex.acquire(path, async () => {
-        await assertExpectedMtime(adapter, path, params.expectedMtime);
+      return await guardedWrite(path, params.expectedMtime, async () => {
         let heading = '';
         let line = 0;
         let replacedPlaceholder = false;
@@ -587,15 +587,12 @@ export function createHandlers(
           replacedPlaceholder = result.replacedPlaceholder;
           return result.content;
         });
-        const modified = await modifiedIso(adapter, path);
-        return dataResponse({
-          path,
+        return {
           heading,
           position,
           line,
           ...(replacedPlaceholder ? { replacedPlaceholder: true } : {}),
-          modified,
-        });
+        };
       });
     },
 
@@ -728,18 +725,12 @@ export function createHandlers(
     async writeBinary(params): Promise<CallToolResult> {
       const path = validateToolPath(params.path, vaultPath, configDir);
       const buffer = Buffer.from(params.data, 'base64');
-      return await mutex.acquire(path, async () => {
-        await assertExpectedMtime(adapter, path, params.expectedMtime);
+      return await guardedWrite(path, params.expectedMtime, async () => {
         await adapter.writeBinary(
           path,
           buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
         );
-        const modified = await modifiedIso(adapter, path);
-        return dataResponse({
-          path,
-          sizeBytes: buffer.byteLength,
-          modified,
-        });
+        return { sizeBytes: buffer.byteLength };
       });
     },
 
@@ -807,8 +798,7 @@ export function createHandlers(
       const remove = params.remove ?? [];
       const setKeys = Object.keys(set);
       validateFrontmatterChange(setKeys, remove);
-      return await mutex.acquire(path, async () => {
-        await assertExpectedMtime(adapter, path, params.expectedMtime);
+      return await guardedWrite(path, params.expectedMtime, async () => {
         let frontmatter: Record<string, unknown> = {};
         await adapter.processFrontMatter(path, (fm) => {
           for (const key of setKeys) {
@@ -821,11 +811,7 @@ export function createHandlers(
           // Obsidian hands back richer YAML values.
           frontmatter = JSON.parse(JSON.stringify(fm)) as Record<string, unknown>;
         });
-        const parts: string[] = [];
-        if (setKeys.length > 0) parts.push(`set ${setKeys.join(', ')}`);
-        if (remove.length > 0) parts.push(`removed ${remove.join(', ')}`);
-        const modified = await modifiedIso(adapter, path);
-        return dataResponse({ path, frontmatter, modified });
+        return { frontmatter };
       });
     },
   });
