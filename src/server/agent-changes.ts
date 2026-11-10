@@ -20,6 +20,7 @@ export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
   {
     version: '5.1.0',
     notes: [
+      '`vault_get_aspect` with `aspect: "outgoing_links"` or `"embeds"`: each entry adds `path`, the vault path Obsidian resolves the link to from this note (pass it to `vault_read`; `null` when unresolved or inside the config folder), and `subpath`, the `#Heading` or `#^block` part when present. `link` is unchanged.',
       'Every paged tool has the same page size: `limit` defaults to 50 (max 100) in `search_fulltext`, `search_tags`, `search_by_tag`, `search_by_frontmatter`, `search_resolved_links`, `search_unresolved_links`, `vault_list`, `vault_list_recursive` and `vault_get_aspect` backlinks. Before, it was 20 for `search_by_tag`, `search_by_frontmatter`, `search_fulltext` and `vault_list_recursive`, and 100 for `vault_list` and `search_tags`. Their descriptions state the rule in a `Paging:` line; while `hasMore` is true, call again with `offset` = `nextOffset`.',
     ],
   },

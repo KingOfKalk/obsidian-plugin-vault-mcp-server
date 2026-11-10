@@ -7,6 +7,7 @@ import {
   ObsidianAdapter,
   TrashDestination,
 } from './adapter';
+import { resolveLinkpath } from './link-resolver';
 import { buildTagIndex, parseFrontmatterTags, type TagUsage } from './tag-index';
 import {
   FileNotFoundError,
@@ -361,6 +362,11 @@ export class MockObsidianAdapter implements ObsidianAdapter {
   getEmbeds(path: string): Array<{ link: string; displayText?: string }> {
     const file = this.requireFile(path);
     return file.metadata?.embeds ?? [];
+  }
+
+  /** Obsidian's resolution rule, emulated (#485). */
+  resolveLinkpath(linkpath: string, sourcePath: string): string | null {
+    return resolveLinkpath(linkpath, sourcePath, Array.from(this.files.keys()));
   }
 
   getBacklinks(path: string): string[] {
