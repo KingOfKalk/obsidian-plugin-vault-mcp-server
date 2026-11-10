@@ -788,7 +788,9 @@ clients and agents commonly trip over:
   nothing is written. With `create: true` a missing note is created from
   the configured template and the header says `created: true`. Every
   response has the `path` and `exists` header lines, followed by the note
-  text when the note exists. Before 4.0 the default was `create: true`; see
+  text when the note exists. When the note exists (or was just created)
+  the header also has `modified`, the same ISO-8601 time as in
+  `vault_read`; pass it as `expectedMtime` to the next write (since 5.0.1). Before 4.0 the default was `create: true`; see
   [Upgrading to 4.0](#upgrading-to-40). The tool does not open the note;
   the `/daily-note` prompt opens it with `workspace_open_file`. In a new
   note `{{date}}` is the note's date, `{{time}}` the current local time
