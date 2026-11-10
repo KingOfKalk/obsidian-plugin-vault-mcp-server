@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import moment from 'moment';
 import { CallToolResult } from '@modelcontextprotocol/server';
 import { MockObsidianAdapter } from '../../../src/obsidian/mock-adapter';
@@ -178,8 +178,27 @@ describe('vault_daily_note handler', () => {
       const result = await handlers.dailyNote({ date: '2026-05-05', create: true });
       const structured = daily(result) as { content: string; warning?: string };
       expect(structured.warning).toBeUndefined();
-      // A past date is created at local midnight.
-      expect(structured.content).toBe('# 2026-05-05 00:00');
+      expect(structured.content).toBe(`# 2026-05-05 ${moment().format('HH:mm')}`);
+    });
+
+    it('expands {{date:FORMAT}} with the note\'s date and {{time:FORMAT}} with the current time (#488)', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(2026, 10, 10, 9, 41, 7));
+      try {
+        adapter.setDailyNotesSettings({ format: 'YYYY-MM-DD', folder: '', template: 'templates/daily.md' });
+        adapter.addFolder('templates');
+        adapter.addFile(
+          'templates/daily.md',
+          '---\ndate: "{{date}}"\n---\n# {{date:dddd}}, {{date:YYYY-MM-DD}}\n{{time}} {{time:HH:mm:ss}} {{time:YYYY-MM-DD}}\n',
+        );
+        const result = await handlers.dailyNote({ date: '2099-01-01', create: true });
+        expect(result.isError).toBeUndefined();
+        expect((daily(result) as { content: string }).content).toBe(
+          '---\ndate: "2099-01-01"\n---\n# Thursday, 2099-01-01\n09:41 09:41:07 2099-01-01\n',
+        );
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 

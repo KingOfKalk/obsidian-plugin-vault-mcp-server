@@ -285,9 +285,18 @@ async function resolveInitialBody(
   // Templater syntax: never expanded here — Templater can run arbitrary
   // user JS, so execution stays client-side (mirrors plugin_templater_*).
   if (templateBody.includes('<%')) return { body: templateBody };
+  // Date placeholders use the note's date, time placeholders the current
+  // time of day on that date (#488), like Obsidian's Daily notes plugin.
+  const current = moment();
+  const reference = targetMoment.clone().set({
+    hour: current.hour(),
+    minute: current.minute(),
+    second: current.second(),
+    millisecond: current.millisecond(),
+  });
   return {
     body: expandPlaceholders(templateBody, {}, {
-      now: targetMoment.toDate(),
+      now: reference.toDate(),
       title: noteTitle(filename),
     }),
   };

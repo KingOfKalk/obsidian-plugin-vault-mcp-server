@@ -640,7 +640,8 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
             returns:
               'Text: "key: value" header lines (path, exists, created, modified, warning, paging), a blank line, the note (continue a long one with vault_read). ' +
               'modified (ISO-8601, only when the note exists) is usable as the next expectedMtime. ' +
-              "In a new note {{date}} is the note's date (YYYY-MM-DD), {{time}} the local time (HH:mm), {{title}} the file name without .md. " +
+              "In a new note {{date}} is the note's date (YYYY-MM-DD), {{time}} the current local time (HH:mm), {{title}} the file name without .md; " +
+              "{{date:FORMAT}} / {{time:FORMAT}} format the note's date with the current time by a moment.js format (e.g. {{date:dddd}}). " +
               'Templater syntax (<%) is copied unchanged; a configured template that is missing gives an empty note and a warning.',
             examples: [
               "Use when: you need today's note, creating it if missing → { create: true }",

@@ -1,3 +1,7 @@
+// Obsidian ships moment and its core Templates / Daily notes plugins format
+// `{{date:FORMAT}}` with it; the bundled instance is the same one.
+import moment from 'moment';
+
 function pad2(value: number): string {
   return String(value).padStart(2, '0');
 }
@@ -18,8 +22,17 @@ export function noteTitle(path: string): string {
   return name.replace(/\.md$/i, '');
 }
 
+/**
+ * `{{date:FORMAT}}` / `{{time:FORMAT}}` on one line. Group 1 is the whole
+ * key (to look up a variable that overrides it), 2 the kind, 3 the format.
+ */
+const FORMAT_PLACEHOLDER = /\{\{((date|time):([^\n]*?))\}\}/g;
+
 export interface PlaceholderContext {
-  /** Moment for `{{date}}` / `{{time}}`; defaults to the current time. */
+  /**
+   * Moment for `{{date}}`, `{{time}}` and their `:FORMAT` variants;
+   * defaults to the current time.
+   */
   now?: Date;
   /**
    * Value of `{{title}}`: the target file's name without `.md`. Without
@@ -35,8 +48,13 @@ export interface PlaceholderContext {
  *
  * Built-ins: `{{date}}` is the local date (`YYYY-MM-DD`), `{{time}}` the
  * local time (`HH:mm`), both of `context.now`; `{{title}}` is
- * `context.title` when given. User-supplied variables take precedence over
- * the built-ins. Unknown placeholders are left untouched.
+ * `context.title` when given. `{{date:FORMAT}}` and `{{time:FORMAT}}`
+ * format `context.now` with a moment.js format, like Obsidian's core
+ * Templates plugin (#488): the format is the text after the first `:`,
+ * trimmed; an empty one gives the plain format. User-supplied variables
+ * take precedence over the built-ins — also over a format variant, when the
+ * variable's key is the whole placeholder (e.g. `date:dddd`). Unknown
+ * placeholders are left untouched.
  *
  * Placeholder matching is **literal** — variable keys may contain any
  * characters (including regex metacharacters); `{{foo(}}` matches only
@@ -56,7 +74,15 @@ export function expandPlaceholders(
     ...(context.title === undefined ? {} : { title: context.title }),
     ...variables,
   };
-  let result = body;
+  let result = body.replace(
+    FORMAT_PLACEHOLDER,
+    (match: string, key: string, kind: 'date' | 'time', format: string): string => {
+      if (Object.hasOwn(variables, key)) return match;
+      const trimmed = format.trim();
+      if (trimmed === '') return kind === 'date' ? formatLocalDate(now) : formatLocalTime(now);
+      return moment(now).format(trimmed);
+    },
+  );
   for (const [key, value] of Object.entries(builtins)) {
     result = result.split(`{{${key}}}`).join(value);
   }
