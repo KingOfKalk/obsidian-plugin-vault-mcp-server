@@ -4,9 +4,10 @@ import {
   handleToolError,
   BinaryTooLargeError,
   NotFoundError,
-  PermissionError,
   ValidationError,
-  TimeoutError,
+  PluginNotInstalledError,
+  DestinationExistsError,
+  FileNotFoundError,
   registerVaultBasePath,
   clearVaultBasePaths,
   redactFilesystemPaths,
@@ -47,22 +48,27 @@ describe('handleToolError', () => {
     expect(getText(result)).toBe('Error: File not found: a.md');
   });
 
-  it('prefixes PermissionError with "Permission denied:"', () => {
-    const result = handleToolError(new PermissionError('read /etc/passwd'));
-    expect(result.isError).toBe(true);
-    expect(getText(result)).toBe('Error: Permission denied: read /etc/passwd');
-  });
-
   it('passes ValidationError messages straight through', () => {
     const result = handleToolError(new ValidationError('bad shape'));
     expect(result.isError).toBe(true);
     expect(getText(result)).toBe('Error: bad shape');
   });
 
-  it('prefixes TimeoutError with "Operation timed out:"', () => {
-    const result = handleToolError(new TimeoutError('search_fulltext'));
-    expect(result.isError).toBe(true);
-    expect(getText(result)).toBe('Error: Operation timed out: search_fulltext');
+  it('passes the other typed errors through without redacting paths', () => {
+    registerVaultBasePath('/home/u/vault');
+    expect(getText(handleToolError(new FileNotFoundError('a.md', 'a.md.md')))).toBe(
+      'Error: File not found: a.md. Did you mean a.md.md?',
+    );
+    expect(getText(handleToolError(new PluginNotInstalledError('dataview')))).toBe(
+      'Error: Plugin not installed or disabled: dataview',
+    );
+    expect(getText(handleToolError(new DestinationExistsError('/home/u/vault/b.md')))).toBe(
+      'Error: Destination already exists: /home/u/vault/b.md. Choose another path or delete it first; nothing was changed.',
+    );
+    expect(getText(handleToolError(new BinaryTooLargeError(10, 5)))).toContain(
+      'Error: Binary file too large (10 bytes, limit 5).',
+    );
+    clearVaultBasePaths();
   });
 
   it('falls through to the generic Error branch for plain Errors', () => {
