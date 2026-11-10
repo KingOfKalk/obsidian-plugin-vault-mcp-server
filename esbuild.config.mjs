@@ -1,9 +1,15 @@
 import esbuild from 'esbuild';
+import { builtinModules } from 'node:module';
 import process from 'process';
-import builtins from 'builtin-modules';
 import { zodEnglishOnly } from './scripts/esbuild/zod-locales.mjs';
 
 const production = process.argv[2] === 'production';
+
+// Node's built-in modules, bare and `node:`-prefixed (some exist only
+// prefixed, e.g. `node:test`, and are listed that way).
+const builtins = builtinModules.flatMap((name) =>
+  name.startsWith('node:') ? [name] : [name, `node:${name}`],
+);
 
 const context = await esbuild.context({
   entryPoints: ['src/main.ts'],
