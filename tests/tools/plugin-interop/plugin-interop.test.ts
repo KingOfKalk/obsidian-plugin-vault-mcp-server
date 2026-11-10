@@ -15,21 +15,19 @@ describe('plugin interop module', () => {
     adapter = new MockObsidianAdapter();
   });
 
-  it('should register 6 tools', () => {
+  it('should register 4 tools', () => {
     const module = createPluginInteropModule(adapter);
-    expect(module.tools()).toHaveLength(6);
+    expect(module.tools()).toHaveLength(4);
   });
 
-  it('registers the renamed dataview-js and templater describe tools', () => {
+  it('has no echo tools for Dataview-JS or Templater (#468)', () => {
     const module = createPluginInteropModule(adapter);
     const names = module.tools().map((t) => t.name).sort();
     expect(names).toEqual([
       'plugin_check',
-      'plugin_dataview_describe_js_query',
       'plugin_dataview_query',
       'plugin_execute_command',
       'plugin_list',
-      'plugin_templater_describe_template',
     ]);
   });
 
@@ -41,8 +39,6 @@ describe('plugin interop module', () => {
       'plugin_list',
       'plugin_check',
       'plugin_dataview_query',
-      'plugin_dataview_describe_js_query',
-      'plugin_templater_describe_template',
     ]) {
       const tool = tools.find((t) => t.name === name)!;
       expect(tool.annotations).toEqual({
@@ -124,39 +120,6 @@ describe('plugin interop module', () => {
     const result = await tool.handler({ query: 'TABLE FROM' });
     expect(result.isError).toBe(true);
     expect(getText(result)).toContain('Dataview query failed: syntax error near FROM');
-  });
-
-  it('plugin_dataview_describe_js_query echoes the source verbatim and never executes it', async () => {
-    const module = createPluginInteropModule(adapter);
-    const tool = module
-      .tools()
-      .find((t) => t.name === 'plugin_dataview_describe_js_query')!;
-    const result = await tool.handler({
-      query: 'dv.pages("#projects").file.name',
-    });
-    expect(result.isError).toBeUndefined();
-    expect(result.structuredContent).toMatchObject({
-      query: 'dv.pages("#projects").file.name',
-    });
-    const data = JSON.parse(getText(result)) as { note: string; query: string };
-    expect(data.note).toContain('intentionally not performed');
-  });
-
-  it('plugin_templater_describe_template echoes the path and never executes it', async () => {
-    const module = createPluginInteropModule(adapter);
-    const tool = module
-      .tools()
-      .find((t) => t.name === 'plugin_templater_describe_template')!;
-    const result = await tool.handler({
-      templatePath: 'Templates/daily.md',
-    });
-    expect(result.isError).toBeUndefined();
-    const data = JSON.parse(getText(result)) as {
-      templatePath: string;
-      note: string;
-    };
-    expect(data.templatePath).toBe('Templates/daily.md');
-    expect(data.note).toContain('intentionally not performed');
   });
 
   describe('plugin_execute_command allowlist', () => {
@@ -261,27 +224,6 @@ describe('plugin-interop read tools — outputSchema declarations', () => {
     expect(tool.outputSchema).toBeUndefined();
   });
 
-  it('plugin_dataview_describe_js_query declares outputSchema and parses against handler output', async () => {
-    const adapter = new MockObsidianAdapter();
-    const tool = createPluginInteropModule(adapter).tools().find((t) => t.name === 'plugin_dataview_describe_js_query')!;
-    const schema = getStructured(tool);
-
-    const result = await tool.handler({ query: 'dv.pages()' });
-    const parsed = schema.parse(result.structuredContent);
-    expect(parsed.query).toBe('dv.pages()');
-    expect(typeof parsed.note).toBe('string');
-  });
-
-  it('plugin_templater_describe_template declares outputSchema and parses against handler output', async () => {
-    const adapter = new MockObsidianAdapter();
-    const tool = createPluginInteropModule(adapter).tools().find((t) => t.name === 'plugin_templater_describe_template')!;
-    const schema = getStructured(tool);
-
-    const result = await tool.handler({ templatePath: 'templates/daily.md' });
-    const parsed = schema.parse(result.structuredContent);
-    expect(parsed.templatePath).toBe('templates/daily.md');
-    expect(typeof parsed.note).toBe('string');
-  });
 });
 
 describe('plugin interop runtime availability (#469)', () => {
@@ -326,7 +268,5 @@ describe('plugin interop runtime availability (#469)', () => {
     const a = availability(createPluginInteropModule(adapter));
     expect(a.plugin_list).toBe(true);
     expect(a.plugin_check).toBe(true);
-    expect(a.plugin_dataview_describe_js_query).toBe(true);
-    expect(a.plugin_templater_describe_template).toBe(true);
   });
 });

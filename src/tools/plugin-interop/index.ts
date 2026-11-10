@@ -35,23 +35,7 @@ const dataviewSchema = {
     .string()
     .min(1)
     .max(10_000)
-    .describe('Dataview DQL query text. JavaScript queries are not executed by this tool — see plugin_dataview_describe_js_query.'),
-};
-
-const dataviewJsSchema = {
-  query: z
-    .string()
-    .min(1)
-    .max(10_000)
-    .describe('Dataview-JS source; returned unchanged, never executed.'),
-};
-
-const templaterSchema = {
-  templatePath: z
-    .string()
-    .min(1)
-    .max(4096)
-    .describe('Template path; returned unchanged, not checked or read.'),
+    .describe('Dataview DQL query text. DataviewJS is never executed.'),
 };
 
 const executeCommandSchema = {
@@ -85,16 +69,6 @@ const pluginCheckOutputSchema = {
   enabled: z.boolean().describe('Whether the plugin is enabled (false when not installed).'),
 };
 
-const pluginDescribeOutputSchema = {
-  query: z.string().describe('Dataview-JS source that was passed in.'),
-  note: z.string().describe('Note explaining that this server does not execute the source.'),
-};
-
-const pluginTemplaterDescribeOutputSchema = {
-  templatePath: z.string().describe('Vault-relative Templater template path that was queried.'),
-  note: z.string().describe('Note explaining that this server does not execute the template.'),
-};
-
 const executeCommandOutputSchema = {
   commandId: z.string().describe('Command id that was executed.'),
   executed: z.boolean().describe('Always true on success.'),
@@ -104,12 +78,6 @@ interface PluginInteropHandlers {
   listPlugins: (params: InferredParams<typeof listSchema>) => Promise<CallToolResult>;
   checkPlugin: (params: InferredParams<typeof checkSchema>) => Promise<CallToolResult>;
   dataviewQuery: (params: InferredParams<typeof dataviewSchema>) => Promise<CallToolResult>;
-  dataviewDescribeJsQuery: (
-    params: InferredParams<typeof dataviewJsSchema>,
-  ) => Promise<CallToolResult>;
-  templaterDescribeTemplate: (
-    params: InferredParams<typeof templaterSchema>,
-  ) => Promise<CallToolResult>;
   executeCommand: (params: InferredParams<typeof executeCommandSchema>) => Promise<CallToolResult>;
 }
 
@@ -164,30 +132,6 @@ function createHandlers(
         return handleToolError(error);
       }
     },
-    dataviewDescribeJsQuery: (params): Promise<CallToolResult> => {
-      // Stub-only: return the JS source verbatim plus a note. We do NOT
-      // evaluate Dataview-JS — that would arbitrary-eval user input
-      // against the Obsidian app handle.
-      const payload = {
-        query: params.query,
-        note: 'Dataview JS execution is intentionally not performed by this server. Run the source against the Dataview API on the host that owns the vault.',
-      };
-      return Promise.resolve(
-        dataResponse(payload),
-      );
-    },
-    templaterDescribeTemplate: (params): Promise<CallToolResult> => {
-      // Stub-only: echo the template path. We do NOT call Templater's
-      // execution surface — Templater can run arbitrary user JS, so
-      // execution must stay client-side.
-      const payload = {
-        templatePath: params.templatePath,
-        note: 'Templater execution is intentionally not performed by this server. The host client must run the template via the Templater API.',
-      };
-      return Promise.resolve(
-        dataResponse(payload),
-      );
-    },
     executeCommand: (params): Promise<CallToolResult> => {
       const allowlist = getExecuteCommandAllowlist();
       if (allowlist.length === 0) {
@@ -224,7 +168,7 @@ export function createPluginInteropModule(
   const getAllowlist = options.getExecuteCommandAllowlist ?? ((): string[] => []);
   const h = createHandlers(adapter, getAllowlist);
   return {
-    metadata: { id: 'plugin-interop', name: 'Plugin Interop', description: 'List plugins, check status, execute commands, and integrate with Dataview/Templater' },
+    metadata: { id: 'plugin-interop', name: 'Plugin Interop', description: 'List plugins, check status, execute commands, and run Dataview queries' },
     tools(): ToolDefinition[] {
       return [
         defineTool({
@@ -267,32 +211,6 @@ export function createPluginInteropModule(
           annotations: annotations.read,
           // Listed only while Dataview is enabled (#469).
           isAvailable: (): boolean => adapter.isPluginEnabled('dataview'),
-        }),
-        defineTool({
-          name: 'plugin_dataview_describe_js_query',
-          title: 'Describe Dataview JS query',
-          description: describeTool({
-            summary:
-              'Does not run anything: returns the given Dataview-JS source unchanged with a note that this server never executes Dataview-JS.',
-            seeAlso: ['plugin_dataview_query — to run a Dataview DQL query.'],
-          }),
-          schema: dataviewJsSchema,
-          outputSchema: pluginDescribeOutputSchema,
-          handler: h.dataviewDescribeJsQuery,
-          annotations: annotations.read,
-        }),
-        defineTool({
-          name: 'plugin_templater_describe_template',
-          title: 'Describe Templater template',
-          description: describeTool({
-            summary:
-              'Does not run anything: returns the given template path unchanged with a note that this server never executes Templater. ' +
-              'To read the template text, use vault_read.',
-          }),
-          schema: templaterSchema,
-          outputSchema: pluginTemplaterDescribeOutputSchema,
-          handler: h.templaterDescribeTemplate,
-          annotations: annotations.read,
         }),
         defineTool({
           name: 'plugin_execute_command',

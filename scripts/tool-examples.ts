@@ -143,8 +143,6 @@ export const SAMPLE_ARGS: Record<string, Record<string, unknown>> = {
   plugin_list: {},
   plugin_check: { pluginId: 'dataview' },
   plugin_dataview_query: { query: 'LIST' },
-  plugin_dataview_describe_js_query: { query: 'dv.list([1])' },
-  plugin_templater_describe_template: { templatePath: 'templates/meeting.md' },
   plugin_execute_command: { commandId: 'editor:save-file' },
   extras_get_date: {},
   server_info: {},

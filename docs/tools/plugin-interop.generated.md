@@ -103,7 +103,7 @@ Errors:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `query` | string (1–10000) | yes | Dataview DQL query text. JavaScript queries are not executed by this tool — see plugin_dataview_describe_js_query. |
+| `query` | string (1–10000) | yes | Dataview DQL query text. DataviewJS is never executed. |
 
 #### Output
 
@@ -128,90 +128,6 @@ Text block:
 
 ```text
 | a |
-```
-
-### plugin_dataview_describe_js_query
-
-**Describe Dataview JS query**
-
-Does not run anything: returns the given Dataview-JS source unchanged with a note that this server never executes Dataview-JS.
-See also:
-- plugin_dataview_query — to run a Dataview DQL query.
-
-#### Input
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `query` | string (1–10000) | yes | Dataview-JS source; returned unchanged, never executed. |
-
-#### Output
-
-| Field | Type | Description |
-|---|---|---|
-| `query` | string | Dataview-JS source that was passed in. |
-| `note` | string | Note explaining that this server does not execute the source. |
-
-#### Example
-
-Request (`tools/call` params):
-
-```json
-{
-  "name": "plugin_dataview_describe_js_query",
-  "arguments": {
-    "query": "dv.list([1])"
-  }
-}
-```
-
-Response (`structuredContent`):
-
-```json
-{
-  "query": "dv.list([1])",
-  "note": "Dataview JS execution is intentionally not performed by this server. Run the source against the Dataview API on the host that owns the vault."
-}
-```
-
-### plugin_templater_describe_template
-
-**Describe Templater template**
-
-Does not run anything: returns the given template path unchanged with a note that this server never executes Templater. To read the template text, use vault_read.
-
-#### Input
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `templatePath` | string (1–4096) | yes | Template path; returned unchanged, not checked or read. |
-
-#### Output
-
-| Field | Type | Description |
-|---|---|---|
-| `templatePath` | string | Vault-relative Templater template path that was queried. |
-| `note` | string | Note explaining that this server does not execute the template. |
-
-#### Example
-
-Request (`tools/call` params):
-
-```json
-{
-  "name": "plugin_templater_describe_template",
-  "arguments": {
-    "templatePath": "templates/meeting.md"
-  }
-}
-```
-
-Response (`structuredContent`):
-
-```json
-{
-  "templatePath": "templates/meeting.md",
-  "note": "Templater execution is intentionally not performed by this server. The host client must run the template via the Templater API."
-}
 ```
 
 ### plugin_execute_command

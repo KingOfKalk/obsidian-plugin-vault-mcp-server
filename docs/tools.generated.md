@@ -12,11 +12,11 @@ This file is regenerated from the tool registry and committed so CI can detect d
 | `workspace` | Workspace and Navigation | 5 | workspace_get_active_leaf, workspace_open_file, workspace_list_leaves, workspace_set_active_leaf, workspace_get_layout |
 | `ui` | UI Interactions | 1 | ui_notice |
 | `templates` | Templates and Content Generation | 3 | template_list, template_create_from, template_expand |
-| `plugin-interop` | Plugin Interop | 6 | plugin_list, plugin_check, plugin_dataview_query, plugin_dataview_describe_js_query, plugin_templater_describe_template, plugin_execute_command |
+| `plugin-interop` | Plugin Interop | 4 | plugin_list, plugin_check, plugin_dataview_query, plugin_execute_command |
 | `extras` | Extras | 1 | extras_get_date |
 | `server` | Server | 1 | server_info |
 
-**Total tools:** 53 across 9 modules.
+**Total tools:** 51 across 9 modules.
 
 ## Tools by module
 
@@ -116,8 +116,6 @@ Schemas → [docs/tools/plugin-interop.generated.md](tools/plugin-interop.genera
 | `plugin_list` | List plugins | ✓ |  |
 | `plugin_check` | Check plugin enabled | ✓ |  |
 | `plugin_dataview_query` | Run Dataview query | ✓ |  |
-| `plugin_dataview_describe_js_query` | Describe Dataview JS query | ✓ |  |
-| `plugin_templater_describe_template` | Describe Templater template | ✓ |  |
 | `plugin_execute_command` | Execute command |  | ✓ |
 
 ### Extras (`extras`)
