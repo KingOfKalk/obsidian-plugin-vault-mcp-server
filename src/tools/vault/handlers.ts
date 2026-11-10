@@ -33,6 +33,7 @@ import {
   findSection,
   formatHeading,
   insertIntoSection,
+  replaceTitleHeading,
   sectionText,
   splitLines,
 } from './sections';
@@ -334,6 +335,41 @@ function movedFiles(adapter: ObsidianAdapter, path: string): string[] {
   }
 }
 
+const MD_EXTENSION = /\.md$/i;
+
+/**
+ * After `vault_rename` with `updateTitle` (#520): change the renamed
+ * note's first H1 from the old to the new file name (both without `.md`).
+ * Returns false and leaves the file as it is when either name is not a
+ * Markdown file name, the path is a folder, or the first H1 differs. The
+ * rename already succeeded, so a failure here is reported, not thrown.
+ */
+async function updateTitleHeading(
+  adapter: ObsidianAdapter,
+  oldPath: string,
+  newPath: string,
+): Promise<boolean> {
+  const oldName = oldPath.slice(oldPath.lastIndexOf('/') + 1);
+  const newName = newPath.slice(newPath.lastIndexOf('/') + 1);
+  if (!MD_EXTENSION.test(oldName) || !MD_EXTENSION.test(newName)) return false;
+  const oldTitle = oldName.replace(MD_EXTENSION, '');
+  const newTitle = newName.replace(MD_EXTENSION, '');
+  try {
+    if (replaceTitleHeading(await adapter.readFile(newPath), oldTitle, newTitle) === null) {
+      return false;
+    }
+    let updated = false;
+    await adapter.processFile(newPath, (content) => {
+      const next = replaceTitleHeading(content, oldTitle, newTitle);
+      updated = next !== null;
+      return next ?? content;
+    });
+    return updated;
+  } catch {
+    return false;
+  }
+}
+
 function isValidRenameTarget(value: unknown): value is string {
   return (
     typeof value === 'string' &&
@@ -627,7 +663,11 @@ export function createHandlers(
         }
         return await mutex.acquire(path, async () => {
           const report = await renameWithLinkReport(adapter, path, newPath, movedFiles(adapter, path));
-          return dataResponse({ from: path, to: newPath, ...report });
+          if (params.updateTitle !== true) {
+            return dataResponse({ from: path, to: newPath, ...report });
+          }
+          const titleUpdated = await updateTitleHeading(adapter, path, newPath);
+          return dataResponse({ from: path, to: newPath, ...report, titleUpdated });
         });
       } catch (error) {
         return handleToolError(error);

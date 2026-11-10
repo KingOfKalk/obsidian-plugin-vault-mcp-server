@@ -451,7 +451,7 @@ Response (`structuredContent`):
 **Rename file or folder**
 
 Rename a file or folder within its current folder.
-Returns: Links to it (for a folder: to every file in it) are updated only if the user enabled "Automatically update internal links"; no Obsidian prompt appears either way. linksUpdated and updatedFiles report the rewritten links, autoUpdateLinks the setting; warning is set when other files link to it but were not updated.
+Returns: Links to it (for a folder: to every file in it) are updated only if the user enabled "Automatically update internal links"; no Obsidian prompt appears either way. linksUpdated and updatedFiles report the rewritten links, autoUpdateLinks the setting; warning is set when other files link to it but were not updated. With updateTitle, titleUpdated says whether the first H1 changed; it is left alone (false) unless it equals the old name.
 Examples:
 - Use when: renaming "notes/draft.md" to "notes/final.md" -> { path: "notes/draft.md", newName: "final.md" }
 Errors:
@@ -465,6 +465,7 @@ Errors:
 |---|---|---|---|
 | `path` | string (1–4096) | yes | Vault-relative path of a file (with extension) or folder, e.g. `notes/a.md` or `notes`. |
 | `newName` | string (1–255) | yes | New name of the last path segment, extension included ("final.md", not "final"); the folder stays the same. No / or \\. |
+| `updateTitle` | boolean | no (default `false`) | Markdown file: also change its first H1 to the new name if it equals the old name (without .md). |
 
 #### Output
 
@@ -476,6 +477,7 @@ Errors:
 | `updatedFiles` | string[] | Vault-relative paths (after the rename) whose content changed because links were updated. |
 | `autoUpdateLinks` | unknown | The user's "Automatically update internal links" setting; null if it could not be read. |
 | `warning` | string | Present when other files link to the moved file(s) but their links were not updated. |
+| `titleUpdated` | boolean | With updateTitle only: whether the first H1 was changed. |
 
 #### Example
 
