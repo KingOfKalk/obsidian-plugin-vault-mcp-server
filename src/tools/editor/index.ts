@@ -21,40 +21,6 @@ import {
   windowOffsetField,
 } from '../shared/window';
 
-/**
- * Require a value to be a non-negative safe integer. Kept as a runtime guard
- * alongside the Zod schema; the dispatcher has already parsed numbers by the
- * time the handler is called, but the helper is useful in other call sites.
- */
-function isNonNegativeInt(value: unknown): value is number {
-  return (
-    typeof value === 'number' &&
-    Number.isFinite(value) &&
-    Number.isInteger(value) &&
-    value >= 0
-  );
-}
-
-/**
- * Validate a `(line, ch)` position against the editor's current line count.
- * `allowEnd` extends the upper line bound by one to cover operations that can
- * legitimately target EOF (e.g. inserting at the end of the last line).
- */
-function assertEditorPosition(
-  line: unknown,
-  ch: unknown,
-  lineCount: number,
-  { allowEnd = false }: { allowEnd?: boolean } = {},
-): void {
-  if (!isNonNegativeInt(line) || !isNonNegativeInt(ch)) {
-    throw new RangeError('Position must be a non-negative integer pair');
-  }
-  const maxLine = allowEnd ? lineCount : lineCount - 1;
-  if (line > maxLine) {
-    throw new RangeError('Position is out of range for the active editor');
-  }
-}
-
 // Schemas as module-level consts so handler signatures can reference them
 // via `typeof <schema>` for automatic parameter typing through
 // `InferredParams<Shape>`.
@@ -181,16 +147,62 @@ const rangeOutputSchema = {
   to: z.object(positionOutputSchema).describe('End position (not included).'),
 };
 
-function rangeOf(params: {
+/** A range tool's parameters (#449). */
+interface RangeParams {
   fromLine: number;
   fromCh: number;
   toLine: number;
   toCh: number;
-}): { from: { line: number; ch: number }; to: { line: number; ch: number } } {
+}
+
+function rangeOf(params: RangeParams): {
+  from: { line: number; ch: number };
+  to: { line: number; ch: number };
+} {
   return {
     from: { line: params.fromLine, ch: params.fromCh },
     to: { line: params.toLine, ch: params.toCh },
   };
+}
+
+/**
+ * A line an edit touches. `allowEnd` lets it be the line count itself, for
+ * edits that may target the end of the text (e.g. inserting after the last
+ * line). Columns are not checked. The schemas make lines non-negative
+ * integers.
+ */
+interface LineCheck {
+  line: number;
+  allowEnd: boolean;
+}
+
+/** The start of a range must be a line; its end may be the end of the text. */
+function rangeLines(params: RangeParams): LineCheck[] {
+  return [
+    { line: params.fromLine, allowEnd: false },
+    { line: params.toLine, allowEnd: true },
+  ];
+}
+
+/**
+ * Edit the active editor: check `lines` against its line count, run `edit`
+ * and return `result` as data. "No active editor" when there is none or
+ * `edit` reports false; "Position is out of range" for a line past the end.
+ */
+function withEditor(
+  adapter: ObsidianAdapter,
+  lines: readonly LineCheck[],
+  edit: () => boolean,
+  result: object,
+): CallToolResult {
+  const lineCount = adapter.getActiveLineCount();
+  if (lineCount === null) return errorResult(NO_ACTIVE_EDITOR);
+  for (const { line, allowEnd } of lines) {
+    if (line > (allowEnd ? lineCount : lineCount - 1)) {
+      throw new RangeError('Position is out of range for the active editor');
+    }
+  }
+  return edit() ? dataResponse(result) : errorResult(NO_ACTIVE_EDITOR);
 }
 
 interface EditorHandlers {
@@ -222,82 +234,52 @@ function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
       if (path === null) return errorResult('No active file');
       return dataResponse({ path });
     },
-    insert: (params): CallToolResult => {
-      const lineCount = adapter.getActiveLineCount();
-      if (lineCount === null) return errorResult(NO_ACTIVE_EDITOR);
-      assertEditorPosition(params.line, params.ch, lineCount, {
-        allowEnd: true,
-      });
-      const ok = adapter.insertTextAt(params.line, params.ch, params.text);
-      return ok
-        ? dataResponse({ line: params.line, ch: params.ch })
-        : errorResult(NO_ACTIVE_EDITOR);
-    },
-    replace: (params): CallToolResult => {
-      const lineCount = adapter.getActiveLineCount();
-      if (lineCount === null) return errorResult(NO_ACTIVE_EDITOR);
-      assertEditorPosition(params.fromLine, params.fromCh, lineCount);
-      assertEditorPosition(params.toLine, params.toCh, lineCount, {
-        allowEnd: true,
-      });
-      const ok = adapter.replaceRange(
-        params.fromLine,
-        params.fromCh,
-        params.toLine,
-        params.toCh,
-        params.text,
-      );
-      return ok ? dataResponse(rangeOf(params)) : errorResult(NO_ACTIVE_EDITOR);
-    },
-    deleteRange: (params): CallToolResult => {
-      const lineCount = adapter.getActiveLineCount();
-      if (lineCount === null) return errorResult(NO_ACTIVE_EDITOR);
-      assertEditorPosition(params.fromLine, params.fromCh, lineCount);
-      assertEditorPosition(params.toLine, params.toCh, lineCount, {
-        allowEnd: true,
-      });
-      const ok = adapter.deleteRange(
-        params.fromLine,
-        params.fromCh,
-        params.toLine,
-        params.toCh,
-      );
-      return ok ? dataResponse(rangeOf(params)) : errorResult(NO_ACTIVE_EDITOR);
-    },
+    insert: (params): CallToolResult =>
+      withEditor(
+        adapter,
+        [{ line: params.line, allowEnd: true }],
+        () => adapter.insertTextAt(params.line, params.ch, params.text),
+        { line: params.line, ch: params.ch },
+      ),
+    replace: (params): CallToolResult =>
+      withEditor(
+        adapter,
+        rangeLines(params),
+        () =>
+          adapter.replaceRange(params.fromLine, params.fromCh, params.toLine, params.toCh, params.text),
+        rangeOf(params),
+      ),
+    deleteRange: (params): CallToolResult =>
+      withEditor(
+        adapter,
+        rangeLines(params),
+        () => adapter.deleteRange(params.fromLine, params.fromCh, params.toLine, params.toCh),
+        rangeOf(params),
+      ),
     getCursor: (): CallToolResult => {
       const pos = adapter.getCursorPosition();
       if (!pos) return errorResult(NO_ACTIVE_EDITOR);
       return dataResponse({ line: pos.line, ch: pos.ch });
     },
-    setCursor: (params): CallToolResult => {
-      const lineCount = adapter.getActiveLineCount();
-      if (lineCount === null) return errorResult(NO_ACTIVE_EDITOR);
-      assertEditorPosition(params.line, params.ch, lineCount);
-      const ok = adapter.setCursorPosition(params.line, params.ch);
-      return ok
-        ? dataResponse({ line: params.line, ch: params.ch })
-        : errorResult(NO_ACTIVE_EDITOR);
-    },
+    setCursor: (params): CallToolResult =>
+      withEditor(
+        adapter,
+        [{ line: params.line, allowEnd: false }],
+        () => adapter.setCursorPosition(params.line, params.ch),
+        { line: params.line, ch: params.ch },
+      ),
     getSelection: (): CallToolResult => {
       const sel = adapter.getSelection();
       if (!sel) return errorResult(`No active editor or selection. ${NO_EDITOR_HINT}`);
       return dataResponse({ from: sel.from, to: sel.to, text: sel.text });
     },
-    setSelection: (params): CallToolResult => {
-      const lineCount = adapter.getActiveLineCount();
-      if (lineCount === null) return errorResult(NO_ACTIVE_EDITOR);
-      assertEditorPosition(params.fromLine, params.fromCh, lineCount);
-      assertEditorPosition(params.toLine, params.toCh, lineCount, {
-        allowEnd: true,
-      });
-      const ok = adapter.setSelection(
-        params.fromLine,
-        params.fromCh,
-        params.toLine,
-        params.toCh,
-      );
-      return ok ? dataResponse(rangeOf(params)) : errorResult(NO_ACTIVE_EDITOR);
-    },
+    setSelection: (params): CallToolResult =>
+      withEditor(
+        adapter,
+        rangeLines(params),
+        () => adapter.setSelection(params.fromLine, params.fromCh, params.toLine, params.toCh),
+        rangeOf(params),
+      ),
     getLineCount: (): CallToolResult => {
       const count = adapter.getActiveLineCount();
       if (count === null) return errorResult(NO_ACTIVE_EDITOR);
