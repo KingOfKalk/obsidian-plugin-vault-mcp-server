@@ -1,8 +1,9 @@
-import { App, Modal, Notice } from 'obsidian';
+import { App, Modal } from 'obsidian';
 import type McpPlugin from '../main';
 import { collectDebugInfo } from '../utils/debug-info';
 import { t } from '../lang/helpers';
 import { reportError } from '../utils/report-error';
+import { copyWithNotice } from '../utils/clipboard';
 
 /**
  * Modal that previews the debug bundle in a read-only textarea and
@@ -39,12 +40,12 @@ export class DebugInfoModal extends Modal {
     copyBtn.disabled = true;
 
     copyBtn.addEventListener('click', () => {
-      navigator.clipboard
-        .writeText(textarea.value)
-        .then(() => {
-          new Notice(t('notice_debug_info_copied'));
-        })
-        .catch(reportError('copy debug info', this.plugin.logger));
+      copyWithNotice(
+        textarea.value,
+        t('notice_debug_info_copied'),
+        'copy debug info',
+        this.plugin.logger,
+      );
     });
 
     closeBtn.addEventListener('click', () => {

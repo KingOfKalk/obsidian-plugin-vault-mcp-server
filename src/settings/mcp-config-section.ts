@@ -1,7 +1,7 @@
-import { Notice, Setting } from 'obsidian';
+import { Setting } from 'obsidian';
 import type McpPlugin from '../main';
 import { t } from '../lang/helpers';
-import { reportError } from '../utils/report-error';
+import { copyWithNotice } from '../utils/clipboard';
 import { displayHost } from './display-host';
 
 /**
@@ -23,12 +23,12 @@ export function renderMcpConfigSection(
         .setIcon('copy')
         .setTooltip(t('tooltip_copy_config'))
         .onClick(() => {
-          navigator.clipboard
-            .writeText(buildMcpConfigJson(plugin))
-            .then(() => {
-              new Notice(t('notice_config_copied'));
-            })
-            .catch(reportError('copy MCP client config', plugin.logger));
+          copyWithNotice(
+            buildMcpConfigJson(plugin),
+            t('notice_config_copied'),
+            'copy MCP client config',
+            plugin.logger,
+          );
         }),
     );
 }
