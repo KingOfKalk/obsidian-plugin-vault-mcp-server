@@ -232,7 +232,13 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
     async searchFulltext(params, ctx): Promise<CallToolResult> {
       try {
         const lowerQuery = params.query.toLowerCase();
-        const allFiles = adapter.getAllFiles();
+        // Same folder rules as search_by_name (#504).
+        const folder = validateFolderListPath(params.folder ?? '', vaultPath, configDir);
+        let allFiles = adapter.getAllFiles();
+        if (folder !== '') {
+          const inFolder = new Set(adapter.listRecursive(folder).files);
+          allFiles = allFiles.filter((path) => inFolder.has(path));
+        }
         const total = allFiles.length;
         const maxMatchesPerFile = params.maxMatchesPerFile ?? DEFAULT_MAX_MATCHES_PER_FILE;
         const matched: Array<{
@@ -255,7 +261,10 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
             lines.forEach((line, index) => {
               if (line.toLowerCase().includes(lowerQuery)) hits.push(index);
             });
-            const shown = hits.slice(0, maxMatchesPerFile);
+            // lastMatches: the end of the file, e.g. newest log rows (#504).
+            const shown = params.lastMatches
+              ? hits.slice(-maxMatchesPerFile)
+              : hits.slice(0, maxMatchesPerFile);
             matched.push({
               path,
               matches: shown.map((index) => lines[index].replace(/\r$/, '')),

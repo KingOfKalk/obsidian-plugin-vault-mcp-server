@@ -14,6 +14,15 @@ export const searchFulltextSchema = {
     .describe(
       'Maximum matching lines returned per file; matchCount always reports the full count.',
     ),
+  lastMatches: z
+    .boolean()
+    .default(false)
+    .describe('Return the last maxMatchesPerFile matches of each file instead of the first (e.g. newest rows of a log).'),
+  folder: z
+    .string()
+    .max(4096)
+    .optional()
+    .describe('Only notes in this folder and its subfolders, e.g. "projects". Omit for the whole vault.'),
   ...paginationFields,
 };
 

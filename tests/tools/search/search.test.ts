@@ -153,6 +153,74 @@ describe('search handlers', () => {
       expect(page.items[0].matchCount).toBe(50);
     });
 
+    it('returns the last matches with lastMatches, in line order (#504)', async () => {
+      const lines = Array.from({ length: 50 }, (_, i) => `hit ${String(i)}`).join('\n');
+      adapter.addFile('ledger.md', lines);
+      const result = await handlers.searchFulltext({
+        query: 'hit',
+        maxMatchesPerFile: 3,
+        lastMatches: true,
+      });
+      const page = result.structuredContent as {
+        items: Array<{ matches: string[]; lines: number[]; matchCount: number }>;
+      };
+      expect(page.items[0]).toEqual({
+        path: 'ledger.md',
+        matches: ['hit 47', 'hit 48', 'hit 49'],
+        lines: [48, 49, 50],
+        matchCount: 50,
+      });
+    });
+
+    it('returns all matches with lastMatches when there are fewer than the cap (#504)', async () => {
+      adapter.addFile('a.md', 'hit one\nno\nhit two');
+      const result = await handlers.searchFulltext({ query: 'hit', lastMatches: true });
+      expect(result.structuredContent).toMatchObject({
+        items: [{ path: 'a.md', matches: ['hit one', 'hit two'], lines: [1, 3], matchCount: 2 }],
+      });
+    });
+
+    describe('folder (#504)', () => {
+      beforeEach(() => {
+        adapter.addFile('projects/a.md', 'needle');
+        adapter.addFile('projects/sub/b.md', 'needle');
+        adapter.addFile('projects-old/c.md', 'needle');
+        adapter.addFile('d.md', 'needle');
+      });
+
+      async function pathsFor(folder?: string): Promise<string[]> {
+        const result = await handlers.searchFulltext({ query: 'needle', folder });
+        expect(result.isError, getText(result)).toBeUndefined();
+        return (result.structuredContent as { items: Array<{ path: string }> }).items
+          .map((i) => i.path)
+          .sort();
+      }
+
+      it('limits the search to a folder and its subfolders', async () => {
+        expect(await pathsFor('projects')).toEqual(['projects/a.md', 'projects/sub/b.md']);
+        expect(await pathsFor('projects/sub')).toEqual(['projects/sub/b.md']);
+      });
+
+      it('treats "", "/" and "." as the whole vault', async () => {
+        for (const folder of ['', '/', '.']) {
+          expect(await pathsFor(folder), folder).toHaveLength(4);
+        }
+      });
+
+      it('fails for a folder that does not exist', async () => {
+        const result = await handlers.searchFulltext({ query: 'needle', folder: 'missing' });
+        expect(result.isError).toBe(true);
+        expect(getText(result)).toContain('missing');
+      });
+
+      it('rejects the config folder and paths outside the vault', async () => {
+        for (const folder of ['.obsidian', '../outside']) {
+          const result = await handlers.searchFulltext({ query: 'needle', folder });
+          expect(result.isError, folder).toBe(true);
+        }
+      });
+    });
+
     it('rejects maxMatchesPerFile outside 1..100 at the schema level', () => {
       const tool = createSearchModule(adapter)
         .tools()

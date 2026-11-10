@@ -690,7 +690,13 @@ clients and agents commonly trip over:
   file. `limit` and
   `offset` page over files, and `total` and `count` count files. Each item
   has `matches`, the full matching lines, and `lines`, their 1-based line
-  numbers (since 5.0).
+  numbers (since 5.0). A `matchCount` higher than the number of `matches`
+  means lines were left out. Since 5.1, `lastMatches: true` returns the
+  last matching lines of each file instead of the first (useful for
+  oldest-first logs, where the newest rows are at the end), still in line
+  order, and `folder` limits the search to one folder and its subfolders
+  (e.g. `projects`; empty, `/` or `.` is the whole vault, like in
+  `search_by_name`).
 - **Find files by name.** `search_by_name` finds files of any type (notes,
   PDFs, images) by name or path, without reading them. The `query` ignores
   case:
