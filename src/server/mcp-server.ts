@@ -174,7 +174,7 @@ export function createMcpServer(
 
   registerTools(server, registry, logger, version);
   if (settings.resourcesEnabled) {
-    registerResources(server, adapter, logger);
+    registerResources(server, adapter);
   }
   if (settings.promptsEnabled) {
     registerPrompts(server, adapter, logger);

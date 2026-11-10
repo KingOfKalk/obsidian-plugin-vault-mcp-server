@@ -34,6 +34,11 @@ interface PathArgs {
   path: string;
 }
 
+/** `validateToolPath` against the adapter's vault and config folder. */
+function validatePath(adapter: ObsidianAdapter, path: string): string {
+  return validateToolPath(path, adapter.getVaultPath(), adapter.getConfigDir());
+}
+
 function userTextMessage(text: string): GetPromptResult {
   return {
     messages: [
@@ -52,7 +57,7 @@ export function createSummarizeNoteHandler(
   // rejected promise rather than a synchronous throw at the call site.
   // eslint-disable-next-line @typescript-eslint/require-await
   return async (args) => {
-    const path = validateToolPath(args.path, adapter.getVaultPath(), adapter.getConfigDir());
+    const path = validatePath(adapter, args.path);
     return userTextMessage(
       `Summarize the note at \`${path}\`. First call \`vault_read\` to fetch its contents, then produce a concise summary covering the main points and any actionable items.`,
     );
@@ -66,7 +71,7 @@ export function createFindRelatedHandler(
   // rejected promise rather than a synchronous throw at the call site.
   // eslint-disable-next-line @typescript-eslint/require-await
   return async (args) => {
-    const path = validateToolPath(args.path, adapter.getVaultPath(), adapter.getConfigDir());
+    const path = validatePath(adapter, args.path);
     return userTextMessage(
       `Find notes related to \`${path}\`. First read it with \`vault_read\`, then run \`search_fulltext\` on its key terms and \`vault_get_aspect\` with \`aspect: "backlinks"\` on its path. Cross-reference the results and report the most relevant connections.`,
     );
@@ -83,7 +88,7 @@ export function createExpandTemplateHandler(
   adapter: ObsidianAdapter,
 ): (args: TemplateArgs) => Promise<GetPromptResult> {
   return async (args) => {
-    const template = validateToolPath(args.template, adapter.getVaultPath(), adapter.getConfigDir());
+    const template = validatePath(adapter, args.template);
     const body = await adapter.readFile(template);
     const placeholders = extractPlaceholders(body);
     const text = placeholders.length === 0
@@ -139,25 +144,26 @@ export function createDailyNoteHandler(): (args: DailyNoteArgs) => Promise<GetPr
   };
 }
 
-function fixBrokenLinksSingleNoteBody(path: string): string {
-  return `Fix broken links in \`${path}\`. First call \`search_unresolved_links\` with \`path: "${path}"\` and pull out the entry whose source matches \`${path}\` — the value is a \`Record<target, count>\` of unresolved targets in this note. If \`${path}\` is not in the result, tell the user the note has no unresolved links and stop. For each broken link, propose **one** fix as a single tool call so the user can confirm before it's applied:
+/**
+ * The fix-one-link-at-a-time instructions shared by both forms of the
+ * prompt. `source` names the note the link is rewritten in.
+ */
+function fixBrokenLinksSteps(source: string, leaveAsIsExample: string): string {
+  return `For each broken link, propose **one** fix as a single tool call so the user can confirm before it's applied:
 
-- **Retarget** to an existing note: locate the intended target with \`search_fulltext\` or \`vault_list_recursive\`, then rewrite the link in \`${path}\` with \`vault_replace\` (\`oldString\` = the exact \`[[...]]\` text as written).
+- **Retarget** to an existing note: locate the intended target with \`search_fulltext\` or \`vault_list_recursive\`, then rewrite the link in ${source} with \`vault_replace\` (\`oldString\` = the exact \`[[...]]\` text as written).
 - **Create a stub** for the missing note: call \`vault_create\` with a real file path that includes the \`.md\` extension (e.g. \`Missing Note.md\` for \`[[Missing Note]]\`), not the bare link text, with a minimal placeholder body.
 - **Delete the link**: remove just the wikilink with \`vault_replace\` (keep surrounding prose).
-- **Leave as-is**: skip and explain why.
+- **Leave as-is**: skip and explain why${leaveAsIsExample}.
 
 Apply fixes one at a time. Wait for the user to confirm each tool call before moving on.`;
 }
 
-const FIX_BROKEN_LINKS_VAULT_WIDE_BODY = `Fix broken links across the vault. First call \`search_unresolved_links\` with \`limit: 20\` to enumerate them — its \`links\` is a \`Record<source, Record<target, count>>\` mapping each note containing broken links to its unresolved targets, and \`total\` counts all such notes. Work on these ~20 notes and report the remaining count (\`total\` minus the notes shown) so the user can re-run this prompt to continue. For each broken link, propose **one** fix as a single tool call so the user can confirm before it's applied:
+function fixBrokenLinksSingleNoteBody(path: string): string {
+  return `Fix broken links in \`${path}\`. First call \`search_unresolved_links\` with \`path: "${path}"\` and pull out the entry whose source matches \`${path}\` — the value is a \`Record<target, count>\` of unresolved targets in this note. If \`${path}\` is not in the result, tell the user the note has no unresolved links and stop. ${fixBrokenLinksSteps(`\`${path}\``, '')}`;
+}
 
-- **Retarget** to an existing note: locate the intended target with \`search_fulltext\` or \`vault_list_recursive\`, then rewrite the link in the source note with \`vault_replace\` (\`oldString\` = the exact \`[[...]]\` text as written).
-- **Create a stub** for the missing note: call \`vault_create\` with a real file path that includes the \`.md\` extension (e.g. \`Missing Note.md\` for \`[[Missing Note]]\`), not the bare link text, with a minimal placeholder body.
-- **Delete the link**: remove just the wikilink with \`vault_replace\` (keep surrounding prose).
-- **Leave as-is**: skip and explain why (e.g. it's an intentional placeholder).
-
-Apply fixes one at a time. Wait for the user to confirm each tool call before moving on.`;
+const FIX_BROKEN_LINKS_VAULT_WIDE_BODY = `Fix broken links across the vault. First call \`search_unresolved_links\` with \`limit: 20\` to enumerate them — its \`links\` is a \`Record<source, Record<target, count>>\` mapping each note containing broken links to its unresolved targets, and \`total\` counts all such notes. Work on these ~20 notes and report the remaining count (\`total\` minus the notes shown) so the user can re-run this prompt to continue. ${fixBrokenLinksSteps('the source note', " (e.g. it's an intentional placeholder)")}`;
 
 interface FixBrokenLinksArgs {
   path?: string;
@@ -171,7 +177,7 @@ export function createFixBrokenLinksHandler(
   // eslint-disable-next-line @typescript-eslint/require-await
   return async (args) => {
     const text = args.path !== undefined
-      ? fixBrokenLinksSingleNoteBody(validateToolPath(args.path, adapter.getVaultPath(), adapter.getConfigDir()))
+      ? fixBrokenLinksSingleNoteBody(validatePath(adapter, args.path))
       : FIX_BROKEN_LINKS_VAULT_WIDE_BODY;
     return userTextMessage(text);
   };

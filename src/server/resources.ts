@@ -3,7 +3,6 @@ import { ResourceTemplate } from '@modelcontextprotocol/server';
 import type { ReadResourceResult, McpServer } from '@modelcontextprotocol/server';
 import { validateToolPath, withoutConfigDir, PathTraversalError } from '../utils/path-guard';
 import type { ObsidianAdapter } from '../obsidian/adapter';
-import type { Logger } from '../utils/logger';
 import { BinaryTooLargeError, FileNotFoundError } from '../tools/shared/errors';
 import { BINARY_BYTE_LIMIT, CHARACTER_LIMIT } from '../constants';
 
@@ -110,10 +109,7 @@ export function parseVaultUri(uri: URL, vaultPath: string, configDir: string): s
 
 type FileHandler = (uri: URL) => Promise<ReadResourceResult>;
 
-export function createFileHandler(
-  adapter: ObsidianAdapter,
-  _logger: Logger,
-): FileHandler {
+export function createFileHandler(adapter: ObsidianAdapter): FileHandler {
   return async (uri) => {
     const path = parseVaultUri(uri, adapter.getVaultPath(), adapter.getConfigDir());
     const mime = getMimeType(path);
@@ -160,10 +156,31 @@ function basename(p: string): string {
   return i === -1 ? p : p.slice(i + 1);
 }
 
-export function createIndexHandler(
-  adapter: ObsidianAdapter,
-  _logger: Logger,
-): IndexHandler {
+/**
+ * The index with the longest prefix of `files` that keeps it within
+ * CHARACTER_LIMIT, at most all but one. When the folders alone do not fit,
+ * or there is no file to drop, both lists are emptied.
+ */
+function truncatedIndex(files: IndexEntry[], folders: string[]): string {
+  // JSON.stringify of an array is its items' JSON joined by commas, so the
+  // length grows by each entry's own JSON length (plus a comma after the
+  // first) and can be summed instead of re-serialising every prefix.
+  const empty = JSON.stringify({ files: [], folders, truncated: true });
+  if (files.length === 0 || empty.length > CHARACTER_LIMIT) {
+    return JSON.stringify({ files: [], folders: [], truncated: true });
+  }
+  let length = empty.length;
+  let kept = 0;
+  while (kept < files.length - 1) {
+    const added = JSON.stringify(files[kept]).length + (kept > 0 ? 1 : 0);
+    if (length + added > CHARACTER_LIMIT) break;
+    length += added;
+    kept++;
+  }
+  return JSON.stringify({ files: files.slice(0, kept), folders, truncated: true });
+}
+
+export function createIndexHandler(adapter: ObsidianAdapter): IndexHandler {
   return async (_uri) => {
     const list = withoutConfigDir(adapter.listRecursive(''), adapter.getConfigDir());
     // Stable order so truncation is deterministic across calls and adapters.
@@ -185,18 +202,7 @@ export function createIndexHandler(
 
     let serialised = JSON.stringify({ files, folders, truncated: false });
     if (serialised.length > CHARACTER_LIMIT) {
-      const trimmed = [...files];
-      while (trimmed.length > 0) {
-        trimmed.pop();
-        const candidate = JSON.stringify({ files: trimmed, folders, truncated: true });
-        if (candidate.length <= CHARACTER_LIMIT) {
-          serialised = candidate;
-          break;
-        }
-      }
-      if (serialised.length > CHARACTER_LIMIT) {
-        serialised = JSON.stringify({ files: [], folders: [], truncated: true });
-      }
+      serialised = truncatedIndex(files, folders);
     }
 
     return {
@@ -213,13 +219,9 @@ export function createIndexHandler(
 
 const FILE_TEMPLATE_URI = 'obsidian://vault/{+path}';
 
-export function registerResources(
-  server: McpServer,
-  adapter: ObsidianAdapter,
-  logger: Logger,
-): void {
-  const indexHandler = createIndexHandler(adapter, logger);
-  const fileHandler = createFileHandler(adapter, logger);
+export function registerResources(server: McpServer, adapter: ObsidianAdapter): void {
+  const indexHandler = createIndexHandler(adapter);
+  const fileHandler = createFileHandler(adapter);
 
   server.registerResource(
     'vault-index',
