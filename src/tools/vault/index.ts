@@ -87,8 +87,16 @@ const linkItem = z.object({
   link: z
     .string()
     .describe(
-      'Link text as written (e.g. `Note#Heading`), not a resolved path; may lack the extension.',
+      'Link text as written (e.g. `Note#Heading`); may lack the extension.',
     ),
+  path: z
+    .string()
+    .nullable()
+    .describe('Vault path the link resolves to, or null if unresolved.'),
+  subpath: z
+    .string()
+    .optional()
+    .describe('`#Heading` or `#^block` part, when present.'),
   displayText: z
     .string()
     .optional()
