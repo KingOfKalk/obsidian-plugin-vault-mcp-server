@@ -94,7 +94,7 @@ export interface TlsCertificateData {
   key: string;
 }
 
-export interface ModuleState {
+interface ModuleState {
   enabled: boolean;
   /** Per-tool enabled state, keyed by tool name. Only populated for modules in the 'extras' group. */
   toolStates?: Record<string, boolean>;

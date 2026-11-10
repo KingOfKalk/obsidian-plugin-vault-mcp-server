@@ -1,15 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  migrateV0ToV1,
-  migrateV1ToV2,
-  migrateV2ToV3,
-  migrateV3ToV4,
-  migrateV4ToV5,
-  migrateV5ToV6,
-  migrateV6ToV7,
-  migrateV7ToV8,
-  migrateV8ToV9,
-  migrateV9ToV10,
+  migrateToV10,
   migrateV10ToV11,
   migrateV11ToV12,
   migrateV12ToV13,
@@ -17,10 +8,10 @@ import {
   CURRENT_SCHEMA_VERSION,
 } from '../../src/settings/migrations';
 
-describe('settings migrations — per-version hops', () => {
+describe('migrateToV10 — the steps of schema 0-9', () => {
   it('V0 -> V1 fills in required fields', () => {
     const data: Record<string, unknown> = {};
-    migrateV0ToV1(data);
+    migrateToV10(data, 0);
     expect(data.port).toBe(28741);
     expect(data.accessKey).toBe('');
     expect(data.httpsEnabled).toBe(false);
@@ -36,7 +27,7 @@ describe('settings migrations — per-version hops', () => {
       debugMode: true,
       moduleStates: { vault: { enabled: true } },
     };
-    migrateV0ToV1(data);
+    migrateToV10(data, 0);
     expect(data.port).toBe(9999);
     expect(data.accessKey).toBe('keep-me');
     expect(data.httpsEnabled).toBe(true);
@@ -45,19 +36,19 @@ describe('settings migrations — per-version hops', () => {
 
   it('V1 -> V2 adds serverAddress', () => {
     const data: Record<string, unknown> = {};
-    migrateV1ToV2(data);
+    migrateToV10(data, 1);
     expect(data.serverAddress).toBe('127.0.0.1');
   });
 
   it('V1 -> V2 preserves a custom serverAddress', () => {
     const data: Record<string, unknown> = { serverAddress: '0.0.0.0' };
-    migrateV1ToV2(data);
+    migrateToV10(data, 1);
     expect(data.serverAddress).toBe('0.0.0.0');
   });
 
   it('V2 -> V3 adds autoStart=false on upgrade', () => {
     const data: Record<string, unknown> = {};
-    migrateV2ToV3(data);
+    migrateToV10(data, 2);
     expect(data.autoStart).toBe(false);
   });
 
@@ -67,17 +58,17 @@ describe('settings migrations — per-version hops', () => {
         vault: { enabled: true, readOnly: false },
       },
     };
-    migrateV3ToV4(data);
+    migrateToV10(data, 3);
     expect(data.moduleStates).toEqual({ vault: { enabled: true } });
   });
 
-  it('V3 -> V4 preserves get_date when extras was enabled', () => {
+  it('V3 -> V4 keeps the date tool on (as extras_get_date) when extras was enabled', () => {
     const data: Record<string, unknown> = {
       moduleStates: { extras: { enabled: true } },
     };
-    migrateV3ToV4(data);
+    migrateToV10(data, 3);
     expect(data.moduleStates).toEqual({
-      extras: { enabled: true, toolStates: { get_date: true } },
+      extras: { enabled: true, toolStates: { extras_get_date: true } },
     });
   });
 
@@ -85,7 +76,7 @@ describe('settings migrations — per-version hops', () => {
     const data: Record<string, unknown> = {
       moduleStates: { extras: { enabled: false } },
     };
-    migrateV3ToV4(data);
+    migrateToV10(data, 3);
     expect(data.moduleStates).toEqual({
       extras: { enabled: false, toolStates: {} },
     });
@@ -93,19 +84,19 @@ describe('settings migrations — per-version hops', () => {
 
   it('V4 -> V5 seeds tlsCertificate as null', () => {
     const data: Record<string, unknown> = {};
-    migrateV4ToV5(data);
+    migrateToV10(data, 4);
     expect(data.tlsCertificate).toBeNull();
   });
 
   it('V5 -> V6 defaults authEnabled off', () => {
     const data: Record<string, unknown> = {};
-    migrateV5ToV6(data);
+    migrateToV10(data, 5);
     expect(data.authEnabled).toBe(false);
   });
 
   it('V6 -> V7 seeds custom TLS fields as off/null', () => {
     const data: Record<string, unknown> = {};
-    migrateV6ToV7(data);
+    migrateToV10(data, 6);
     expect(data.useCustomTls).toBe(false);
     expect(data.customTlsCertPath).toBeNull();
     expect(data.customTlsKeyPath).toBeNull();
@@ -113,7 +104,7 @@ describe('settings migrations — per-version hops', () => {
 
   it('V7 -> V8 seeds executeCommandAllowlist as empty', () => {
     const data: Record<string, unknown> = {};
-    migrateV7ToV8(data);
+    migrateToV10(data, 7);
     expect(data.executeCommandAllowlist).toEqual([]);
   });
 
@@ -121,13 +112,13 @@ describe('settings migrations — per-version hops', () => {
     const data: Record<string, unknown> = {
       executeCommandAllowlist: ['app:reload'],
     };
-    migrateV7ToV8(data);
+    migrateToV10(data, 7);
     expect(data.executeCommandAllowlist).toEqual(['app:reload']);
   });
 
   it('V8 -> V9 seeds DNS-rebind allowlists with loopback defaults', () => {
     const data: Record<string, unknown> = {};
-    migrateV8ToV9(data);
+    migrateToV10(data, 8);
     expect(data.allowedOrigins).toEqual([
       'http://127.0.0.1',
       'http://localhost',
@@ -146,7 +137,7 @@ describe('settings migrations — per-version hops', () => {
       allowNullOrigin: true,
       requireOrigin: true,
     };
-    migrateV8ToV9(data);
+    migrateToV10(data, 8);
     expect(data.allowedOrigins).toEqual(['http://my.example']);
     expect(data.allowedHosts).toEqual(['my.example']);
     expect(data.allowNullOrigin).toBe(true);
@@ -163,7 +154,7 @@ describe('settings migrations — per-version hops', () => {
       authEnabled: false,
       accessKey: '',
     };
-    migrateV9ToV10(data);
+    migrateToV10(data, 9);
     expect(data.iAcceptInsecureMode).toBe(true);
     expect(data.seenInsecureWarning).toBe(false);
   });
@@ -173,7 +164,7 @@ describe('settings migrations — per-version hops', () => {
       authEnabled: true,
       accessKey: 'real-key',
     };
-    migrateV9ToV10(data);
+    migrateToV10(data, 9);
     expect(data.iAcceptInsecureMode).toBe(false);
     expect(data.seenInsecureWarning).toBe(false);
   });
@@ -187,7 +178,7 @@ describe('settings migrations — per-version hops', () => {
       authEnabled: false,
       accessKey: 'a-key',
     };
-    migrateV9ToV10(data);
+    migrateToV10(data, 9);
     expect(data.iAcceptInsecureMode).toBe(false);
   });
 
@@ -200,7 +191,7 @@ describe('settings migrations — per-version hops', () => {
         },
       },
     };
-    migrateV9ToV10(data);
+    migrateToV10(data, 9);
     const states = data.moduleStates as Record<
       string,
       { toolStates?: Record<string, boolean> }
@@ -220,7 +211,7 @@ describe('settings migrations — per-version hops', () => {
         },
       },
     };
-    migrateV9ToV10(data);
+    migrateToV10(data, 9);
     const states = data.moduleStates as Record<
       string,
       { toolStates?: Record<string, boolean> }
@@ -234,7 +225,7 @@ describe('settings migrations — per-version hops', () => {
       accessKey: '',
       iAcceptInsecureMode: false,
     };
-    migrateV9ToV10(data);
+    migrateToV10(data, 9);
     expect(data.iAcceptInsecureMode).toBe(false);
   });
 });
@@ -387,5 +378,206 @@ describe('migrateV12ToV13 (#469: editor, workspace and ui off by default)', () =
   it('does not run again for a v13 install', () => {
     const result = migrateSettings({ schemaVersion: 13, moduleStates: {} });
     expect(result.moduleStates).toEqual({});
+  });
+});
+
+describe('migrateSettings — full results per starting version', () => {
+  // Pinned outputs of the step-by-step migrations, so collapsing the
+  // pre-v10 steps cannot change what an existing install ends up with.
+  const LOOPBACK_ORIGINS = [
+    'http://127.0.0.1',
+    'http://localhost',
+    'https://127.0.0.1',
+    'https://localhost',
+  ];
+  const OLD_DEFAULT_MODULES = {
+    editor: { enabled: true },
+    workspace: { enabled: true },
+    ui: { enabled: true },
+  };
+
+  it('migrates a v0 install', () => {
+    const result = migrateSettings({
+      port: 9999,
+      accessKey: '',
+      debugMode: true,
+      moduleStates: { vault: { enabled: true, readOnly: true }, extras: { enabled: true } },
+    });
+    expect(result).toEqual({
+      schemaVersion: 13,
+      port: 9999,
+      accessKey: '',
+      debugMode: true,
+      httpsEnabled: false,
+      serverAddress: '127.0.0.1',
+      autoStart: false,
+      tlsCertificate: null,
+      authEnabled: false,
+      useCustomTls: false,
+      customTlsCertPath: null,
+      customTlsKeyPath: null,
+      executeCommandAllowlist: [],
+      allowedOrigins: LOOPBACK_ORIGINS,
+      allowedHosts: ['127.0.0.1', 'localhost'],
+      allowNullOrigin: false,
+      requireOrigin: false,
+      iAcceptInsecureMode: true,
+      seenInsecureWarning: false,
+      resourcesEnabled: true,
+      promptsEnabled: true,
+      moduleStates: {
+        vault: { enabled: true },
+        extras: { enabled: true, toolStates: { extras_get_date: true } },
+        ...OLD_DEFAULT_MODULES,
+      },
+    });
+  });
+
+  it('migrates a v3 install', () => {
+    const result = migrateSettings({
+      schemaVersion: 3,
+      serverAddress: '0.0.0.0',
+      port: 28741,
+      accessKey: 'k',
+      httpsEnabled: false,
+      debugMode: false,
+      autoStart: true,
+      moduleStates: {
+        vault: { enabled: true, readOnly: false },
+        editor: { enabled: false },
+        extras: { enabled: false },
+      },
+    });
+    expect(result).toEqual({
+      schemaVersion: 13,
+      serverAddress: '0.0.0.0',
+      port: 28741,
+      accessKey: 'k',
+      httpsEnabled: false,
+      debugMode: false,
+      autoStart: true,
+      tlsCertificate: null,
+      authEnabled: false,
+      useCustomTls: false,
+      customTlsCertPath: null,
+      customTlsKeyPath: null,
+      executeCommandAllowlist: [],
+      allowedOrigins: LOOPBACK_ORIGINS,
+      allowedHosts: ['127.0.0.1', 'localhost'],
+      allowNullOrigin: false,
+      requireOrigin: false,
+      iAcceptInsecureMode: false,
+      seenInsecureWarning: false,
+      resourcesEnabled: true,
+      promptsEnabled: true,
+      moduleStates: {
+        vault: { enabled: true },
+        editor: { enabled: false },
+        extras: { enabled: false, toolStates: {} },
+        workspace: { enabled: true },
+        ui: { enabled: true },
+      },
+    });
+  });
+
+  it('migrates a v9 install', () => {
+    const v9 = {
+      serverAddress: '127.0.0.1',
+      port: 28741,
+      accessKey: '',
+      authEnabled: false,
+      httpsEnabled: false,
+      tlsCertificate: null,
+      useCustomTls: false,
+      customTlsCertPath: null,
+      customTlsKeyPath: null,
+      debugMode: false,
+      autoStart: false,
+      executeCommandAllowlist: ['app:reload'],
+      allowedOrigins: ['http://127.0.0.1'],
+      allowedHosts: ['127.0.0.1'],
+      allowNullOrigin: false,
+      requireOrigin: false,
+    };
+    const result = migrateSettings({
+      schemaVersion: 9,
+      ...v9,
+      moduleStates: { extras: { enabled: true, toolStates: { get_date: false, other: true } } },
+    });
+    expect(result).toEqual({
+      ...v9,
+      schemaVersion: 13,
+      iAcceptInsecureMode: true,
+      seenInsecureWarning: false,
+      resourcesEnabled: true,
+      promptsEnabled: true,
+      moduleStates: {
+        extras: { enabled: true, toolStates: { other: true, extras_get_date: false } },
+        ...OLD_DEFAULT_MODULES,
+      },
+    });
+  });
+
+  it('fills only the fields added after the starting version', () => {
+    // A v5 file is not touched by the v0-v4 defaults: a falsy port or
+    // serverAddress stays as it is, a missing httpsEnabled stays missing.
+    const result = migrateSettings({
+      schemaVersion: 5,
+      port: 0,
+      serverAddress: '',
+      moduleStates: { workspace: { enabled: false } },
+    });
+    expect(result).toEqual({
+      schemaVersion: 13,
+      port: 0,
+      serverAddress: '',
+      authEnabled: false,
+      useCustomTls: false,
+      customTlsCertPath: null,
+      customTlsKeyPath: null,
+      executeCommandAllowlist: [],
+      allowedOrigins: LOOPBACK_ORIGINS,
+      allowedHosts: ['127.0.0.1', 'localhost'],
+      allowNullOrigin: false,
+      requireOrigin: false,
+      iAcceptInsecureMode: false,
+      seenInsecureWarning: false,
+      resourcesEnabled: true,
+      promptsEnabled: true,
+      moduleStates: {
+        workspace: { enabled: false },
+        editor: { enabled: true },
+        ui: { enabled: true },
+      },
+    });
+  });
+
+  it('leaves a current install unchanged', () => {
+    const current = {
+      schemaVersion: 13,
+      serverAddress: '127.0.0.1',
+      port: 28741,
+      authEnabled: true,
+      accessKey: 'abc',
+      httpsEnabled: false,
+      tlsCertificate: null,
+      useCustomTls: false,
+      customTlsCertPath: null,
+      customTlsKeyPath: null,
+      debugMode: false,
+      autoStart: false,
+      resourcesEnabled: true,
+      promptsEnabled: false,
+      executeCommandAllowlist: [],
+      allowedOrigins: ['http://localhost'],
+      allowedHosts: ['localhost'],
+      allowNullOrigin: false,
+      requireOrigin: false,
+      iAcceptInsecureMode: false,
+      seenInsecureWarning: true,
+      moduleStates: { vault: { enabled: true } },
+      readAndEditOnly: false,
+    };
+    expect(migrateSettings(structuredClone(current))).toEqual(current);
   });
 });

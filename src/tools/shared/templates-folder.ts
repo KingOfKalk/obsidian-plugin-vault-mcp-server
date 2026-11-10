@@ -1,7 +1,7 @@
 import type { ObsidianAdapter } from '../../obsidian/adapter';
 
 /** Used when the core Templates plugin has no folder set. */
-export const DEFAULT_TEMPLATES_FOLDER = 'templates';
+const DEFAULT_TEMPLATES_FOLDER = 'templates';
 
 /**
  * The template folder: the one set in Obsidian's core Templates plugin,

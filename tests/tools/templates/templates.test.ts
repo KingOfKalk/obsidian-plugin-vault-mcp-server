@@ -4,7 +4,7 @@ import { CallToolResult } from '@modelcontextprotocol/server';
 import { MockObsidianAdapter } from '../../helpers/mock-adapter';
 import { ListResult } from '../../../src/obsidian/adapter';
 import { createTemplatesModule } from '../../../src/tools/templates/index';
-import { PermissionError } from '../../../src/tools/shared/errors';
+import { ValidationError } from '../../../src/tools/shared/errors';
 
 function getText(r: CallToolResult): string {
   return r.content[0].type === 'text' ? r.content[0].text : '';
@@ -75,14 +75,14 @@ describe('templates module', () => {
       expect(data.files).toEqual(['templates/a.md', 'templates/b.md']);
     });
 
-    // (d) Permission denied → handleToolError envelope.
-    it('surfaces PermissionError through handleToolError', async () => {
-      const throwing = new ListThrowingAdapter(new PermissionError('templates'));
+    // (d) Typed error → handleToolError envelope.
+    it('surfaces a typed error through handleToolError', async () => {
+      const throwing = new ListThrowingAdapter(new ValidationError('templates unreadable'));
       const module = createTemplatesModule(throwing);
       const tool = module.tools().find((t) => t.name === 'template_list')!;
       const result = await tool.handler({});
       expect(result.isError).toBe(true);
-      expect(getText(result)).toContain('Permission denied');
+      expect(getText(result)).toBe('Error: templates unreadable');
     });
 
     // (e) Unexpected error → handleToolError envelope.

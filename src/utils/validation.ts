@@ -63,9 +63,3 @@ export const searchQuerySchema = z
   .min(1, 'Query must not be empty')
   .max(500, 'Query too long');
 
-/** Obsidian command id / plugin id — letters, digits, hyphens, colons, dots. */
-export const identifierSchema = z
-  .string()
-  .min(1, 'Identifier must not be empty')
-  .max(200, 'Identifier too long');
-

@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { X509Certificate, createPrivateKey, createPublicKey } from 'node:crypto';
 
-export type CustomTlsErrorCode =
+type CustomTlsErrorCode =
   | 'cert_not_readable'
   | 'key_not_readable'
   | 'invalid_cert'
@@ -21,7 +21,7 @@ export class CustomTlsError extends Error {
   }
 }
 
-export interface LoadedCustomTls {
+interface LoadedCustomTls {
   cert: string;
   key: string;
 }

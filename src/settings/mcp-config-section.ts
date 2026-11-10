@@ -1,8 +1,8 @@
-import { Notice, Setting } from 'obsidian';
+import { Setting } from 'obsidian';
 import type McpPlugin from '../main';
 import { t } from '../lang/helpers';
-import { reportError } from '../utils/report-error';
-import { displayHost } from './display-host';
+import { copyWithNotice } from '../utils/clipboard';
+import { serverUrl } from './display-host';
 
 /**
  * "MCP Client Configuration" section — one copy button that puts the
@@ -23,25 +23,19 @@ export function renderMcpConfigSection(
         .setIcon('copy')
         .setTooltip(t('tooltip_copy_config'))
         .onClick(() => {
-          navigator.clipboard
-            .writeText(buildMcpConfigJson(plugin))
-            .then(() => {
-              new Notice(t('notice_config_copied'));
-            })
-            .catch(reportError('copy MCP client config', plugin.logger));
+          copyWithNotice(
+            buildMcpConfigJson(plugin),
+            t('notice_config_copied'),
+            'copy MCP client config',
+            plugin.logger,
+          );
         }),
     );
 }
 
 export function buildMcpConfigJson(plugin: McpPlugin): string {
-  const address = plugin.settings.serverAddress;
-  const port = plugin.settings.port;
-  const accessKey = plugin.settings.accessKey;
-  const authEnabled = plugin.settings.authEnabled;
-  const scheme = plugin.settings.httpsEnabled ? 'https' : 'http';
-  const url = `${scheme}://${displayHost(address)}:${String(port)}/mcp`;
-
-  const config: Record<string, unknown> = { type: 'http', url };
+  const { accessKey, authEnabled } = plugin.settings;
+  const config: Record<string, unknown> = { type: 'http', url: serverUrl(plugin.settings) };
 
   if (authEnabled && accessKey) {
     config.headers = {

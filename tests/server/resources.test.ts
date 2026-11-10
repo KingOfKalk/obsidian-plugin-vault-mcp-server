@@ -1,14 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { getMimeType, isTextMime, parseVaultUri, createFileHandler, createIndexHandler, registerResources } from '../../src/server/resources';
+import { getMimeType, isTextMime, parseVaultUri, vaultUri, createFileHandler, createIndexHandler, registerResources } from '../../src/server/resources';
 import { CHARACTER_LIMIT } from '../../src/constants';
 import { ConfigDirError, PathTraversalError } from '../../src/utils/path-guard';
-import { Logger } from '../../src/utils/logger';
 import { MockObsidianAdapter } from '../helpers/mock-adapter';
 import { BinaryTooLargeError, FileNotFoundError } from '../../src/tools/shared/errors';
-
-function makeLogger(): Logger {
-  return new Logger('test', { debugMode: false, accessKey: '' });
-}
 
 describe('getMimeType', () => {
   it('maps known text extensions', () => {
@@ -188,7 +183,7 @@ describe('fileHandler — text', () => {
   it('returns TextResourceContents for a markdown file', async () => {
     const adapter = new MockObsidianAdapter();
     adapter.addFile('notes/foo.md', '# Hello');
-    const handler = createFileHandler(adapter, makeLogger());
+    const handler = createFileHandler(adapter);
 
     const result = await handler(
       new URL('obsidian://vault/notes/foo.md'),
@@ -205,7 +200,7 @@ describe('fileHandler — text', () => {
   it('reads a file when the runtime URL has no host (Obsidian 1.5.3, #473)', async () => {
     const adapter = new MockObsidianAdapter();
     adapter.addFile('My Notes/a b.md', 'spaced');
-    const handler = createFileHandler(adapter, makeLogger());
+    const handler = createFileHandler(adapter);
 
     const result = await handler(hostlessUri('obsidian://vault/My%20Notes/a%20b.md'));
 
@@ -218,7 +213,7 @@ describe('fileHandler — text', () => {
 
   it('propagates the adapter not-found error for a missing file', async () => {
     const adapter = new MockObsidianAdapter();
-    const handler = createFileHandler(adapter, makeLogger());
+    const handler = createFileHandler(adapter);
 
     await expect(handler(
       new URL('obsidian://vault/missing.md'),
@@ -231,7 +226,7 @@ describe('fileHandler — binary', () => {
     const adapter = new MockObsidianAdapter();
     const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]); // PNG magic
     await adapter.writeBinary('img.png', bytes.buffer);
-    const handler = createFileHandler(adapter, makeLogger());
+    const handler = createFileHandler(adapter);
 
     const result = await handler(
       new URL('obsidian://vault/img.png'),
@@ -248,7 +243,7 @@ describe('fileHandler — binary', () => {
     const adapter = new MockObsidianAdapter();
     const bytes = new Uint8Array(1_048_576);
     await adapter.writeBinary('big.png', bytes.buffer);
-    const handler = createFileHandler(adapter, makeLogger());
+    const handler = createFileHandler(adapter);
 
     const result = await handler(
       new URL('obsidian://vault/big.png'),
@@ -262,7 +257,7 @@ describe('fileHandler — binary', () => {
     const adapter = new MockObsidianAdapter();
     const bytes = new Uint8Array(1_048_577);
     await adapter.writeBinary('big.png', bytes.buffer);
-    const handler = createFileHandler(adapter, makeLogger());
+    const handler = createFileHandler(adapter);
 
     await expect(handler(
       new URL('obsidian://vault/big.png'),
@@ -271,7 +266,7 @@ describe('fileHandler — binary', () => {
 
   it('throws FileNotFoundError for a missing binary file', async () => {
     const adapter = new MockObsidianAdapter();
-    const handler = createFileHandler(adapter, makeLogger());
+    const handler = createFileHandler(adapter);
     await expect(handler(
       new URL('obsidian://vault/missing.png'),
     )).rejects.toBeInstanceOf(FileNotFoundError);
@@ -288,7 +283,7 @@ describe('indexHandler', () => {
     adapter.addFile('a.md', 'a');
     adapter.addFile('notes/b.md', 'bb');
     adapter.addFile('img.png', 'pngdata');
-    const handler = createIndexHandler(adapter, makeLogger());
+    const handler = createIndexHandler(adapter);
 
     const result = await handler(new URL('obsidian://vault/index'));
     const c = result.contents[0] as { uri: string; mimeType: string; text: string };
@@ -314,7 +309,7 @@ describe('indexHandler', () => {
 
   it('returns an empty payload for an empty vault', async () => {
     const adapter = new MockObsidianAdapter();
-    const handler = createIndexHandler(adapter, makeLogger());
+    const handler = createIndexHandler(adapter);
 
     const result = await handler(new URL('obsidian://vault/index'));
     const payload = JSON.parse((result.contents[0] as { text: string }).text) as IndexPayload;
@@ -327,7 +322,7 @@ describe('indexHandler', () => {
     for (let i = 0; i < 400; i++) {
       adapter.addFile(`note-${String(i).padStart(4, '0')}.md`, 'x');
     }
-    const handler = createIndexHandler(adapter, makeLogger());
+    const handler = createIndexHandler(adapter);
 
     const result = await handler(new URL('obsidian://vault/index'));
     const text = (result.contents[0] as { text: string }).text;
@@ -337,10 +332,34 @@ describe('indexHandler', () => {
     expect(payload.files.length).toBeLessThan(400);
   });
 
+  it('keeps the longest prefix of files that fits, folders included', async () => {
+    const adapter = new MockObsidianAdapter();
+    const paths: string[] = [];
+    for (let i = 0; i < 400; i++) {
+      const path = `dir/note-${String(i).padStart(4, '0')}-${'x'.repeat(i % 7)}.md`;
+      paths.push(path);
+      adapter.addFile(path, 'x');
+    }
+    const handler = createIndexHandler(adapter);
+
+    const result = await handler(new URL('obsidian://vault/index'));
+    const text = (result.contents[0] as { text: string }).text;
+    const payload = JSON.parse(text) as IndexPayload;
+    expect(payload.truncated).toBe(true);
+    expect(payload.folders).toEqual(['dir']);
+    const kept = payload.files.length;
+    expect(payload.files.map((f) => f.uri)).toEqual(paths.slice(0, kept).map(vaultUri));
+    // One more file would not have fitted.
+    const next = { ...payload.files[0], uri: vaultUri(paths[kept]), name: paths[kept].slice(4) };
+    const longer = JSON.stringify({ files: [...payload.files, next], folders: ['dir'], truncated: true });
+    expect(text.length).toBeLessThanOrEqual(CHARACTER_LIMIT);
+    expect(longer.length).toBeGreaterThan(CHARACTER_LIMIT);
+  });
+
   it('produces URIs that round-trip through parseVaultUri', async () => {
     const adapter = new MockObsidianAdapter();
     adapter.addFile('Notizen/Übersicht.md', 'x');
-    const handler = createIndexHandler(adapter, makeLogger());
+    const handler = createIndexHandler(adapter);
 
     const result = await handler(new URL('obsidian://vault/index'));
     const payload = JSON.parse((result.contents[0] as { text: string }).text) as IndexPayload;
@@ -357,7 +376,7 @@ describe('indexHandler', () => {
   it('escapes reserved URI characters in filenames (? # etc.)', async () => {
     const adapter = new MockObsidianAdapter();
     adapter.addFile('weird?name.md', 'x');
-    const handler = createIndexHandler(adapter, makeLogger());
+    const handler = createIndexHandler(adapter);
 
     const result = await handler(new URL('obsidian://vault/index'));
     const payload = JSON.parse((result.contents[0] as { text: string }).text) as {
@@ -392,7 +411,7 @@ describe('registerResources', () => {
       },
     };
 
-    registerResources(fakeServer as never, adapter, makeLogger());
+    registerResources(fakeServer as never, adapter);
 
     expect(calls.map((c) => c.name)).toEqual(['vault-index', 'vault-file']);
     expect(calls[0].uriOrTemplate).toBe('obsidian://vault/index');

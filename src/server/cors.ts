@@ -28,7 +28,7 @@ export const DEFAULT_CORS_OPTIONS: CorsOptions = {
  * session, `Mcp-Protocol-Version` the negotiated version, and
  * `WWW-Authenticate` the auth challenge on a 401.
  */
-export const EXPOSED_HEADERS = ['Mcp-Session-Id', 'Mcp-Protocol-Version', 'WWW-Authenticate'];
+const EXPOSED_HEADERS = ['Mcp-Session-Id', 'Mcp-Protocol-Version', 'WWW-Authenticate'];
 
 /**
  * Set the CORS response headers.

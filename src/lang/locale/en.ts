@@ -36,8 +36,6 @@ const en = {
   placeholder_access_key: 'Enter access key',
   tooltip_copy_access_key: 'Copy access key',
   notice_access_key_copied: 'Access key copied to clipboard',
-  notice_access_key_generated:
-    'Generated a fresh 32-byte access key. Open MCP settings to copy it.',
   setting_insecure_mode_name: 'Accept insecure mode',
   setting_insecure_mode_desc:
     'Acknowledge that you want the server to bind with authentication disabled. Required (in addition to turning auth off) for the server to start. Only safe on a trusted, localhost-only setup.',

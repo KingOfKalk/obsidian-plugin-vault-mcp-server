@@ -319,10 +319,9 @@ describe('DEFAULT_SETTINGS', () => {
 });
 
 describe('generateAccessKey', () => {
-  it('should generate a 64-character hex string', () => {
+  it('should generate 32 random bytes as base64url (43 characters)', () => {
     const key = generateAccessKey();
-    expect(key).toHaveLength(64);
-    expect(key).toMatch(/^[0-9a-f]+$/);
+    expect(key).toMatch(/^[A-Za-z0-9_-]{43}$/);
   });
 
   it('should generate unique keys', () => {
@@ -703,7 +702,7 @@ describe('McpSettingsTab server controls', () => {
     generate.callback!();
     await vi.waitFor(() => {
       expect(getKey()).not.toBe(originalKey);
-      expect(getKey()).toMatch(/^[0-9a-f]{64}$/);
+      expect(getKey()).toMatch(/^[A-Za-z0-9_-]{43}$/);
     });
   });
 

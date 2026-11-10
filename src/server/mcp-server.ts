@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { Logger } from '../utils/logger';
 import { ModuleRegistry } from '../registry/module-registry';
 import { ToolDefinition } from '../registry/types';
-import { handleToolError } from '../tools/shared/errors';
+import { formatZodIssues, handleToolError } from '../tools/shared/errors';
 import { resultTextLength } from '../tools/shared/pagination';
 import { truncateText } from '../tools/shared/truncate';
 import { CHARACTER_LIMIT } from '../constants';
@@ -113,7 +113,7 @@ ${hints.join('\n')}`;
 /** Instructions for the running plugin version (from manifest.json). */
 export const SERVER_INSTRUCTIONS = buildServerInstructions(manifest.version);
 
-export interface CreateMcpServerOptions {
+interface CreateMcpServerOptions {
   /**
    * Version reported in the handshake, the instructions and `server_info`.
    * Defaults to manifest.json's version; the docs generator passes a fixed
@@ -174,7 +174,7 @@ export function createMcpServer(
 
   registerTools(server, registry, logger, version);
   if (settings.resourcesEnabled) {
-    registerResources(server, adapter, logger);
+    registerResources(server, adapter);
   }
   if (settings.promptsEnabled) {
     registerPrompts(server, adapter, logger);
@@ -183,11 +183,6 @@ export function createMcpServer(
   return server;
 }
 
-/**
- * Build the dispatch closure for a single tool. Exposed for direct unit
- * testing — the SDK's internal registration path is hard to drive from
- * tests, but the validate-then-handle logic is the important part.
- */
 /**
  * Safety net (#464): tools return fewer items to stay under CHARACTER_LIMIT,
  * so a text over it is a bug in a tool. Cut it with a footer and log a
@@ -219,11 +214,16 @@ export function capResponse(
   };
 }
 
+/**
+ * Build the dispatch closure for a single tool. Exposed for direct unit
+ * testing — the SDK's internal registration path is hard to drive from
+ * tests, but the validate-then-handle logic is the important part.
+ */
 export function createToolDispatcher(
   tool: ToolDefinition,
   logger: Logger,
+  inputSchema: z.ZodType<Record<string, unknown>> = buildInputSchema(tool.schema),
 ): (params: unknown, extra: SdkExtra) => Promise<CallToolResult> {
-  const inputSchema = buildInputSchema(tool.schema);
   return async (params: unknown, extra: SdkExtra): Promise<CallToolResult> => {
     try {
       const parsed = inputSchema.parse(params ?? {});
@@ -231,22 +231,10 @@ export function createToolDispatcher(
       const result = await tool.handler(parsed, ctx);
       return capResponse(result, tool.name, logger);
     } catch (error) {
-      // ZodError keeps the dispatcher's friendlier path-joined format —
-      // richer than handleToolError's ZodError branch, and a `warn` not
-      // `error` because invalid input is a client problem, not a server one.
+      // Invalid input is a client problem, not a server one: a `warn`, and
+      // the envelope has no "Error: " prefix.
       if (error instanceof z.ZodError) {
-        const message = error.issues
-          .map((issue) => {
-            // Unknown-key issues sit at the root and already carry a
-            // self-contained message naming the keys (see input-schema.ts).
-            if (issue.path.length === 0 && issue.code === 'unrecognized_keys') {
-              return issue.message;
-            }
-            const path =
-              issue.path.length > 0 ? issue.path.join('.') : '<root>';
-            return `${path}: ${issue.message}`;
-          })
-          .join('; ');
+        const message = formatZodIssues(error);
         logger.warn(`Tool "${tool.name}" rejected invalid input: ${message}`);
         return {
           content: [
@@ -356,6 +344,7 @@ function registerTool(
   logger: Logger,
 ): RegisteredTool {
   logger.debug(`Registering tool: ${tool.name}`);
+  const inputSchema = buildInputSchema(tool.schema);
   return server.registerTool(
     tool.name,
     {
@@ -365,11 +354,11 @@ function registerTool(
       // dispatcher runs, and a raw shape would make it strip unknown keys.
       // Both schemas validate with Zod as before; only the JSON Schema
       // advertised in tools/list is trimmed (#451).
-      inputSchema: withAdvertisedSchema(buildInputSchema(tool.schema), 'input'),
+      inputSchema: withAdvertisedSchema(inputSchema, 'input'),
       outputSchema: advertisedOutputSchema(tool.outputSchema),
       // No annotations.title: the top-level `title` carries it (#451).
       annotations: tool.annotations,
     },
-    createToolDispatcher(tool, logger),
+    createToolDispatcher(tool, logger, inputSchema),
   );
 }

@@ -14,7 +14,6 @@ import {
   createSummarizeNoteHandler,
 } from '../../src/server/prompts';
 import { ConfigDirError } from '../../src/utils/path-guard';
-import { Logger } from '../../src/utils/logger';
 import type { ToolModule } from '../../src/registry/types';
 
 /**
@@ -161,7 +160,7 @@ describe('config folder block (#462)', () => {
   });
 
   it('the obsidian://vault/index resource leaves the config folder out', async () => {
-    const handler = createIndexHandler(adapter, new Logger('test', { debugMode: false, accessKey: '' }));
+    const handler = createIndexHandler(adapter);
     const result = await handler(new URL('obsidian://vault/index'));
     const text = (result.contents[0] as { text: string }).text;
     expect(text).not.toContain('.obsidian');

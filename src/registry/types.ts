@@ -85,7 +85,7 @@ export interface ToolDefinition<
   destroysContent?: boolean;
 }
 
-export type TypedHandler<Shape extends z.ZodRawShape> = (
+type TypedHandler<Shape extends z.ZodRawShape> = (
   params: InferredParams<Shape>,
   ctx?: ToolContext,
 ) => Promise<CallToolResult>;
@@ -147,9 +147,9 @@ export const annotations = {
   },
 } as const satisfies Record<string, ToolAnnotations>;
 
-export type ModuleGroup = 'extras';
+type ModuleGroup = 'extras';
 
-export interface ModuleMetadata {
+interface ModuleMetadata {
   id: string;
   name: string;
   description: string;

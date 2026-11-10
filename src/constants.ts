@@ -18,3 +18,10 @@ export const REPOSITORY_URL =
 
 /** GitHub "new issue" page, derived from {@link REPOSITORY_URL}. */
 export const NEW_ISSUE_URL = `${REPOSITORY_URL}/issues/new`;
+
+/**
+ * The one URL path that serves MCP, as shown in the settings tab, the
+ * client config snippet, the README and the user manual. The query string
+ * is ignored. Every other path, `/` and `/mcp/` included, answers 404.
+ */
+export const MCP_ENDPOINT_PATH = '/mcp';
