@@ -5,7 +5,7 @@ import { withDestinationCheck } from '../shared/errors';
  * What `vault_rename` and `vault_move` report about internal links
  * after the rename (#430).
  */
-export interface LinkUpdateReport {
+interface LinkUpdateReport {
   /** Links to the moved file(s) in the files whose content changed. */
   linksUpdated: number;
   /** Vault-relative paths (after the rename) whose content changed. */

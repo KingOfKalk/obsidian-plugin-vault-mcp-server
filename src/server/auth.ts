@@ -2,7 +2,7 @@ import { IncomingMessage, ServerResponse } from 'http';
 import { timingSafeEqual } from 'crypto';
 import { sendJson } from './send-json';
 
-export interface AuthResult {
+interface AuthResult {
   authenticated: boolean;
   error?: string;
 }

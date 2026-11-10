@@ -18,7 +18,7 @@ export interface ModuleOptions {
   getExecuteCommandAllowlist?: () => string[];
 }
 
-export type ModuleFactory = (
+type ModuleFactory = (
   adapter: ObsidianAdapter,
   options?: ModuleOptions,
 ) => ToolModule;

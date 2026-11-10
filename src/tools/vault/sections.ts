@@ -7,7 +7,7 @@ import { ValidationError } from '../shared/errors';
  */
 
 /** One heading found in a note. `index` is the 0-based line number. */
-export interface ParsedHeading {
+interface ParsedHeading {
   index: number;
   level: number;
   text: string;
@@ -49,7 +49,7 @@ const LINK_FORM_STRIP = /[!"#$%&()*+,.:;<=>?@^`{|}~/[\]\\\r\n]/g;
  * subpath (`resolveSubpath`): `stripHeading` (the characters above become
  * spaces, whitespace runs collapse, trim), then lower-cased.
  */
-export function linkFormHeading(text: string): string {
+function linkFormHeading(text: string): string {
   return text.replace(LINK_FORM_STRIP, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
@@ -207,7 +207,7 @@ export function sectionText(content: string, section: Section): string {
 const PLACEHOLDER_ITEM = /^[ \t]*(?:[-*+]|\d{1,9}[.)])(?:[ \t]+\[ \])?[ \t]*$/;
 
 /** Whether `line` is an empty placeholder list item (see PLACEHOLDER_ITEM). */
-export function isPlaceholderItem(line: string): boolean {
+function isPlaceholderItem(line: string): boolean {
   return PLACEHOLDER_ITEM.test(line);
 }
 

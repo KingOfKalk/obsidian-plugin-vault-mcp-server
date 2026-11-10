@@ -73,8 +73,8 @@ const MAX_BODY_BYTES = 4 * 1024 * 1024;
 const DEFAULT_SESSION_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
 const DEFAULT_SESSION_SWEEP_INTERVAL_MS = 60 * 1000;
 export const DEFAULT_MAX_SESSIONS = 32;
-export const DEFAULT_BIND_RETRY_TIMEOUT_MS = 5000;
-export const DEFAULT_BIND_RETRY_DELAY_MS = 250;
+const DEFAULT_BIND_RETRY_TIMEOUT_MS = 5000;
+const DEFAULT_BIND_RETRY_DELAY_MS = 250;
 
 function requestPath(url: string | undefined): string {
   const raw = url ?? '/';

@@ -113,7 +113,7 @@ ${hints.join('\n')}`;
 /** Instructions for the running plugin version (from manifest.json). */
 export const SERVER_INSTRUCTIONS = buildServerInstructions(manifest.version);
 
-export interface CreateMcpServerOptions {
+interface CreateMcpServerOptions {
   /**
    * Version reported in the handshake, the instructions and `server_info`.
    * Defaults to manifest.json's version; the docs generator passes a fixed

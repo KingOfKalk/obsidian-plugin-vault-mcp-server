@@ -1,6 +1,6 @@
 import { CHARACTER_LIMIT } from '../../constants';
 
-export interface TruncationResult {
+interface TruncationResult {
   /** The possibly-truncated text, with a `[TRUNCATED: ...]` footer appended when cut. */
   text: string;
   /** True when the original text exceeded the limit. */
