@@ -8,8 +8,9 @@ import {
   type InferredParams,
 } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
-import { handleToolError } from '../shared/errors';
+import { errorResult } from '../shared/errors';
 import { describeTool } from '../shared/describe';
+import { safeHandlers } from '../shared/handler';
 import { dataResponse, documentResponse } from '../shared/response';
 import {
   READ_MAX_LENGTH,
@@ -19,8 +20,6 @@ import {
   windowMeta,
   windowOffsetField,
 } from '../shared/window';
-
-function err(m: string): CallToolResult { return handleToolError(new Error(m)); }
 
 /**
  * Require a value to be a non-negative safe integer. Kept as a runtime guard
@@ -208,57 +207,39 @@ interface EditorHandlers {
 }
 
 function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
-  return {
-    getContent: (params): Promise<CallToolResult> => {
+  return safeHandlers<EditorHandlers>({
+    getContent: (params): CallToolResult => {
       const text = adapter.getActiveFileContent();
-      if (text === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
+      if (text === null) return errorResult(NO_ACTIVE_EDITOR);
       const w = sliceTextWindow(text, params.offset ?? 0, params.length ?? READ_MAX_LENGTH);
-      return Promise.resolve(
-        documentResponse(
-          windowMeta(w, text.length),
-          windowBody('editor_get_content', w, text.length),
-        ),
+      return documentResponse(
+        windowMeta(w, text.length),
+        windowBody('editor_get_content', w, text.length),
       );
     },
-    getActivePath: (): Promise<CallToolResult> => {
+    getActivePath: (): CallToolResult => {
       const path = adapter.getActiveFilePath();
-      if (path === null) return Promise.resolve(err('No active file'));
-      return Promise.resolve(
-        dataResponse({ path }),
-      );
+      if (path === null) return errorResult('No active file');
+      return dataResponse({ path });
     },
-    insert: (params): Promise<CallToolResult> => {
+    insert: (params): CallToolResult => {
       const lineCount = adapter.getActiveLineCount();
-      if (lineCount === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
-      try {
-        assertEditorPosition(params.line, params.ch, lineCount, {
-          allowEnd: true,
-        });
-      } catch (error) {
-        return Promise.resolve(
-          err(error instanceof Error ? error.message : String(error)),
-        );
-      }
+      if (lineCount === null) return errorResult(NO_ACTIVE_EDITOR);
+      assertEditorPosition(params.line, params.ch, lineCount, {
+        allowEnd: true,
+      });
       const ok = adapter.insertTextAt(params.line, params.ch, params.text);
-      return Promise.resolve(
-        ok
-          ? dataResponse({ line: params.line, ch: params.ch })
-          : err(NO_ACTIVE_EDITOR),
-      );
+      return ok
+        ? dataResponse({ line: params.line, ch: params.ch })
+        : errorResult(NO_ACTIVE_EDITOR);
     },
-    replace: (params): Promise<CallToolResult> => {
+    replace: (params): CallToolResult => {
       const lineCount = adapter.getActiveLineCount();
-      if (lineCount === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
-      try {
-        assertEditorPosition(params.fromLine, params.fromCh, lineCount);
-        assertEditorPosition(params.toLine, params.toCh, lineCount, {
-          allowEnd: true,
-        });
-      } catch (error) {
-        return Promise.resolve(
-          err(error instanceof Error ? error.message : String(error)),
-        );
-      }
+      if (lineCount === null) return errorResult(NO_ACTIVE_EDITOR);
+      assertEditorPosition(params.fromLine, params.fromCh, lineCount);
+      assertEditorPosition(params.toLine, params.toCh, lineCount, {
+        allowEnd: true,
+      });
       const ok = adapter.replaceRange(
         params.fromLine,
         params.fromCh,
@@ -266,95 +247,63 @@ function createHandlers(adapter: ObsidianAdapter): EditorHandlers {
         params.toCh,
         params.text,
       );
-      return Promise.resolve(
-        ok ? dataResponse(rangeOf(params)) : err(NO_ACTIVE_EDITOR),
-      );
+      return ok ? dataResponse(rangeOf(params)) : errorResult(NO_ACTIVE_EDITOR);
     },
-    deleteRange: (params): Promise<CallToolResult> => {
+    deleteRange: (params): CallToolResult => {
       const lineCount = adapter.getActiveLineCount();
-      if (lineCount === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
-      try {
-        assertEditorPosition(params.fromLine, params.fromCh, lineCount);
-        assertEditorPosition(params.toLine, params.toCh, lineCount, {
-          allowEnd: true,
-        });
-      } catch (error) {
-        return Promise.resolve(
-          err(error instanceof Error ? error.message : String(error)),
-        );
-      }
+      if (lineCount === null) return errorResult(NO_ACTIVE_EDITOR);
+      assertEditorPosition(params.fromLine, params.fromCh, lineCount);
+      assertEditorPosition(params.toLine, params.toCh, lineCount, {
+        allowEnd: true,
+      });
       const ok = adapter.deleteRange(
         params.fromLine,
         params.fromCh,
         params.toLine,
         params.toCh,
       );
-      return Promise.resolve(
-        ok ? dataResponse(rangeOf(params)) : err(NO_ACTIVE_EDITOR),
-      );
+      return ok ? dataResponse(rangeOf(params)) : errorResult(NO_ACTIVE_EDITOR);
     },
-    getCursor: (): Promise<CallToolResult> => {
+    getCursor: (): CallToolResult => {
       const pos = adapter.getCursorPosition();
-      if (!pos) return Promise.resolve(err(NO_ACTIVE_EDITOR));
-      return Promise.resolve(
-        dataResponse({ line: pos.line, ch: pos.ch }),
-      );
+      if (!pos) return errorResult(NO_ACTIVE_EDITOR);
+      return dataResponse({ line: pos.line, ch: pos.ch });
     },
-    setCursor: (params): Promise<CallToolResult> => {
+    setCursor: (params): CallToolResult => {
       const lineCount = adapter.getActiveLineCount();
-      if (lineCount === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
-      try {
-        assertEditorPosition(params.line, params.ch, lineCount);
-      } catch (error) {
-        return Promise.resolve(
-          err(error instanceof Error ? error.message : String(error)),
-        );
-      }
+      if (lineCount === null) return errorResult(NO_ACTIVE_EDITOR);
+      assertEditorPosition(params.line, params.ch, lineCount);
       const ok = adapter.setCursorPosition(params.line, params.ch);
-      return Promise.resolve(
-        ok
-          ? dataResponse({ line: params.line, ch: params.ch })
-          : err(NO_ACTIVE_EDITOR),
-      );
+      return ok
+        ? dataResponse({ line: params.line, ch: params.ch })
+        : errorResult(NO_ACTIVE_EDITOR);
     },
-    getSelection: (): Promise<CallToolResult> => {
+    getSelection: (): CallToolResult => {
       const sel = adapter.getSelection();
-      if (!sel) return Promise.resolve(err(`No active editor or selection. ${NO_EDITOR_HINT}`));
-      return Promise.resolve(
-        dataResponse({ from: sel.from, to: sel.to, text: sel.text }),
-      );
+      if (!sel) return errorResult(`No active editor or selection. ${NO_EDITOR_HINT}`);
+      return dataResponse({ from: sel.from, to: sel.to, text: sel.text });
     },
-    setSelection: (params): Promise<CallToolResult> => {
+    setSelection: (params): CallToolResult => {
       const lineCount = adapter.getActiveLineCount();
-      if (lineCount === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
-      try {
-        assertEditorPosition(params.fromLine, params.fromCh, lineCount);
-        assertEditorPosition(params.toLine, params.toCh, lineCount, {
-          allowEnd: true,
-        });
-      } catch (error) {
-        return Promise.resolve(
-          err(error instanceof Error ? error.message : String(error)),
-        );
-      }
+      if (lineCount === null) return errorResult(NO_ACTIVE_EDITOR);
+      assertEditorPosition(params.fromLine, params.fromCh, lineCount);
+      assertEditorPosition(params.toLine, params.toCh, lineCount, {
+        allowEnd: true,
+      });
       const ok = adapter.setSelection(
         params.fromLine,
         params.fromCh,
         params.toLine,
         params.toCh,
       );
-      return Promise.resolve(
-        ok ? dataResponse(rangeOf(params)) : err(NO_ACTIVE_EDITOR),
-      );
+      return ok ? dataResponse(rangeOf(params)) : errorResult(NO_ACTIVE_EDITOR);
     },
-    getLineCount: (): Promise<CallToolResult> => {
+    getLineCount: (): CallToolResult => {
       const count = adapter.getActiveLineCount();
-      if (count === null) return Promise.resolve(err(NO_ACTIVE_EDITOR));
-      return Promise.resolve(
-        dataResponse({ lineCount: count }),
-      );
+      if (count === null) return errorResult(NO_ACTIVE_EDITOR);
+      return dataResponse({ lineCount: count });
     },
-  };
+  });
 }
 
 export function createEditorModule(adapter: ObsidianAdapter): ToolModule {

@@ -11,14 +11,13 @@ import { ObsidianAdapter } from '../../obsidian/adapter';
 import {
   PluginApiUnavailableError,
   PluginNotInstalledError,
-  handleToolError,
+  errorResult,
 } from '../shared/errors';
 import { describeTool } from '../shared/describe';
+import { safeHandlers } from '../shared/handler';
 import { dataResponse, documentResponse } from '../shared/response';
 import { fitItems } from '../shared/pagination';
 import type { ModuleOptions } from '../index';
-
-function err(m: string): CallToolResult { return handleToolError(new Error(m)); }
 
 const listSchema = {};
 
@@ -85,80 +84,66 @@ function createHandlers(
   adapter: ObsidianAdapter,
   getExecuteCommandAllowlist: () => string[],
 ): PluginInteropHandlers {
-  return {
-    listPlugins: (): Promise<CallToolResult> => {
+  return safeHandlers<PluginInteropHandlers>({
+    listPlugins: (): CallToolResult => {
       const plugins = adapter.getInstalledPlugins();
-      return Promise.resolve(
-        dataResponse({ plugins }),
-      );
+      return dataResponse({ plugins });
     },
-    checkPlugin: (params): Promise<CallToolResult> => {
+    checkPlugin: (params): CallToolResult => {
       const enabled = adapter.isPluginEnabled(params.pluginId);
       const plugins = adapter.getInstalledPlugins();
       const installed = plugins.some((p) => p.id === params.pluginId);
-      return Promise.resolve(
-        dataResponse({ pluginId: params.pluginId, installed, enabled }),
-      );
+      return dataResponse({ pluginId: params.pluginId, installed, enabled });
     },
     dataviewQuery: async (params): Promise<CallToolResult> => {
-      try {
-        if (!adapter.isPluginEnabled('dataview')) {
-          throw new PluginNotInstalledError('dataview');
-        }
-        const api = adapter.getDataviewApi();
-        if (!api) {
-          throw new PluginApiUnavailableError(
-            'dataview',
-            'queryMarkdown is not exposed',
-          );
-        }
-        const result = await api.queryMarkdown(params.query);
-        if (!result.successful) {
-          return err(`Dataview query failed: ${result.error}`);
-        }
-        // Over CHARACTER_LIMIT: fewer whole lines (table rows), never a cut
-        // line, so the table header and every row shown stay intact (#464).
-        const lines = result.value.split('\n');
-        return fitItems(lines.length, (n) => {
-          const truncated = n < lines.length;
-          return documentResponse(
-            truncated ? { lines: `${String(n)} of ${String(lines.length)}`, truncated } : {},
-            truncated
-              ? `${lines.slice(0, n).join('\n')}\n\n[TRUNCATED: Showing ${String(n)} of ${String(lines.length)} lines. Narrow the query with WHERE or LIMIT.]`
-              : result.value,
-          );
-        });
-      } catch (error) {
-        return handleToolError(error);
+      if (!adapter.isPluginEnabled('dataview')) {
+        throw new PluginNotInstalledError('dataview');
       }
+      const api = adapter.getDataviewApi();
+      if (!api) {
+        throw new PluginApiUnavailableError(
+          'dataview',
+          'queryMarkdown is not exposed',
+        );
+      }
+      const result = await api.queryMarkdown(params.query);
+      if (!result.successful) {
+        return errorResult(`Dataview query failed: ${result.error}`);
+      }
+      // Over CHARACTER_LIMIT: fewer whole lines (table rows), never a cut
+      // line, so the table header and every row shown stay intact (#464).
+      const lines = result.value.split('\n');
+      return fitItems(lines.length, (n) => {
+        const truncated = n < lines.length;
+        return documentResponse(
+          truncated ? { lines: `${String(n)} of ${String(lines.length)}`, truncated } : {},
+          truncated
+            ? `${lines.slice(0, n).join('\n')}\n\n[TRUNCATED: Showing ${String(n)} of ${String(lines.length)} lines. Narrow the query with WHERE or LIMIT.]`
+            : result.value,
+        );
+      });
     },
-    executeCommand: (params): Promise<CallToolResult> => {
+    executeCommand: (params): CallToolResult => {
       const allowlist = getExecuteCommandAllowlist();
       if (allowlist.length === 0) {
-        return Promise.resolve(
-          err(
-            'Command execution disabled — enable commands individually in Obsidian MCP settings.',
-          ),
+        return errorResult(
+          'Command execution disabled — enable commands individually in Obsidian MCP settings.',
         );
       }
       if (!allowlist.includes(params.commandId)) {
-        return Promise.resolve(
-          err(
-            `Command "${params.commandId}" is not on the executeCommand allowlist. Add it in Obsidian MCP settings if you trust it.`,
-          ),
+        return errorResult(
+          `Command "${params.commandId}" is not on the executeCommand allowlist. Add it in Obsidian MCP settings if you trust it.`,
         );
       }
       const ok = adapter.executeCommand(params.commandId);
-      return Promise.resolve(
-        ok
-          ? dataResponse({
-              commandId: params.commandId,
-              executed: true,
-            })
-          : err(`Command not found: ${params.commandId}`),
-      );
+      return ok
+        ? dataResponse({
+            commandId: params.commandId,
+            executed: true,
+          })
+        : errorResult(`Command not found: ${params.commandId}`);
     },
-  };
+  });
 }
 
 export function createPluginInteropModule(

@@ -9,8 +9,9 @@ import {
 } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateToolPath } from '../../utils/path-guard';
-import { FolderNotFoundError, handleToolError } from '../shared/errors';
+import { FolderNotFoundError } from '../shared/errors';
 import { describeTool } from '../shared/describe';
+import { safeHandlers } from '../shared/handler';
 import {
   FILE_PATH_DESC,
   TEMPLATE_VARIABLES_DESC,
@@ -22,8 +23,6 @@ import { templatesFolder } from '../shared/templates-folder';
 import { modifiedIso } from '../shared/modified';
 import { assertSafeFrontmatterKeys, frontmatterKeySchema } from '../shared/frontmatter';
 import { dataResponse, documentResponse } from '../shared/response';
-
-function err(m: string): CallToolResult { return handleToolError(new Error(m)); }
 
 const listTemplatesSchema = {};
 
@@ -87,78 +86,64 @@ function createHandlers(adapter: ObsidianAdapter): TemplatesHandlers {
   const vaultPath = adapter.getVaultPath();
   const configDir = adapter.getConfigDir();
 
-  return {
-    listTemplates: (): Promise<CallToolResult> => {
+  return safeHandlers<TemplatesHandlers>({
+    listTemplates: (): CallToolResult => {
+      const folder = validateToolPath(templatesFolder(adapter), vaultPath, configDir);
+      let files: string[];
       try {
-        const folder = validateToolPath(templatesFolder(adapter), vaultPath, configDir);
-        let files: string[];
-        try {
-          files = adapter.listRecursive(folder).files;
-        } catch (error) {
-          if (!(error instanceof FolderNotFoundError)) throw error;
-          files = [];
-        }
-        return Promise.resolve(
-          dataResponse({ folder, files }),
-        );
+        files = adapter.listRecursive(folder).files;
       } catch (error) {
-        return Promise.resolve(handleToolError(error));
+        if (!(error instanceof FolderNotFoundError)) throw error;
+        files = [];
       }
+      return dataResponse({ folder, files });
     },
     async createFromTemplate(params): Promise<CallToolResult> {
-      try {
-        const templatePath = validateToolPath(params.templatePath, vaultPath, configDir);
-        const destPath = validateToolPath(params.destPath, vaultPath, configDir);
-        const variables = params.variables ?? {};
-        const set = params.frontmatter ?? {};
-        const setKeys = Object.keys(set);
-        if (setKeys.length > 0) {
-          if (!destPath.toLowerCase().endsWith('.md')) {
-            throw new Error('Frontmatter can only be set on Markdown (.md) files');
-          }
-          assertSafeFrontmatterKeys(setKeys);
+      const templatePath = validateToolPath(params.templatePath, vaultPath, configDir);
+      const destPath = validateToolPath(params.destPath, vaultPath, configDir);
+      const variables = params.variables ?? {};
+      const set = params.frontmatter ?? {};
+      const setKeys = Object.keys(set);
+      if (setKeys.length > 0) {
+        if (!destPath.toLowerCase().endsWith('.md')) {
+          throw new Error('Frontmatter can only be set on Markdown (.md) files');
         }
-        const templateContent = await adapter.readFile(templatePath);
-        const expanded = expandPlaceholders(templateContent, variables, {
-          title: noteTitle(destPath),
-        });
-        await adapter.createFile(destPath, expanded);
-        if (setKeys.length === 0) {
-          return dataResponse({
-            path: destPath,
-            templatePath,
-            modified: await modifiedIso(adapter, destPath),
-          });
-        }
-        let frontmatter: Record<string, unknown> = {};
-        await adapter.processFrontMatter(destPath, (fm) => {
-          for (const key of setKeys) {
-            fm[key] = set[key];
-          }
-          // Snapshot as plain JSON so the result is serialisable even if
-          // Obsidian hands back richer YAML values.
-          frontmatter = JSON.parse(JSON.stringify(fm)) as Record<string, unknown>;
-        });
+        assertSafeFrontmatterKeys(setKeys);
+      }
+      const templateContent = await adapter.readFile(templatePath);
+      const expanded = expandPlaceholders(templateContent, variables, {
+        title: noteTitle(destPath),
+      });
+      await adapter.createFile(destPath, expanded);
+      if (setKeys.length === 0) {
         return dataResponse({
           path: destPath,
           templatePath,
-          frontmatter,
           modified: await modifiedIso(adapter, destPath),
         });
-      } catch (error) {
-        return err(error instanceof Error ? error.message : String(error));
       }
+      let frontmatter: Record<string, unknown> = {};
+      await adapter.processFrontMatter(destPath, (fm) => {
+        for (const key of setKeys) {
+          fm[key] = set[key];
+        }
+        // Snapshot as plain JSON so the result is serialisable even if
+        // Obsidian hands back richer YAML values.
+        frontmatter = JSON.parse(JSON.stringify(fm)) as Record<string, unknown>;
+      });
+      return dataResponse({
+        path: destPath,
+        templatePath,
+        frontmatter,
+        modified: await modifiedIso(adapter, destPath),
+      });
     },
-    expandVariables: (params): Promise<CallToolResult> => {
-      try {
-        const variables = params.variables ?? {};
-        const expanded = expandPlaceholders(params.template, variables);
-        return Promise.resolve(documentResponse({}, expanded));
-      } catch (error) {
-        return Promise.resolve(err(error instanceof Error ? error.message : String(error)));
-      }
+    expandVariables: (params): CallToolResult => {
+      const variables = params.variables ?? {};
+      const expanded = expandPlaceholders(params.template, variables);
+      return documentResponse({}, expanded);
     },
-  };
+  });
 }
 
 export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {

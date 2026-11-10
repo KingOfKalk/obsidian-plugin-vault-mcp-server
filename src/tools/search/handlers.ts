@@ -8,7 +8,8 @@ import {
   withoutConfigDir,
 } from '../../utils/path-guard';
 import { CHARACTER_LIMIT } from '../../constants';
-import { FileNotFoundError, handleToolError } from '../shared/errors';
+import { FileNotFoundError } from '../shared/errors';
+import { safeHandlers } from '../shared/handler';
 import {
   fitPage,
   paginate,
@@ -267,260 +268,197 @@ export function createSearchHandlers(adapter: ObsidianAdapter): SearchHandlers {
     return fitPage(page, (p) => dataResponse(toLinkMapPage(p)));
   }
 
-  return {
+  return safeHandlers<SearchHandlers>({
     async searchFulltext(params, ctx): Promise<CallToolResult> {
-      try {
-        const lowerQuery = params.query.toLowerCase();
-        // Same folder rules as search_by_name (#504).
-        const folder = validateFolderListPath(params.folder ?? '', vaultPath, configDir);
-        let allFiles = adapter.getAllFiles();
-        if (folder !== '') {
-          const inFolder = new Set(adapter.listRecursive(folder).files);
-          allFiles = allFiles.filter((path) => inFolder.has(path));
-        }
-        const total = allFiles.length;
-        const maxMatchesPerFile = params.maxMatchesPerFile ?? DEFAULT_MAX_MATCHES_PER_FILE;
-        const matched: Array<{
-          path: string;
-          matches: string[];
-          lines: number[];
-          matchCount: number;
-        }> = [];
+      const lowerQuery = params.query.toLowerCase();
+      // Same folder rules as search_by_name (#504).
+      const folder = validateFolderListPath(params.folder ?? '', vaultPath, configDir);
+      let allFiles = adapter.getAllFiles();
+      if (folder !== '') {
+        const inFolder = new Set(adapter.listRecursive(folder).files);
+        allFiles = allFiles.filter((path) => inFolder.has(path));
+      }
+      const total = allFiles.length;
+      const maxMatchesPerFile = params.maxMatchesPerFile ?? DEFAULT_MAX_MATCHES_PER_FILE;
+      const matched: Array<{
+        path: string;
+        matches: string[];
+        lines: number[];
+        matchCount: number;
+      }> = [];
 
-        let lastPct = -1;
-        for (let i = 0; i < total; i++) {
-          if (ctx?.signal.aborted) {
-            throw new Error('Cancelled');
-          }
-          const path = allFiles[i];
-          const content = await adapter.readFile(path);
-          if (content.toLowerCase().includes(lowerQuery)) {
-            const lines = content.split('\n');
-            const hits: number[] = [];
-            lines.forEach((line, index) => {
-              if (line.toLowerCase().includes(lowerQuery)) hits.push(index);
-            });
-            // lastMatches: the end of the file, e.g. newest log rows (#504).
-            const shown = params.lastMatches
-              ? hits.slice(-maxMatchesPerFile)
-              : hits.slice(0, maxMatchesPerFile);
-            matched.push({
-              path,
-              matches: shown.map((index) => lines[index].replace(/\r$/, '')),
-              lines: shown.map((index) => index + 1),
-              matchCount: hits.length,
-            });
-          }
-          if (ctx) {
-            const pct = Math.floor(((i + 1) / total) * 100);
-            if (pct > lastPct) {
-              lastPct = pct;
-              await ctx.reportProgress(
-                i + 1,
-                total,
-                `Scanned ${String(i + 1)}/${String(total)} files`,
-              );
-            }
+      let lastPct = -1;
+      for (let i = 0; i < total; i++) {
+        if (ctx?.signal.aborted) {
+          throw new Error('Cancelled');
+        }
+        const path = allFiles[i];
+        const content = await adapter.readFile(path);
+        if (content.toLowerCase().includes(lowerQuery)) {
+          const lines = content.split('\n');
+          const hits: number[] = [];
+          lines.forEach((line, index) => {
+            if (line.toLowerCase().includes(lowerQuery)) hits.push(index);
+          });
+          // lastMatches: the end of the file, e.g. newest log rows (#504).
+          const shown = params.lastMatches
+            ? hits.slice(-maxMatchesPerFile)
+            : hits.slice(0, maxMatchesPerFile);
+          matched.push({
+            path,
+            matches: shown.map((index) => lines[index].replace(/\r$/, '')),
+            lines: shown.map((index) => index + 1),
+            matchCount: hits.length,
+          });
+        }
+        if (ctx) {
+          const pct = Math.floor(((i + 1) / total) * 100);
+          if (pct > lastPct) {
+            lastPct = pct;
+            await ctx.reportProgress(
+              i + 1,
+              total,
+              `Scanned ${String(i + 1)}/${String(total)} files`,
+            );
           }
         }
-
-        const page = paginate(matched, readPagination(params));
-        // Fewer files instead of cut text (#464): nextOffset then points
-        // at the first file left out, and the JSON text stays valid.
-        return fitPage(page, (p) => dataResponse(p));
-      } catch (error) {
-        return handleToolError(error);
       }
+
+      const page = paginate(matched, readPagination(params));
+      // Fewer files instead of cut text (#464): nextOffset then points
+      // at the first file left out, and the JSON text stays valid.
+      return fitPage(page, (p) => dataResponse(p));
     },
 
-    searchFrontmatter(params): Promise<CallToolResult> {
-      try {
-        const path = validateToolPath(params.path, vaultPath, configDir);
-        const frontmatter = adapter.getFrontmatter(path) ?? {};
-        return Promise.resolve(
-          dataResponse({ path, frontmatter }),
-        );
-      } catch (error) {
-        return Promise.resolve(handleToolError(error));
-      }
+    searchFrontmatter(params): CallToolResult {
+      const path = validateToolPath(params.path, vaultPath, configDir);
+      const frontmatter = adapter.getFrontmatter(path) ?? {};
+      return dataResponse({ path, frontmatter });
     },
 
-    searchTags(params): Promise<CallToolResult> {
-      try {
-        // Counts only (#468): the file lists made the result huge on a
-        // large vault; search_by_tag returns the files of one tag.
-        const entries: TagEntry[] = Object.entries(groupTagsByCase(adapter.getAllTags()))
-          .map(([tag, usage]): TagEntry => [tag, { files: usage.files.length, occurrences: usage.count }])
-          .sort(([a], [b]) => compareTags(a, b));
-        const page = paginate(entries, readPagination(params));
-        return Promise.resolve(fitPage(page, (p) => dataResponse(toTagsPage(p))));
-      } catch (error) {
-        return Promise.resolve(handleToolError(error));
-      }
+    searchTags(params): CallToolResult {
+      // Counts only (#468): the file lists made the result huge on a
+      // large vault; search_by_tag returns the files of one tag.
+      const entries: TagEntry[] = Object.entries(groupTagsByCase(adapter.getAllTags()))
+        .map(([tag, usage]): TagEntry => [tag, { files: usage.files.length, occurrences: usage.count }])
+        .sort(([a], [b]) => compareTags(a, b));
+      const page = paginate(entries, readPagination(params));
+      return fitPage(page, (p) => dataResponse(toTagsPage(p)));
     },
 
-    searchHeadings(params): Promise<CallToolResult> {
-      try {
-        const path = validateToolPath(params.path, vaultPath, configDir);
-        const headings = adapter.getHeadings(path);
-        return Promise.resolve(
-          dataResponse({ path, headings }),
-        );
-      } catch (error) {
-        return Promise.resolve(handleToolError(error));
-      }
+    searchHeadings(params): CallToolResult {
+      const path = validateToolPath(params.path, vaultPath, configDir);
+      const headings = adapter.getHeadings(path);
+      return dataResponse({ path, headings });
     },
 
-    searchOutgoingLinks(params): Promise<CallToolResult> {
-      try {
-        const path = validateToolPath(params.path, vaultPath, configDir);
-        const links = withTargets(adapter.getLinks(path), path);
-        return Promise.resolve(
-          dataResponse({ path, links }),
-        );
-      } catch (error) {
-        return Promise.resolve(handleToolError(error));
-      }
+    searchOutgoingLinks(params): CallToolResult {
+      const path = validateToolPath(params.path, vaultPath, configDir);
+      const links = withTargets(adapter.getLinks(path), path);
+      return dataResponse({ path, links });
     },
 
-    searchEmbeds(params): Promise<CallToolResult> {
-      try {
-        const path = validateToolPath(params.path, vaultPath, configDir);
-        const embeds = withTargets(adapter.getEmbeds(path), path);
-        return Promise.resolve(
-          dataResponse({ path, embeds }),
-        );
-      } catch (error) {
-        return Promise.resolve(handleToolError(error));
-      }
+    searchEmbeds(params): CallToolResult {
+      const path = validateToolPath(params.path, vaultPath, configDir);
+      const embeds = withTargets(adapter.getEmbeds(path), path);
+      return dataResponse({ path, embeds });
     },
 
     async searchBacklinks(params): Promise<CallToolResult> {
-      try {
-        const path = validateToolPath(params.path, vaultPath, configDir);
-        const pagination = readPagination(params);
-        // vault_get_aspect adds `"aspect": …` to the JSON text afterwards.
-        const limit = CHARACTER_LIMIT - ASPECT_HEADROOM;
-        if (params.includeContext === true) {
-          // Read only the linking files of this page (#464).
-          const page = paginate(adapter.getBacklinkLines(path), pagination);
-          const context = await readBacklinkContext(adapter, page.items);
-          return fitPage(
-            { ...page, items: context },
-            (p) =>
-              dataResponse({
-                path,
-                backlinks: p.items.map((b) => b.path),
-                backlinkContext: p.items,
-                ...backlinkPageFields(p),
-              }),
-            limit,
-          );
-        }
-        const page = paginate(adapter.getBacklinks(path), pagination);
+      const path = validateToolPath(params.path, vaultPath, configDir);
+      const pagination = readPagination(params);
+      // vault_get_aspect adds `"aspect": …` to the JSON text afterwards.
+      const limit = CHARACTER_LIMIT - ASPECT_HEADROOM;
+      if (params.includeContext === true) {
+        // Read only the linking files of this page (#464).
+        const page = paginate(adapter.getBacklinkLines(path), pagination);
+        const context = await readBacklinkContext(adapter, page.items);
         return fitPage(
-          page,
-          (p) => dataResponse({ path, backlinks: p.items, ...backlinkPageFields(p) }),
+          { ...page, items: context },
+          (p) =>
+            dataResponse({
+              path,
+              backlinks: p.items.map((b) => b.path),
+              backlinkContext: p.items,
+              ...backlinkPageFields(p),
+            }),
           limit,
         );
-      } catch (error) {
-        return handleToolError(error);
       }
+      const page = paginate(adapter.getBacklinks(path), pagination);
+      return fitPage(
+        page,
+        (p) => dataResponse({ path, backlinks: p.items, ...backlinkPageFields(p) }),
+        limit,
+      );
     },
 
     async searchResolvedLinks(params): Promise<CallToolResult> {
-      try {
-        const entries = await linkMapEntries(adapter.getResolvedLinks(), params, false);
-        return fitLinkMap(entries, params);
-      } catch (error) {
-        return handleToolError(error);
-      }
+      const entries = await linkMapEntries(adapter.getResolvedLinks(), params, false);
+      return fitLinkMap(entries, params);
     },
 
     async searchUnresolvedLinks(params): Promise<CallToolResult> {
-      try {
-        // A source without broken links carries no information (#464).
-        const entries = await linkMapEntries(adapter.getUnresolvedLinks(), params, true);
-        if (params.groupBy !== 'target') return fitLinkMap(entries, params);
-        const page = paginate(groupByTarget(entries), readPagination(params));
-        return fitPage(page, ({ items, ...rest }) => dataResponse({ targets: items, ...rest }));
-      } catch (error) {
-        return handleToolError(error);
-      }
+      // A source without broken links carries no information (#464).
+      const entries = await linkMapEntries(adapter.getUnresolvedLinks(), params, true);
+      if (params.groupBy !== 'target') return fitLinkMap(entries, params);
+      const page = paginate(groupByTarget(entries), readPagination(params));
+      return fitPage(page, ({ items, ...rest }) => dataResponse({ targets: items, ...rest }));
     },
 
-    searchBlockReferences(params): Promise<CallToolResult> {
-      try {
-        const path = validateToolPath(params.path, vaultPath, configDir);
-        return adapter.getFileContent(path).then((content) => {
-          const blockRefs = content
-            .split('\n')
-            .filter((line) => /\^[\w-]+\s*$/.test(line))
-            .map((line) => {
-              const match = /\^([\w-]+)\s*$/.exec(line);
-              // `text`, not `line`: it is the line's text, not a number (#468).
-              return match ? { id: match[1], text: line.trim() } : null;
-            })
-            .filter((ref): ref is { id: string; text: string } => ref !== null);
-          return dataResponse({ path, blockRefs });
-        });
-      } catch (error) {
-        return Promise.resolve(handleToolError(error));
-      }
+    async searchBlockReferences(params): Promise<CallToolResult> {
+      const path = validateToolPath(params.path, vaultPath, configDir);
+      const content = await adapter.getFileContent(path);
+      const blockRefs = content
+        .split('\n')
+        .filter((line) => /\^[\w-]+\s*$/.test(line))
+        .map((line) => {
+          const match = /\^([\w-]+)\s*$/.exec(line);
+          // `text`, not `line`: it is the line's text, not a number (#468).
+          return match ? { id: match[1], text: line.trim() } : null;
+        })
+        .filter((ref): ref is { id: string; text: string } => ref !== null);
+      return dataResponse({ path, blockRefs });
     },
 
-    searchByTag(params): Promise<CallToolResult> {
-      try {
-        const tag = params.tag;
-        // Case-insensitive, nested tags included (#470).
-        const files = filesWithTag(adapter.getAllTags(), tag);
-        const page = paginate(files, readPagination(params));
-        return Promise.resolve(
-          dataResponse(page),
-        );
-      } catch (error) {
-        return Promise.resolve(handleToolError(error));
-      }
+    searchByTag(params): CallToolResult {
+      const tag = params.tag;
+      // Case-insensitive, nested tags included (#470).
+      const files = filesWithTag(adapter.getAllTags(), tag);
+      const page = paginate(files, readPagination(params));
+      return dataResponse(page);
     },
 
-    searchByFrontmatter(params): Promise<CallToolResult> {
-      try {
-        const key = params.key;
-        const value = params.value;
-        const prefix = params.match === 'prefix';
-        const allFiles = adapter.getAllFiles();
-        const matching: FrontmatterHit[] = [];
-        for (const filePath of allFiles) {
-          const fm = adapter.getFrontmatter(filePath);
-          if (!fm || !Object.prototype.hasOwnProperty.call(fm, key)) continue;
-          // No value: "has this key" query (#388).
-          if (value === undefined || frontmatterValueMatches(fm[key], value, prefix)) {
-            // The value too, so no extra call per hit is needed (#503).
-            matching.push({ path: filePath, ...hitValue(fm[key]) });
-          }
+    searchByFrontmatter(params): CallToolResult {
+      const key = params.key;
+      const value = params.value;
+      const prefix = params.match === 'prefix';
+      const allFiles = adapter.getAllFiles();
+      const matching: FrontmatterHit[] = [];
+      for (const filePath of allFiles) {
+        const fm = adapter.getFrontmatter(filePath);
+        if (!fm || !Object.prototype.hasOwnProperty.call(fm, key)) continue;
+        // No value: "has this key" query (#388).
+        if (value === undefined || frontmatterValueMatches(fm[key], value, prefix)) {
+          // The value too, so no extra call per hit is needed (#503).
+          matching.push({ path: filePath, ...hitValue(fm[key]) });
         }
-        const page = paginate(matching, readPagination(params));
-        return Promise.resolve(fitPage(page, (p) => dataResponse(p)));
-      } catch (error) {
-        return Promise.resolve(handleToolError(error));
       }
+      const page = paginate(matching, readPagination(params));
+      return fitPage(page, (p) => dataResponse(p));
     },
 
-    searchByName(params): Promise<CallToolResult> {
-      try {
-        // Any file type, config folder left out (#491).
-        const folder = validateFolderListPath(params.folder ?? '', vaultPath, configDir);
-        const matches = createNameMatcher(params.query);
-        const files = withoutConfigDir(adapter.listRecursive(folder), configDir)
-          .files.filter(matches)
-          .sort();
-        const page = paginate(files, readPagination(params));
-        return Promise.resolve(fitPage(page, (p) => dataResponse(p)));
-      } catch (error) {
-        return Promise.resolve(handleToolError(error));
-      }
+    searchByName(params): CallToolResult {
+      // Any file type, config folder left out (#491).
+      const folder = validateFolderListPath(params.folder ?? '', vaultPath, configDir);
+      const matches = createNameMatcher(params.query);
+      const files = withoutConfigDir(adapter.listRecursive(folder), configDir)
+        .files.filter(matches)
+        .sort();
+      const page = paginate(files, readPagination(params));
+      return fitPage(page, (p) => dataResponse(p));
     },
-  };
+  });
 }
 
 /** A search_by_frontmatter hit: the note and its value of `key` (#503). */

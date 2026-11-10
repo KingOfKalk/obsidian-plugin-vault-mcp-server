@@ -9,14 +9,13 @@ import {
 } from '../../registry/types';
 import { ObsidianAdapter } from '../../obsidian/adapter';
 import { validateToolPath } from '../../utils/path-guard';
-import { handleToolError } from '../shared/errors';
+import { errorResult } from '../shared/errors';
 import { describeTool } from '../shared/describe';
+import { safeHandlers } from '../shared/handler';
 import { FILE_PATH_DESC, vaultPathField } from '../shared/descriptions';
 import { dataResponse } from '../shared/response';
 import { resultTextLength } from '../shared/pagination';
 import { CHARACTER_LIMIT } from '../../constants';
-
-function err(m: string): CallToolResult { return handleToolError(new Error(m)); }
 
 const readOnlySchema = {};
 
@@ -146,46 +145,34 @@ interface WorkspaceHandlers {
 function createHandlers(adapter: ObsidianAdapter): WorkspaceHandlers {
   const vaultPath = adapter.getVaultPath();
   const configDir = adapter.getConfigDir();
-  return {
-    getActiveLeaf: (): Promise<CallToolResult> => {
+  return safeHandlers<WorkspaceHandlers>({
+    getActiveLeaf: (): CallToolResult => {
       const info = adapter.getActiveLeafInfo();
-      if (!info) return Promise.resolve(err('No active leaf'));
-      return Promise.resolve(
-        dataResponse(info),
-      );
+      if (!info) return errorResult('No active leaf');
+      return dataResponse(info);
     },
     async openFile(params): Promise<CallToolResult> {
-      try {
-        const path = validateToolPath(params.path, vaultPath, configDir);
-        await adapter.openFile(path, params.mode);
-        return dataResponse({
-          path,
-          ...(params.mode !== undefined ? { mode: params.mode } : {}),
-        });
-      } catch (error) {
-        return err(error instanceof Error ? error.message : String(error));
-      }
+      const path = validateToolPath(params.path, vaultPath, configDir);
+      await adapter.openFile(path, params.mode);
+      return dataResponse({
+        path,
+        ...(params.mode !== undefined ? { mode: params.mode } : {}),
+      });
     },
-    listLeaves: (): Promise<CallToolResult> => {
+    listLeaves: (): CallToolResult => {
       const files = adapter.getOpenFiles();
-      return Promise.resolve(
-        dataResponse({ leaves: files }),
-      );
+      return dataResponse({ leaves: files });
     },
-    setActiveLeaf: (params): Promise<CallToolResult> => {
+    setActiveLeaf: (params): CallToolResult => {
       const ok = adapter.setActiveLeaf(params.leafId);
-      return Promise.resolve(
-        ok
-          ? dataResponse({ leafId: params.leafId })
-          : err('Leaf not found'),
-      );
+      return ok
+        ? dataResponse({ leafId: params.leafId })
+        : errorResult('Leaf not found');
     },
-    getLayout: (): Promise<CallToolResult> => {
-      return Promise.resolve(
-        layoutResponse(adapter.getWorkspaceLayout()),
-      );
+    getLayout: (): CallToolResult => {
+      return layoutResponse(adapter.getWorkspaceLayout());
     },
-  };
+  });
 }
 
 export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
