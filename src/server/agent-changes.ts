@@ -18,6 +18,12 @@ export interface AgentChangeEntry {
 
 export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
   {
+    version: '5.1.1',
+    notes: [
+      '`heading` in `vault_read` and `vault_insert` also matches Obsidian\'s `#heading` link form when no heading has the exact text: punctuation and link brackets count as spaces, case is ignored, and a leading `#` is allowed. So `"2026-11-10 - Call"` (from `[[Note#2026-11-10 - Call]]`) finds `### [[2026-11-10]] - Call`. Several such matches are an error, as with duplicate headings.',
+    ],
+  },
+  {
     version: '5.1.0',
     notes: [
       '`vault_get_aspect` with `aspect: "outgoing_links"` or `"embeds"`: each entry adds `path`, the vault path Obsidian resolves the link to from this note (pass it to `vault_read`; `null` when unresolved or inside the config folder), and `subpath`, the `#Heading` or `#^block` part when present. `link` is unchanged.',

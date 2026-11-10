@@ -38,6 +38,21 @@ function normalizeHeadingText(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
 }
 
+/**
+ * Characters Obsidian's `stripHeading` replaces with a space (checked in the
+ * app code of 1.5.3 and 1.15.0, #515).
+ */
+const LINK_FORM_STRIP = /[!"#$%&()*+,.:;<=>?@^`{|}~/[\]\\\r\n]/g;
+
+/**
+ * A heading as Obsidian compares it when resolving a `[[note#heading]]`
+ * subpath (`resolveSubpath`): `stripHeading` (the characters above become
+ * spaces, whitespace runs collapse, trim), then lower-cased.
+ */
+export function linkFormHeading(text: string): string {
+  return text.replace(LINK_FORM_STRIP, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
 /** Strip an ATX closing sequence (`## Title ##` -> `Title`). */
 function stripClosingHashes(text: string): string {
   if (/^#+$/.test(text)) return '';
@@ -118,7 +133,11 @@ function describeHeadings(headings: ParsedHeading[]): string {
 }
 
 /**
- * Find the one section whose heading matches `query`. A section runs from
+ * Find the one section whose heading matches `query`: by its exact text
+ * first; if none matches, by Obsidian's link form (`linkFormHeading` of both
+ * sides), so the anchor of a `[[note#heading]]` link works too. Obsidian
+ * takes the first match; here several matches are an error, as for exact
+ * text. A section runs from
  * its heading line up to the next heading of the same or a higher level
  * (fewer `#`), or to the end of the file. Throws a ValidationError that
  * lists the available headings when nothing matches, or the matches with
@@ -132,9 +151,17 @@ export function findSection(
 ): Section {
   const headings = parseHeadings(lines);
   const wanted = parseHeadingQuery(query);
-  const matches = headings.filter(
-    (h) => h.text === wanted.text && (wanted.level === undefined || h.level === wanted.level),
-  );
+  const atLevel = (h: ParsedHeading): boolean =>
+    wanted.level === undefined || h.level === wanted.level;
+  let matches = headings.filter((h) => h.text === wanted.text && atLevel(h));
+  if (matches.length === 0) {
+    // Obsidian's #heading link form (#515), e.g. "2026-11-10 - Call" for
+    // "[[2026-11-10]] - Call"; also takes "#Heading" copied from a link.
+    const linkForm = linkFormHeading(wanted.text);
+    if (linkForm !== '') {
+      matches = headings.filter((h) => linkFormHeading(h.text) === linkForm && atLevel(h));
+    }
+  }
   if (matches.length === 0) {
     const available =
       headings.length === 0

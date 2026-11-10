@@ -650,7 +650,12 @@ clients and agents commonly trip over:
   heading line to the next heading of the same or a higher level (fewer
   `#`), or to the end of the file, so nested subsections belong to it.
   `heading` is the heading text without the `#` marks (`"Log"`), or with
-  them to pick a level (`"## Log"`). Only `#`-style headings count; headings
+  them to pick a level (`"## Log"`). The anchor of a `[[note#heading]]`
+  link works too: when no heading has the exact text, headings are compared
+  the way Obsidian resolves links, ignoring case and treating punctuation
+  and link brackets (`[[ ]]`, `|`, `:`, `#`, `/`, …) as spaces. So
+  `"2026-11-10 - Call"` or `"#2026-11-10 - Call"` finds
+  `### [[2026-11-10]] - Call`. Only `#`-style headings count; headings
   inside fenced code blocks and in the frontmatter are ignored. The heading
   must match exactly one heading: otherwise the call fails, listing the
   available headings (or the matches) with their line numbers.

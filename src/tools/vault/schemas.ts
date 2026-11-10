@@ -64,7 +64,7 @@ export const readFileSchema = {
     .optional()
     .describe(
       'Return only this section: the heading line up to the next heading of the same or a higher level. ' +
-        'Text without the # marks (e.g. "Log"), or with them to pin the level ("## Log"). offset/length then page within it.',
+        'Text without the # marks (e.g. "Log"), or with them to pin the level ("## Log"); a [[note#heading]] anchor also works. offset/length then page within it.',
     ),
   offset: windowOffsetField,
   length: windowLengthField('Files'),
@@ -153,7 +153,7 @@ export const replaceInFileSchema = {
 export const insertSchema = {
   path,
   heading: heading.describe(
-    'Section heading: text without the # marks (e.g. "Log"), or with them to pin the level ("## Log"). ' +
+    'Section heading: text without the # marks (e.g. "Log"), or with them to pin the level ("## Log"); a [[note#heading]] anchor also works. ' +
       'Must match exactly one heading; headings in code blocks and frontmatter are ignored.',
   ),
   position: z
