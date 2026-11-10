@@ -18,6 +18,12 @@ export interface AgentChangeEntry {
 
 export const AGENT_CHANGES: readonly AgentChangeEntry[] = [
   {
+    version: '5.1.1',
+    notes: [
+      '`vault_daily_note` without `create: true` on a missing note: the text says the note is not at `path` (from the Daily notes settings) and may exist elsewhere; check with `search_by_name` (e.g. the date) before `create: true`. It no longer says "Call again with create=true".',
+    ],
+  },
+  {
     version: '5.1.0',
     notes: [
       '`vault_get_aspect` with `aspect: "outgoing_links"` or `"embeds"`: each entry adds `path`, the vault path Obsidian resolves the link to from this note (pass it to `vault_read`; `null` when unresolved or inside the config folder), and `subpath`, the `#Heading` or `#^block` part when present. `link` is unchanged.',
