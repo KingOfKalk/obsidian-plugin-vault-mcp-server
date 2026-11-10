@@ -592,14 +592,15 @@ describe('createToolDispatcher', () => {
     expect(text).not.toMatch(/\n\s*at\s/);
     expect(text).not.toContain('mcp-server.ts');
     expect(text).not.toContain('.test.ts');
-    // Logger called at error level with the Error as structured data so
-    // the stack is captured server-side.
+    // Logger called at error level with the stack as structured data so
+    // it is captured server-side (#540).
     expect(error).toHaveBeenCalledTimes(1);
     expect(warn).not.toHaveBeenCalled();
     const errorCallArgs = error.mock.calls[0];
-    // Second argument (data) should be the raw Error so the stack is logged.
-    expect(errorCallArgs[1]).toBeInstanceOf(Error);
-    expect((errorCallArgs[1] as Error).message).toBe('boom');
+    expect(errorCallArgs[0]).toBe('Tool "test_tool" failed unexpectedly: boom');
+    const data = errorCallArgs[1] as { name: string; stack: string };
+    expect(data.name).toBe('Error');
+    expect(data.stack).toContain('Error: boom');
   });
 
   it('routes plain handler errors through handleToolError and logs at error level', async () => {
@@ -638,7 +639,8 @@ describe('createToolDispatcher', () => {
     // A typed error keeps its message as it is in handleToolError —
     // pins the integration with shared/errors.ts.
     expect(text).toBe('Error: Folder not found: notes');
-    expect(error).toHaveBeenCalledTimes(1);
+    // An expected, client-facing error is not a server crash (#540).
+    expect(error).not.toHaveBeenCalled();
   });
 
   it('passes a ToolContext as the second arg to the handler with mcpReq.signal and mcpReq._meta.progressToken', async () => {

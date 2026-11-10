@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { CallToolResult } from '@modelcontextprotocol/server';
-import { safeHandler, safeHandlers } from '../../../src/tools/shared/handler';
-import { NotFoundError, errorResult } from '../../../src/tools/shared/errors';
+import { caughtError, safeHandler, safeHandlers } from '../../../src/tools/shared/handler';
+import { NotFoundError, errorResult, handleToolError } from '../../../src/tools/shared/errors';
 import { textOf } from '../../helpers/result';
 
 const ok: CallToolResult = { content: [{ type: 'text', text: 'ok' }] };
@@ -38,6 +38,31 @@ describe('safeHandler', () => {
     const result = await handler();
     expect(result.isError).toBe(true);
     expect(textOf(result)).toBe('Error: boom');
+  });
+});
+
+describe('caughtError (#540)', () => {
+  it('returns the error a wrapped handler threw', async () => {
+    const error = new TypeError('x is undefined');
+    const result = await safeHandler((): CallToolResult => {
+      throw error;
+    })();
+    expect(caughtError(result)).toEqual({ error });
+  });
+
+  it('keeps the client-visible result identical to handleToolError', async () => {
+    const error = new Error('boom');
+    const result = await safeHandler(() => Promise.reject(error))();
+    expect(result).toEqual(handleToolError(error));
+    expect(JSON.stringify(result)).toBe(JSON.stringify(handleToolError(error)));
+    expect(Object.keys(result)).toEqual(['content', 'isError']);
+    expect({ ...result }).toEqual(handleToolError(error));
+  });
+
+  it('is undefined for a result the handler returned', async () => {
+    const result = await safeHandler(() => ok)();
+    expect(caughtError(result)).toBeUndefined();
+    expect(caughtError(errorResult('No active file'))).toBeUndefined();
   });
 });
 

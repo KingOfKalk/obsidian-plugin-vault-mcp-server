@@ -17,6 +17,7 @@ import {
   fileNotFound,
   withDestinationCheck,
   PluginApiUnavailableError,
+  UserFacingError,
   ValidationError,
 } from '../shared/errors';
 import { fitItems, fitPage, pageOf, paginate, readPagination } from '../shared/pagination';
@@ -91,7 +92,7 @@ export class WriteMutex {
  * The file changed after the agent read it: its mtime no longer matches
  * the `expectedMtime` the caller sent (#406). Nothing is written.
  */
-export class MtimeConflictError extends Error {
+export class MtimeConflictError extends UserFacingError {
   constructor(path: string, expectedMs: number, currentMs: number) {
     const current = new Date(currentMs).toISOString();
     super(

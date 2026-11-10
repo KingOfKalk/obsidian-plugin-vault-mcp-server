@@ -11,8 +11,11 @@ import {
   registerVaultBasePath,
   clearVaultBasePaths,
   redactFilesystemPaths,
+  isExpectedToolError,
+  UserFacingError,
 } from '../../../src/tools/shared/errors';
 import { PathTraversalError } from '../../../src/utils/path-guard';
+import { MtimeConflictError } from '../../../src/tools/vault/handlers';
 
 function getText(result: { content: Array<{ type: string; text?: string }> }): string {
   const item = result.content[0];
@@ -148,5 +151,39 @@ describe('handleToolError never leaks absolute filesystem paths (#405)', () => {
 
   it('applies to non-Error values too', () => {
     expect(getText(handleToolError('bad /tmp/x/y'))).toBe('Error: bad <path>');
+  });
+});
+
+describe('isExpectedToolError (#540)', () => {
+  it('is true for errors a client caused or can act on', () => {
+    expect(isExpectedToolError(new NotFoundError('File not found: a.md'))).toBe(true);
+    expect(isExpectedToolError(new FileNotFoundError('a.md'))).toBe(true);
+    expect(isExpectedToolError(new ValidationError('bad'))).toBe(true);
+    expect(isExpectedToolError(new DestinationExistsError('a.md'))).toBe(true);
+    expect(isExpectedToolError(new PathTraversalError('Path traversal'))).toBe(true);
+    expect(isExpectedToolError(new MtimeConflictError('a.md', 1, 2))).toBe(true);
+    expect(isExpectedToolError(new z.ZodError([]))).toBe(true);
+  });
+
+  it('is false for anything else', () => {
+    expect(isExpectedToolError(new Error('boom'))).toBe(false);
+    expect(isExpectedToolError(new TypeError('x is undefined'))).toBe(false);
+    expect(isExpectedToolError('boom')).toBe(false);
+    expect(isExpectedToolError(undefined)).toBe(false);
+    expect(isExpectedToolError(null)).toBe(false);
+  });
+});
+
+describe('MtimeConflictError (#540)', () => {
+  it('is a UserFacingError with an unchanged client message', () => {
+    const error = new MtimeConflictError('notes/a.md', 0, 1_700_000_000_000);
+    expect(error).toBeInstanceOf(UserFacingError);
+    expect(error.name).toBe('MtimeConflictError');
+    expect(getText(handleToolError(error))).toBe(
+      'Error: File changed since expectedMtime: notes/a.md was last modified at ' +
+        '2023-11-14T22:13:20.000Z (mtime 1700000000000), expected 1970-01-01T00:00:00.000Z. ' +
+        'Nothing was written. Re-read the file, then retry with ' +
+        'expectedMtime: "2023-11-14T22:13:20.000Z".',
+    );
   });
 });

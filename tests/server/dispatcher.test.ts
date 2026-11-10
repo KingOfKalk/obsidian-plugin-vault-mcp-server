@@ -5,6 +5,10 @@ import { CHARACTER_LIMIT } from '../../src/constants';
 import { Logger } from '../../src/utils/logger';
 import type { ToolDefinition } from '../../src/registry/types';
 import { annotations } from '../../src/registry/types';
+import { safeHandler } from '../../src/tools/shared/handler';
+import { handleToolError, NotFoundError } from '../../src/tools/shared/errors';
+import { PathTraversalError } from '../../src/utils/path-guard';
+import { MtimeConflictError } from '../../src/tools/vault/handlers';
 
 function makeExtra(): {
   mcpReq: {
@@ -266,5 +270,88 @@ describe('createToolDispatcher safety net (#464)', () => {
     );
     expect(result.content).toHaveLength(2);
     expect(result.content[1]).toEqual(image);
+  });
+});
+
+describe('createToolDispatcher logs unexpected handler errors (#540)', () => {
+  function failing(error: Error): ToolDefinition {
+    return makeTool({
+      handler: safeHandler((): Promise<never> => Promise.reject(error)),
+    });
+  }
+
+  function zodError(): z.ZodError {
+    const parsed = z.string().safeParse(1);
+    if (parsed.success) throw new Error('expected a Zod error');
+    return parsed.error;
+  }
+
+  it('logs a crash in a wrapped handler once at error level, result unchanged', async () => {
+    const logger = makeLogger();
+    const error = vi.spyOn(logger, 'error');
+    const crash = new TypeError('Cannot read properties of undefined');
+    const result = await createToolDispatcher(failing(crash), logger)(
+      { path: 'a.md' },
+      makeExtra() as never,
+    );
+    expect(result).toEqual(handleToolError(crash));
+    expect(JSON.stringify(result)).toBe(JSON.stringify(handleToolError(crash)));
+    expect(error).toHaveBeenCalledTimes(1);
+    expect(error).toHaveBeenCalledWith(
+      'Tool "demo_tool" failed unexpectedly: Cannot read properties of undefined',
+      { name: 'TypeError', stack: crash.stack },
+    );
+  });
+
+  it('logs a rejection from an unwrapped handler exactly once', async () => {
+    const logger = makeLogger();
+    const error = vi.spyOn(logger, 'error');
+    const crash = new Error('boom');
+    const tool = makeTool({ handler: vi.fn(() => Promise.reject(crash)) });
+    const result = await createToolDispatcher(tool, logger)({ path: 'a.md' }, makeExtra() as never);
+    expect(result).toEqual(handleToolError(crash));
+    expect(error).toHaveBeenCalledTimes(1);
+    expect(error).toHaveBeenCalledWith('Tool "demo_tool" failed unexpectedly: boom', {
+      name: 'Error',
+      stack: crash.stack,
+    });
+  });
+
+  it('logs a thrown non-Error value', async () => {
+    const logger = makeLogger();
+    const error = vi.spyOn(logger, 'error');
+    const tool = makeTool({
+      handler: safeHandler((): never => {
+        // eslint-disable-next-line @typescript-eslint/only-throw-error
+        throw 'plain string';
+      }),
+    });
+    await createToolDispatcher(tool, logger)(
+      { path: 'a.md' },
+      makeExtra() as never,
+    );
+    expect(error).toHaveBeenCalledTimes(1);
+    expect(error).toHaveBeenCalledWith('Tool "demo_tool" failed unexpectedly: plain string', undefined);
+  });
+
+  it.each([
+    ['NotFoundError', new NotFoundError('File not found: a.md')],
+    ['a Zod validation failure', zodError()],
+    ['PathTraversalError', new PathTraversalError('Path traversal detected')],
+    ['MtimeConflictError', new MtimeConflictError('a.md', 0, 1)],
+  ])('does not log %s at error level', async (_label, expected) => {
+    const logger = makeLogger();
+    const error = vi.spyOn(logger, 'error');
+    const wrapped = await createToolDispatcher(failing(expected), logger)(
+      { path: 'a.md' },
+      makeExtra() as never,
+    );
+    const unwrapped = await createToolDispatcher(
+      makeTool({ handler: vi.fn(() => Promise.reject(expected)) }),
+      logger,
+    )({ path: 'a.md' }, makeExtra() as never);
+    expect(wrapped.isError).toBe(true);
+    expect(unwrapped.isError).toBe(true);
+    expect(error).not.toHaveBeenCalled();
   });
 });

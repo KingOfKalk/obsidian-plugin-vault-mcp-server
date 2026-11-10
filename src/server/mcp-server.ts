@@ -8,7 +8,8 @@ import { z } from 'zod';
 import { Logger } from '../utils/logger';
 import { ModuleRegistry } from '../registry/module-registry';
 import { ToolDefinition } from '../registry/types';
-import { formatZodIssues, handleToolError } from '../tools/shared/errors';
+import { formatZodIssues, handleToolError, isExpectedToolError } from '../tools/shared/errors';
+import { caughtError } from '../tools/shared/handler';
 import { resultTextLength } from '../tools/shared/pagination';
 import { truncateText } from '../tools/shared/truncate';
 import { CHARACTER_LIMIT } from '../constants';
@@ -229,6 +230,8 @@ export function createToolDispatcher(
       const parsed = inputSchema.parse(params ?? {});
       const ctx = createToolContext(extra, tool.name, logger);
       const result = await tool.handler(parsed, ctx);
+      const caught = caughtError(result);
+      if (caught) logUnexpectedError(tool.name, caught.error, logger);
       return capResponse(result, tool.name, logger);
     } catch (error) {
       // Invalid input is a client problem, not a server one: a `warn`, and
@@ -244,15 +247,27 @@ export function createToolDispatcher(
         };
       }
       // Anything else — non-Zod parse-time crash (e.g. a custom .refine()
-      // throwing) OR handler-time throw — gets routed through the shared
-      // handleToolError so typed errors (NotFoundError, PermissionError, …)
-      // produce consistent envelopes. Pass the raw Error as structured
-      // log data so the stack is captured server-side; the response itself
-      // never includes the stack (handleToolError uses error.message only).
-      logger.error(`Tool "${tool.name}" error`, error);
+      // throwing) OR a rejection from a handler not wrapped by safeHandler —
+      // gets routed through the shared handleToolError so typed errors
+      // (NotFoundError, PermissionError, …) produce consistent envelopes.
+      logUnexpectedError(tool.name, error, logger);
       return handleToolError(error);
     }
   };
+}
+
+/**
+ * Log a tool failure at `error` unless it is expected (#540): bad input or
+ * a typed error written for the client is not a server problem. The stack
+ * goes into the log data only; the client gets `handleToolError`'s message.
+ */
+function logUnexpectedError(toolName: string, error: unknown, logger: Logger): void {
+  if (isExpectedToolError(error)) return;
+  const message = error instanceof Error ? error.message : String(error);
+  logger.error(
+    `Tool "${toolName}" failed unexpectedly: ${message}`,
+    error instanceof Error ? { name: error.name, stack: error.stack } : undefined,
+  );
 }
 
 /**
