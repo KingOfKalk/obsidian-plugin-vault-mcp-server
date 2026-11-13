@@ -123,3 +123,11 @@ The `CI` workflow runs `lint` first, then `test` and `e2e` in parallel, then `bu
 - **build** runs only after `test` and both `e2e` jobs passed. It shows the size of `main.js` (raw and gzipped) compared with the latest `main` build, and links the artifact `vault-mcp-server-<short-sha>`. It holds `main.js`, `manifest.json` and `styles.css` for 14 days. To try the PR in Obsidian, copy the three files into `<vault>/.obsidian/plugins/vault-mcp-server/` of a test vault and reload the plugin.
 
 The summaries are written by `scripts/ci-summary.ts`. You can run it locally with `npx tsx scripts/ci-summary.ts <command> …`; it prints the Markdown to stdout when `GITHUB_STEP_SUMMARY` is not set.
+
+### Release App token
+
+GitHub starts no workflows for events created with `GITHUB_TOKEN`. So that the release PR gets its required checks and Dependabot auto-merges start the workflows on `main`, these steps use a short-lived installation token of the private GitHub App `KingOfKalk-Release-Bot` (slug `kingofkalk-release-bot`, installed on this repository via [github.com/settings/installations](https://github.com/settings/installations)):
+
+- `release.yml`: release-please (`contents`, `pull-requests` write) and the `versions-json` commit, pushed as `kingofkalk-release-bot[bot]` (`contents` write). The build and the release asset upload keep `GITHUB_TOKEN`.
+- `dependabot-auto-merge.yml`: `gh pr merge --auto` (`contents`, `pull-requests`, `workflows` write), only for updates that get auto-merged. The approval keeps `GITHUB_TOKEN`.
+- The token comes from `actions/create-github-app-token` with the repository secrets `RELEASE_APP_CLIENT_ID` and `RELEASE_APP_PRIVATE_KEY`. They exist twice, as Actions and as Dependabot secrets, because Dependabot runs see only Dependabot secrets.
