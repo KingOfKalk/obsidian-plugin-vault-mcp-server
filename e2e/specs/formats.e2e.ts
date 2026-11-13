@@ -56,6 +56,21 @@ describe('result formats', function () {
       expectedMtime: doc.meta.modified,
     });
     expect(Date.parse(written.modified)).toBeGreaterThanOrEqual(Date.parse(doc.meta.modified));
+
+    // The adapter reads mtimes from `TFile.stat` (#557): right after a write
+    // it must already be the new one, or this write would see a conflict.
+    // vault_update writes through `Vault.process` (#557) the same way.
+    const updated = await callTool<{ modified: string }>(client, 'vault_update', {
+      path: 'formats/Note.md',
+      content: `${NOTE}appended\nupdated\n`,
+      expectedMtime: written.modified,
+    });
+    const again = await callTool<{ modified: string }>(client, 'vault_append', {
+      path: 'formats/Note.md',
+      content: 'again\n',
+      expectedMtime: updated.modified,
+    });
+    expect(Date.parse(again.modified)).toBeGreaterThanOrEqual(Date.parse(updated.modified));
   });
 
   it('a data tool sends its structuredContent as compact JSON text', async function () {

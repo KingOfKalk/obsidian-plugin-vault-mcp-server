@@ -1,5 +1,17 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unnecessary-type-assertion */
-import { App, Notice, TFile, TFolder, TAbstractFile, Vault, getAllTags } from 'obsidian';
+import {
+  App,
+  FileSystemAdapter,
+  FileView,
+  Notice,
+  TAbstractFile,
+  TFile,
+  TFolder,
+  Vault,
+  View,
+  WorkspaceLeaf,
+  getAllTags,
+  normalizePath,
+} from 'obsidian';
 import {
   FileNotFoundError,
   FolderNotFoundError,
@@ -218,6 +230,59 @@ export interface DailyNotesSettings {
   template: string;
 }
 
+/**
+ * The undocumented parts of Obsidian's `App` this adapter reads (#557).
+ * They are not in the public typings and may change with any Obsidian
+ * release, so every field is optional and checked before use; each read has
+ * a fallback. See "Obsidian internals we rely on" in CONTRIBUTING.md.
+ */
+interface AppInternals {
+  plugins?: {
+    manifests?: Record<string, { name: string } | undefined>;
+    enabledPlugins?: Set<string>;
+    plugins?: Record<string, { api?: Partial<DataviewRuntimeApi> } | undefined>;
+  };
+  commands?: {
+    executeCommandById?: (commandId: string) => boolean;
+  };
+  internalPlugins?: {
+    plugins?: {
+      'daily-notes'?: InternalPluginInternals<{ format?: unknown; folder?: unknown; template?: unknown }>;
+      templates?: InternalPluginInternals<{ folder?: unknown }>;
+    };
+  };
+}
+
+/** A core plugin in `app.internalPlugins.plugins`. */
+interface InternalPluginInternals<Options> {
+  enabled?: boolean;
+  instance?: { options?: Options | null } | null;
+}
+
+/** `WorkspaceLeaf.id`: set by Obsidian, not in the public typings. */
+interface LeafInternals {
+  id?: unknown;
+}
+
+/**
+ * Dataview's `queryMarkdown` as its plugin API has it: query, origin file,
+ * and a partial of its export settings. Resolves to a `Result<string,
+ * string>`-style object.
+ */
+interface DataviewRuntimeApi {
+  queryMarkdown(
+    query: string,
+    originFile?: string,
+    settings?: { allowHtml?: boolean },
+  ): Promise<{ successful?: boolean; value?: string; error?: string } | null | undefined>;
+}
+
+/** The leaf's id (`leaf.id`), or `unknown` when Obsidian has none. */
+function leafId(leaf: WorkspaceLeaf): string {
+  const id = (leaf as WorkspaceLeaf & LeafInternals).id;
+  return typeof id === 'string' ? id : 'unknown';
+}
+
 /** Narrow guard for the undeclared `Vault.getConfig(key)`. */
 function hasGetConfig(value: unknown): value is { getConfig: (key: string) => unknown } {
   return (
@@ -230,6 +295,11 @@ function hasGetConfig(value: unknown): value is { getConfig: (key: string) => un
 export class RealObsidianAdapter implements ObsidianAdapter {
   constructor(private app: App) {}
 
+  /** The undocumented parts of `App` (see {@link AppInternals}). */
+  private get internals(): AppInternals {
+    return this.app as unknown as AppInternals;
+  }
+
   async readFile(path: string): Promise<string> {
     const file = this.getFile(path);
     return this.app.vault.read(file);
@@ -241,13 +311,15 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   }
 
   async createFile(path: string, content: string): Promise<void> {
-    await this.ensureParentFolder(path);
-    await this.app.vault.create(path, content);
+    const target = normalizePath(path);
+    await this.ensureParentFolder(target);
+    await this.app.vault.create(target, content);
   }
 
   async modifyFile(path: string, content: string): Promise<void> {
-    const file = this.getFile(path);
-    await this.app.vault.modify(file, content);
+    // `Vault.process` replaces the content atomically, as the plugin
+    // guidelines prefer over `Vault.modify` (#557).
+    await this.processFile(path, () => content);
   }
 
   async processFile(path: string, fn: (content: string) => string): Promise<string> {
@@ -262,7 +334,8 @@ export class RealObsidianAdapter implements ObsidianAdapter {
 
   async renameFile(oldPath: string, newPath: string): Promise<void> {
     const file = this.getAbstractFile(oldPath);
-    await this.ensureParentFolder(newPath);
+    const target = normalizePath(newPath);
+    await this.ensureParentFolder(target);
     // With "Automatically update internal links" on, `fileManager.renameFile`
     // updates links to the moved file without asking (#405). With it off,
     // Obsidian opens an "Update links" prompt and the call does not resolve
@@ -271,30 +344,32 @@ export class RealObsidianAdapter implements ObsidianAdapter {
     // which is what the setting asks for. When the setting cannot be read,
     // `vault.rename` avoids the possible prompt too.
     if (this.getAutoUpdateLinks() === true) {
-      await this.app.fileManager.renameFile(file, newPath);
+      await this.app.fileManager.renameFile(file, target);
     } else {
-      await this.app.vault.rename(file, newPath);
+      await this.app.vault.rename(file, target);
     }
   }
 
   async copyFile(sourcePath: string, destPath: string): Promise<void> {
     const file = this.getFile(sourcePath);
-    await this.ensureParentFolder(destPath);
-    await this.app.vault.copy(file, destPath);
+    const target = normalizePath(destPath);
+    await this.ensureParentFolder(target);
+    await this.app.vault.copy(file, target);
   }
 
   async writeBinary(path: string, data: ArrayBuffer): Promise<void> {
-    const existing = this.app.vault.getAbstractFileByPath(path);
+    const target = normalizePath(path);
+    const existing = this.app.vault.getAbstractFileByPath(target);
     if (existing instanceof TFile) {
       await this.app.vault.modifyBinary(existing, data);
     } else {
-      await this.ensureParentFolder(path);
-      await this.app.vault.createBinary(path, data);
+      await this.ensureParentFolder(target);
+      await this.app.vault.createBinary(target, data);
     }
   }
 
   async createFolder(path: string): Promise<void> {
-    await this.app.vault.createFolder(path);
+    await this.app.vault.createFolder(normalizePath(path));
   }
 
   async deleteFolder(path: string, recursive: boolean): Promise<void> {
@@ -306,17 +381,15 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   }
 
   exists(path: string): Promise<boolean> {
-    return Promise.resolve(this.app.vault.getAbstractFileByPath(path) !== null);
+    return Promise.resolve(this.app.vault.getAbstractFileByPath(normalizePath(path)) !== null);
   }
 
-  async stat(path: string): Promise<FileStat | null> {
-    const stat = await this.app.vault.adapter.stat(path);
-    if (!stat) return null;
-    return {
-      size: stat.size,
-      ctime: stat.ctime,
-      mtime: stat.mtime,
-    };
+  /** A file's size and times from `TFile.stat`; `null` for a folder or a missing path. */
+  stat(path: string): Promise<FileStat | null> {
+    const file = this.app.vault.getAbstractFileByPath(normalizePath(path));
+    if (!(file instanceof TFile)) return Promise.resolve(null);
+    const { size, ctime, mtime } = file.stat;
+    return Promise.resolve({ size, ctime, mtime });
   }
 
   list(path: string): ListResult {
@@ -348,7 +421,8 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   }
 
   getVaultPath(): string {
-    return (this.app.vault.adapter as { basePath?: string }).basePath ?? '';
+    const adapter = this.app.vault.adapter;
+    return adapter instanceof FileSystemAdapter ? adapter.getBasePath() : '';
   }
 
   getConfigDir(): string {
@@ -429,11 +503,11 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   getBacklinks(path: string): string[] {
     // Like the other metadata getters: a mistyped path is "File not found",
     // not "no backlinks" (#447).
-    this.getFile(path);
+    const target = this.getFile(path).path;
     const resolved = this.getResolvedLinks();
     const backlinks: string[] = [];
     for (const [sourcePath, links] of Object.entries(resolved)) {
-      if (path in links) {
+      if (target in links) {
         backlinks.push(sourcePath);
       }
     }
@@ -442,6 +516,7 @@ export class RealObsidianAdapter implements ObsidianAdapter {
 
   getBacklinkLines(path: string): Array<{ path: string; lines: number[] }> {
     const cacheApi = this.app.metadataCache;
+    const target = this.getFile(path).path;
     return this.getBacklinks(path).map((sourcePath) => {
       const source = this.app.vault.getAbstractFileByPath(sourcePath);
       const cache = source instanceof TFile ? cacheApi.getFileCache(source) : null;
@@ -454,7 +529,7 @@ export class RealObsidianAdapter implements ObsidianAdapter {
         if (!ref.position) continue;
         const linkpath = ref.link.split('#')[0];
         const dest = cacheApi.getFirstLinkpathDest(linkpath, sourcePath);
-        if (dest?.path !== path) continue;
+        if (dest?.path !== target) continue;
         for (let l = ref.position.start.line; l <= ref.position.end.line; l++) {
           lines.add(l);
         }
@@ -545,13 +620,14 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   }
 
   getActiveLeafInfo(): Record<string, unknown> | null {
-    const leaf = this.app.workspace.activeLeaf;
-    if (!leaf) return null;
-    const leafAny = leaf as any;
+    // The active view's leaf is the focused leaf (`workspace.activeLeaf`,
+    // which the plugin guidelines ask not to read directly, #557).
+    const view = this.app.workspace.getActiveViewOfType(View);
+    if (!view) return null;
     return {
-      id: leafAny.id ?? 'unknown',
-      type: leaf.view?.getViewType?.() ?? 'unknown',
-      filePath: (leaf.view as any)?.file?.path ?? null,
+      id: leafId(view.leaf),
+      type: view.getViewType(),
+      filePath: view instanceof FileView ? (view.file?.path ?? null) : null,
     };
   }
 
@@ -570,20 +646,18 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   getOpenFiles(): Array<{ path: string; leafId: string }> {
     const result: Array<{ path: string; leafId: string }> = [];
     this.app.workspace.iterateAllLeaves((leaf) => {
-      const leafAny = leaf as any;
-      const file = leafAny.view?.file as TFile | undefined;
-      if (file) {
-        result.push({ path: file.path, leafId: leafAny.id ?? 'unknown' });
+      const view = leaf.view;
+      if (view instanceof FileView && view.file) {
+        result.push({ path: view.file.path, leafId: leafId(leaf) });
       }
     });
     return result;
   }
 
-  setActiveLeaf(leafId: string): boolean {
+  setActiveLeaf(id: string): boolean {
     let found = false;
     this.app.workspace.iterateAllLeaves((leaf) => {
-      const leafAny = leaf as any;
-      if (leafAny.id === leafId) {
+      if (leafId(leaf) === id) {
         this.app.workspace.setActiveLeaf(leaf, { focus: true });
         found = true;
       }
@@ -592,7 +666,7 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   }
 
   getWorkspaceLayout(): Record<string, unknown> {
-    return this.app.workspace.getLayout() as Record<string, unknown>;
+    return this.app.workspace.getLayout();
   }
 
   showNotice(message: string, duration?: number): void {
@@ -600,15 +674,15 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   }
 
   getInstalledPlugins(): Array<{ id: string; name: string; enabled: boolean }> {
-    const appAny = this.app as any;
-    const plugins = appAny.plugins;
+    const plugins = this.internals.plugins;
     const result: Array<{ id: string; name: string; enabled: boolean }> = [];
     if (plugins?.manifests) {
-      for (const [id, manifest] of Object.entries(plugins.manifests as Record<string, { name: string }>)) {
+      for (const [id, manifest] of Object.entries(plugins.manifests)) {
+        if (!manifest) continue;
         result.push({
           id,
           name: manifest.name,
-          enabled: !!(plugins.enabledPlugins as Set<string>)?.has(id),
+          enabled: !!plugins.enabledPlugins?.has(id),
         });
       }
     }
@@ -616,22 +690,19 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   }
 
   isPluginEnabled(pluginId: string): boolean {
-    const appAny = this.app as any;
-    return !!(appAny.plugins?.enabledPlugins as Set<string>)?.has(pluginId);
+    return !!this.internals.plugins?.enabledPlugins?.has(pluginId);
   }
 
   executeCommand(commandId: string): boolean {
-    const appAny = this.app as any;
-    return !!appAny.commands?.executeCommandById(commandId);
+    return !!this.internals.commands?.executeCommandById?.(commandId);
   }
 
   getDataviewApi(): DataviewApi | null {
-    const appAny = this.app as any;
-    const plugin = appAny.plugins?.plugins?.dataview;
-    const api = plugin?.api;
-    if (!api || typeof api.queryMarkdown !== 'function') {
+    const candidate = this.internals.plugins?.plugins?.dataview?.api;
+    if (!candidate || typeof candidate.queryMarkdown !== 'function') {
       return null;
     }
+    const api = candidate as DataviewRuntimeApi;
     return {
       queryMarkdown: async (query: string): Promise<DataviewQueryResult> => {
         // Dataview's queryMarkdown returns a Result<string, string>-style
@@ -656,8 +727,7 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   }
 
   getDailyNotesSettings(): DailyNotesSettings | null {
-    const appAny = this.app as any;
-    const plugin = appAny.internalPlugins?.plugins?.['daily-notes'];
+    const plugin = this.internals.internalPlugins?.plugins?.['daily-notes'];
     if (!plugin || plugin.enabled !== true) return null;
     const options = plugin.instance?.options;
     if (!options || typeof options !== 'object') return null;
@@ -671,8 +741,7 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   }
 
   getTemplatesFolder(): string | null {
-    const appAny = this.app as any;
-    const folder: unknown = appAny.internalPlugins?.plugins?.templates?.instance?.options?.folder;
+    const folder = this.internals.internalPlugins?.plugins?.templates?.instance?.options?.folder;
     return typeof folder === 'string' ? folder : null;
   }
 
@@ -682,11 +751,6 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   }
 
   getTrashDestination(): TrashDestination {
-    // Without fileManager.trashFile (Obsidian < 1.6.6) `trash()` falls
-    // back to vault.trash(file, true), i.e. the system trash, whatever
-    // the setting says.
-    const fileManager = this.app.fileManager as Partial<App['fileManager']> | undefined;
-    if (typeof fileManager?.trashFile !== 'function') return 'system';
     switch (this.readVaultConfig('trashOption')) {
       case 'system':
         return 'system';
@@ -719,17 +783,11 @@ export class RealObsidianAdapter implements ObsidianAdapter {
    * Remove a file or folder the way the user configured under "Deleted
    * files" (system trash, the vault's .trash folder, or permanently)
    * instead of always deleting for good like `vault.delete` (#405).
-   * `fileManager.trashFile` exists since Obsidian 1.6.6; older versions
-   * (minAppVersion is 1.5.0) fall back to `vault.trash(file, true)`,
-   * which uses the system trash and the .trash folder if that fails.
+   * `fileManager.trashFile` exists since Obsidian 1.6.6, below the
+   * minAppVersion (#557).
    */
   private async trash(file: TAbstractFile): Promise<void> {
-    const fileManager = this.app.fileManager as Partial<App['fileManager']> | undefined;
-    if (typeof fileManager?.trashFile === 'function') {
-      await fileManager.trashFile(file);
-      return;
-    }
-    await this.app.vault.trash(file, true);
+    await this.app.fileManager.trashFile(file);
   }
 
   /**
@@ -751,8 +809,11 @@ export class RealObsidianAdapter implements ObsidianAdapter {
     }
   }
 
+  // Paths come from tools, checked by the path guard; `normalizePath()`
+  // gives them the form the Vault API expects (#557).
+
   private getFile(path: string): TFile {
-    const file = this.app.vault.getAbstractFileByPath(path);
+    const file = this.app.vault.getAbstractFileByPath(normalizePath(path));
     if (!(file instanceof TFile)) {
       throw new FileNotFoundError(path, this.suggestMarkdownFile(path));
     }
@@ -763,7 +824,9 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   private suggestMarkdownFile(path: string): string | undefined {
     const candidate = markdownCandidate(path);
     if (candidate === null) return undefined;
-    return this.app.vault.getAbstractFileByPath(candidate) instanceof TFile ? candidate : undefined;
+    return this.app.vault.getAbstractFileByPath(normalizePath(candidate)) instanceof TFile
+      ? candidate
+      : undefined;
   }
 
   private getFolder(path: string): TFolder {
@@ -772,7 +835,7 @@ export class RealObsidianAdapter implements ObsidianAdapter {
     if (path === '' || path === '/' || path === '.') {
       return this.app.vault.getRoot();
     }
-    const folder = this.app.vault.getAbstractFileByPath(path);
+    const folder = this.app.vault.getAbstractFileByPath(normalizePath(path));
     if (!(folder instanceof TFolder)) {
       throw new FolderNotFoundError(path);
     }
@@ -780,7 +843,7 @@ export class RealObsidianAdapter implements ObsidianAdapter {
   }
 
   private getAbstractFile(path: string): TAbstractFile {
-    const file = this.app.vault.getAbstractFileByPath(path);
+    const file = this.app.vault.getAbstractFileByPath(normalizePath(path));
     if (!file) {
       const suggestion = this.suggestMarkdownFile(path);
       throw new NotFoundError(

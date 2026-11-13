@@ -106,7 +106,6 @@ function makePlugin(opts: {
   return {
     app: {
       vault: { adapter: a, configDir: '.obsidian' },
-      appVersion: '1.8.9',
       // unused fields cast away
     } as unknown as DebugInfoPluginRef['app'],
     manifest: { id: 'vault-mcp-server', version: '2.2.0' },

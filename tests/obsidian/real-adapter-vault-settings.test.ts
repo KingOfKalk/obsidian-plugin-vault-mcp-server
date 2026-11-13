@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { App, TFile, TFolder } from 'obsidian';
 import { RealObsidianAdapter } from '../../src/obsidian/adapter';
+import { mockFileSystemAdapter } from '../__mocks__/obsidian';
 import { createHandlers, WriteMutex } from '../../src/tools/vault/handlers';
 
 function makeFile(path: string): TFile {
@@ -49,7 +50,7 @@ function makeApp(
     getAbstractFileByPath: (path: string): TFile | TFolder | null => entries.get(path) ?? null,
     read: (file: TFile): Promise<string> => Promise.resolve(contents.get(file.path) ?? ''),
     createFolder: vi.fn(() => Promise.resolve()),
-    adapter: { basePath: '/abs/vault' },
+    adapter: mockFileSystemAdapter('/abs/vault'),
     configDir: '.obsidian',
   };
   const trashFile = vi.fn(() => Promise.resolve());
@@ -82,12 +83,6 @@ describe('RealObsidianAdapter reads vault settings via getConfig (#430)', () => 
   ])('trashOption %s maps to %s', (option, expected) => {
     const { app } = makeApp({ trashOption: option }, {}, {});
     expect(new RealObsidianAdapter(app).getTrashDestination()).toBe(expected);
-  });
-
-  it('reports "system" when fileManager.trashFile is missing (vault.trash fallback)', () => {
-    const { app } = makeApp({ trashOption: 'none' }, {}, {});
-    (app as unknown as { fileManager: unknown }).fileManager = {};
-    expect(new RealObsidianAdapter(app).getTrashDestination()).toBe('system');
   });
 
   it.each([

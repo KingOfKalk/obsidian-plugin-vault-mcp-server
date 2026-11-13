@@ -1,3 +1,4 @@
+import { getLanguage } from 'obsidian';
 import en from './locale/en';
 import de from './locale/de';
 
@@ -6,21 +7,15 @@ export type TranslationKey = keyof typeof en;
 type LocaleMap = Partial<Record<TranslationKey, string>>;
 
 // Registry of supported locales. Add a new entry here when a new translation
-// file is introduced; `t()` looks up by the raw value of Obsidian's
-// `localStorage.getItem('language')`.
+// file is introduced; `t()` looks up by the code Obsidian's `getLanguage()`
+// returns (#557).
 const locales: Record<string, LocaleMap> = {
   en,
   de,
 };
 
-function detectLocale(): string {
-  if (typeof window === 'undefined') return 'en';
-  try {
-    return window.localStorage.getItem('language') ?? 'en';
-  } catch {
-    return 'en';
-  }
-}
+/** Unknown locales already reported, so each is logged once, not per lookup. */
+const reportedLocales = new Set<string>();
 
 function interpolate(
   template: string,
@@ -36,14 +31,14 @@ export function t(
   key: TranslationKey,
   params?: Record<string, string | number>,
 ): string {
-  const lang = detectLocale();
+  const lang = getLanguage();
   const map = locales[lang];
-  if (!map) {
+  if (!map && !reportedLocales.has(lang)) {
     // Unknown locale → surface a one-line console error so the user/dev
     // can tell why their translations aren't showing up, then fall back
     // to English. The logger module is intentionally not used here to
     // keep this module dependency-free.
-    // eslint-disable-next-line no-console
+    reportedLocales.add(lang);
     console.error(
       `[vault-mcp-server] locale "${lang}" is not registered, falling back to en`,
     );
