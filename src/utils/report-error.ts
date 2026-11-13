@@ -1,4 +1,5 @@
 import { Notice } from 'obsidian';
+import { t } from '../lang/helpers';
 import type { Logger } from './logger';
 
 export function reportError(
@@ -8,6 +9,6 @@ export function reportError(
   return (err: unknown): void => {
     const message = err instanceof Error ? err.message : String(err);
     logger.error(`${scope}: ${message}`, err);
-    new Notice(`Obsidian MCP: ${scope} failed — see console`);
+    new Notice(t('notice_action_failed', { action: scope }));
   };
 }

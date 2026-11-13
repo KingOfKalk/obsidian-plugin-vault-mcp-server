@@ -3,8 +3,7 @@
 // missing keys. Keep keys in snake_case and scoped by surface.
 
 const en = {
-  // Settings — Server Status section
-  heading_server_status: 'Server Status',
+  // Settings — status row (first group, no heading)
   setting_status_name: 'Status',
   status_stopped: 'Stopped',
   status_running_one: 'Running on {url} (1 connection)',
@@ -13,9 +12,9 @@ const en = {
   tooltip_stop_server: 'Stop MCP server',
   tooltip_restart_server: 'Restart server',
 
-  // Settings — Server Settings section
-  heading_server_settings: 'Server Settings',
-  setting_server_address_name: 'Server Address',
+  // Settings — Server section
+  heading_server: 'Server',
+  setting_server_address_name: 'Server address',
   setting_server_address_desc:
     'IP address the server binds to (default: 127.0.0.1). Requires restart.',
   warning_non_localhost:
@@ -32,7 +31,7 @@ const en = {
   setting_auth_enabled_name: 'Require Bearer authentication',
   setting_auth_enabled_desc:
     'When on, the server requires a valid Bearer access key on every MCP request. When off, the server starts only on 127.0.0.1 and only if "Accept insecure mode" is also on, so unauthenticated traffic is never started by accident.',
-  setting_access_key_name: 'Access Key',
+  setting_access_key_name: 'Access key',
   setting_access_key_desc:
     'Bearer token for authenticating MCP clients. Auto-generated on first load (32 bytes, base64url) if this field is empty when auth is on.',
   placeholder_access_key: 'Enter access key',
@@ -51,7 +50,7 @@ const en = {
   setting_https_name: 'HTTPS',
   setting_https_desc:
     'Serve MCP over HTTPS with a locally generated self-signed certificate. Clients must trust the certificate (or disable certificate verification). Requires restart.',
-  setting_tls_cert_name: 'TLS Certificate',
+  setting_tls_cert_name: 'TLS certificate',
   setting_tls_cert_desc_present:
     'A self-signed certificate is cached. Regenerate to replace it (e.g. after changing the server address).',
   setting_tls_cert_desc_absent:
@@ -60,8 +59,8 @@ const en = {
   notice_tls_regenerated: 'TLS certificate regenerated. Restart the server to apply.',
   setting_custom_tls_toggle_name: 'Bring your own certificate',
   setting_custom_tls_toggle_desc:
-    'Use your own SSL cert and private key instead of the auto-generated self-signed certificate. Files are read from disk at every server start.',
-  heading_custom_tls_group: 'Own SSL certification',
+    'Use your own TLS certificate and private key instead of the generated self-signed certificate. Files are read from disk at every server start.',
+  heading_custom_tls_group: 'Custom TLS certificate',
   setting_custom_tls_cert_name: 'Public certificate (PEM)',
   setting_custom_tls_cert_desc: 'Path: {path}',
   setting_custom_tls_key_name: 'Private key (PEM)',
@@ -88,12 +87,12 @@ const en = {
   setting_prompts_enabled_desc:
     'When on, MCP hosts can run canned vault workflows (/summarize-note, /find-related, /expand-template) via the prompts surface. Restart the server to apply changes.',
 
-  // Settings — DNS Rebind Protection subsection (Origin / Host validation)
-  heading_dns_rebind: 'DNS Rebind Protection',
-  setting_allowed_origins_name: 'Allowed Origins',
+  // Settings — DNS rebind protection group (Origin / Host validation)
+  heading_dns_rebind: 'DNS rebind protection',
+  setting_allowed_origins_name: 'Allowed origins',
   setting_allowed_origins_desc:
     'One per line. Requests whose Origin header is not on this list are rejected with 403. Default: loopback only (http(s)://127.0.0.1, http(s)://localhost). Match is exact — include the port if your client sends it.',
-  setting_allowed_hosts_name: 'Allowed Hosts',
+  setting_allowed_hosts_name: 'Allowed hosts',
   setting_allowed_hosts_desc:
     'One per line. Requests whose Host header (port stripped) is not on this list are rejected with 403. Default: 127.0.0.1, localhost.',
   setting_allow_null_origin_name: 'Allow Origin: null',
@@ -103,35 +102,42 @@ const en = {
   setting_require_origin_desc:
     'When on, every request must carry an Origin header. Tightens browser-side checks but breaks server-side and CLI clients (curl, native MCP clients) that do not send Origin.',
   warning_non_loopback_origin:
-    'Warning: One or more Origins point outside loopback. This widens the attack surface — only do this if you understand DNS-rebind risks.',
+    'Warning: one or more origins point outside loopback. This widens the attack surface — only do this if you understand DNS-rebind risks.',
   warning_non_loopback_host:
-    'Warning: One or more Hosts point outside loopback. This widens the attack surface — only do this if you understand DNS-rebind risks.',
-  setting_debug_name: 'Debug Mode',
+    'Warning: one or more hosts point outside loopback. This widens the attack surface — only do this if you understand DNS-rebind risks.',
+  setting_debug_name: 'Debug mode',
   setting_debug_desc: 'Enable verbose logging of MCP requests and responses',
 
-  // Settings — MCP Client Configuration section
-  heading_mcp_client_config: 'MCP Client Configuration',
+  // Settings — MCP client configuration section
+  heading_mcp_client_config: 'MCP client configuration',
   setting_client_config_name: 'Client configuration',
   setting_client_config_desc:
     'Copy the JSON snippet for your MCP client and paste it into the mcpServers section of its config (Claude Desktop, Claude Code, …). It contains your access key: keep it out of git, e.g. with ${VAR} in the .mcp.json of Claude Code (see the manual).',
   tooltip_copy_config: 'Copy configuration',
   notice_config_copied: 'MCP client configuration copied to clipboard',
 
-  // Settings — Feature Modules / Extras section
-  heading_feature_modules: 'Feature Modules',
+  // Settings — Feature modules / Extras section
+  heading_feature_modules: 'Feature modules',
   heading_extras: 'Extras',
   message_modules_open_note:
-    'Editor, Workspace and UI tools act on the note open in Obsidian, not on files in the vault. They are off by default; switch them on if your assistant should work with the open note.',
+    'The editor, workspace and UI tools act on the note open in Obsidian, not on files in the vault. They are off by default; switch them on if your assistant should work with the open note.',
   message_no_modules:
-    'No modules registered. Click "Refresh Modules" to re-run discovery.',
-  button_refresh_modules: 'Refresh Modules',
+    'No modules registered. Select "Refresh modules" to run discovery again.',
+  button_refresh_modules: 'Refresh modules',
   setting_read_and_edit_only_name: 'Read and edit only',
   setting_read_and_edit_only_desc:
     'Hide the tools that delete or overwrite whole files: vault_delete, vault_delete_folder, vault_update and vault_write_binary. Assistants can still read, create, move, rename and edit notes. Takes effect right away, also for connected clients.',
 
+  // Settings — Command allowlist section
+  heading_command_allowlist: 'Command allowlist',
+  message_command_allowlist:
+    'The plugin_execute_command tool can perform only the Obsidian commands listed here (one command ID per line). While the list is empty, MCP clients do not see the tool at all.',
+
   // Plugin lifecycle notices (main.ts)
   notice_server_started: 'MCP server started on port {port}',
   notice_server_start_failed: 'Failed to start MCP server: {message}',
+  // `{action}` is an English scope such as "save settings" (report-error.ts).
+  notice_action_failed: 'Vault MCP Server: {action} failed. See the developer console for details.',
   status_bar_port_in_use: 'Port {port} is already in use',
   settings_port_in_use_error:
     'Port {port} is already in use. Choose a different port.',
@@ -163,16 +169,16 @@ const en = {
   link_report_issue: 'Open a new issue on GitHub',
 
   // Command palette entries
-  command_start_server: 'Start MCP Server',
-  command_stop_server: 'Stop MCP Server',
-  command_restart_server: 'Restart MCP Server',
-  command_copy_access_key: 'Copy Access Key',
-  command_copy_debug_info: 'Copy Debug Info',
+  command_start_server: 'Start MCP server',
+  command_stop_server: 'Stop MCP server',
+  command_restart_server: 'Restart MCP server',
+  command_copy_access_key: 'Copy access key',
+  command_copy_debug_info: 'Copy debug info',
 
   // Ribbon icon
-  ribbon_mcp_server: 'MCP Server',
-  ribbon_tooltip_running: 'MCP Server (running on :{port})',
-  ribbon_tooltip_stopped: 'MCP Server (stopped)',
+  ribbon_mcp_server: 'MCP server',
+  ribbon_tooltip_running: 'MCP server (running on :{port})',
+  ribbon_tooltip_stopped: 'MCP server (stopped)',
 } as const;
 
 export default en;

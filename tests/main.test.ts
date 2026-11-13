@@ -200,21 +200,21 @@ describe('McpPlugin.onload autoStart behaviour', () => {
 
     // Initial render: server stopped, so the ribbon should show the default plug glyph.
     expect(ribbonEl._icon).toBe('plug');
-    expect(ribbonEl.ariaLabel).toBe('MCP Server (stopped)');
+    expect(ribbonEl.ariaLabel).toBe('MCP server (stopped)');
 
     // Simulate the server becoming running, then refresh the status display.
     internals.httpServer = { isRunning: true };
     internals.updateStatusDisplay();
 
     expect(ribbonEl._icon).toBe('plug-zap');
-    expect(ribbonEl.ariaLabel).toBe('MCP Server (running on :28741)');
+    expect(ribbonEl.ariaLabel).toBe('MCP server (running on :28741)');
 
     // Simulate the server being stopped again.
     internals.httpServer = null;
     internals.updateStatusDisplay();
 
     expect(ribbonEl._icon).toBe('plug');
-    expect(ribbonEl.ariaLabel).toBe('MCP Server (stopped)');
+    expect(ribbonEl.ariaLabel).toBe('MCP server (stopped)');
   });
 
   it('marks the status bar and ribbon as failed when startServer rejects with a port-in-use error', async () => {

@@ -186,7 +186,7 @@ function withEditor(
 
 export function createEditorModule(adapter: ObsidianAdapter): ToolModule {
   return {
-    metadata: { id: 'editor', name: 'Editor Operations', description: 'Access and manipulate the active editor', defaultEnabled: false },
+    metadata: { id: 'editor', name: 'Editor operations', description: 'Access and manipulate the active editor', defaultEnabled: false },
     tools(): ToolDefinition[] {
       return [
         defineTool({

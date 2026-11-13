@@ -81,10 +81,10 @@ describe('renderAboutSection', () => {
     Setting.instances = [];
   });
 
-  it('renders an "About" heading', () => {
-    const { container } = render();
-    const heading = container.children.find((c) => c.tagName === 'h2');
-    expect(heading?.textContent).toBe('About');
+  it('renders an "About" heading with setHeading', () => {
+    const { container, settings } = render();
+    expect(settings[0]).toMatchObject({ settingName: 'About', isHeading: true });
+    expect(container.children.find((c) => /^h[1-6]$/.test(c.tagName))).toBeUndefined();
   });
 
   it('shows the installed plugin version from the manifest', () => {

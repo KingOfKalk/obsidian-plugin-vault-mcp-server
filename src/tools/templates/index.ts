@@ -83,7 +83,7 @@ export function createTemplatesModule(adapter: ObsidianAdapter): ToolModule {
   const vaultPath = adapter.getVaultPath();
   const configDir = adapter.getConfigDir();
   return {
-    metadata: { id: 'templates', name: 'Templates and Content Generation', description: 'List, create from, and expand templates' },
+    metadata: { id: 'templates', name: 'Templates and content generation', description: 'List, create from, and expand templates' },
     tools(): ToolDefinition[] {
       return [
         defineTool({

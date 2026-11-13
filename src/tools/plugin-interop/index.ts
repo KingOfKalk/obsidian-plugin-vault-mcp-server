@@ -77,7 +77,7 @@ export function createPluginInteropModule(
 ): ToolModule {
   const getAllowlist = options.getExecuteCommandAllowlist ?? ((): string[] => []);
   return {
-    metadata: { id: 'plugin-interop', name: 'Plugin Interop', description: 'List plugins, check status, execute commands, and run Dataview queries' },
+    metadata: { id: 'plugin-interop', name: 'Plugin interop', description: 'List plugins, check status, execute commands, and run Dataview queries' },
     tools(): ToolDefinition[] {
       return [
         defineTool({
@@ -173,12 +173,12 @@ export function createPluginInteropModule(
             const allowlist = getAllowlist();
             if (allowlist.length === 0) {
               return errorResult(
-                'Command execution disabled — enable commands individually in Obsidian MCP settings.',
+                'Command execution disabled — add commands under "Command allowlist" in the Vault MCP Server settings.',
               );
             }
             if (!allowlist.includes(params.commandId)) {
               return errorResult(
-                `Command "${params.commandId}" is not on the executeCommand allowlist. Add it in Obsidian MCP settings if you trust it.`,
+                `Command "${params.commandId}" is not on the executeCommand allowlist. Add it under "Command allowlist" in the Vault MCP Server settings if you trust it.`,
               );
             }
             const ok = adapter.executeCommand(params.commandId);

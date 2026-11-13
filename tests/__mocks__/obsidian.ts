@@ -221,6 +221,7 @@ export class Setting {
   settingName = '';
   settingDesc = '';
   settingClass = '';
+  isHeading = false;
   container: unknown;
   descEl: MockElement;
   buttons: SettingButtonRecord[] = [];
@@ -256,6 +257,12 @@ export class Setting {
 
   setClass(cls: string): this {
     this.settingClass = this.settingClass ? `${this.settingClass} ${cls}` : cls;
+    return this;
+  }
+
+  /** Mirrors `Setting.setHeading()`: the row becomes a section heading. */
+  setHeading(): this {
+    this.isHeading = true;
     return this;
   }
 
@@ -465,8 +472,15 @@ export class Modal {
     empty: (): void => {},
   };
 
+  title = '';
+
   constructor(app: unknown) {
     this.app = app;
+  }
+
+  setTitle(title: string): this {
+    this.title = title;
+    return this;
   }
 
   open(): void {

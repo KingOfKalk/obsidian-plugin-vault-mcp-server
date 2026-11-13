@@ -6,8 +6,7 @@ import type en from './en';
 // runtime (see `src/lang/helpers.ts`).
 
 const de: Partial<Record<keyof typeof en, string>> = {
-  // Server Status section
-  heading_server_status: 'Serverstatus',
+  // Status row (first group, no heading)
   setting_status_name: 'Status',
   status_stopped: 'Gestoppt',
   status_running_one: 'Läuft auf {url} (1 Verbindung)',
@@ -16,8 +15,8 @@ const de: Partial<Record<keyof typeof en, string>> = {
   tooltip_stop_server: 'MCP-Server stoppen',
   tooltip_restart_server: 'Server neu starten',
 
-  // Server Settings section
-  heading_server_settings: 'Servereinstellungen',
+  // Server section
+  heading_server: 'Server',
   setting_server_address_name: 'Serveradresse',
   setting_server_address_desc:
     'IP-Adresse, an die der Server gebunden wird (Standard: 127.0.0.1). Neustart erforderlich.',
@@ -56,8 +55,8 @@ const de: Partial<Record<keyof typeof en, string>> = {
     'TLS-Zertifikat neu erzeugt. Starte den Server neu, damit es aktiv wird.',
   setting_custom_tls_toggle_name: 'Eigenes Zertifikat verwenden',
   setting_custom_tls_toggle_desc:
-    'Eigenes SSL-Zertifikat und privaten Schlüssel statt des automatisch erzeugten, selbstsignierten Zertifikats verwenden. Die Dateien werden bei jedem Serverstart von der Festplatte gelesen.',
-  heading_custom_tls_group: 'Eigenes SSL-Zertifikat',
+    'Eigenes TLS-Zertifikat und privaten Schlüssel statt des erzeugten, selbstsignierten Zertifikats verwenden. Die Dateien werden bei jedem Serverstart von der Festplatte gelesen.',
+  heading_custom_tls_group: 'Eigenes TLS-Zertifikat',
   setting_custom_tls_cert_name: 'Öffentliches Zertifikat (PEM)',
   setting_custom_tls_cert_desc: 'Pfad: {path}',
   setting_custom_tls_key_name: 'Privater Schlüssel (PEM)',
@@ -89,7 +88,7 @@ const de: Partial<Record<keyof typeof en, string>> = {
   setting_prompts_enabled_desc:
     'Wenn aktiviert, können MCP-Hosts vorgefertigte Vault-Abläufe (/summarize-note, /find-related, /expand-template) über die Prompts-Schnittstelle ausführen. Server neu starten, damit die Änderung wirksam wird.',
 
-  // DNS Rebind Protection
+  // DNS rebind protection group
   heading_dns_rebind: 'DNS-Rebind-Schutz',
   setting_allowed_origins_name: 'Erlaubte Origins',
   setting_allowed_origins_desc:
@@ -110,7 +109,7 @@ const de: Partial<Record<keyof typeof en, string>> = {
   setting_debug_name: 'Debug-Modus',
   setting_debug_desc: 'Ausführliches Protokollieren von MCP-Anfragen und -Antworten',
 
-  // MCP Client Configuration section
+  // MCP client configuration section
   heading_mcp_client_config: 'MCP-Client-Konfiguration',
   setting_client_config_name: 'Client-Konfiguration',
   setting_client_config_desc:
@@ -118,21 +117,28 @@ const de: Partial<Record<keyof typeof en, string>> = {
   tooltip_copy_config: 'Konfiguration kopieren',
   notice_config_copied: 'MCP-Client-Konfiguration in die Zwischenablage kopiert',
 
-  // Feature Modules / Extras section
+  // Feature modules / Extras section
   heading_feature_modules: 'Funktionsmodule',
   heading_extras: 'Extras',
   message_modules_open_note:
     'Die Werkzeuge für Editor, Arbeitsbereich und Oberfläche arbeiten mit der in Obsidian geöffneten Notiz, nicht mit Dateien im Tresor. Sie sind standardmäßig aus; schalte sie ein, wenn dein Assistent mit der geöffneten Notiz arbeiten soll.',
   message_no_modules:
-    'Keine Module registriert. Klicke auf „Module neu laden", um die Erkennung erneut auszuführen.',
+    'Keine Module registriert. Wähle „Module neu laden“, um die Erkennung erneut auszuführen.',
   button_refresh_modules: 'Module neu laden',
   setting_read_and_edit_only_name: 'Nur lesen und bearbeiten',
   setting_read_and_edit_only_desc:
     'Blendet die Werkzeuge aus, die ganze Dateien löschen oder überschreiben: vault_delete, vault_delete_folder, vault_update und vault_write_binary. Assistenten können Notizen weiterhin lesen, anlegen, verschieben, umbenennen und bearbeiten. Wirkt sofort, auch für verbundene Clients.',
 
+  // Command allowlist section
+  heading_command_allowlist: 'Erlaubte Befehle',
+  message_command_allowlist:
+    'Das Werkzeug plugin_execute_command kann nur die hier aufgeführten Obsidian-Befehle ausführen (eine Befehls-ID pro Zeile). Solange die Liste leer ist, sehen MCP-Clients das Werkzeug gar nicht.',
+
   // Plugin lifecycle notices
   notice_server_started: 'MCP-Server auf Port {port} gestartet',
   notice_server_start_failed: 'MCP-Server konnte nicht gestartet werden: {message}',
+  notice_action_failed:
+    'Vault MCP Server: {action} fehlgeschlagen. Details in der Entwicklerkonsole.',
   status_bar_port_in_use: 'Port {port} ist bereits belegt',
   settings_port_in_use_error:
     'Port {port} ist bereits belegt. Wähle einen anderen Port.',

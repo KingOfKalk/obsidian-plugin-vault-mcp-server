@@ -37,17 +37,16 @@ function hasNonLoopbackOrigin(origins: string[]): boolean {
 }
 
 /**
- * "Server Status" section — running/stopped indicator with toggle and
- * restart button. Clicking the toggle drives the plugin's start/stop
- * lifecycle and re-renders the whole tab on completion.
+ * Status row at the top of the tab — running/stopped indicator with toggle
+ * and restart button. No heading: it is the tab's first group (#558).
+ * Selecting the toggle drives the plugin's start/stop lifecycle and
+ * re-renders the whole tab on completion.
  */
 export function renderServerStatusSection(
   containerEl: HTMLElement,
   plugin: McpPlugin,
   refresh: () => void,
 ): void {
-  containerEl.createEl('h2', { text: t('heading_server_status') });
-
   const isRunning = plugin.httpServer?.isRunning ?? false;
   const clients = plugin.httpServer?.connectedClients ?? 0;
 
@@ -99,7 +98,7 @@ export function renderServerStatusSection(
 }
 
 /**
- * "Server Settings" section — bind address, port, access key, HTTPS,
+ * "Server" section — bind address, port, access key, HTTPS,
  * autostart. Delegates the custom-TLS subsection to `renderTlsSection`
  * when HTTPS is on and the user opted into bring-your-own certificates.
  */
@@ -108,7 +107,7 @@ export function renderServerSettingsSection(
   plugin: McpPlugin,
   refresh: () => void,
 ): void {
-  containerEl.createEl('h2', { text: t('heading_server_settings') });
+  new Setting(containerEl).setName(t('heading_server')).setHeading();
 
   const addressSetting = new Setting(containerEl)
     .setName(t('setting_server_address_name'))
@@ -305,7 +304,7 @@ export function renderServerSettingsSection(
 }
 
 /**
- * "DNS Rebind Protection" subsection — Origin/Host allowlists plus the
+ * "DNS rebind protection" group — Origin/Host allowlists plus the
  * two boolean knobs (`allowNullOrigin`, `requireOrigin`). Validation is
  * done in `src/server/origin-host.ts`; this UI just edits the settings.
  */
@@ -314,7 +313,7 @@ function renderDnsRebindSection(
   plugin: McpPlugin,
   refresh: () => void,
 ): void {
-  containerEl.createEl('h3', { text: t('heading_dns_rebind') });
+  new Setting(containerEl).setName(t('heading_dns_rebind')).setHeading();
 
   renderAllowlist(containerEl, plugin, {
     key: 'allowedOrigins',
