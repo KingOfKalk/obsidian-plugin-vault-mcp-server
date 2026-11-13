@@ -72,8 +72,9 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Create styles.css placeholder
-        run: echo "/* vault-mcp-server styles */" > styles.css
+      # styles.css is tracked and shipped as is; never overwrite it (#553).
+      - name: Verify styles.css exists
+        run: test -s styles.css
 
       - name: Build plugin zip
         env:
