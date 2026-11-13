@@ -7,7 +7,10 @@ export interface McpPluginSettings {
   port: number;
   /** When true, the server requires a Bearer access key on every request. */
   authEnabled: boolean;
-  /** Access key for bearer token authentication */
+  /**
+   * Access key for bearer token authentication. Persisted in Obsidian's
+   * SecretStorage, not in data.json, unless that is unavailable (#560).
+   */
   accessKey: string;
   /** Enable HTTPS with self-signed certificate */
   httpsEnabled: boolean;

@@ -1,4 +1,4 @@
-import { Notice, Plugin, setIcon } from 'obsidian';
+import { Notice, Plugin, setIcon, type SecretStorage } from 'obsidian';
 import { DEFAULT_SETTINGS, McpPluginSettings, TlsCertificateData } from './types';
 import { createLogger, Logger } from './utils/logger';
 import { ModuleRegistry } from './registry/module-registry';
@@ -12,6 +12,7 @@ import { RealObsidianAdapter, ObsidianAdapter } from './obsidian/adapter';
 import { discoverModules } from './tools';
 import { registerVaultBasePath } from './tools/shared/errors';
 import { McpSettingsTab, generateAccessKey, migrateSettings } from './settings';
+import { AccessKeyStore, type AccessKeyLocation } from './settings/access-key-store';
 import { t, type TranslationKey } from './lang/helpers';
 import { createLogFileSink } from './utils/log-file';
 import { reportError } from './utils/report-error';
@@ -49,17 +50,24 @@ export default class McpPlugin extends Plugin {
   private statusBarItem: HTMLElement | null = null;
   private ribbonIconEl: HTMLElement | null = null;
   private stopAvailabilityPolling: (() => void) | null = null;
+  /** Persists the access key outside data.json (#560); set in onload. */
+  private accessKeyStore: AccessKeyStore | null = null;
+  /** Whether the last read or write of data.json included `accessKey`. */
+  private dataJsonHasAccessKey = false;
 
   async onload(): Promise<void> {
     await this.loadSettings();
-    await this.ensureAccessKey();
-    await this.maybeShowInsecureModeWarning();
 
+    // A getter, so a key generated or changed later is redacted too (#563).
     this.logger = createLogger('mcp-plugin', {
       debugMode: this.settings.debugMode,
-      accessKey: this.settings.accessKey,
+      accessKey: () => this.settings.accessKey,
       sink: createLogFileSink(this),
     });
+
+    await this.loadAccessKey();
+    await this.ensureAccessKey();
+    await this.maybeShowInsecureModeWarning();
 
     this.adapter = new RealObsidianAdapter(this.app);
     // Keep the vault's absolute location out of error messages (#405).
@@ -153,6 +161,26 @@ export default class McpPlugin extends Plugin {
         );
       }
       this.updateStatusDisplay();
+    }
+  }
+
+  /** Where the access key is persisted: secret storage, or data.json as the fallback. */
+  get accessKeyLocation(): AccessKeyLocation {
+    return this.accessKeyStore?.location ?? 'data-json';
+  }
+
+  /**
+   * Resolve the access key from Obsidian's SecretStorage (#560). A key
+   * still in data.json is moved there once, unchanged, and removed from
+   * data.json. Without SecretStorage the key stays in data.json.
+   */
+  private async loadAccessKey(): Promise<void> {
+    // Typed optional: an Obsidian without the API must not crash the load.
+    const app: { secretStorage?: SecretStorage } = this.app;
+    this.accessKeyStore = new AccessKeyStore(app.secretStorage, this.logger);
+    this.settings.accessKey = this.accessKeyStore.load(this.settings.accessKey);
+    if (this.accessKeyStore.location === 'secret-storage' && this.dataJsonHasAccessKey) {
+      await this.saveSettings();
     }
   }
 
@@ -365,9 +393,17 @@ export default class McpPlugin extends Plugin {
     const raw = (await this.loadData()) as Record<string, unknown> | null;
     const migrated = raw ? migrateSettings(raw) : {};
     this.settings = { ...DEFAULT_SETTINGS, ...migrated };
+    this.dataJsonHasAccessKey = raw !== null && 'accessKey' in raw;
   }
 
+  /**
+   * Write the settings to data.json. The access key goes to SecretStorage
+   * instead (#560), unless the store has fallen back to data.json.
+   */
   async saveSettings(): Promise<void> {
-    await this.saveData(this.settings);
+    const { accessKey, ...rest } = this.settings;
+    const inSecretStorage = this.accessKeyStore?.save(accessKey) ?? false;
+    await this.saveData(inSecretStorage ? rest : this.settings);
+    this.dataJsonHasAccessKey = !inSecretStorage;
   }
 }

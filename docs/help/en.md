@@ -311,7 +311,7 @@ The first row of the tab, without a heading.
 | **Port** | `28741` | TCP port to listen on. Any integer 1–65535. Restart required. |
 | **Server URL** | (read-only) | Full `http(s)://address:port/mcp` URL. The copy button puts it on your clipboard. |
 | **Require Bearer authentication** | **on** | Master switch for auth. When on, every request must carry `Authorization: Bearer <key>`. When off, the server **refuses to bind** unless you also turn on **Accept insecure mode** (see below), and it only binds to `127.0.0.1`. |
-| **Access key** | (auto-generated) | Visible only when auth is on. On a fresh install with auth on, the plugin auto-generates a 32-byte base64url key on first load and persists it. Use **Generate** to rotate it; it makes a new key in the same format. The **Copy** button copies it to the clipboard. |
+| **Access key** | (auto-generated) | Visible only when auth is on. On a fresh install with auth on, the plugin auto-generates a 32-byte base64url key on first load and keeps it in Obsidian's secret storage on this device, not in `data.json` (see [Where are the settings stored?](#where-are-the-settings-stored-are-they-safe-to-commit)). Use **Generate** to rotate it; it makes a new key in the same format. The **Copy** button copies it to the clipboard. |
 | **Accept insecure mode** | off | Visible only when auth is off. The server refuses to bind without this toggle, so you can't accidentally expose an unauthenticated MCP endpoint. Works only with the server address `127.0.0.1`; on any other address the server refuses to start without authentication. |
 | **HTTPS** | off | Switch to HTTPS using a locally generated self-signed certificate. Restart required. See the FAQ for client-side trust. |
 | **TLS certificate** | auto | Visible while HTTPS is on and **Bring your own certificate** is off. Generated on the first HTTPS start, then cached in `data.json`. Use **Regenerate certificate** if you change the address or want a fresh key pair — clients will need to re-trust the new cert. |
@@ -602,8 +602,8 @@ clients and agents commonly trip over:
 - **The config folder is blocked.** No tool, prompt or resource reads or
   writes inside the vault's config folder (usually `.obsidian`; the plugin
   uses the folder Obsidian reports, so a renamed config folder is covered
-  too). It holds plugin code, settings and this plugin's `data.json` with
-  the access key. A path in it fails with "Path is inside the Obsidian
+  too). It holds plugin code, settings and this plugin's `data.json` with,
+  under HTTPS, the TLS private key. A path in it fails with "Path is inside the Obsidian
   config folder (.obsidian); it cannot be read or written", also when it
   is only the destination of `vault_rename`, `vault_move`, `vault_copy`
   or `template_create_from`, and whatever the case
@@ -1337,7 +1337,7 @@ the frontmatter lines with `vault_replace` instead.
 ### A tool call fails with "Path is inside the Obsidian config folder"
 
 The path points into the vault's config folder (usually `.obsidian`), which
-holds plugin code, settings and this plugin's access key. The server never
+holds plugin code and settings, such as this plugin's TLS private key. The server never
 reads or writes there, through any tool, prompt or resource. Change those
 settings in Obsidian itself.
 
@@ -1387,8 +1387,25 @@ than `127.0.0.1` — read it.
 ### Where are the settings stored? Are they safe to commit?
 
 Settings live in `<vault>/.obsidian/plugins/vault-mcp-server/data.json`. **Do
-not** commit this file: it contains your access key and the cached TLS
-private key. Treat it like a secret.
+not** commit this file: it contains the cached TLS private key. Treat it like
+a secret.
+
+The access key is not in `data.json`. The plugin keeps it in Obsidian's
+secret storage, outside the vault folder, and moves the key of an older
+install there on the first load (same key, clients keep working). Only if
+secret storage is not available does the key stay in `data.json`; **Copy
+debug info** shows where it is (`accessKeyStorage`). Details:
+[Where the access key is stored](../security.md#where-the-access-key-is-stored).
+
+### I use the vault on several devices. Why does each have its own access key?
+
+Obsidian's secret storage is local to each device and is not synced with the
+vault, by Obsidian Sync or any other tool. On a device where the plugin finds
+no key, it generates one on the first load. Copy each device's key into the
+clients that connect to that device, and update the plugin on every device
+that shares the vault: an older version looks for the key in the synced
+`data.json`, finds none and generates a new one, again after each sync that
+removed it.
 
 ### How do I rotate the access key?
 

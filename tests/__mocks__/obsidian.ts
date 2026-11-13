@@ -551,10 +551,34 @@ export interface MockVault {
   adapter: MockVaultAdapter;
 }
 
+/** In-memory `app.secretStorage` (Obsidian 1.11.4+); `secrets` is inspectable. */
+export interface MockSecretStorage {
+  secrets: Map<string, string>;
+  getSecret: (id: string) => string | null;
+  setSecret: (id: string, secret: string) => void;
+  listSecrets: () => string[];
+}
+
+export function mockSecretStorage(
+  initial: Record<string, string> = {},
+): MockSecretStorage {
+  const secrets = new Map(Object.entries(initial));
+  return {
+    secrets,
+    getSecret: (id: string): string | null => secrets.get(id) ?? null,
+    setSecret: (id: string, secret: string): void => {
+      secrets.set(id, secret);
+    },
+    listSecrets: (): string[] => [...secrets.keys()],
+  };
+}
+
 export interface MockApp {
   vault: MockVault;
   workspace: Record<string, unknown>;
   metadataCache: Record<string, unknown>;
+  /** `undefined` simulates an Obsidian without SecretStorage. */
+  secretStorage?: MockSecretStorage;
 }
 
 export function mockVaultAdapter(
@@ -589,6 +613,7 @@ export function mockApp(overrides: Partial<MockApp> = {}): MockApp {
       },
     },
     metadataCache: {},
+    secretStorage: mockSecretStorage(),
     ...overrides,
   };
 }

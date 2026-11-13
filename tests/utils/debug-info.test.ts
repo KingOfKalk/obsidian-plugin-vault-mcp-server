@@ -221,6 +221,17 @@ describe('collectDebugInfo', () => {
     });
   });
 
+  describe('access key storage (#560)', () => {
+    it('reports where the access key is stored, not the key', async () => {
+      bundle = await collectDebugInfo({
+        ...makePlugin(),
+        accessKeyLocation: 'secret-storage',
+      });
+      expect(bundle).toContain('accessKeyStorage: secret-storage');
+      expect(bundle).not.toContain(SECRET);
+    });
+  });
+
   describe('with no server running', () => {
     it('renders Status: stopped without other server fields', async () => {
       bundle = await collectDebugInfo(makePlugin({ httpServer: null }));
