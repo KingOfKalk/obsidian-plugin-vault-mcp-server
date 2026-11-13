@@ -52,12 +52,13 @@ export function renderDiagnosticsSection(
       btn
         .setIcon('trash')
         .setTooltip(t('tooltip_clear_log'))
-        .onClick(() => {
-          clearLogFile(plugin)
-            .then(() => {
-              new Notice(t('notice_log_cleared'));
-            })
-            .catch(reportError('clear log file', plugin.logger));
+        .onClick(async () => {
+          try {
+            await clearLogFile(plugin);
+            new Notice(t('notice_log_cleared'));
+          } catch (err) {
+            reportError('clear log file', plugin.logger)(err);
+          }
         }),
     );
 }

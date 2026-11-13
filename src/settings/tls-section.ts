@@ -60,15 +60,23 @@ export function renderTlsSection(
 
   const { customTlsCertPath, customTlsKeyPath } = plugin.settings;
   if (customTlsCertPath && customTlsKeyPath) {
-    void loadAndValidateCustomTls(customTlsCertPath, customTlsKeyPath).then(
-      () => {
-        certError.clear();
-        keyError.clear();
-      },
-      (err: unknown) => {
-        showCustomTlsError(err, certError, keyError);
-      },
-    );
+    void checkCustomTlsFiles(customTlsCertPath, customTlsKeyPath, certError, keyError);
+  }
+}
+
+/** Validate the chosen files and show or clear the errors under both rows. */
+async function checkCustomTlsFiles(
+  certPath: string,
+  keyPath: string,
+  certError: ValidationErrorController,
+  keyError: ValidationErrorController,
+): Promise<void> {
+  try {
+    await loadAndValidateCustomTls(certPath, keyPath);
+    certError.clear();
+    keyError.clear();
+  } catch (err) {
+    showCustomTlsError(err, certError, keyError);
   }
 }
 
