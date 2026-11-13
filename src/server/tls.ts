@@ -24,7 +24,7 @@ export async function generateSelfSignedCert(
   const notAfter = new Date(now.getTime() + validityDays * 24 * 60 * 60 * 1000);
 
   const pems = await generate(
-    [{ name: 'commonName', value: 'Obsidian MCP Plugin (localhost)' }],
+    [{ name: 'commonName', value: 'Vault MCP Server (localhost)' }],
     {
       keySize: 2048,
       algorithm: 'sha256',

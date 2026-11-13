@@ -29,7 +29,7 @@ describe('reportError', () => {
     handler(new Error('clipboard denied'));
 
     expect(noticeSpy).toHaveBeenCalledWith(
-      'Obsidian MCP: copy access key failed — see console',
+      'Vault MCP Server: copy access key failed. See the developer console for details.',
     );
   });
 

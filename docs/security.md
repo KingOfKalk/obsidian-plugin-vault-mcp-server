@@ -6,7 +6,7 @@ Any client that gets past authentication can use every tool you enabled: read, c
 
 ## Server start and network exposure
 
-- **Off until you start it.** The server starts only when you start it: with the ribbon icon, the status toggle in the settings, or the **Start MCP server** and **Restart MCP server** commands. **Auto-start on launch** is off by default; when it is on, the plugin skips the start if the configuration would be refused anyway (no access key, or authentication off without **Accept insecure mode**).
+- **Off until you start it.** The server starts only when you start it: with the ribbon icon, the status toggle in the settings, or the **Start MCP server** and **Restart MCP server** commands. **Auto-start on launch** is off by default; when it is on, the plugin skips the start if the configuration would be refused anyway (no access key, authentication off without **Accept insecure mode**, or authentication off on an address other than `127.0.0.1`).
 - **Loopback by default.** The server binds to `127.0.0.1`, port `28741`, so other computers cannot reach it. **Server address** accepts IPv4 addresses only.
 - **Settings take effect at the next start.** Server address, port, authentication, access key, HTTPS and the Origin and Host allowlists are read when the server starts. Restart it after changing them.
 
@@ -14,8 +14,7 @@ Any client that gets past authentication can use every tool you enabled: read, c
 
 - With any **Server address** other than `127.0.0.1` (for example `0.0.0.0` or your LAN address), the server is reachable from other machines on that network. The settings show a warning.
 - The Host allowlist does not protect such a setup: a client that is not a browser can send any `Host` header. Only the access key does. Keep authentication on, turn on HTTPS, and block the port in your firewall for every network that does not need it.
-- Without authentication, the server currently also binds to a non-loopback address once **Accept insecure mode** is on. Do not combine the two.
-- Planned: the server refuses to start without authentication on any address other than `127.0.0.1` ([#558](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/558)).
+- Without authentication, the server refuses to start on any address other than `127.0.0.1`, even with **Accept insecure mode** on. It shows a notice, and the **Server address** row in the settings says so.
 
 ## Authentication
 
@@ -23,7 +22,7 @@ Any client that gets past authentication can use every tool you enabled: read, c
 - **The access key** is generated on first load when authentication is on and no key is set: 32 random bytes from the system's secure random generator, written as 43 base64url characters (256 bits). **Generate** (the refresh icon next to the key) creates a new one. You can also type your own; any non-empty key is accepted, so a typed key is only as strong as you make it. With an empty key, every request is rejected.
 - **Wrong or missing key:** `401` with `WWW-Authenticate: Bearer`.
 - **Rate limit on failed logins.** Five failed authentications from one IP address within 60 seconds block that address for 30 seconds; every request from it then gets `429` with `Retry-After`, even with the right key. A successful login clears the address's count. The limiter keeps at most 1000 addresses and is active only while authentication is on.
-- **Turning authentication off.** With **Require Bearer authentication** off, the server refuses to start unless **Accept insecure mode** is on as well, and every request is then accepted without a key. Turning authentication back on clears **Accept insecure mode**, so you have to accept it again next time. Installs that ran with authentication off and no access key before settings version 10 (secure by default) were moved to insecure mode so they kept working, with a one-time notice.
+- **Turning authentication off.** With **Require Bearer authentication** off, the server refuses to start unless **Accept insecure mode** is on as well and the server address is `127.0.0.1`; every request is then accepted without a key. Turning authentication back on clears **Accept insecure mode**, so you have to accept it again next time. Installs that ran with authentication off and no access key before settings version 10 (secure by default) were moved to insecure mode so they kept working, with a one-time notice.
 
 ## Access key handling
 

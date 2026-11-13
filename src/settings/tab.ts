@@ -8,7 +8,7 @@ import { renderDiagnosticsSection } from './diagnostics-section';
 import { renderAboutSection } from './about-section';
 
 /**
- * Obsidian MCP settings tab — thin composer. Each section lives in its
+ * Vault MCP Server settings tab — thin composer. Each section lives in its
  * own file under `src/settings/`; this class stitches them together and
  * forwards `refresh = () => this.display()` for sections that need to
  * re-render the whole tab after a toggle.

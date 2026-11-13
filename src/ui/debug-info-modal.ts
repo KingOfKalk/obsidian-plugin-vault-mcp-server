@@ -20,16 +20,16 @@ export class DebugInfoModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl('h2', { text: t('modal_debug_info_title') });
+    this.setTitle(t('modal_debug_info_title'));
 
     const textarea = contentEl.createEl('textarea', {
-      cls: 'mcp-debug-info-textarea',
+      cls: 'vault-mcp-debug-info-textarea',
       attr: { readonly: 'true', rows: '20' },
     });
     textarea.value = t('modal_debug_info_loading');
 
     const buttonRow = contentEl.createDiv({
-      cls: 'modal-button-container mcp-debug-info-buttons',
+      cls: 'modal-button-container vault-mcp-debug-info-buttons',
     });
     const copyBtn = buttonRow.createEl('button', {
       text: t('button_copy'),

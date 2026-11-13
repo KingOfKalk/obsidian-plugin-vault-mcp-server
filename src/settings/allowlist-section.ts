@@ -1,24 +1,26 @@
+import { Setting } from 'obsidian';
 import type McpPlugin from '../main';
+import { t } from '../lang/helpers';
 import { reportError } from '../utils/report-error';
 
 /**
- * "Execute Command Allowlist" section — a textarea where users list
- * Obsidian command ids (one per line) that `plugin_execute_command` is
- * permitted to run. Empty means disabled (the tool refuses every call).
+ * "Command allowlist" section — a textarea where users list Obsidian
+ * command ids (one per line) that `plugin_execute_command` is permitted to
+ * run. Empty means disabled (the tool is not listed).
  */
 export function renderAllowlistSection(
   containerEl: HTMLElement,
   plugin: McpPlugin,
 ): void {
-  containerEl.createEl('h2', { text: 'Execute Command Allowlist' });
+  new Setting(containerEl).setName(t('heading_command_allowlist')).setHeading();
 
   containerEl.createEl('p', {
     cls: 'setting-item-description',
-    text: 'The plugin_execute_command tool runs only the Obsidian commands listed here (one id per line). While the list is empty, MCP clients do not see the tool at all.',
+    text: t('message_command_allowlist'),
   });
 
   const textarea = containerEl.createEl('textarea', {
-    cls: 'mcp-execute-command-allowlist',
+    cls: 'vault-mcp-execute-command-allowlist',
     attr: { rows: '6', placeholder: 'app:reload\neditor:save-file' },
   });
   textarea.value = plugin.settings.executeCommandAllowlist.join('\n');

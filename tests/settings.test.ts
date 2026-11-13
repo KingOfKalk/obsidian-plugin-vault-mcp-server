@@ -679,9 +679,9 @@ describe('McpSettingsTab server controls', () => {
     });
   });
 
-  it('should render copy and generate extra buttons on the Access Key setting', () => {
+  it('should render copy and generate extra buttons on the Access key setting', () => {
     renderTab(false);
-    const extras = getSettingExtraButtons('Access Key');
+    const extras = getSettingExtraButtons('Access key');
     expect(extras).toHaveLength(2);
     expect(extras[0].icon).toBe('copy');
     expect(extras[0].tooltip).toBe('Copy access key');
@@ -691,14 +691,14 @@ describe('McpSettingsTab server controls', () => {
 
   it('should not render any text buttons on the Access Key setting', () => {
     renderTab(false);
-    expect(getSettingButtons('Access Key')).toHaveLength(0);
+    expect(getSettingButtons('Access key')).toHaveLength(0);
   });
 
   it('Generate extra button replaces the access key with a new random value', async () => {
     renderTab(false);
     const getKey = (): string => (mockPlugin.settings as { accessKey: string }).accessKey;
     const originalKey = getKey();
-    const generate = getSettingExtraButtons('Access Key').find((b) => b.icon === 'refresh-cw')!;
+    const generate = getSettingExtraButtons('Access key').find((b) => b.icon === 'refresh-cw')!;
     generate.callback!();
     await vi.waitFor(() => {
       expect(getKey()).not.toBe(originalKey);
@@ -714,7 +714,7 @@ describe('McpSettingsTab server controls', () => {
     });
     renderTab(false);
     const setting = (Setting as unknown as { instances: SettingInstance[] }).instances.find(
-      (s) => s.settingName === 'Access Key',
+      (s) => s.settingName === 'Access key',
     ) as unknown as { extraButtons: Array<{ icon: string; tooltip: string; callback: (() => void) | null }> };
     setting.extraButtons[0].callback!();
     await vi.waitFor(() => {
@@ -774,7 +774,7 @@ describe('McpSettingsTab server controls', () => {
 
     function portErrors(): ChildEl[] {
       return getPortSetting().descEl.children.filter(
-        (c) => c.className === 'mcp-settings-error',
+        (c) => c.className === 'vault-mcp-settings-error',
       );
     }
 
@@ -865,7 +865,7 @@ describe('McpSettingsTab server controls', () => {
     it('hides the Access Key row when auth is disabled', () => {
       renderAuthTab(false);
       const accessKey = (Setting as unknown as { instances: SettingInstance[] }).instances.find(
-        (s) => s.settingName === 'Access Key',
+        (s) => s.settingName === 'Access key',
       );
       expect(accessKey).toBeUndefined();
     });
@@ -873,7 +873,7 @@ describe('McpSettingsTab server controls', () => {
     it('shows the Access Key row when auth is enabled', () => {
       renderAuthTab(true);
       const accessKey = (Setting as unknown as { instances: SettingInstance[] }).instances.find(
-        (s) => s.settingName === 'Access Key',
+        (s) => s.settingName === 'Access key',
       );
       expect(accessKey).toBeDefined();
     });
@@ -1005,7 +1005,7 @@ describe('McpSettingsTab module rows rendering', () => {
     expect(getSetting('Read-only')).toBeUndefined();
   });
 
-  it('wraps each module in its own .mcp-module-card container', () => {
+  it('wraps each module in its own .vault-mcp-module-card container', () => {
     const { container } = renderModules([
       vaultModule,
       {
@@ -1016,13 +1016,13 @@ describe('McpSettingsTab module rows rendering', () => {
         },
       },
     ]);
-    const cards = findAllByClass(container, 'mcp-module-card');
+    const cards = findAllByClass(container, 'vault-mcp-module-card');
     expect(cards).toHaveLength(2);
   });
 
-  it('marks the module header row with the mcp-module-card-header class', () => {
+  it('marks the module header row with the vault-mcp-module-card-header class', () => {
     renderModules([vaultModule]);
-    expect(getSetting('Vault')!.settingClass).toContain('mcp-module-card-header');
+    expect(getSetting('Vault')!.settingClass).toContain('vault-mcp-module-card-header');
   });
 
   describe('extras group per-tool rendering', () => {
@@ -1045,7 +1045,8 @@ describe('McpSettingsTab module rows rendering', () => {
     it('renders one toggle row per extras tool (not a module-level row)', () => {
       renderModules([extrasModule]);
       expect(getSetting('get_date')).toBeDefined();
-      expect(getSetting('Extras')).toBeUndefined();
+      // "Extras" is only the group heading, not a module row with a toggle.
+      expect(getSetting('Extras')?.toggles ?? []).toHaveLength(0);
     });
 
     it('uses the tool description on the per-tool row', () => {
@@ -1081,7 +1082,7 @@ describe('McpSettingsTab module rows rendering', () => {
       });
     });
 
-    it('renders one flat row per tool with no mcp-module-card wrapper', () => {
+    it('renders one flat row per tool with no vault-mcp-module-card wrapper', () => {
       const two: ModuleRegistration = {
         ...extrasModule,
         toolStates: { get_date: false, get_uuid: false },
@@ -1097,18 +1098,18 @@ describe('McpSettingsTab module rows rendering', () => {
       expect(getSetting('get_date')).toBeDefined();
       expect(getSetting('get_uuid')).toBeDefined();
       expect(getSetting('get_date')!.settingClass).not.toContain(
-        'mcp-module-card-header',
+        'vault-mcp-module-card-header',
       );
       expect(getSetting('get_uuid')!.settingClass).not.toContain(
-        'mcp-module-card-header',
+        'vault-mcp-module-card-header',
       );
     });
 
-    it('does not wrap extras tool rows in a .mcp-module-card container', () => {
+    it('does not wrap extras tool rows in a .vault-mcp-module-card container', () => {
       // When only an extras module is present, no module cards should be
       // created (cards are reserved for core module rows).
       const { container } = renderModules([extrasModule]);
-      const cards = findAllByClass(container, 'mcp-module-card');
+      const cards = findAllByClass(container, 'vault-mcp-module-card');
       expect(cards).toHaveLength(0);
     });
 
@@ -1136,7 +1137,7 @@ describe('McpSettingsTab server settings validation', () => {
     (Setting as unknown as { instances: unknown[] }).instances = [];
   });
 
-  function createValidationMockPlugin(): {
+  function createValidationMockPlugin(overrides: Partial<typeof DEFAULT_SETTINGS> = {}): {
     settings: typeof DEFAULT_SETTINGS & { accessKey: string };
     httpServer: null;
     registry: { getModules: () => [] };
@@ -1146,7 +1147,7 @@ describe('McpSettingsTab server settings validation', () => {
     manifest: { id: string; version: string };
   } {
     return {
-      settings: { ...DEFAULT_SETTINGS, accessKey: 'k' },
+      settings: { ...DEFAULT_SETTINGS, accessKey: 'k', ...overrides },
       httpServer: null,
       registry: { getModules: () => [] },
       logger: { updateOptions: (): void => {} },
@@ -1156,8 +1157,10 @@ describe('McpSettingsTab server settings validation', () => {
     };
   }
 
-  function renderValidationTab(): ReturnType<typeof createValidationMockPlugin> {
-    const plugin = createValidationMockPlugin();
+  function renderValidationTab(
+    overrides: Partial<typeof DEFAULT_SETTINGS> = {},
+  ): ReturnType<typeof createValidationMockPlugin> {
+    const plugin = createValidationMockPlugin(overrides);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
     const tab = new McpSettingsTab({} as any, plugin as any);
     const container = createTrackingEl();
@@ -1176,7 +1179,7 @@ describe('McpSettingsTab server settings validation', () => {
   function errorElements(setting: ValidationSettingInstance): TrackingEl[] {
     const results: TrackingEl[] = [];
     for (const child of setting.descEl.children) {
-      if (child.className === 'mcp-settings-error') results.push(child);
+      if (child.className === 'vault-mcp-settings-error') results.push(child);
     }
     return results;
   }
@@ -1184,13 +1187,13 @@ describe('McpSettingsTab server settings validation', () => {
   describe('Server Address (IP) validation', () => {
     it('does not show an error element on initial render with a valid IP', () => {
       renderValidationTab();
-      const setting = getSettingByName('Server Address');
+      const setting = getSettingByName('Server address');
       expect(errorElements(setting)).toHaveLength(0);
     });
 
     it('shows an error element when an invalid IP is typed', async () => {
       renderValidationTab();
-      const setting = getSettingByName('Server Address');
+      const setting = getSettingByName('Server address');
       await setting.texts[0].callback!('not-an-ip');
       const errors = errorElements(setting);
       expect(errors).toHaveLength(1);
@@ -1199,7 +1202,7 @@ describe('McpSettingsTab server settings validation', () => {
 
     it('does not persist invalid IP values', async () => {
       const plugin = renderValidationTab();
-      const setting = getSettingByName('Server Address');
+      const setting = getSettingByName('Server address');
       await setting.texts[0].callback!('256.256.256.256');
       expect(plugin.settings.serverAddress).toBe('127.0.0.1');
       expect(plugin.saveSettings).not.toHaveBeenCalled();
@@ -1207,13 +1210,43 @@ describe('McpSettingsTab server settings validation', () => {
 
     it('clears the error element when a valid IP is typed after an invalid one', async () => {
       const plugin = renderValidationTab();
-      const setting = getSettingByName('Server Address');
+      const setting = getSettingByName('Server address');
       await setting.texts[0].callback!('bogus');
       expect(errorElements(setting)).toHaveLength(1);
       await setting.texts[0].callback!('10.0.0.1');
       expect(errorElements(setting)).toHaveLength(0);
       expect(plugin.settings.serverAddress).toBe('10.0.0.1');
       expect(plugin.saveSettings).toHaveBeenCalled();
+    });
+  });
+
+  describe('Server Address without authentication (#558)', () => {
+    const insecure = { authEnabled: false, iAcceptInsecureMode: true };
+
+    it('says the server will not start on a non-loopback address while auth is off', () => {
+      renderValidationTab({ ...insecure, serverAddress: '0.0.0.0' });
+      const errors = errorElements(getSettingByName('Server address'));
+      expect(errors).toHaveLength(1);
+      expect(errors[0].textContent).toContain('127.0.0.1');
+    });
+
+    it('shows no hint on 127.0.0.1 while auth is off', () => {
+      renderValidationTab(insecure);
+      expect(errorElements(getSettingByName('Server address'))).toHaveLength(0);
+    });
+
+    it('shows no hint on a non-loopback address while auth is on', () => {
+      renderValidationTab({ serverAddress: '0.0.0.0' });
+      expect(errorElements(getSettingByName('Server address'))).toHaveLength(0);
+    });
+
+    it('updates the hint while the address is typed', async () => {
+      renderValidationTab(insecure);
+      const setting = getSettingByName('Server address');
+      await setting.texts[0].callback!('192.168.1.10');
+      expect(errorElements(setting)).toHaveLength(1);
+      await setting.texts[0].callback!('127.0.0.1');
+      expect(errorElements(setting)).toHaveLength(0);
     });
   });
 
@@ -1265,5 +1298,92 @@ describe('McpSettingsTab server settings validation', () => {
       expect(plugin.settings.port).toBe(3000);
       expect(plugin.saveSettings).toHaveBeenCalled();
     });
+  });
+});
+
+describe('McpSettingsTab headings (#558)', () => {
+  interface HeadingSettingInstance {
+    settingName: string;
+    isHeading: boolean;
+  }
+
+  beforeEach(() => {
+    (Setting as unknown as { instances: unknown[] }).instances = [];
+  });
+
+  function renderFullTab(overrides: Partial<typeof DEFAULT_SETTINGS> = {}): TrackingEl {
+    const modules = [
+      { enabled: true, toolStates: {}, module: { metadata: { id: 'vault', name: 'Vault', description: 'd' } } },
+      {
+        enabled: true,
+        toolStates: { extras_get_date: false },
+        module: {
+          metadata: { id: 'extras', name: 'Extras', description: 'd', group: 'extras' },
+          tools: (): Array<{ name: string; description: string }> => [{ name: 'extras_get_date', description: 'd' }],
+        },
+      },
+    ];
+    const plugin = {
+      settings: { ...DEFAULT_SETTINGS, accessKey: 'k', ...overrides },
+      httpServer: null,
+      registry: { getModules: (): typeof modules => modules },
+      saveSettings: vi.fn().mockResolvedValue(undefined),
+      logger: { updateOptions: (): void => {} },
+      app: { vault: { configDir: '.obsidian' } },
+      manifest: { id: 'vault-mcp-server', version: '0.0.0' },
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+    const tab = new McpSettingsTab({} as any, plugin as any);
+    const container = createTrackingEl();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+    (tab as any).containerEl = container;
+    tab.display();
+    return container;
+  }
+
+  function instances(): HeadingSettingInstance[] {
+    return (Setting as unknown as { instances: HeadingSettingInstance[] }).instances;
+  }
+
+  function htmlHeadings(root: TrackingEl): string[] {
+    const found: string[] = [];
+    for (const child of root.children) {
+      if (/^h[1-6]$/.test(child.tagName)) found.push(child.textContent);
+      found.push(...htmlHeadings(child));
+    }
+    return found;
+  }
+
+  it('uses no HTML heading elements', () => {
+    const container = renderFullTab({ httpsEnabled: true, useCustomTls: true });
+    expect(htmlHeadings(container)).toEqual([]);
+  });
+
+  it('starts with the status row, without a heading above it', () => {
+    renderFullTab();
+    expect(instances()[0]).toMatchObject({ settingName: 'Status', isHeading: false });
+  });
+
+  it('renders the section headings with setHeading, in sentence case and without "settings"', () => {
+    renderFullTab();
+    const headings = instances()
+      .filter((s) => s.isHeading)
+      .map((s) => s.settingName);
+    expect(headings).toEqual([
+      'Server',
+      'DNS rebind protection',
+      'MCP client configuration',
+      'Feature modules',
+      'Extras',
+      'Command allowlist',
+      'Diagnostics',
+      'About',
+    ]);
+  });
+
+  it('renders the custom certificate group as a heading', () => {
+    renderFullTab({ httpsEnabled: true, useCustomTls: true });
+    const heading = instances().find((s) => s.settingName === 'Custom TLS certificate');
+    expect(heading?.isHeading).toBe(true);
   });
 });

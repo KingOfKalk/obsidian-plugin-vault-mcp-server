@@ -5,7 +5,7 @@ import { copyWithNotice } from '../utils/clipboard';
 import { serverUrl } from './display-host';
 
 /**
- * "MCP Client Configuration" section — one copy button that puts the
+ * "MCP client configuration" section — one copy button that puts the
  * client JSON fragment on the clipboard. The fragment is the "obsidian"
  * entry that slots into a client's `mcpServers` map.
  */
@@ -13,7 +13,7 @@ export function renderMcpConfigSection(
   containerEl: HTMLElement,
   plugin: McpPlugin,
 ): void {
-  containerEl.createEl('h2', { text: t('heading_mcp_client_config') });
+  new Setting(containerEl).setName(t('heading_mcp_client_config')).setHeading();
 
   new Setting(containerEl)
     .setName(t('setting_client_config_name'))

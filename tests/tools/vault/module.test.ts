@@ -9,7 +9,7 @@ describe('vault module', () => {
     const adapter = new MockObsidianAdapter();
     const module = createVaultModule(adapter);
     expect(module.metadata.id).toBe('vault');
-    expect(module.metadata.name).toBe('Vault and File Operations');
+    expect(module.metadata.name).toBe('Vault and file operations');
   });
 
   it('should register 21 tools', () => {

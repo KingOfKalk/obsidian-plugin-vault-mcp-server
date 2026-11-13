@@ -14,7 +14,7 @@ describe('TLS certificate generation', () => {
   it('produces a parseable X.509 certificate', async () => {
     const { cert } = await generateSelfSignedCert();
     const x509 = new X509Certificate(cert);
-    expect(x509.subject).toContain('Obsidian MCP Plugin');
+    expect(x509.subject).toContain('Vault MCP Server');
     // self-signed: issuer equals subject
     expect(x509.issuer).toBe(x509.subject);
   });

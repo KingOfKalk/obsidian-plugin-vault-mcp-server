@@ -1,26 +1,26 @@
-.mcp-module-card {
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 8px;
-  padding: 0 16px;
-  margin-bottom: 12px;
+.vault-mcp-module-card {
+  border: var(--border-width) solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  padding: 0 var(--size-4-4);
+  margin-bottom: var(--size-4-3);
   background-color: var(--background-secondary);
 }
 
-.mcp-module-card .setting-item {
+.vault-mcp-module-card .setting-item {
   border-top: none;
 }
 
-.mcp-module-card-header .setting-item-name {
-  font-weight: 600;
+.vault-mcp-module-card-header .setting-item-name {
+  font-weight: var(--font-semibold);
 }
 
-.mcp-settings-error {
+.vault-mcp-settings-error {
   color: var(--text-error);
   font-size: var(--font-ui-smaller);
-  margin-top: 4px;
+  margin-top: var(--size-4-1);
 }
 
-.mcp-statusbar-error {
+.vault-mcp-statusbar-error {
   color: var(--text-error);
   text-decoration: line-through;
 }

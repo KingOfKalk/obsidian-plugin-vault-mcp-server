@@ -296,7 +296,7 @@ export function createVaultModule(adapter: ObsidianAdapter): ToolModule {
   return {
     metadata: {
       id: 'vault',
-      name: 'Vault and File Operations',
+      name: 'Vault and file operations',
       description: 'Create, read, update, delete, and manage files in the vault',
     },
 

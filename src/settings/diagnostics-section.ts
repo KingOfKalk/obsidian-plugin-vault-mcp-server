@@ -14,7 +14,7 @@ export function renderDiagnosticsSection(
   containerEl: HTMLElement,
   plugin: McpPlugin,
 ): void {
-  containerEl.createEl('h2', { text: t('heading_diagnostics') });
+  new Setting(containerEl).setName(t('heading_diagnostics')).setHeading();
 
   bindToggle(
     new Setting(containerEl)
