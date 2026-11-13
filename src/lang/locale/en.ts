@@ -52,11 +52,13 @@ const en = {
     'Serve MCP over HTTPS with a locally generated self-signed certificate. Clients must trust the certificate (or disable certificate verification). Requires restart.',
   setting_tls_cert_name: 'TLS certificate',
   setting_tls_cert_desc_present:
-    'A self-signed certificate is cached. Regenerate to replace it (e.g. after changing the server address).',
+    'A self-signed certificate is cached. It is renewed at the server start once it expires within {days} days. Regenerate to replace it now (e.g. after changing the server address).',
   setting_tls_cert_desc_absent:
     'No certificate cached yet — one will be generated on the next server start.',
   tooltip_regenerate_cert: 'Regenerate certificate',
   notice_tls_regenerated: 'TLS certificate regenerated. Restart the server to apply.',
+  notice_tls_certificate_renewed:
+    'The self-signed TLS certificate was expiring, expired or unreadable and has been renewed. MCP clients must trust the new certificate.',
   setting_custom_tls_toggle_name: 'Bring your own certificate',
   setting_custom_tls_toggle_desc:
     'Use your own TLS certificate and private key instead of the generated self-signed certificate. Files are read from disk at every server start.',
@@ -78,6 +80,8 @@ const en = {
   error_custom_tls_cert_expired: 'The certificate is past its expiry date.',
   notice_custom_tls_server_refused:
     'MCP server not started — bring-your-own certificate is invalid: {message}',
+  notice_custom_tls_expiring:
+    'Your TLS certificate expires on {date}. Replace it before then; the server will not start with an expired certificate.',
   setting_autostart_name: 'Auto-start on launch',
   setting_autostart_desc: 'Start MCP server automatically when Obsidian launches',
   setting_resources_enabled_name: 'Expose vault files as MCP resources',
