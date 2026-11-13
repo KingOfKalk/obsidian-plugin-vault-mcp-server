@@ -4,6 +4,25 @@
 > were renamed from `vX.Y.Z` (and `obsidian-mcp-v1.1.0`) to `X.Y.Z`; old links
 > containing `v` no longer resolve.
 
+## [5.2.2](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/5.2.1...5.2.2) (2026-11-13)
+
+
+### Bug Fixes
+
+* ship the plugin's styles.css instead of a placeholder ([#555](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/555)) ([f3cb173](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/f3cb17350347949f3bb156e74f149a4835abc2f4)), closes [#553](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/553)
+
+
+### Continuous Integration
+
+* harden release and Dependabot workflows ([#552](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/552)) ([1788faa](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/1788faa04987f9e0bca4069b6b8f8660fbd4efb8)), closes [#550](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/550)
+* use the release App token for release-please and Dependabot auto-merge ([#548](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/548)) ([73a4bed](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/73a4bede4c5ebfa93743402efcba1aa0e39a43e8))
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** Bump the dev-deps group with 2 updates ([#546](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/546)) ([3128a72](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/3128a72c690cb93da0a5b45ee2ac02270da51641))
+* **deps-dev:** Bump the dev-deps group with 2 updates ([#554](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/554)) ([2c80a6a](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/2c80a6a96064c48725fd2d2ad0e6f2cee32da4a5))
+
 ## [5.2.1](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/5.2.0...5.2.1) (2026-11-10)
 
 
