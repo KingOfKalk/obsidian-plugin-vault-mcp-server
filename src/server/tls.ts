@@ -1,3 +1,4 @@
+import { X509Certificate } from 'node:crypto';
 import { generate } from 'selfsigned';
 
 export interface TlsCertificate {
@@ -58,4 +59,55 @@ function isIpAddress(value: string): boolean {
   if (/^(\d{1,3}\.){3}\d{1,3}$/.test(value)) return true;
   if (value.includes(':')) return true;
   return false;
+}
+
+/**
+ * A certificate that expires within this many days counts as expiring:
+ * the self-signed certificate is renewed at the next server start, your
+ * own certificate gets a warning.
+ */
+export const CERT_RENEWAL_THRESHOLD_DAYS = 30;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+type CertificateExpiryState = 'valid' | 'expiring' | 'expired' | 'unparsable';
+
+export interface CertificateExpiry {
+  state: CertificateExpiryState;
+  /** The certificate's `notAfter`, or null when it does not parse. */
+  notAfter: Date | null;
+  /** Whole days until `notAfter` (negative once expired), or null. */
+  daysLeft: number | null;
+}
+
+/**
+ * Reads the expiry of a PEM certificate. A certificate that does not parse
+ * is reported as `unparsable` instead of throwing, so the caller can treat
+ * it like an expired one.
+ */
+export function checkCertificateExpiry(
+  certPem: string,
+  now: Date = new Date(),
+  thresholdDays: number = CERT_RENEWAL_THRESHOLD_DAYS,
+): CertificateExpiry {
+  let notAfter: Date;
+  try {
+    notAfter = new Date(new X509Certificate(certPem).validTo);
+  } catch {
+    return { state: 'unparsable', notAfter: null, daysLeft: null };
+  }
+  const remainingMs = notAfter.getTime() - now.getTime();
+  if (Number.isNaN(remainingMs)) {
+    return { state: 'unparsable', notAfter: null, daysLeft: null };
+  }
+  const daysLeft = Math.floor(remainingMs / DAY_MS);
+  let state: CertificateExpiryState = 'valid';
+  if (remainingMs <= 0) state = 'expired';
+  else if (remainingMs <= thresholdDays * DAY_MS) state = 'expiring';
+  return { state, notAfter, daysLeft };
+}
+
+/** True when a certificate is expiring, expired or does not parse. */
+export function needsRenewal(expiry: CertificateExpiry): boolean {
+  return expiry.state !== 'valid';
 }
