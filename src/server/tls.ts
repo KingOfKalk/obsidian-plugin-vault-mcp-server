@@ -1,5 +1,5 @@
-import { X509Certificate } from 'node:crypto';
-import { generate } from 'selfsigned';
+import { X509Certificate, generateKeyPair, randomBytes, type KeyObject } from 'crypto';
+import { buildSelfSignedCertificate, toPem } from './x509';
 
 export interface TlsCertificate {
   cert: string;
@@ -14,51 +14,53 @@ export interface GenerateOptions {
 }
 
 const DEFAULT_HOSTS = ['localhost', '127.0.0.1', '::1'];
+const COMMON_NAME = 'Vault MCP Server (localhost)';
+const DAY_MS = 24 * 60 * 60 * 1000;
 
+function generateRsaKeyPair(): Promise<{ publicKey: KeyObject; privateKey: KeyObject }> {
+  return new Promise((resolve, reject) => {
+    generateKeyPair('rsa', { modulusLength: 2048 }, (err, publicKey, privateKey) => {
+      if (err) reject(err);
+      else resolve({ publicKey, privateKey });
+    });
+  });
+}
+
+/**
+ * A new RSA-2048 key and a self-signed X.509 v3 server certificate for it,
+ * both PEM (key as PKCS#8). Built with `node:crypto` and `./x509` only
+ * (#561). The certificate is valid from now (to the second) for
+ * `validityDays` and lists the loopback names plus `hosts`.
+ */
 export async function generateSelfSignedCert(
   options: GenerateOptions = {},
 ): Promise<TlsCertificate> {
   const hosts = Array.from(new Set([...DEFAULT_HOSTS, ...(options.hosts ?? [])]));
   const validityDays = options.validityDays ?? 365;
 
-  const now = new Date();
-  const notAfter = new Date(now.getTime() + validityDays * 24 * 60 * 60 * 1000);
+  const notBefore = new Date(Math.floor(Date.now() / 1000) * 1000);
+  const notAfter = new Date(notBefore.getTime() + validityDays * DAY_MS);
 
-  const pems = await generate(
-    [{ name: 'commonName', value: 'Vault MCP Server (localhost)' }],
-    {
-      keySize: 2048,
-      algorithm: 'sha256',
-      notBeforeDate: now,
-      notAfterDate: notAfter,
-      extensions: [
-        { name: 'basicConstraints', cA: false, critical: true },
-        {
-          name: 'keyUsage',
-          digitalSignature: true,
-          keyEncipherment: true,
-          critical: true,
-        },
-        { name: 'extKeyUsage', serverAuth: true },
-        {
-          name: 'subjectAltName',
-          altNames: hosts.map((host) =>
-            isIpAddress(host)
-              ? { type: 7, ip: host }
-              : { type: 2, value: host },
-          ),
-        },
-      ],
-    },
-  );
+  // 16 random bytes; the top bit cleared keeps the serial positive, the next
+  // one set keeps it at exactly 16 bytes (RFC 5280: positive, at most 20).
+  const serial = randomBytes(16);
+  serial[0] = (serial[0] & 0x7f) | 0x40;
 
-  return { cert: pems.cert, key: pems.private };
-}
+  const { publicKey, privateKey } = await generateRsaKeyPair();
+  const der = buildSelfSignedCertificate({
+    serial,
+    commonName: COMMON_NAME,
+    notBefore,
+    notAfter,
+    hosts,
+    publicKey,
+    privateKey,
+  });
 
-function isIpAddress(value: string): boolean {
-  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(value)) return true;
-  if (value.includes(':')) return true;
-  return false;
+  return {
+    cert: toPem('CERTIFICATE', der),
+    key: privateKey.export({ type: 'pkcs8', format: 'pem' }).toString(),
+  };
 }
 
 /**
@@ -67,8 +69,6 @@ function isIpAddress(value: string): boolean {
  * own certificate gets a warning.
  */
 export const CERT_RENEWAL_THRESHOLD_DAYS = 30;
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 type CertificateExpiryState = 'valid' | 'expiring' | 'expired' | 'unparsable';
 
