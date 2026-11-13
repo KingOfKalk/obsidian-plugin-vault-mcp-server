@@ -25,7 +25,7 @@ connect to the server and read or modify your vault programmatically.
 - **Default endpoint**: `http://localhost:28741/mcp` (or `http://127.0.0.1:28741/mcp` if `localhost` doesn't resolve in your setup). `/mcp` is the only path that serves MCP; every other path gets `404`.
 - **Auth**: HTTP Bearer token, on by default
 - **Sessions**: up to 32 at once; a session idle for 10 minutes is closed
-- **Transport**: Streamable HTTP (MCP SDK 1.x)
+- **Transport**: Streamable HTTP (MCP SDK 2.x)
 
 ---
 
