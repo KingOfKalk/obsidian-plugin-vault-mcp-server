@@ -3,7 +3,7 @@
 ## Development Setup
 
 1. Clone the repository
-2. Use **Node.js 24.22.1**. CI, the release workflow and the devcontainer (`mcr.microsoft.com/devcontainers/typescript-node:5.2.5-24-trixie`) all use this version. `package.json` `engines` allows `>=22.23.4 <23 || >=24.22.1 <25 || >=26.12.1`, the range WebdriverIO 10 needs; older versions print `EBADENGINE` warnings. To change the version, update the devcontainer image, the `node-version` default in `.github/actions/setup/action.yml`, `.github/workflows/release.yml`, `engines` and this line together.
+2. Use **Node.js 24.22.1**. CI, the release workflow (both through `.github/actions/setup`) and the devcontainer (`mcr.microsoft.com/devcontainers/typescript-node:5.2.5-24-trixie`) all use this version. `package.json` `engines` allows `>=22.23.4 <23 || >=24.22.1 <25 || >=26.12.1`, the range WebdriverIO 10 needs; older versions print `EBADENGINE` warnings. To change the version, update the devcontainer image, the `node-version` default in `.github/actions/setup/action.yml`, `engines` and this line together.
 3. Install dependencies: `npm install`
 4. Start dev build: `npm run dev`
 5. Copy the built files to your vault's plugin folder for testing
@@ -124,10 +124,21 @@ The `CI` workflow runs `lint` first, then `test` and `e2e` in parallel, then `bu
 
 The summaries are written by `scripts/ci-summary.ts`. You can run it locally with `npx tsx scripts/ci-summary.ts <command> …`; it prints the Markdown to stdout when `GITHUB_STEP_SUMMARY` is not set.
 
+### Release workflow
+
+`release.yml` runs on every push to `main`, one run at a time (`concurrency`). Its workflow default is `contents: read`; each job asks for what it needs:
+
+- `release-please`: maintains the release PR and, once it is merged, creates the tag and release. Writes with the App token (below); its `GITHUB_TOKEN` has no permissions.
+- `build`: only when a release was created. Read-only token, checkout with `persist-credentials: false`, `npm ci` and the build through `.github/actions/setup`, then uploads `main.js`, `manifest.json`, `styles.css`, `versions.json` and `vault-mcp-server-<version>.zip` as the artifact `release-assets` (7 days).
+- `publish`: downloads that artifact and attaches the files to the release with `gh release upload --clobber` (`contents: write`). No checkout and no npm, so no dependency code runs with the write token.
+- `versions-json`: when the release PR changed, adds its version to `versions.json` on the release branch (App token; no `GITHUB_TOKEN` permissions).
+
+Actions in `release.yml`, `dependabot-auto-merge.yml` and `.github/actions/setup` are pinned by full commit SHA with a `# vX.Y.Z` comment; Dependabot updates the pins.
+
 ### Release App token
 
 GitHub starts no workflows for events created with `GITHUB_TOKEN`. So that the release PR gets its required checks and Dependabot auto-merges start the workflows on `main`, these steps use a short-lived installation token of the private GitHub App `KingOfKalk-Release-Bot` (slug `kingofkalk-release-bot`, installed on this repository via [github.com/settings/installations](https://github.com/settings/installations)):
 
-- `release.yml`: release-please (`contents`, `pull-requests` write) and the `versions-json` commit, pushed as `kingofkalk-release-bot[bot]` (`contents` write). The build and the release asset upload keep `GITHUB_TOKEN`.
-- `dependabot-auto-merge.yml`: `gh pr merge --auto` (`contents`, `pull-requests`, `workflows` write), only for updates that get auto-merged. The approval keeps `GITHUB_TOKEN`.
+- `release.yml`: release-please (`contents`, `pull-requests` write) and the `versions-json` commit, pushed as `kingofkalk-release-bot[bot]` (`contents` write). `build` (read-only) and `publish` (`contents` write) keep `GITHUB_TOKEN`.
+- `dependabot-auto-merge.yml`: `gh pr merge --auto` (`contents`, `pull-requests`, `workflows` write), only for updates that get auto-merged. The metadata lookup and the approval keep `GITHUB_TOKEN` (`contents` read, `pull-requests` write).
 - The token comes from `actions/create-github-app-token` with the repository secrets `RELEASE_APP_CLIENT_ID` and `RELEASE_APP_PRIVATE_KEY`. They exist twice, as Actions and as Dependabot secrets, because Dependabot runs see only Dependabot secrets.
