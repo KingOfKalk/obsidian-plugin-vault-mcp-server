@@ -110,11 +110,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # The wdio.conf.mts default: oldest public release >= minAppVersion.
+          # The wdio.conf.mts default: the manifest's minAppVersion.
           - name: minimum
             obsidian: ''
-          # A pinned current release, so APIs added after the minimum (e.g.
-          # fileManager.trashFile, 1.6.6) are covered too. Bump it by hand.
+          # A pinned current release, so behaviour of newer Obsidian versions
+          # is covered too. Bump it by hand.
           - name: current
             obsidian: 1.15.0
     name: e2e (${{ matrix.name }})
