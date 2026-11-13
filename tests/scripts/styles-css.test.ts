@@ -14,9 +14,25 @@ const read = (path: string): string => readFileSync(join(ROOT, path), 'utf8');
 describe('styles.css', () => {
   it('holds the classes the settings UI and status bar use', () => {
     const css = read('styles.css');
-    for (const cls of ['mcp-module-card', 'mcp-settings-error', 'mcp-statusbar-error']) {
+    for (const cls of ['vault-mcp-module-card', 'vault-mcp-settings-error', 'vault-mcp-statusbar-error']) {
       expect(css).toContain(`.${cls}`);
     }
+  });
+
+  it('prefixes every own class with vault-mcp- (#558)', () => {
+    const css = read('styles.css');
+    const own = [...css.matchAll(/\.([a-z][\w-]*)/g)]
+      .map((m) => m[1])
+      .filter((cls) => !cls.startsWith('setting-item'));
+    expect(own.length).toBeGreaterThan(0);
+    for (const cls of own) {
+      expect(cls).toMatch(/^vault-mcp-/);
+    }
+  });
+
+  it("uses Obsidian's size variables instead of fixed sizes (#558)", () => {
+    const css = read('styles.css');
+    expect(css).not.toMatch(/\d(px|em|rem)\b/);
   });
 
   it.each(['.github/workflows/ci.yml', '.github/workflows/release.yml'])(

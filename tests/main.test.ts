@@ -277,7 +277,7 @@ describe('McpPlugin.onload autoStart behaviour', () => {
         .statusBarItem;
       expect(statusBar.textContent).toBe('');
       expect(statusBar.children).toHaveLength(1);
-      expect(statusBar.children[0].className).toBe('mcp-statusbar-error');
+      expect(statusBar.children[0].className).toBe('vault-mcp-statusbar-error');
       expect(statusBar.children[0].textContent).toBe('MCP :28741');
       expect(statusBar.title).toBe('Port 28741 is already in use');
       expect(statusBar.ariaLabel).toBe('Port 28741 is already in use');

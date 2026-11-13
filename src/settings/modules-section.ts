@@ -111,12 +111,12 @@ function renderModuleRow(
 ): void {
   const { metadata } = registration.module;
 
-  const card = containerEl.createDiv({ cls: 'mcp-module-card' });
+  const card = containerEl.createDiv({ cls: 'vault-mcp-module-card' });
 
   new Setting(card)
     .setName(metadata.name)
     .setDesc(metadata.description)
-    .setClass('mcp-module-card-header')
+    .setClass('vault-mcp-module-card-header')
     .addToggle((toggle) =>
       toggle.setValue(registration.enabled).onChange((value) => {
         if (value) {

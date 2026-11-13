@@ -774,7 +774,7 @@ describe('McpSettingsTab server controls', () => {
 
     function portErrors(): ChildEl[] {
       return getPortSetting().descEl.children.filter(
-        (c) => c.className === 'mcp-settings-error',
+        (c) => c.className === 'vault-mcp-settings-error',
       );
     }
 
@@ -1005,7 +1005,7 @@ describe('McpSettingsTab module rows rendering', () => {
     expect(getSetting('Read-only')).toBeUndefined();
   });
 
-  it('wraps each module in its own .mcp-module-card container', () => {
+  it('wraps each module in its own .vault-mcp-module-card container', () => {
     const { container } = renderModules([
       vaultModule,
       {
@@ -1016,13 +1016,13 @@ describe('McpSettingsTab module rows rendering', () => {
         },
       },
     ]);
-    const cards = findAllByClass(container, 'mcp-module-card');
+    const cards = findAllByClass(container, 'vault-mcp-module-card');
     expect(cards).toHaveLength(2);
   });
 
-  it('marks the module header row with the mcp-module-card-header class', () => {
+  it('marks the module header row with the vault-mcp-module-card-header class', () => {
     renderModules([vaultModule]);
-    expect(getSetting('Vault')!.settingClass).toContain('mcp-module-card-header');
+    expect(getSetting('Vault')!.settingClass).toContain('vault-mcp-module-card-header');
   });
 
   describe('extras group per-tool rendering', () => {
@@ -1081,7 +1081,7 @@ describe('McpSettingsTab module rows rendering', () => {
       });
     });
 
-    it('renders one flat row per tool with no mcp-module-card wrapper', () => {
+    it('renders one flat row per tool with no vault-mcp-module-card wrapper', () => {
       const two: ModuleRegistration = {
         ...extrasModule,
         toolStates: { get_date: false, get_uuid: false },
@@ -1097,18 +1097,18 @@ describe('McpSettingsTab module rows rendering', () => {
       expect(getSetting('get_date')).toBeDefined();
       expect(getSetting('get_uuid')).toBeDefined();
       expect(getSetting('get_date')!.settingClass).not.toContain(
-        'mcp-module-card-header',
+        'vault-mcp-module-card-header',
       );
       expect(getSetting('get_uuid')!.settingClass).not.toContain(
-        'mcp-module-card-header',
+        'vault-mcp-module-card-header',
       );
     });
 
-    it('does not wrap extras tool rows in a .mcp-module-card container', () => {
+    it('does not wrap extras tool rows in a .vault-mcp-module-card container', () => {
       // When only an extras module is present, no module cards should be
       // created (cards are reserved for core module rows).
       const { container } = renderModules([extrasModule]);
-      const cards = findAllByClass(container, 'mcp-module-card');
+      const cards = findAllByClass(container, 'vault-mcp-module-card');
       expect(cards).toHaveLength(0);
     });
 
@@ -1178,7 +1178,7 @@ describe('McpSettingsTab server settings validation', () => {
   function errorElements(setting: ValidationSettingInstance): TrackingEl[] {
     const results: TrackingEl[] = [];
     for (const child of setting.descEl.children) {
-      if (child.className === 'mcp-settings-error') results.push(child);
+      if (child.className === 'vault-mcp-settings-error') results.push(child);
     }
     return results;
   }

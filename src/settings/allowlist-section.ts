@@ -18,7 +18,7 @@ export function renderAllowlistSection(
   });
 
   const textarea = containerEl.createEl('textarea', {
-    cls: 'mcp-execute-command-allowlist',
+    cls: 'vault-mcp-execute-command-allowlist',
     attr: { rows: '6', placeholder: 'app:reload\neditor:save-file' },
   });
   textarea.value = plugin.settings.executeCommandAllowlist.join('\n');

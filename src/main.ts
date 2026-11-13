@@ -343,7 +343,7 @@ export default class McpPlugin extends Plugin {
         this.statusBarItem.setText(`MCP :${String(this.settings.port)}`);
       } else if (failure) {
         this.statusBarItem.createEl('span', {
-          cls: 'mcp-statusbar-error',
+          cls: 'vault-mcp-statusbar-error',
           text: `MCP :${String(failure.port)}`,
         });
         const tooltip = t('status_bar_port_in_use', { port: failure.port });
