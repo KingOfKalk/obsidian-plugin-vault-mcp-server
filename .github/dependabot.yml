@@ -20,7 +20,10 @@ updates:
           - patch
 
   - package-ecosystem: github-actions
-    directory: /
+    # /.github/actions/* so the SHA pins in composite actions are updated too.
+    directories:
+      - /
+      - /.github/actions/*
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
