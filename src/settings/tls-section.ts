@@ -13,7 +13,7 @@ import {
 } from './validation';
 
 /**
- * "Custom TLS" subsection of Server Settings — two file pickers (cert + key)
+ * "Custom TLS certificate" group of the "Server" section — two file pickers (cert + key)
  * with live validation feedback. Only rendered when the user has toggled the
  * "use custom TLS" flag on.
  */
@@ -22,7 +22,7 @@ export function renderTlsSection(
   plugin: McpPlugin,
   refresh: () => void,
 ): void {
-  containerEl.createEl('h3', { text: t('heading_custom_tls_group') });
+  new Setting(containerEl).setName(t('heading_custom_tls_group')).setHeading();
 
   const certSetting = new Setting(containerEl)
     .setName(t('setting_custom_tls_cert_name'))

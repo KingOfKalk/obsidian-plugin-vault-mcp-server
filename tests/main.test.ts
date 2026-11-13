@@ -200,21 +200,21 @@ describe('McpPlugin.onload autoStart behaviour', () => {
 
     // Initial render: server stopped, so the ribbon should show the default plug glyph.
     expect(ribbonEl._icon).toBe('plug');
-    expect(ribbonEl.ariaLabel).toBe('MCP Server (stopped)');
+    expect(ribbonEl.ariaLabel).toBe('MCP server (stopped)');
 
     // Simulate the server becoming running, then refresh the status display.
     internals.httpServer = { isRunning: true };
     internals.updateStatusDisplay();
 
     expect(ribbonEl._icon).toBe('plug-zap');
-    expect(ribbonEl.ariaLabel).toBe('MCP Server (running on :28741)');
+    expect(ribbonEl.ariaLabel).toBe('MCP server (running on :28741)');
 
     // Simulate the server being stopped again.
     internals.httpServer = null;
     internals.updateStatusDisplay();
 
     expect(ribbonEl._icon).toBe('plug');
-    expect(ribbonEl.ariaLabel).toBe('MCP Server (stopped)');
+    expect(ribbonEl.ariaLabel).toBe('MCP server (stopped)');
   });
 
   it('marks the status bar and ribbon as failed when startServer rejects with a port-in-use error', async () => {
@@ -277,7 +277,7 @@ describe('McpPlugin.onload autoStart behaviour', () => {
         .statusBarItem;
       expect(statusBar.textContent).toBe('');
       expect(statusBar.children).toHaveLength(1);
-      expect(statusBar.children[0].className).toBe('mcp-statusbar-error');
+      expect(statusBar.children[0].className).toBe('vault-mcp-statusbar-error');
       expect(statusBar.children[0].textContent).toBe('MCP :28741');
       expect(statusBar.title).toBe('Port 28741 is already in use');
       expect(statusBar.ariaLabel).toBe('Port 28741 is already in use');
@@ -508,6 +508,79 @@ describe('McpPlugin module defaults and plugin tools (#469)', () => {
     plugin.settings.executeCommandAllowlist = ['editor:save-file'];
     expect(plugin.registry.refreshAvailability()).toBe(true);
     expect(names()).toContain('plugin_execute_command');
+    plugin.onunload();
+  });
+});
+
+describe('McpPlugin refuses to run without auth outside loopback (#558)', () => {
+  function insecureSettings(serverAddress: string, authEnabled = false): Record<string, unknown> {
+    return {
+      schemaVersion: 13,
+      serverAddress,
+      port: 28741,
+      accessKey: authEnabled ? 'configured-key' : '',
+      httpsEnabled: false,
+      tlsCertificate: null,
+      debugMode: false,
+      autoStart: true,
+      authEnabled,
+      iAcceptInsecureMode: !authEnabled,
+      seenInsecureWarning: true,
+      moduleStates: {},
+    };
+  }
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('does not auto-start without auth on 0.0.0.0, even with insecure mode accepted', async () => {
+    const plugin = createPlugin(insecureSettings('0.0.0.0'));
+    const startSpy = vi.spyOn(plugin, 'startServer').mockResolvedValue();
+
+    await plugin.onload();
+
+    expect(startSpy).not.toHaveBeenCalled();
+    plugin.onunload();
+  });
+
+  it('still auto-starts without auth on 127.0.0.1 with insecure mode accepted', async () => {
+    const plugin = createPlugin(insecureSettings('127.0.0.1'));
+    const startSpy = vi.spyOn(plugin, 'startServer').mockResolvedValue();
+
+    await plugin.onload();
+
+    expect(startSpy).toHaveBeenCalled();
+    plugin.onunload();
+  });
+
+  it('still auto-starts with auth on a non-loopback address', async () => {
+    const plugin = createPlugin(insecureSettings('0.0.0.0', true));
+    const startSpy = vi.spyOn(plugin, 'startServer').mockResolvedValue();
+
+    await plugin.onload();
+
+    expect(startSpy).toHaveBeenCalled();
+    plugin.onunload();
+  });
+
+  it('startServer refuses to bind without auth on a non-loopback address and says why', async () => {
+    const obsidian = await import('obsidian');
+    const plugin = createPlugin({ ...insecureSettings('192.168.1.10'), autoStart: false });
+    await plugin.onload();
+
+    const { HttpMcpServer } = await import('../src/server/http-server');
+    const bindSpy = vi.spyOn(HttpMcpServer.prototype, 'start').mockResolvedValue(undefined);
+    const noticeSpy = vi.spyOn(obsidian, 'Notice');
+
+    await plugin.startServer();
+
+    expect(bindSpy).not.toHaveBeenCalled();
+    expect(plugin.httpServer).toBeNull();
+    expect(noticeSpy).toHaveBeenCalledTimes(1);
+    const [message] = noticeSpy.mock.calls[0] as [string];
+    expect(message).toContain('Vault MCP Server');
+    expect(message).toContain('127.0.0.1');
     plugin.onunload();
   });
 });

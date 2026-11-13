@@ -12,6 +12,7 @@ import { renderHttpsSection } from './https-section';
 import { serverOrigin, serverUrl } from './display-host';
 import { DEFAULT_ALLOWED_HOSTS, DEFAULT_ALLOWED_ORIGINS } from '../types';
 import { bindToggle } from './bind-toggle';
+import { insecureBindRefusal, LOOPBACK_ADDRESS } from '../server/bind-guard';
 
 // The default (loopback) allowlists plus IPv6 loopback.
 const LOOPBACK_HOSTS = new Set([...DEFAULT_ALLOWED_HOSTS, '::1', '[::1]']);
@@ -36,17 +37,16 @@ function hasNonLoopbackOrigin(origins: string[]): boolean {
 }
 
 /**
- * "Server Status" section — running/stopped indicator with toggle and
- * restart button. Clicking the toggle drives the plugin's start/stop
- * lifecycle and re-renders the whole tab on completion.
+ * Status row at the top of the tab — running/stopped indicator with toggle
+ * and restart button. No heading: it is the tab's first group (#558).
+ * Selecting the toggle drives the plugin's start/stop lifecycle and
+ * re-renders the whole tab on completion.
  */
 export function renderServerStatusSection(
   containerEl: HTMLElement,
   plugin: McpPlugin,
   refresh: () => void,
 ): void {
-  containerEl.createEl('h2', { text: t('heading_server_status') });
-
   const isRunning = plugin.httpServer?.isRunning ?? false;
   const clients = plugin.httpServer?.connectedClients ?? 0;
 
@@ -98,7 +98,7 @@ export function renderServerStatusSection(
 }
 
 /**
- * "Server Settings" section — bind address, port, access key, HTTPS,
+ * "Server" section — bind address, port, access key, HTTPS,
  * autostart. Delegates the custom-TLS subsection to `renderTlsSection`
  * when HTTPS is on and the user opted into bring-your-own certificates.
  */
@@ -107,20 +107,30 @@ export function renderServerSettingsSection(
   plugin: McpPlugin,
   refresh: () => void,
 ): void {
-  containerEl.createEl('h2', { text: t('heading_server_settings') });
+  new Setting(containerEl).setName(t('heading_server')).setHeading();
 
   const addressSetting = new Setting(containerEl)
     .setName(t('setting_server_address_name'))
     .setDesc(t('setting_server_address_desc'));
   const addressError = createValidationError(addressSetting);
+  // Without auth the server refuses any address but 127.0.0.1 (#558).
+  const insecureAddressError = createValidationError(addressSetting);
+  const showInsecureAddressError = (): void => {
+    if (insecureBindRefusal(plugin.settings) === 'insecure_non_loopback') {
+      insecureAddressError.show(t('error_insecure_non_loopback'));
+    } else {
+      insecureAddressError.clear();
+    }
+  };
   addressSetting.addText((text) =>
     text
-      .setPlaceholder('127.0.0.1')
+      .setPlaceholder(LOOPBACK_ADDRESS)
       .setValue(plugin.settings.serverAddress)
       .onChange(async (value) => {
         if (isValidIPv4(value)) {
           addressError.clear();
           plugin.settings.serverAddress = value;
+          showInsecureAddressError();
           await plugin.saveSettings();
         } else {
           addressError.show(t('error_invalid_ipv4'));
@@ -128,12 +138,13 @@ export function renderServerSettingsSection(
       }),
   );
 
-  if (plugin.settings.serverAddress !== '127.0.0.1') {
+  if (plugin.settings.serverAddress !== LOOPBACK_ADDRESS) {
     addressSetting.descEl.createEl('br');
     addressSetting.descEl.createEl('strong', {
       text: t('warning_non_localhost'),
     });
   }
+  showInsecureAddressError();
 
   const portSetting = new Setting(containerEl)
     .setName(t('setting_port_name'))
@@ -293,7 +304,7 @@ export function renderServerSettingsSection(
 }
 
 /**
- * "DNS Rebind Protection" subsection — Origin/Host allowlists plus the
+ * "DNS rebind protection" group — Origin/Host allowlists plus the
  * two boolean knobs (`allowNullOrigin`, `requireOrigin`). Validation is
  * done in `src/server/origin-host.ts`; this UI just edits the settings.
  */
@@ -302,14 +313,14 @@ function renderDnsRebindSection(
   plugin: McpPlugin,
   refresh: () => void,
 ): void {
-  containerEl.createEl('h3', { text: t('heading_dns_rebind') });
+  new Setting(containerEl).setName(t('heading_dns_rebind')).setHeading();
 
   renderAllowlist(containerEl, plugin, {
     key: 'allowedOrigins',
     name: 'setting_allowed_origins_name',
     desc: 'setting_allowed_origins_desc',
     warning: 'warning_non_loopback_origin',
-    cls: 'mcp-allowed-origins',
+    cls: 'vault-mcp-allowed-origins',
     rows: '4',
     placeholder: 'http://127.0.0.1\nhttp://localhost',
     isWide: hasNonLoopbackOrigin,
@@ -320,7 +331,7 @@ function renderDnsRebindSection(
     name: 'setting_allowed_hosts_name',
     desc: 'setting_allowed_hosts_desc',
     warning: 'warning_non_loopback_host',
-    cls: 'mcp-allowed-hosts',
+    cls: 'vault-mcp-allowed-hosts',
     rows: '3',
     placeholder: '127.0.0.1\nlocalhost',
     isWide: hasNonLoopbackHost,

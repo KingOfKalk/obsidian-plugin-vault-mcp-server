@@ -6,7 +6,7 @@ import { renderTlsSection } from './tls-section';
 import { bindToggle } from './bind-toggle';
 
 /**
- * HTTPS block of Server Settings — rendered only when `httpsEnabled` is
+ * HTTPS block of the "Server" section — rendered only when `httpsEnabled` is
  * true. Shows either the "regenerate self-signed cert" row (default) or
  * the custom-TLS subsection, and a toggle between the two modes.
  */

@@ -125,7 +125,7 @@ export function createSearchModule(adapter: ObsidianAdapter): ToolModule {
   return {
     metadata: {
       id: 'search',
-      name: 'Search and Metadata',
+      name: 'Search and metadata',
       description: 'Vault-wide search across contents, file names, tags, frontmatter, and link maps',
     },
 

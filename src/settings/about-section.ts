@@ -55,7 +55,7 @@ export function renderAboutSection(
 ): void {
   const pluginVersion = plugin.manifest.version;
 
-  containerEl.createEl('h2', { text: t('heading_about') });
+  new Setting(containerEl).setName(t('heading_about')).setHeading();
 
   new Setting(containerEl)
     .setName(t('setting_about_version_name'))

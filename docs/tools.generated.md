@@ -6,13 +6,13 @@ This file is regenerated from the tool registry and committed so CI can detect d
 
 | Module ID | Module Name | Count | Tools |
 |---|---|---|---|
-| `vault` | Vault and File Operations | 20 | vault_create, vault_read, vault_update, vault_delete, vault_append, vault_replace, vault_insert, vault_get_metadata, vault_rename, vault_move, vault_copy, vault_create_folder, vault_delete_folder, vault_list, vault_list_recursive, vault_read_binary, vault_write_binary, vault_get_aspect, vault_daily_note, vault_set_frontmatter |
-| `editor` | Editor Operations | 10 | editor_get_content, editor_get_active_file, editor_insert, editor_replace, editor_delete, editor_get_cursor, editor_set_cursor, editor_get_selection, editor_set_selection, editor_get_line_count |
-| `search` | Search and Metadata | 7 | search_fulltext, search_tags, search_resolved_links, search_unresolved_links, search_by_tag, search_by_frontmatter, search_by_name |
-| `workspace` | Workspace and Navigation | 5 | workspace_get_active_leaf, workspace_open_file, workspace_list_leaves, workspace_set_active_leaf, workspace_get_layout |
-| `ui` | UI Interactions | 1 | ui_notice |
-| `templates` | Templates and Content Generation | 3 | template_list, template_create_from, template_expand |
-| `plugin-interop` | Plugin Interop | 4 | plugin_list, plugin_check, plugin_dataview_query, plugin_execute_command |
+| `vault` | Vault and file operations | 20 | vault_create, vault_read, vault_update, vault_delete, vault_append, vault_replace, vault_insert, vault_get_metadata, vault_rename, vault_move, vault_copy, vault_create_folder, vault_delete_folder, vault_list, vault_list_recursive, vault_read_binary, vault_write_binary, vault_get_aspect, vault_daily_note, vault_set_frontmatter |
+| `editor` | Editor operations | 10 | editor_get_content, editor_get_active_file, editor_insert, editor_replace, editor_delete, editor_get_cursor, editor_set_cursor, editor_get_selection, editor_set_selection, editor_get_line_count |
+| `search` | Search and metadata | 7 | search_fulltext, search_tags, search_resolved_links, search_unresolved_links, search_by_tag, search_by_frontmatter, search_by_name |
+| `workspace` | Workspace and navigation | 5 | workspace_get_active_leaf, workspace_open_file, workspace_list_leaves, workspace_set_active_leaf, workspace_get_layout |
+| `ui` | UI interactions | 1 | ui_notice |
+| `templates` | Templates and content generation | 3 | template_list, template_create_from, template_expand |
+| `plugin-interop` | Plugin interop | 4 | plugin_list, plugin_check, plugin_dataview_query, plugin_execute_command |
 | `extras` | Extras | 1 | extras_get_date |
 | `server` | Server | 1 | server_info |
 
@@ -20,7 +20,7 @@ This file is regenerated from the tool registry and committed so CI can detect d
 
 ## Tools by module
 
-### Vault and File Operations (`vault`)
+### Vault and file operations (`vault`)
 
 Schemas → [docs/tools/vault.generated.md](tools/vault.generated.md)
 
@@ -47,7 +47,7 @@ Schemas → [docs/tools/vault.generated.md](tools/vault.generated.md)
 | `vault_daily_note` | Get or create a daily note |  |  |
 | `vault_set_frontmatter` | Set frontmatter |  | ✓ |
 
-### Editor Operations (`editor`)
+### Editor operations (`editor`)
 
 Schemas → [docs/tools/editor.generated.md](tools/editor.generated.md)
 
@@ -64,7 +64,7 @@ Schemas → [docs/tools/editor.generated.md](tools/editor.generated.md)
 | `editor_set_selection` | Set selection |  |  |
 | `editor_get_line_count` | Get line count | ✓ |  |
 
-### Search and Metadata (`search`)
+### Search and metadata (`search`)
 
 Schemas → [docs/tools/search.generated.md](tools/search.generated.md)
 
@@ -78,7 +78,7 @@ Schemas → [docs/tools/search.generated.md](tools/search.generated.md)
 | `search_by_frontmatter` | Find notes by frontmatter | ✓ |  |
 | `search_by_name` | Find files by name | ✓ |  |
 
-### Workspace and Navigation (`workspace`)
+### Workspace and navigation (`workspace`)
 
 Schemas → [docs/tools/workspace.generated.md](tools/workspace.generated.md)
 
@@ -90,7 +90,7 @@ Schemas → [docs/tools/workspace.generated.md](tools/workspace.generated.md)
 | `workspace_set_active_leaf` | Set active leaf |  |  |
 | `workspace_get_layout` | Get workspace layout | ✓ |  |
 
-### UI Interactions (`ui`)
+### UI interactions (`ui`)
 
 Schemas → [docs/tools/ui.generated.md](tools/ui.generated.md)
 
@@ -98,7 +98,7 @@ Schemas → [docs/tools/ui.generated.md](tools/ui.generated.md)
 |---|---|---|---|
 | `ui_notice` | Show notice |  |  |
 
-### Templates and Content Generation (`templates`)
+### Templates and content generation (`templates`)
 
 Schemas → [docs/tools/templates.generated.md](tools/templates.generated.md)
 
@@ -108,7 +108,7 @@ Schemas → [docs/tools/templates.generated.md](tools/templates.generated.md)
 | `template_create_from` | Create file from template |  |  |
 | `template_expand` | Expand template inline | ✓ |  |
 
-### Plugin Interop (`plugin-interop`)
+### Plugin interop (`plugin-interop`)
 
 Schemas → [docs/tools/plugin-interop.generated.md](tools/plugin-interop.generated.md)
 

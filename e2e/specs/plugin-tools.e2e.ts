@@ -42,7 +42,7 @@ async function setAllowlistInSettings(ids: string[]): Promise<string[]> {
         // Look in the tab's own element: on newer Obsidian versions it is
         // not reachable through `document` (checked on 1.15.0).
         const textarea = setting.activeTab?.containerEl.querySelector<HTMLTextAreaElement>(
-          'textarea.mcp-execute-command-allowlist',
+          'textarea.vault-mcp-execute-command-allowlist',
         );
         if (!textarea) throw new Error('allowlist textarea not found');
         textarea.value = value;

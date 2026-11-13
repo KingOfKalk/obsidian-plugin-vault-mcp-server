@@ -5,7 +5,7 @@ import { t } from '../lang/helpers';
 import { reportError } from '../utils/report-error';
 
 /**
- * "Feature Modules" section — a toggle per core module and a per-tool
+ * "Feature modules" section — a toggle per core module and a per-tool
  * toggle per extras module. The "Refresh" button at the bottom
  * re-discovers modules without restarting Obsidian.
  */
@@ -20,7 +20,7 @@ export function renderModulesSection(
     (r) => r.module.metadata.group === 'extras',
   );
 
-  containerEl.createEl('h2', { text: t('heading_feature_modules') });
+  new Setting(containerEl).setName(t('heading_feature_modules')).setHeading();
   // Editor, workspace and UI are off by default since 5.0 (#469).
   containerEl.createEl('p', {
     text: t('message_modules_open_note'),
@@ -41,7 +41,7 @@ export function renderModulesSection(
   }
 
   if (extrasModules.length > 0) {
-    containerEl.createEl('h2', { text: t('heading_extras') });
+    new Setting(containerEl).setName(t('heading_extras')).setHeading();
     for (const registration of extrasModules) {
       renderExtrasToolRows(containerEl, plugin, registration);
     }
@@ -111,12 +111,12 @@ function renderModuleRow(
 ): void {
   const { metadata } = registration.module;
 
-  const card = containerEl.createDiv({ cls: 'mcp-module-card' });
+  const card = containerEl.createDiv({ cls: 'vault-mcp-module-card' });
 
   new Setting(card)
     .setName(metadata.name)
     .setDesc(metadata.description)
-    .setClass('mcp-module-card-header')
+    .setClass('vault-mcp-module-card-header')
     .addToggle((toggle) =>
       toggle.setValue(registration.enabled).onChange((value) => {
         if (value) {

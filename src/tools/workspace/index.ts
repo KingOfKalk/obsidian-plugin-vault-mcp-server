@@ -135,7 +135,7 @@ export function createWorkspaceModule(adapter: ObsidianAdapter): ToolModule {
   const vaultPath = adapter.getVaultPath();
   const configDir = adapter.getConfigDir();
   return {
-    metadata: { id: 'workspace', name: 'Workspace and Navigation', description: 'Manage panes, open files, and navigate the workspace', defaultEnabled: false },
+    metadata: { id: 'workspace', name: 'Workspace and navigation', description: 'Manage panes, open files, and navigate the workspace', defaultEnabled: false },
     tools(): ToolDefinition[] {
       return [
         defineTool({

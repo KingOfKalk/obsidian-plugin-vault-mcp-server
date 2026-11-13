@@ -6,6 +6,7 @@ import { startAvailabilityPolling } from './registry/availability';
 import { createMcpServer } from './server/mcp-server';
 import { HttpMcpServer } from './server/http-server';
 import { generateSelfSignedCert } from './server/tls';
+import { insecureBindRefusal, type InsecureBindRefusal } from './server/bind-guard';
 import { CustomTlsError, loadAndValidateCustomTls } from './server/custom-tls';
 import { RealObsidianAdapter, ObsidianAdapter } from './obsidian/adapter';
 import { discoverModules } from './tools';
@@ -19,6 +20,12 @@ import { DebugInfoModal } from './ui/debug-info-modal';
 
 const ICON_MCP = 'plug';
 const ICON_MCP_RUNNING = 'plug-zap';
+
+/** Notice shown when `startServer` refuses to bind without authentication. */
+const INSECURE_REFUSAL_NOTICES: Record<InsecureBindRefusal, TranslationKey> = {
+  insecure_mode_not_accepted: 'notice_insecure_mode_refused',
+  insecure_non_loopback: 'notice_insecure_non_loopback_refused',
+};
 
 /** Start / stop / restart commands: id, name key, error scope, action. */
 const SERVER_COMMANDS: ReadonlyArray<{
@@ -140,6 +147,10 @@ export default class McpPlugin extends Plugin {
         this.logger.info(
           'MCP server not started: auth is disabled and iAcceptInsecureMode is not set',
         );
+      } else if (!this.settings.authEnabled) {
+        this.logger.info(
+          'MCP server not started: auth is disabled and the server address is not 127.0.0.1',
+        );
       }
       this.updateStatusDisplay();
     }
@@ -179,15 +190,15 @@ export default class McpPlugin extends Plugin {
   }
 
   /**
-   * Predicate for both the auto-start path and the manual start path.
-   * Returns false if auth is off but the user has not explicitly
-   * opted into insecure mode, or if auth is on but no key is set yet.
+   * Predicate for the auto-start path. Returns false if auth is on but no
+   * key is set yet, or if `startServer` would refuse to bind without auth
+   * (insecure mode not accepted, or an address other than 127.0.0.1).
    */
   private canBindServer(): boolean {
     if (this.settings.authEnabled) {
       return this.settings.accessKey.length > 0;
     }
-    return this.settings.iAcceptInsecureMode === true;
+    return insecureBindRefusal(this.settings) === null;
   }
 
   onunload(): void {
@@ -197,8 +208,9 @@ export default class McpPlugin extends Plugin {
   }
 
   async startServer(): Promise<void> {
-    if (!this.settings.authEnabled && !this.settings.iAcceptInsecureMode) {
-      const message = t('notice_insecure_mode_refused');
+    const refusal = insecureBindRefusal(this.settings);
+    if (refusal) {
+      const message = t(INSECURE_REFUSAL_NOTICES[refusal]);
       this.logger.error(`Failed to start MCP server: ${message}`);
       new Notice(message, 12000);
       return;
@@ -331,7 +343,7 @@ export default class McpPlugin extends Plugin {
         this.statusBarItem.setText(`MCP :${String(this.settings.port)}`);
       } else if (failure) {
         this.statusBarItem.createSpan({
-          cls: 'mcp-statusbar-error',
+          cls: 'vault-mcp-statusbar-error',
           text: `MCP :${String(failure.port)}`,
         });
         const tooltip = t('status_bar_port_in_use', { port: failure.port });

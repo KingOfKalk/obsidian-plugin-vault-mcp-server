@@ -10,7 +10,7 @@ export interface ValidationErrorController {
  * Attach an error-message slot to a Setting's description. Call `show(msg)` to
  * render the slot below the description, and `clear()` to remove it. Multiple
  * controllers can be attached to the same Setting — each owns a separate
- * `mcp-settings-error` element.
+ * `vault-mcp-settings-error` element.
  */
 export function createValidationError(
   setting: Setting,
@@ -23,7 +23,7 @@ export function createValidationError(
         return;
       }
       errorEl = setting.descEl.createDiv({
-        cls: 'mcp-settings-error',
+        cls: 'vault-mcp-settings-error',
         text: message,
       });
     },

@@ -1,6 +1,6 @@
-# MCP Server — User Manual
+# Vault MCP Server user manual
 
-This manual is for end users of the **MCP Server** Obsidian plugin. It covers
+This manual is for end users of the **Vault MCP Server** Obsidian plugin. It covers
 installation, basic setup, every setting and toggle in the UI, and a FAQ for
 the most common stumbling blocks (self-signed TLS in LLM clients, port
 conflicts, auth errors, etc.).
@@ -25,7 +25,7 @@ connect to the server and read or modify your vault programmatically.
 - **Default endpoint**: `http://localhost:28741/mcp` (or `http://127.0.0.1:28741/mcp` if `localhost` doesn't resolve in your setup). `/mcp` is the only path that serves MCP; every other path gets `404`.
 - **Auth**: HTTP Bearer token, on by default
 - **Sessions**: up to 32 at once; a session idle for 10 minutes is closed
-- **Transport**: Streamable HTTP (MCP SDK 1.x)
+- **Transport**: Streamable HTTP (MCP SDK 2.x)
 
 ---
 
@@ -46,17 +46,17 @@ and scripts that call them. `server_info` lists the changes under version
     had (on, unless you had switched one off), so nothing disappears on
     update.
   - **What to do:** if you want an agent to work with the open note, switch
-    the modules on under [Feature Modules](#4-feature-modules). To get the
+    the modules on under [Feature modules](#feature-modules). To get the
     new lean defaults on an existing install, switch them off there.
 - **Plugin tools are listed only when they can work.**
   - `plugin_dataview_query` is listed only while the
     [Dataview](https://github.com/blacksmithgu/obsidian-dataview) plugin is
     enabled.
   - `plugin_execute_command` is listed only while the
-    [Execute Command Allowlist](#execute-command-allowlist) has at least one
+    [Command allowlist](#command-allowlist) has at least one
     command.
   - Connected clients get the change while they stay connected (see
-    [Feature Modules](#4-feature-modules)). Saving the allowlist updates the
+    [Feature modules](#feature-modules)). Saving the allowlist updates the
     list at once; enabling or disabling Dataview shows up within about 5
     seconds, or when a client connects.
   - **What to do:** nothing, unless an agent or script calls these tools
@@ -226,7 +226,7 @@ date directly from a GitHub release.
 5. Pick **Latest version** and click **Add Plugin**. BRAT downloads
    `main.js`, `manifest.json`, and `styles.css` from the latest GitHub
    release.
-6. Open **Settings → Community plugins** and enable **MCP Server**.
+6. Open **Settings → Community plugins** and enable **Vault MCP Server**.
 
 BRAT will check for new releases on Obsidian startup and update the plugin
 automatically.
@@ -242,7 +242,7 @@ and `styles.css` inside, ready to drop into your vault.
 2. Extract the zip into `<your-vault>/.obsidian/plugins/`. You should end up
    with the folder `<your-vault>/.obsidian/plugins/vault-mcp-server/` containing
    the three plugin files.
-3. Reload Obsidian (`Ctrl/Cmd+R` or restart) and enable **MCP Server** under
+3. Reload Obsidian (`Ctrl/Cmd+R` or restart) and enable **Vault MCP Server** under
    **Settings → Community plugins**.
 
 If you'd rather grab the files individually, download `main.js`,
@@ -259,23 +259,24 @@ The shipping defaults are intentionally conservative: the server is **off**,
 auto-generates a 32-byte access key on first load. Walk through these
 steps once after install:
 
-1. **Open the settings tab**: **Settings → MCP Server**.
+1. **Open the settings tab**: **Settings → Vault MCP Server**.
 2. **Copy the auto-generated access key**. The plugin already populated
-   it on first load; click the **Copy** button next to **Access Key**.
+   it on first load; select the **Copy** button next to **Access key**.
    - If you'd rather run unauthenticated (only safe on a trusted,
      localhost-only setup), toggle **Require Bearer authentication**
      off, then explicitly toggle **Accept insecure mode** on. The
-     server refuses to bind without that second toggle.
+     server refuses to bind without that second toggle, and without
+     authentication it only starts on `127.0.0.1`.
 3. **(Optional) Pick which feature modules you want**. By default all core
    modules are enabled. Disable anything you don't need (principle of least
    privilege).
 4. **Start the server** by flipping the **Status** toggle on, or by running
-   the **MCP Server: Start MCP Server** command from the command palette.
+   the **Vault MCP Server: Start MCP server** command from the command palette.
    - The status bar will show `MCP :28741` while the server is running.
    - The ribbon icon switches from a plain plug to a "plug-zap" lightning
      icon.
-5. **Connect your MCP client**. In the **MCP Client Configuration** section
-   click the copy button — the snippet is generated live from your current
+5. **Connect your MCP client**. In the **MCP client configuration** section
+   select the copy button — the snippet is generated live from your current
    address, port, auth, and key. Paste it into your client's `mcpServers`
    config (e.g. Claude Desktop's `claude_desktop_config.json`, or Claude
    Code's `.mcp.json`). The snippet contains your access key: if the config
@@ -289,32 +290,37 @@ modules.
 
 ## Settings reference
 
-The settings tab is split into six sections.
+The settings tab starts with the **Status** row, followed by six sections:
+**Server**, **MCP client configuration**, **Feature modules**, **Command
+allowlist**, **Diagnostics** and **About**.
 
-### 1. Status
+### Status
+
+The first row of the tab, without a heading.
 
 | Control | What it does |
 |---|---|
 | **Status toggle** | Flip on to start the server, off to stop it. While running, the row also shows the server URL and the number of connected clients. |
-| **Restart icon** | Appears next to the toggle while the server is running. Click to restart (apply changes that need a fresh listen). |
+| **Restart icon** | Appears next to the toggle while the server is running. Select it to restart (apply changes that need a fresh listen). |
 
-### 2. Server Settings
+### Server
 
 | Setting | Default | What it does |
 |---|---|---|
-| **Server Address** | `127.0.0.1` | IPv4 address the server binds to. `127.0.0.1` is local-only. Setting this to `0.0.0.0` exposes the server on every network interface — only do that with auth enabled and a firewall in front. Requires a restart. |
+| **Server address** | `127.0.0.1` | IPv4 address the server binds to. `127.0.0.1` is local-only. Setting this to `0.0.0.0` exposes the server on every network interface — only do that with a firewall in front. Any address other than `127.0.0.1` requires authentication: with **Require Bearer authentication** off, the server refuses to start there and the row says so. Requires a restart. |
 | **Port** | `28741` | TCP port to listen on. Any integer 1–65535. Restart required. |
 | **Server URL** | (read-only) | Full `http(s)://address:port/mcp` URL. The copy button puts it on your clipboard. |
-| **Require Bearer authentication** | **on** | Master switch for auth. When on, every request must carry `Authorization: Bearer <key>`. When off, the server **refuses to bind** unless you also turn on **Accept insecure mode** (see below). |
-| **Access Key** | (auto-generated) | Visible only when auth is on. On a fresh install with auth on, the plugin auto-generates a 32-byte base64url key on first load and persists it. Use **Generate** to rotate it; it makes a new key in the same format. The **Copy** button copies it to the clipboard. |
-| **Accept insecure mode** | off | Visible only when auth is off. The server refuses to bind without this toggle, so you can't accidentally expose an unauthenticated MCP endpoint. Only safe on a trusted, localhost-only setup. |
+| **Require Bearer authentication** | **on** | Master switch for auth. When on, every request must carry `Authorization: Bearer <key>`. When off, the server **refuses to bind** unless you also turn on **Accept insecure mode** (see below), and it only binds to `127.0.0.1`. |
+| **Access key** | (auto-generated) | Visible only when auth is on. On a fresh install with auth on, the plugin auto-generates a 32-byte base64url key on first load and persists it. Use **Generate** to rotate it; it makes a new key in the same format. The **Copy** button copies it to the clipboard. |
+| **Accept insecure mode** | off | Visible only when auth is off. The server refuses to bind without this toggle, so you can't accidentally expose an unauthenticated MCP endpoint. Works only with the server address `127.0.0.1`; on any other address the server refuses to start without authentication. |
 | **HTTPS** | off | Switch to HTTPS using a locally generated self-signed certificate. Restart required. See the FAQ for client-side trust. |
-| **TLS Certificate** | auto | Generated on the first HTTPS start, then cached in `data.json`. Use **Regenerate certificate** if you change the address or want a fresh key pair — clients will need to re-trust the new cert. |
+| **TLS certificate** | auto | Visible while HTTPS is on and **Bring your own certificate** is off. Generated on the first HTTPS start, then cached in `data.json`. Use **Regenerate certificate** if you change the address or want a fresh key pair — clients will need to re-trust the new cert. |
+| **Bring your own certificate** | off | Visible while HTTPS is on. Use your own TLS certificate and private key (PEM files) instead of the generated one. Turning it on shows the **Custom TLS certificate** group with a **Browse…** button for the **Public certificate (PEM)** and the **Private key (PEM)**; problems with the files show up under the matching row. The files are read at every server start. |
 | **Auto-start on launch** | off | Start the MCP server automatically when Obsidian loads. The server still applies the auth/insecure-mode guard on auto-start, so a misconfigured install stays stopped and the reason is logged. |
 | **Expose vault files as MCP resources** | **on** | When on, MCP hosts can browse and read vault files via the resources surface (`obsidian://vault/{path}`) in addition to tools. Restart the server to apply changes. See [Resources](#resources) below. |
 | **Expose MCP slash-command prompts** | **on** | When on, MCP hosts surface canned vault workflows (`/summarize-note`, `/find-related`, `/expand-template`, `/daily-note`, `/fix-broken-links`) as slash commands via the prompts surface. Restart the server to apply changes. See [Prompts](#prompts) below. |
 
-#### DNS Rebind Protection
+#### DNS rebind protection
 
 Even though the server binds to `127.0.0.1`, a hostile webpage in your
 browser can use **DNS rebinding** to point `attacker.com` at `127.0.0.1`
@@ -324,8 +330,8 @@ rejected with a `403`.
 
 | Setting | Default | What it does |
 |---|---|---|
-| **Allowed Origins** | `http://127.0.0.1`, `http://localhost`, `https://127.0.0.1`, `https://localhost` | Exact-match list (one per line). If the request's `Origin` header isn't on the list, it's rejected. Include the port if your client sends it (e.g. `http://127.0.0.1:28741`). |
-| **Allowed Hosts** | `127.0.0.1`, `localhost` | Hostname-only list (one per line). The port portion of the inbound `Host` header is stripped before comparison. |
+| **Allowed origins** | `http://127.0.0.1`, `http://localhost`, `https://127.0.0.1`, `https://localhost` | Exact-match list (one per line). If the request's `Origin` header isn't on the list, it's rejected. Include the port if your client sends it (e.g. `http://127.0.0.1:28741`). |
+| **Allowed hosts** | `127.0.0.1`, `localhost` | Hostname-only list (one per line). The port portion of the inbound `Host` header is stripped before comparison. |
 | **Allow Origin: null** | off | When on, requests with `Origin: null` (sandboxed iframes, `file://` pages) are accepted. |
 | **Require Origin header** | off | When on, every request must carry an `Origin` header. Tightens browser-side checks but rejects server-side and CLI clients (`curl`, native MCP clients) that don't send `Origin`. |
 
@@ -336,7 +342,7 @@ Rejections are logged at `warn` with the client IP, method, path, and
 the offending `Origin`/`Host` values. Body and Authorization headers are
 never logged.
 
-### 3. MCP Client Configuration
+### MCP client configuration
 
 A single row with a **Copy** button. The JSON snippet is built live from your
 current settings:
@@ -387,9 +393,9 @@ untracked, git-ignored env file.
   your client's documentation before using `${VAR}` elsewhere; a client
   without it sends the literal text `${OBSIDIAN_MCP_TOKEN}`.
 - Never commit a file that holds the key itself. If you did, rotate the key
-  (**Generate** next to **Access Key**).
+  (**Generate** next to **Access key**).
 
-### 4. Feature Modules
+### Feature modules
 
 Each module is a collapsible card with one enable/disable toggle. Disabled
 modules are hidden from `tools/list`, so the client never sees them.
@@ -416,15 +422,15 @@ Above the module cards is one more switch:
 
 | Module | Default | Tools | Notes |
 |---|---|---|---|
-| Vault and File Operations | on | 20 | Create / read / update / delete files and folders, read one section, replace a passage or insert into a section, rename, move, copy, list, binary I/O, metadata, set frontmatter, daily note. |
-| Search and Metadata | on | 7 | Full-text search, find files by name, list tags, find notes by tag / frontmatter, find resolved / unresolved links. |
-| Editor Operations | off | 10 | Read/insert/replace/delete text in the active editor, cursor and selection management. |
-| Workspace and Navigation | off | 5 | Inspect / open / focus leaves, read the layout. |
-| UI Interactions | off | 1 | Show notices. |
+| Vault and file operations | on | 20 | Create / read / update / delete files and folders, read one section, replace a passage or insert into a section, rename, move, copy, list, binary I/O, metadata, set frontmatter, daily note. |
+| Search and metadata | on | 7 | Full-text search, find files by name, list tags, find notes by tag / frontmatter, find resolved / unresolved links. |
+| Editor operations | off | 10 | Read/insert/replace/delete text in the active editor, cursor and selection management. |
+| Workspace and navigation | off | 5 | Inspect / open / focus leaves, read the layout. |
+| UI interactions | off | 1 | Show notices. |
 | Templates | on | 3 | List templates, create from template, expand variables. |
-| Plugin Interop | on | 4 | List / check plugins, run Dataview queries, execute commands. `plugin_dataview_query` is listed only while Dataview is enabled, `plugin_execute_command` only while the allowlist has a command. |
+| Plugin interop | on | 4 | List / check plugins, run Dataview queries, execute commands. `plugin_dataview_query` is listed only while Dataview is enabled, `plugin_execute_command` only while the allowlist has a command. |
 
-Plugin Interop's two conditional tools follow their plugin while the module
+Plugin interop's two conditional tools follow their plugin while the module
 is on: when Dataview is enabled or disabled, or the allowlist is saved,
 connected clients get `notifications/tools/list_changed` and the tool
 appears or disappears. Obsidian does not announce plugins being enabled, so
@@ -443,31 +449,31 @@ short list of agent-relevant changes of the three most recent versions
 every version. Turning every module off still leaves `server_info` in
 `tools/list`.
 
-### Execute Command Allowlist
+A **Refresh modules** button at the end of this section re-discovers modules
+without restarting Obsidian (useful when developing modules).
 
-The `plugin_execute_command` (Execute command) tool in Plugin Interop can run any Obsidian
+### Command allowlist
+
+The `plugin_execute_command` (Execute command) tool in Plugin interop can run any Obsidian
 command — including destructive ones (e.g. `app:delete-file`). By default
 the allowlist is empty, and while it is empty MCP clients do not see the
 tool at all. To enable specific commands, add their ids (one per line) to
-the **Execute Command Allowlist** section in settings. Saving a non-empty
+the **Command allowlist** section in settings. Saving a non-empty
 list makes the tool appear for connected clients; emptying it hides the tool
 again. Only commands on the allowlist will run; everything else is rejected
 with the command id echoed back. Keep the list short and curated — you're granting MCP clients the
 same power as the Obsidian command palette.
 
-A **Refresh** button at the top of this section re-discovers modules without
-restarting Obsidian (useful when developing modules).
-
-### 5. Diagnostics
+### Diagnostics
 
 | Control | What it does |
 |---|---|
-| **Debug Mode** | Verbose logging of every MCP request and response. Access keys are **always** redacted. |
+| **Debug mode** | Verbose logging of every MCP request and response. Access keys are **always** redacted. |
 | **Log file** | Read-only path to the persistent log at `<vault>/.obsidian/plugins/vault-mcp-server/debug.log`. The file rotates in place at 1 MiB (trims to the most recent 512 KiB). |
 | **Copy debug info** | Opens a modal with a copy-pasteable bundle: settings (with the access key replaced by `<set>`/`<empty>` and the cert by `<present>`/`<absent>`), module list, server status, and the most recent log lines. Safe to share when filing a bug. |
 | **Clear log** | Empties `debug.log`. |
 
-### 6. About
+### About
 
 The last section of the tab.
 
@@ -475,7 +481,7 @@ The last section of the tab.
 |---|---|
 | **Version** | The installed plugin version. |
 | **Repository** | Link to the plugin's GitHub repository. Opens in your browser. |
-| **Report an issue** | Link that opens a new GitHub issue in your browser. The issue body is already filled in with your plugin version, your Obsidian version, and a spot to paste the output of **Copy debug info** (see [Diagnostics](#5-diagnostics)). You need a GitHub account to submit it. |
+| **Report an issue** | Link that opens a new GitHub issue in your browser. The issue body is already filled in with your plugin version, your Obsidian version, and a spot to paste the output of **Copy debug info** (see [Diagnostics](#diagnostics)). You need a GitHub account to submit it. |
 
 ---
 
@@ -483,16 +489,16 @@ The last section of the tab.
 
 ### Command palette
 
-- **MCP Server: Start MCP Server**
-- **MCP Server: Stop MCP Server**
-- **MCP Server: Restart MCP Server**
-- **MCP Server: Copy Access Key**
-- **MCP Server: Copy Debug Info**
+- **Vault MCP Server: Start MCP server**
+- **Vault MCP Server: Stop MCP server**
+- **Vault MCP Server: Restart MCP server**
+- **Vault MCP Server: Copy access key**
+- **Vault MCP Server: Copy debug info**
 
 ### Ribbon
 
 - A **plug** icon in the left ribbon. Grey when stopped, "plug-zap"
-  (lightning) when running. Click to toggle the server.
+  (lightning) when running. Select it to toggle the server.
 
 ### Status bar
 
@@ -1042,7 +1048,7 @@ Binary files larger than **1 MiB** are refused, as by the `vault_read_binary` to
 
 ### Disabling
 
-If you only want the tools surface, turn off **"Expose vault files as MCP resources"** in *Server Settings* and restart the server. The server then advertises a tools-only capability set.
+If you only want the tools surface, turn off **"Expose vault files as MCP resources"** in the *Server* section and restart the server. The server then advertises a tools-only capability set.
 
 ---
 
@@ -1071,7 +1077,7 @@ Both completers cap at 100 entries. Hosts that implement the MCP `completion/com
 
 ### Disabling
 
-If you don't want the slash-command surface, turn off **"Expose MCP slash-command prompts"** in *Server Settings* and restart the server. The server then advertises a server without a prompts capability, and hosts will no longer surface the slash commands.
+If you don't want the slash-command surface, turn off **"Expose MCP slash-command prompts"** in the *Server* section and restart the server. The server then advertises a server without a prompts capability, and hosts will no longer surface the slash commands.
 
 ---
 
@@ -1096,8 +1102,11 @@ options:
    - System trust stores (macOS Keychain, Windows certmgr, Linux
      `update-ca-trust`) also work but affect every app on the machine.
    The PEM is embedded in `data.json` under `tlsCertificate.cert` — copy it
-   into a `.pem` file. Click **Regenerate certificate** in settings whenever
+   into a `.pem` file. Select **Regenerate certificate** in settings whenever
    you rotate the address; clients will then need to re-trust the new cert.
+   The certificate's common name is `Vault MCP Server (localhost)`; a
+   certificate generated by an older version keeps the name
+   `Obsidian MCP Plugin (localhost)` until you regenerate it.
 3. **Disable certificate verification in the client**. Convenient for local
    testing, dangerous everywhere else. Only do this if the connection is
    provably local-only.
@@ -1108,9 +1117,9 @@ You enabled **Require Bearer authentication** but the client isn't sending
 the right header. Check:
 
 - The `Authorization: Bearer <key>` header is present on every request.
-- The `<key>` matches the one in **Settings → MCP Server → Access Key**
+- The `<key>` matches the one in **Settings → Vault MCP Server → Access Key**
   exactly. Use the **Copy** button — never type it by hand.
-- Re-copy the **MCP Client Configuration** snippet after generating a new
+- Re-copy the **MCP client configuration** snippet after generating a new
   key; the snippet is rebuilt from the live key.
 - If the config reads the key from `${VAR}`, the variable is set in the
   environment that starts the client, and its name isn't one the client
@@ -1134,7 +1143,7 @@ protection and isn't configurable.
 
 The client uses a URL path the server doesn't serve. The MCP endpoint is
 `/mcp`, e.g. `http://127.0.0.1:28741/mcp`. Copy the URL from **Settings →
-MCP Server → Server URL** or the **MCP Client Configuration** snippet.
+Vault MCP Server → Server URL** or the **MCP client configuration** snippet.
 Every other path gets `404`, including the bare root
 (`http://127.0.0.1:28741` or `http://127.0.0.1:28741/`), `/mcp/` with a
 trailing slash, `/api/mcp` and `/sse`.
@@ -1155,13 +1164,13 @@ own; if yours doesn't, reconnect it (for example `/mcp` in Claude Code).
 
 DNS-rebind protection rejected the request. The server only accepts
 requests whose `Origin` and `Host` headers are on the allowlists in
-**Server Settings → DNS Rebind Protection**. Causes and fixes:
+**Server → DNS rebind protection**. Causes and fixes:
 
 - **Browser client on a non-default origin**: add the exact origin
-  (`scheme://host[:port]`) to **Allowed Origins**. The compare is exact —
+  (`scheme://host[:port]`) to **Allowed origins**. The compare is exact —
   `http://127.0.0.1` and `http://127.0.0.1:28741` are different entries.
 - **Custom hostname** (you mapped `obsidian.local` to `127.0.0.1`): add
-  the hostname to **Allowed Hosts**.
+  the hostname to **Allowed hosts**.
 - **`Origin: null`** (sandboxed iframe, `file://`): turn on **Allow
   Origin: null**.
 - **`curl`/CLI without `Origin`** rejected: only happens when **Require
@@ -1171,13 +1180,24 @@ requests whose `Origin` and `Host` headers are on the allowlists in
 The rejection is logged at `warn` with the offending values and never
 hits the rate limiter, so it can't lock you out of authentication.
 
+### The server won't start without authentication
+
+With **Require Bearer authentication** off, the server only starts on
+`127.0.0.1`. On any other **Server address** (for example `0.0.0.0` or a
+LAN address) it refuses to start and shows a notice; the **Server address**
+row in settings says so too. Anyone on the network could otherwise read and
+change your vault, and the Host allowlist does not stop a client outside the
+browser, which can send any `Host` header. Turn authentication on, or set the
+address back to `127.0.0.1`. Earlier versions started on any address once
+**Accept insecure mode** was on.
+
 ### The server won't auto-start
 
 Auto-start is gated by the same checks as the manual start button.
-Two configurations cause an auto-start to fail silently with an `info`
+Three configurations cause an auto-start to fail silently with an `info`
 log entry:
 
-- **Require Bearer authentication** is on but **Access Key** is empty
+- **Require Bearer authentication** is on but **Access key** is empty
   (rare — the plugin auto-generates a key on first load, so this
   usually only happens if you cleared the field manually).
 - **Require Bearer authentication** is off and **Accept insecure
@@ -1185,6 +1205,9 @@ log entry:
   unauthenticated traffic is never started by accident. Open the
   settings tab to turn auth back on (and let the plugin generate a
   key) or to explicitly accept insecure mode.
+- **Require Bearer authentication** is off and **Server address** is not
+  `127.0.0.1` (see
+  [The server won't start without authentication](#the-server-wont-start-without-authentication)).
 
 ### My client says "ECONNREFUSED" after a plugin update
 
@@ -1218,21 +1241,21 @@ When this happens you'll see three signals at once:
   port (or pick a new one) to dismiss it; the next successful start clears
   all three.
 
-The toggle under **Server Status** flips back to **off** so clicking it
-again retries the start.
+The **Status** toggle at the top of the settings tab flips back to **off**,
+so turning it on again retries the start.
 
 ### Tool not showing up in my client
 
 - The module that ships the tool is disabled. Enable it under **Feature
-  Modules**.
+  modules**.
 - For Extras tools (e.g. `extras_get_date` (Get current date)), the per-tool toggle is off by default.
 - `vault_delete`, `vault_delete_folder`, `vault_update` and
   `vault_write_binary` are hidden while **Read and edit only** is on.
 - Editor, Workspace and UI tools are off by default since 5.0. Switch the
-  module on under **Feature Modules**.
+  module on under **Feature modules**.
 - `plugin_dataview_query` is listed only while the Dataview plugin is
-  enabled, and `plugin_execute_command` only while the Execute Command
-  Allowlist has a command. After enabling Dataview, allow about 5 seconds.
+  enabled, and `plugin_execute_command` only while the **Command
+  allowlist** has a command. After enabling Dataview, allow about 5 seconds.
 - The client cached the previous `tools/list` response. The server announces
   every switch with `notifications/tools/list_changed`, but not every client
   reacts to it. Reconnect.
@@ -1325,7 +1348,7 @@ inside the MCP SDK. Update the plugin to the current release.
 
 ### How do I stop the agent from deleting files?
 
-Turn on **Read and edit only** under **Feature Modules**. The agent can then
+Turn on **Read and edit only** under **Feature modules**. The agent can then
 no longer delete files or folders (`vault_delete`, `vault_delete_folder`) or
 replace a whole file at once (`vault_update`, `vault_write_binary`), but it
 can still read, create, rename, move and copy notes and edit them in place
@@ -1340,17 +1363,19 @@ Notes:
   to the system trash or the vault's `.trash` folder and can be restored from
   there, unless the setting is **Permanently delete**.
 - Edits in place can still remove text, for example a `vault_replace` with an
-  empty replacement. To stop every change, switch off the **Vault and File
-  Operations** and **Templates** modules (and **Editor Operations** if it is
+  empty replacement. To stop every change, switch off the **Vault and file
+  operations** and **Templates** modules (and **Editor operations** if it is
   on); search and `server_info` stay available.
 - `plugin_execute_command` runs only the Obsidian commands you put on the
-  [Execute Command Allowlist](#execute-command-allowlist). Do not allow
+  [Command allowlist](#command-allowlist). Do not allow
   commands that delete files, such as `app:delete-file`.
 
 ### How do I expose the server to another machine on my LAN?
 
-1. Set **Server Address** to `0.0.0.0`.
-2. Turn on **Require Bearer authentication** and generate a key.
+1. Set **Server address** to `0.0.0.0`.
+2. Turn on **Require Bearer authentication** and generate a key. This is
+   required: without authentication the server refuses to start on any
+   address other than `127.0.0.1`.
 3. Strongly consider enabling **HTTPS** (and follow the trust steps above).
 4. Configure your firewall to allow only the hosts you trust to reach the
    port.
@@ -1367,15 +1392,15 @@ private key. Treat it like a secret.
 
 ### How do I rotate the access key?
 
-Click **Generate** next to **Access Key**, then re-copy the **MCP Client
-Configuration** snippet into every client. Old keys stop working
+Select **Generate** next to **Access key**, then re-copy the **MCP client
+configuration** snippet into every client. Old keys stop working
 immediately.
 
 ### Where can I see what the server is doing?
 
-- Turn on **Debug Mode** for live request/response logging in the developer
+- Turn on **Debug mode** for live request/response logging in the developer
   console (`Ctrl+Shift+I`). These lines are at the console's **Verbose**
-  level, which it hides by default. Without Debug Mode the console only shows
+  level, which it hides by default. Without Debug mode the console only shows
   warnings and errors.
 - The persistent log is at
   `<vault>/.obsidian/plugins/vault-mcp-server/debug.log`.
@@ -1383,9 +1408,9 @@ immediately.
 
 ### How do I report a bug?
 
-1. Reproduce the issue with **Debug Mode** on.
-2. Click **Copy debug info** in **Diagnostics** and copy the bundle.
-3. Click **Report an issue** in **About**. It opens a new GitHub issue with
+1. Reproduce the issue with **Debug mode** on.
+2. Select **Copy debug info** in **Diagnostics** and copy the bundle.
+3. Select **Report an issue** in **About**. It opens a new GitHub issue with
    your plugin and Obsidian versions filled in. Paste the bundle into it.
    You can also open an issue yourself at
    <https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues>. The bundle
