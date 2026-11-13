@@ -12,6 +12,7 @@ import { renderHttpsSection } from './https-section';
 import { serverOrigin, serverUrl } from './display-host';
 import { DEFAULT_ALLOWED_HOSTS, DEFAULT_ALLOWED_ORIGINS } from '../types';
 import { bindToggle } from './bind-toggle';
+import { insecureBindRefusal, LOOPBACK_ADDRESS } from '../server/bind-guard';
 
 // The default (loopback) allowlists plus IPv6 loopback.
 const LOOPBACK_HOSTS = new Set([...DEFAULT_ALLOWED_HOSTS, '::1', '[::1]']);
@@ -113,14 +114,24 @@ export function renderServerSettingsSection(
     .setName(t('setting_server_address_name'))
     .setDesc(t('setting_server_address_desc'));
   const addressError = createValidationError(addressSetting);
+  // Without auth the server refuses any address but 127.0.0.1 (#558).
+  const insecureAddressError = createValidationError(addressSetting);
+  const showInsecureAddressError = (): void => {
+    if (insecureBindRefusal(plugin.settings) === 'insecure_non_loopback') {
+      insecureAddressError.show(t('error_insecure_non_loopback'));
+    } else {
+      insecureAddressError.clear();
+    }
+  };
   addressSetting.addText((text) =>
     text
-      .setPlaceholder('127.0.0.1')
+      .setPlaceholder(LOOPBACK_ADDRESS)
       .setValue(plugin.settings.serverAddress)
       .onChange(async (value) => {
         if (isValidIPv4(value)) {
           addressError.clear();
           plugin.settings.serverAddress = value;
+          showInsecureAddressError();
           await plugin.saveSettings();
         } else {
           addressError.show(t('error_invalid_ipv4'));
@@ -128,12 +139,13 @@ export function renderServerSettingsSection(
       }),
   );
 
-  if (plugin.settings.serverAddress !== '127.0.0.1') {
+  if (plugin.settings.serverAddress !== LOOPBACK_ADDRESS) {
     addressSetting.descEl.createEl('br');
     addressSetting.descEl.createEl('strong', {
       text: t('warning_non_localhost'),
     });
   }
+  showInsecureAddressError();
 
   const portSetting = new Setting(containerEl)
     .setName(t('setting_port_name'))

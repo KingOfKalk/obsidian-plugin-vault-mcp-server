@@ -507,3 +507,76 @@ describe('McpPlugin module defaults and plugin tools (#469)', () => {
     plugin.onunload();
   });
 });
+
+describe('McpPlugin refuses to run without auth outside loopback (#558)', () => {
+  function insecureSettings(serverAddress: string, authEnabled = false): Record<string, unknown> {
+    return {
+      schemaVersion: 13,
+      serverAddress,
+      port: 28741,
+      accessKey: authEnabled ? 'configured-key' : '',
+      httpsEnabled: false,
+      tlsCertificate: null,
+      debugMode: false,
+      autoStart: true,
+      authEnabled,
+      iAcceptInsecureMode: !authEnabled,
+      seenInsecureWarning: true,
+      moduleStates: {},
+    };
+  }
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('does not auto-start without auth on 0.0.0.0, even with insecure mode accepted', async () => {
+    const plugin = createPlugin(insecureSettings('0.0.0.0'));
+    const startSpy = vi.spyOn(plugin, 'startServer').mockResolvedValue();
+
+    await plugin.onload();
+
+    expect(startSpy).not.toHaveBeenCalled();
+    plugin.onunload();
+  });
+
+  it('still auto-starts without auth on 127.0.0.1 with insecure mode accepted', async () => {
+    const plugin = createPlugin(insecureSettings('127.0.0.1'));
+    const startSpy = vi.spyOn(plugin, 'startServer').mockResolvedValue();
+
+    await plugin.onload();
+
+    expect(startSpy).toHaveBeenCalled();
+    plugin.onunload();
+  });
+
+  it('still auto-starts with auth on a non-loopback address', async () => {
+    const plugin = createPlugin(insecureSettings('0.0.0.0', true));
+    const startSpy = vi.spyOn(plugin, 'startServer').mockResolvedValue();
+
+    await plugin.onload();
+
+    expect(startSpy).toHaveBeenCalled();
+    plugin.onunload();
+  });
+
+  it('startServer refuses to bind without auth on a non-loopback address and says why', async () => {
+    const obsidian = await import('obsidian');
+    const plugin = createPlugin({ ...insecureSettings('192.168.1.10'), autoStart: false });
+    await plugin.onload();
+
+    const { HttpMcpServer } = await import('../src/server/http-server');
+    const bindSpy = vi.spyOn(HttpMcpServer.prototype, 'start').mockResolvedValue(undefined);
+    const noticeSpy = vi.spyOn(obsidian, 'Notice');
+
+    await plugin.startServer();
+
+    expect(bindSpy).not.toHaveBeenCalled();
+    expect(plugin.httpServer).toBeNull();
+    expect(noticeSpy).toHaveBeenCalledTimes(1);
+    const [message] = noticeSpy.mock.calls[0] as [string];
+    expect(message).toContain('Vault MCP Server');
+    expect(message).toContain('127.0.0.1');
+    plugin.onunload();
+  });
+});

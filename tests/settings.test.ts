@@ -1136,7 +1136,7 @@ describe('McpSettingsTab server settings validation', () => {
     (Setting as unknown as { instances: unknown[] }).instances = [];
   });
 
-  function createValidationMockPlugin(): {
+  function createValidationMockPlugin(overrides: Partial<typeof DEFAULT_SETTINGS> = {}): {
     settings: typeof DEFAULT_SETTINGS & { accessKey: string };
     httpServer: null;
     registry: { getModules: () => [] };
@@ -1146,7 +1146,7 @@ describe('McpSettingsTab server settings validation', () => {
     manifest: { id: string; version: string };
   } {
     return {
-      settings: { ...DEFAULT_SETTINGS, accessKey: 'k' },
+      settings: { ...DEFAULT_SETTINGS, accessKey: 'k', ...overrides },
       httpServer: null,
       registry: { getModules: () => [] },
       logger: { updateOptions: (): void => {} },
@@ -1156,8 +1156,10 @@ describe('McpSettingsTab server settings validation', () => {
     };
   }
 
-  function renderValidationTab(): ReturnType<typeof createValidationMockPlugin> {
-    const plugin = createValidationMockPlugin();
+  function renderValidationTab(
+    overrides: Partial<typeof DEFAULT_SETTINGS> = {},
+  ): ReturnType<typeof createValidationMockPlugin> {
+    const plugin = createValidationMockPlugin(overrides);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
     const tab = new McpSettingsTab({} as any, plugin as any);
     const container = createTrackingEl();
@@ -1214,6 +1216,36 @@ describe('McpSettingsTab server settings validation', () => {
       expect(errorElements(setting)).toHaveLength(0);
       expect(plugin.settings.serverAddress).toBe('10.0.0.1');
       expect(plugin.saveSettings).toHaveBeenCalled();
+    });
+  });
+
+  describe('Server Address without authentication (#558)', () => {
+    const insecure = { authEnabled: false, iAcceptInsecureMode: true };
+
+    it('says the server will not start on a non-loopback address while auth is off', () => {
+      renderValidationTab({ ...insecure, serverAddress: '0.0.0.0' });
+      const errors = errorElements(getSettingByName('Server Address'));
+      expect(errors).toHaveLength(1);
+      expect(errors[0].textContent).toContain('127.0.0.1');
+    });
+
+    it('shows no hint on 127.0.0.1 while auth is off', () => {
+      renderValidationTab(insecure);
+      expect(errorElements(getSettingByName('Server Address'))).toHaveLength(0);
+    });
+
+    it('shows no hint on a non-loopback address while auth is on', () => {
+      renderValidationTab({ serverAddress: '0.0.0.0' });
+      expect(errorElements(getSettingByName('Server Address'))).toHaveLength(0);
+    });
+
+    it('updates the hint while the address is typed', async () => {
+      renderValidationTab(insecure);
+      const setting = getSettingByName('Server Address');
+      await setting.texts[0].callback!('192.168.1.10');
+      expect(errorElements(setting)).toHaveLength(1);
+      await setting.texts[0].callback!('127.0.0.1');
+      expect(errorElements(setting)).toHaveLength(0);
     });
   });
 

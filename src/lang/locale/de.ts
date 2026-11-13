@@ -22,7 +22,9 @@ const de: Partial<Record<keyof typeof en, string>> = {
   setting_server_address_desc:
     'IP-Adresse, an die der Server gebunden wird (Standard: 127.0.0.1). Neustart erforderlich.',
   warning_non_localhost:
-    'Warnung: Eine Nicht-Localhost-Adresse macht den Server im Netzwerk erreichbar. Stelle sicher, dass ein Zugriffsschlüssel gesetzt ist.',
+    'Warnung: Diese Adresse macht den Server in deinem Netzwerk erreichbar. Der Server startet hier nur mit aktivierter Authentifizierung.',
+  error_insecure_non_loopback:
+    'Die Authentifizierung ist aus, daher startet der Server nicht auf dieser Adresse. Schalte „Bearer-Authentifizierung erforderlich“ ein oder verwende 127.0.0.1.',
   error_invalid_ipv4: 'Ungültige IPv4-Adresse. Erwartetes Format: 127.0.0.1',
   setting_port_name: 'Port',
   setting_port_desc: 'HTTP-Port für den MCP-Server (Standard: 28741)',
@@ -32,7 +34,9 @@ const de: Partial<Record<keyof typeof en, string>> = {
   notice_server_url_copied: 'MCP-Server-URL in die Zwischenablage kopiert',
   setting_auth_enabled_name: 'Bearer-Authentifizierung erforderlich',
   setting_auth_enabled_desc:
-    'Wenn aktiviert, verlangt der Server bei jeder MCP-Anfrage einen gültigen Bearer-Zugriffsschlüssel. Wenn deaktiviert, werden Anfragen ohne Authentifizierung akzeptiert — nur in einer vertrauenswürdigen, ausschließlich lokal erreichbaren Umgebung sicher.',
+    'Wenn aktiviert, verlangt der Server bei jeder MCP-Anfrage einen gültigen Bearer-Zugriffsschlüssel. Wenn deaktiviert, startet der Server nur auf 127.0.0.1 und nur, wenn auch „Accept insecure mode“ aktiviert ist, damit ungeschützter Zugriff nie aus Versehen entsteht.',
+  notice_insecure_non_loopback_refused:
+    'Vault MCP Server: Server nicht gestartet. Die Authentifizierung ist aus und die Serveradresse ist nicht 127.0.0.1. Schalte die Authentifizierung ein oder setze die Serveradresse in den Plugin-Einstellungen auf 127.0.0.1.',
   setting_access_key_name: 'Zugriffsschlüssel',
   setting_access_key_desc: 'Bearer-Token zur Authentifizierung von MCP-Clients',
   placeholder_access_key: 'Zugriffsschlüssel eingeben',
