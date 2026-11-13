@@ -4,6 +4,28 @@
 > were renamed from `vX.Y.Z` (and `obsidian-mcp-v1.1.0`) to `X.Y.Z`; old links
 > containing `v` no longer resolve.
 
+## [5.3.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/5.2.2...5.3.0) (2026-11-13)
+
+
+### Features
+
+* renew the self-signed certificate before it expires ([#564](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/564)) ([72f3ace](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/72f3acea2ffeacd11d748dd0be24aeffd7adb51b))
+* renew the self-signed certificate before it expires ([#570](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/570)) ([72f3ace](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/72f3acea2ffeacd11d748dd0be24aeffd7adb51b))
+* store the access key in Obsidian's SecretStorage ([#572](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/572)) ([73c9f59](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/73c9f59a264c0a9bf579b133e339f71a34eba68c))
+
+
+### Documentation
+
+* fix leftover wording after the guideline audit ([#569](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/569)) ([2ae8e7e](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/2ae8e7e7fa5477e54bfe1a27e591a16ed57380a7)), closes [#567](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/567)
+* network use and privacy in README, security.md from the code ([#562](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/562)) ([4b90ea3](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/4b90ea32300302c23752410e8374ec1c52497e7b)), closes [#559](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/559)
+
+
+### Miscellaneous Chores
+
+* lint with eslint-plugin-obsidianmd, API hygiene and minAppVersion 1.15.0 ([#568](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/568)) ([10cd346](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/10cd346cac7ec45112496f577f1ba0da06cac258)), closes [#557](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/557)
+* replace selfsigned to shrink main.js ([#571](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/571)) ([94d2bc0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/94d2bc00630d3b344d2468094cf3545247f9d447))
+* **settings:** settings headings, sentence case, one plugin name and loopback-only without auth ([#566](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/566)) ([d36f9cc](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/d36f9ccad1984b1e87f9908f20899ca4fe3a8b54))
+
 ## [5.2.2](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/5.2.1...5.2.2) (2026-11-13)
 
 
