@@ -1,4 +1,4 @@
-# Configuration Reference
+# Configuration reference
 
 This page documents every persisted setting in `data.json` that has a
 matching row in the plugin's settings tab. Headings mirror the in-Obsidian
@@ -8,17 +8,17 @@ For the per-tool list (each tool's name, `readOnly` / `destructive`
 annotations, etc.) see [`tools.generated.md`](tools.generated.md), which
 is auto-generated from the tool registry.
 
-## Server Status
+## Status row
 
-Read-only summary section. Shows whether the server is running, the URL
-it is bound to, the number of connected clients, and a toggle plus
-restart button. Not a persisted setting.
+The first row of the tab, without a heading. Shows whether the server is
+running, the URL it is bound to, the number of connected clients, and a
+toggle plus restart button. Not a persisted setting.
 
-## Server Settings
+## Server
 
-### Server Address (`serverAddress`)
+### Server address (`serverAddress`)
 - **Default**: `127.0.0.1`
-- **Description**: IP address the MCP server binds to. The default `127.0.0.1` restricts access to the local machine only. Changing this to `0.0.0.0` will expose the server on all network interfaces — **use with caution** and ensure an access key is configured.
+- **Description**: IP address the MCP server binds to. The default `127.0.0.1` restricts access to the local machine only. Changing this to `0.0.0.0` will expose the server on all network interfaces — **use with caution**. Any address other than `127.0.0.1` requires `authEnabled`: without authentication the server refuses to start there (see `authEnabled` below).
 - **Validation**: Must be a valid IPv4 address
 
 ### Port (`port`)
@@ -33,37 +33,37 @@ restart button. Not a persisted setting.
 
 ### Require Bearer authentication (`authEnabled`)
 - **Default**: `true`
-- **Description**: When on (the default since v10), the server requires a Bearer access key on every request. When off, the server only binds if `iAcceptInsecureMode` is also true; otherwise startup fails with a clear error.
+- **Description**: When on (the default since v10), the server requires a Bearer access key on every request. When off, the server only binds if `iAcceptInsecureMode` is also true and `serverAddress` is `127.0.0.1`; otherwise startup fails with a notice that names the reason. The settings tab shows the same hint under the server address.
 
-### Acknowledge insecure mode (`iAcceptInsecureMode`)
+### Accept insecure mode (`iAcceptInsecureMode`)
 - **Default**: `false`
-- **Description**: Explicit acknowledgement that running with auth disabled is acceptable. Required to bind when `authEnabled === false`. Existing pre-v10 installs that ran default-insecure are grandfathered to `true` by the v9 → v10 migration so they keep working after upgrade. Toggling auth back on clears this flag.
+- **Description**: Explicit acknowledgement that running with auth disabled is acceptable. Required to bind when `authEnabled === false`, and only allows binding to `127.0.0.1`. Existing pre-v10 installs that ran default-insecure are grandfathered to `true` by the v9 → v10 migration so they keep working after upgrade. Toggling auth back on clears this flag.
 - **When visible**: `authEnabled === false`
 
-### Access Key (`accessKey`)
-- **Default**: (empty)
+### Access key (`accessKey`)
+- **Default**: generated at first load. When `authEnabled` is true and the key is empty, the plugin stores 32 random bytes as a 43-character base64url string.
 - **Description**: Bearer token for authenticating MCP clients. The server will not start without an access key configured.
-- **Generate**: Click the "Generate" button in settings to create a random 64-character hex key
+- **Generate**: Select the "Generate" button in settings to create a new key in the same format (32 random bytes, 43 base64url characters)
 - **When visible**: `authEnabled === true`
 
 ### HTTPS (`httpsEnabled`)
 - **Default**: `false`
 - **Description**: Enable HTTPS with a locally generated self-signed certificate. The certificate is generated on first server start and cached in plugin data; MCP clients must trust it explicitly (or disable certificate verification). Requires a server restart after toggling.
-- **Regenerate**: Click the refresh button on the "TLS Certificate" row in settings to produce a fresh certificate (e.g. after changing the server address). Existing clients will need to re-trust the new certificate.
+- **Regenerate**: Select the refresh button on the "TLS certificate" row in settings to produce a fresh certificate (e.g. after changing the server address). Existing clients will need to re-trust the new certificate.
 
-### TLS Certificate (`tlsCertificate`)
+### TLS certificate (`tlsCertificate`)
 - **Default**: `null`
 - **Description**: Cached self-signed certificate and private key (PEM) used when HTTPS is enabled. Generated automatically; regenerated on demand via the settings UI. Included in `data.json` — treat it like the access key.
 - **When visible**: `httpsEnabled === true && useCustomTls === false`
 
-### Use custom TLS (`useCustomTls`)
+### Bring your own certificate (`useCustomTls`)
 - **Default**: `false`
 - **Description**: When on, the server loads a user-provided cert/key pair from disk (`customTlsCertPath` + `customTlsKeyPath`) instead of the auto-generated self-signed cert.
 - **When visible**: `httpsEnabled === true`
 
-### Custom TLS
+### Custom TLS certificate
 
-When `useCustomTls` is on, an h3 subsection appears below with two file
+When `useCustomTls` is on, a "Custom TLS certificate" heading appears below with two file
 pickers for the cert and key. Both paths are validated on load via
 `loadAndValidateCustomTls`; errors render inline under the matching row.
 
@@ -77,19 +77,19 @@ pickers for the cert and key. Both paths are validated on load via
 - **Description**: Absolute filesystem path to the user-provided private key (PEM). Must match `customTlsCertPath`; mismatches surface as inline errors.
 - **When visible**: `httpsEnabled === true && useCustomTls === true`
 
-### Auto-start (`autoStart`)
+### Auto-start on launch (`autoStart`)
 - **Default**: `false`
 - **Description**: Start the MCP server automatically when Obsidian launches the plugin. Off by default so a fresh install doesn't open a network port until the user opts in.
 
-### Enable MCP resources (`resourcesEnabled`)
+### Expose vault files as MCP resources (`resourcesEnabled`)
 - **Default**: `true`
 - **Description**: Expose vault files as MCP resources (`obsidian://vault/{+path}` template + `obsidian://vault/index` static) in addition to tools. Turn off if your client doesn't speak the resources protocol or you want a tools-only surface.
 
-### Enable MCP prompts (`promptsEnabled`)
+### Expose MCP slash-command prompts (`promptsEnabled`)
 - **Default**: `true`
 - **Description**: Expose canned slash-command prompts via the MCP prompts surface (`/summarize-note`, `/find-related`, `/expand-template`, etc.). Turn off if your client doesn't use prompts.
 
-### DNS Rebind Protection
+### DNS rebind protection
 
 #### Allowed origins (`allowedOrigins`)
 - **Default**: `['http://127.0.0.1', 'http://localhost', 'https://127.0.0.1', 'https://localhost']`
@@ -107,7 +107,7 @@ pickers for the cert and key. Both paths are validated on load via
 - **Default**: `false`
 - **Description**: Reject requests that don't carry an `Origin` header. Off by default to keep `curl` and other native clients working; turn on for browser-only deployments.
 
-## MCP Client Configuration
+## MCP client configuration
 
 Read-only section that exposes a "Copy" button. Copies a JSON fragment
 shaped for `mcpServers`-style client configuration (URL plus a Bearer
@@ -115,7 +115,7 @@ header when auth is on). Not a persisted setting. The fragment holds the
 access key as plain text; for a committed Claude Code `.mcp.json`, use
 `${VAR}` expansion instead (see the manual, "Keep the access key out of git").
 
-## Feature Modules
+## Feature modules
 
 Each module can be individually enabled or disabled. When a module is enabled, all of its tools are exposed; there is no per-module read-only mode. Tools advertise MCP `annotations` (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) so clients can present them appropriately.
 
@@ -123,18 +123,18 @@ The per-tool list (names, annotations) lives in
 [`tools.generated.md`](tools.generated.md), which is auto-generated from
 the registry; the table below mirrors its module / count rows.
 
-| Module                    | Tools  | Default (new install) |
-| ------------------------- | ------ | --------------------- |
-| Vault and File Operations | 20     | on                    |
-| Editor Operations         | 10     | off                   |
-| Search and Metadata       | 6      | on                    |
-| Workspace and Navigation  | 5      | off                   |
-| UI Interactions           | 1      | off                   |
-| Templates                 | 3      | on                    |
-| Plugin Interop            | 4      | on                    |
-| Extras                    | 1      | off (per tool)        |
-| Server (always on)        | 1      | on                    |
-| **Total**                 | **54** |                       |
+| Module                           | Tools  | Default (new install) |
+| -------------------------------- | ------ | --------------------- |
+| Vault and file operations        | 20     | on                    |
+| Editor operations                | 10     | off                   |
+| Search and metadata              | 7      | on                    |
+| Workspace and navigation         | 5      | off                   |
+| UI interactions                  | 1      | off                   |
+| Templates and content generation | 3      | on                    |
+| Plugin interop                   | 4      | on                    |
+| Extras                           | 1      | off (per tool)        |
+| Server (always on)               | 1      | on                    |
+| **Total**                        | **52** |                       |
 
 Editor, Workspace and UI act on the note open in Obsidian and are off by
 default since 5.0. The state lives in `moduleStates[<moduleId>].enabled` in
@@ -146,7 +146,7 @@ new defaults.
 
 ### Conditional plugin tools
 
-Two Plugin Interop tools are listed only while they can work, independent of
+Two Plugin interop tools are listed only while they can work, independent of
 the module switch:
 
 - `plugin_dataview_query`: while the Dataview plugin is enabled
@@ -166,7 +166,7 @@ individually; the state is stored under
 `moduleStates[<moduleId>].toolStates[<toolName>]` in `data.json`. Today
 the only Extras module ships `extras_get_date`.
 
-## Execute Command Allowlist (`executeCommandAllowlist`)
+## Command allowlist (`executeCommandAllowlist`)
 
 - **Default**: `[]`
 - **Description**: Allowlist of Obsidian command ids that `plugin_execute_command` is permitted to run. Empty (the default) means command execution is disabled and the tool is not listed in `tools/list`; a non-empty list makes it appear for connected clients. Listed one per line; example:
@@ -177,11 +177,11 @@ the only Extras module ships `extras_get_date`.
 
 ## Diagnostics
 
-### Debug Mode (`debugMode`)
+### Debug mode (`debugMode`)
 - **Default**: `false`
 - **Description**: Enable verbose logging of all MCP requests and responses. Access keys are always redacted from logs.
 
-### Log file path
+### Log file
 - **Read-only**. Displays the absolute path of the plugin's log file. Not a persisted setting.
 
 ### Copy debug info
