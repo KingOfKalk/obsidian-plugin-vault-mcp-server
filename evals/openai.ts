@@ -194,6 +194,7 @@ export async function postChatCompletion(
     } catch (error) {
       throw new Error(
         `openai provider: request to ${url} failed: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
       );
     }
     if (RETRY_STATUSES.has(res.status) && retry < MAX_RETRIES) {

@@ -43,6 +43,7 @@
     "@wdio/mocha-framework": "^10.2.0",
     "esbuild": "^0.28.2",
     "eslint": "^10.14.0",
+    "eslint-plugin-obsidianmd": "^0.5.1",
     "mocha": "^12.0.3",
     "moment": "^2.31.0",
     "prettier": "^3.9.10",

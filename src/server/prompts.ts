@@ -55,7 +55,7 @@ export function createSummarizeNoteHandler(
 ): (args: PathArgs) => Promise<GetPromptResult> {
   // async so a synchronous throw from validateToolPath surfaces as a
   // rejected promise rather than a synchronous throw at the call site.
-  // eslint-disable-next-line @typescript-eslint/require-await
+  // eslint-disable-next-line @typescript-eslint/require-await -- async turns a throw into a rejection
   return async (args) => {
     const path = validatePath(adapter, args.path);
     return userTextMessage(
@@ -69,7 +69,7 @@ export function createFindRelatedHandler(
 ): (args: PathArgs) => Promise<GetPromptResult> {
   // async so a synchronous throw from validateToolPath surfaces as a
   // rejected promise rather than a synchronous throw at the call site.
-  // eslint-disable-next-line @typescript-eslint/require-await
+  // eslint-disable-next-line @typescript-eslint/require-await -- async turns a throw into a rejection
   return async (args) => {
     const path = validatePath(adapter, args.path);
     return userTextMessage(
@@ -104,7 +104,7 @@ export function createTemplateCompleter(
   // async so the return type matches the SDK's CompleteCallback signature
   // (string[] | Promise<string[]>), keeping this consistent with other
   // async-by-convention callbacks in this module.
-  // eslint-disable-next-line @typescript-eslint/require-await
+  // eslint-disable-next-line @typescript-eslint/require-await -- async by convention, as the SDK callback allows
   return async (partial) => {
     try {
       // The same folder template_list lists, subfolders included (#470).
@@ -127,7 +127,7 @@ interface DailyNoteArgs {
 
 export function createDailyNoteHandler(): (args: DailyNoteArgs) => Promise<GetPromptResult> {
   // async so a synchronous throw surfaces as a rejected promise.
-  // eslint-disable-next-line @typescript-eslint/require-await
+  // eslint-disable-next-line @typescript-eslint/require-await -- async turns a throw into a rejection
   return async (args) => {
     if (args.date !== undefined && !ISO_DATE.test(args.date)) {
       throw new Error('date must be YYYY-MM-DD');
@@ -174,7 +174,7 @@ export function createFixBrokenLinksHandler(
 ): (args: FixBrokenLinksArgs) => Promise<GetPromptResult> {
   // async so a synchronous throw from validateToolPath surfaces as a
   // rejected promise rather than a synchronous throw at the call site.
-  // eslint-disable-next-line @typescript-eslint/require-await
+  // eslint-disable-next-line @typescript-eslint/require-await -- async turns a throw into a rejection
   return async (args) => {
     const text = args.path !== undefined
       ? fixBrokenLinksSingleNoteBody(validatePath(adapter, args.path))
@@ -189,7 +189,7 @@ export function createUnresolvedSourcesCompleter(
   // async so the return type matches the SDK's CompleteCallback signature
   // (string[] | Promise<string[]>), keeping this consistent with other
   // async-by-convention callbacks in this module.
-  // eslint-disable-next-line @typescript-eslint/require-await
+  // eslint-disable-next-line @typescript-eslint/require-await -- async by convention, as the SDK callback allows
   return async (partial) => {
     try {
       const map = adapter.getUnresolvedLinks();
