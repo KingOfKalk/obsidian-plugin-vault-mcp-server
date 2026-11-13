@@ -116,7 +116,7 @@ jobs:
           # A pinned current release, so behaviour of newer Obsidian versions
           # is covered too. Bump it by hand.
           - name: current
-            obsidian: 1.15.0
+            obsidian: 1.15.1
     name: e2e (${{ matrix.name }})
     env:
       OBSIDIAN_VERSION: ${{ matrix.obsidian }}

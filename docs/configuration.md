@@ -180,7 +180,7 @@ the only Extras module ships `extras_get_date`.
 
 ### Debug mode (`debugMode`)
 - **Default**: `false`
-- **Description**: Enable verbose logging of all MCP requests and responses. Access keys are always redacted from logs.
+- **Description**: Log the method and URL of each request, plus session and tool events (not request or response bodies). Access keys are always redacted from logs.
 
 ### Log file
 - **Read-only**. Displays the absolute path of the plugin's log file. Not a persisted setting.

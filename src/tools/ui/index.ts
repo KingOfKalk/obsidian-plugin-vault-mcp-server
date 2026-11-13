@@ -32,7 +32,7 @@ const showNoticeOutputSchema = {
 
 export function createUiModule(adapter: ObsidianAdapter): ToolModule {
   return {
-    metadata: { id: 'ui', name: 'UI interactions', description: 'Show notices, modals, and prompts in Obsidian', defaultEnabled: false },
+    metadata: { id: 'ui', name: 'UI interactions', description: 'Show notices in Obsidian', defaultEnabled: false },
     tools(): ToolDefinition[] {
       return [
         defineTool({

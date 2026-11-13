@@ -468,7 +468,7 @@ same power as the Obsidian command palette.
 
 | Control | What it does |
 |---|---|
-| **Debug mode** | Verbose logging of every MCP request and response. Access keys are **always** redacted. |
+| **Debug mode** | Verbose logging of each request's method and URL, plus session and tool events (no request or response bodies). Access keys are **always** redacted. |
 | **Log file** | Read-only path to the persistent log at `<vault>/.obsidian/plugins/vault-mcp-server/debug.log`. The file rotates in place at 1 MiB (trims to the most recent 512 KiB). |
 | **Copy debug info** | Opens a modal with a copy-pasteable bundle: settings (with the access key replaced by `<set>`/`<empty>` and the cert by `<present>`/`<absent>`), module list, server status, and the most recent log lines. Safe to share when filing a bug. |
 | **Clear log** | Empties `debug.log`. |
@@ -1400,7 +1400,7 @@ immediately.
 
 ### Where can I see what the server is doing?
 
-- Turn on **Debug mode** for live request/response logging in the developer
+- Turn on **Debug mode** for live logging of requests (method and URL) and session and tool events in the developer
   console (`Ctrl+Shift+I`). These lines are at the console's **Verbose**
   level, which it hides by default. Without Debug mode the console only shows
   warnings and errors.
