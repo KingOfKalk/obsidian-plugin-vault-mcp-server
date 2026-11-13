@@ -28,13 +28,28 @@ jobs:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Enable auto-merge for dev-dep or github-actions minor/patch updates
+      # App token of the private GitHub App kingofkalk-release-bot instead of GITHUB_TOKEN, so the
+      # merge to main starts release.yml and CI. Dependabot runs see only Dependabot secrets (same
+      # names as the Actions secrets). workflows: write because GitHub Actions updates change files
+      # in .github/workflows. Created only for updates that get auto-merged.
+      - name: Create release App token
+        id: app-token
         if: |
           (steps.metadata.outputs.dependency-type == 'direct:development' ||
            steps.metadata.outputs.package-ecosystem == 'github_actions') &&
           (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
            steps.metadata.outputs.update-type == 'version-update:semver-minor')
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-workflows: write
+
+      - name: Enable auto-merge for dev-dep or github-actions minor/patch updates
+        if: steps.app-token.outcome == 'success'
         run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
