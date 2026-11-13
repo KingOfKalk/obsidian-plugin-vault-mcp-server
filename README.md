@@ -5,13 +5,13 @@ Vault MCP Server is an Obsidian desktop plugin that runs an MCP (Model Context P
 ## Features
 
 - **52 MCP tools** across 9 modules (the exact, always-current breakdown is in [`docs/tools.generated.md`](docs/tools.generated.md))
-- **Vault Operations**: Create, read, update, delete, move, copy files and folders
-- **Search & Metadata**: Full-text search, frontmatter, tags, headings, links, backlinks
-- **Editor Operations**: Access and manipulate the active editor (off by default)
-- **Workspace**: Manage panes, open files, navigate the workspace (off by default)
-- **UI Interactions**: Show notices in Obsidian (off by default)
-- **Templates**: List, create from, and expand templates
-- **Plugin Interop**: List plugins, execute commands, run Dataview queries
+- **Vault and file operations**: Create, read, update, delete, move, copy files and folders
+- **Search and metadata**: Full-text search, frontmatter, tags, headings, links, backlinks
+- **Editor operations**: Access and manipulate the active editor (off by default)
+- **Workspace and navigation**: Manage panes, open files, navigate the workspace (off by default)
+- **UI interactions**: Show notices in Obsidian (off by default)
+- **Templates and content generation**: List, create from, and expand templates
+- **Plugin interop**: List plugins, execute commands, run Dataview queries
 - **Extras**: Utility tools toggled per tool (e.g. `extras_get_date`)
 - **Security**: Bearer token authentication, Origin and Host allowlists, CORS, path traversal protection (see [Security](#security))
 - **Dynamic module toggles**: Enable/disable feature categories with a single per-module switch
