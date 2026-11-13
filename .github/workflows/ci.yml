@@ -174,8 +174,9 @@ jobs:
       - name: Verify main.js exists
         run: test -f main.js
 
-      - name: Create styles.css placeholder
-        run: echo "/* vault-mcp-server styles */" > styles.css
+      # styles.css is tracked and shipped as is; never overwrite it (#553).
+      - name: Verify styles.css exists
+        run: test -s styles.css
 
       - name: Measure bundle size
         id: size

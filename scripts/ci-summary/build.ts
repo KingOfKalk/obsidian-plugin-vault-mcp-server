@@ -109,7 +109,7 @@ function renderArtifact(artifact: NonNullable<BuildSummaryInput['artifact']>): s
   const where = artifact.url ? '' : ' It is listed under **Artifacts** on the run page.';
   return [
     '### Plugin artifact',
-    `${link} contains \`main.js\`, \`manifest.json\` and \`styles.css\` (placeholder).${artifact.retentionDays !== null ? ` Kept for ${artifact.retentionDays} days.` : ''}${where}`,
+    `${link} contains \`main.js\`, \`manifest.json\` and \`styles.css\`.${artifact.retentionDays !== null ? ` Kept for ${artifact.retentionDays} days.` : ''}${where}`,
     '**Install for testing:** download and unzip it, copy the three files into `<vault>/.obsidian/plugins/vault-mcp-server/`, then reload Obsidian or turn the plugin off and on in **Settings → Community plugins**. Use a test vault.',
   ].join('\n\n');
 }
