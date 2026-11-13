@@ -121,7 +121,7 @@ Feature modules can be individually enabled or disabled in the settings tab. Whe
 
 ## Security
 
-- Bearer authentication is on by default; without it the server starts only after you turn on **Accept insecure mode**
+- Bearer authentication is on by default; without it the server starts only on `127.0.0.1` and only after you turn on **Accept insecure mode**
 - Requests must carry an allowlisted `Host` (and `Origin`, if they send one); the defaults allow loopback only (DNS rebinding protection)
 - Five failed logins within a minute block the client's IP address for 30 seconds
 - File operations are scoped to the vault; the vault's config folder (with `data.json`) is off limits to clients
