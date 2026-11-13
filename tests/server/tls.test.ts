@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { X509Certificate } from 'crypto';
+import { X509Certificate, createPrivateKey } from 'crypto';
 import { generateSelfSignedCert } from '../../src/server/tls';
 
 describe('TLS certificate generation', () => {
@@ -40,6 +40,71 @@ describe('TLS certificate generation', () => {
     const b = await generateSelfSignedCert();
     expect(a.key).not.toBe(b.key);
     expect(a.cert).not.toBe(b.cert);
+  });
+
+  it('uses the fixed subject and issuer', async () => {
+    const { cert } = await generateSelfSignedCert();
+    const x509 = new X509Certificate(cert);
+    expect(x509.subject).toBe('CN=Vault MCP Server (localhost)');
+    expect(x509.issuer).toBe('CN=Vault MCP Server (localhost)');
+  });
+
+  it('lists exactly the loopback names by default', async () => {
+    const { cert } = await generateSelfSignedCert();
+    expect(new X509Certificate(cert).subjectAltName).toBe(
+      'DNS:localhost, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1',
+    );
+  });
+
+  it('does not repeat a host that is already a default', async () => {
+    const { cert } = await generateSelfSignedCert({ hosts: ['127.0.0.1', 'localhost'] });
+    expect(new X509Certificate(cert).subjectAltName).toBe(
+      'DNS:localhost, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1',
+    );
+  });
+
+  it('is valid for 365 days from now by default', async () => {
+    const before = Date.now();
+    const { cert } = await generateSelfSignedCert();
+    const after = Date.now();
+    const x509 = new X509Certificate(cert);
+    const notBefore = new Date(x509.validFrom).getTime();
+    const notAfter = new Date(x509.validTo).getTime();
+    // Second precision: notBefore is now, truncated to the second.
+    expect(notBefore).toBeGreaterThan(before - 1000);
+    expect(notBefore).toBeLessThanOrEqual(after);
+    expect(notAfter - notBefore).toBe(365 * 24 * 60 * 60 * 1000);
+  });
+
+  it('is a self-signed RSA-2048 server certificate', async () => {
+    const { cert, key } = await generateSelfSignedCert();
+    const x509 = new X509Certificate(cert);
+    expect(x509.publicKey.asymmetricKeyType).toBe('rsa');
+    expect(x509.publicKey.asymmetricKeyDetails?.modulusLength).toBe(2048);
+    expect(x509.ca).toBe(false);
+    expect(x509.keyUsage).toEqual(['1.3.6.1.5.5.7.3.1']);
+    expect(x509.verify(x509.publicKey)).toBe(true);
+    expect(x509.checkPrivateKey(createPrivateKey(key))).toBe(true);
+  });
+
+  it('uses a positive, 16-byte, unique serial number', async () => {
+    const serials = new Set<string>();
+    for (let i = 0; i < 5; i++) {
+      const { cert } = await generateSelfSignedCert();
+      const x509 = new X509Certificate(cert);
+      // DER: Certificate SEQUENCE (30 82 xx xx), TBSCertificate SEQUENCE
+      // (30 82 xx xx), version [0] (a0 03 02 01 02), then the serial INTEGER.
+      const raw = x509.raw;
+      expect(raw.subarray(4, 6).toString('hex')).toBe('3082');
+      expect(raw.subarray(8, 13).toString('hex')).toBe('a003020102');
+      expect(raw[13]).toBe(0x02);
+      expect(raw[14]).toBe(16);
+      // Positive (high bit clear) and minimal (first byte not zero).
+      expect(raw[15] & 0x80).toBe(0);
+      expect(raw[15]).not.toBe(0);
+      serials.add(x509.serialNumber);
+    }
+    expect(serials.size).toBe(5);
   });
 
   it('honors the validity window', async () => {
