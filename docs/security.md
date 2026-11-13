@@ -6,7 +6,7 @@ Any client that gets past authentication can use every tool you enabled: read, c
 
 ## Server start and network exposure
 
-- **Off until you start it.** The server starts only from the ribbon icon or the **Start MCP server** command. **Auto-start on launch** is off by default; when it is on, the plugin skips the start if the configuration would be refused anyway (no access key, or authentication off without **Accept insecure mode**).
+- **Off until you start it.** The server starts only when you start it: with the ribbon icon, the status toggle in the settings, or the **Start MCP server** and **Restart MCP server** commands. **Auto-start on launch** is off by default; when it is on, the plugin skips the start if the configuration would be refused anyway (no access key, or authentication off without **Accept insecure mode**).
 - **Loopback by default.** The server binds to `127.0.0.1`, port `28741`, so other computers cannot reach it. **Server address** accepts IPv4 addresses only.
 - **Settings take effect at the next start.** Server address, port, authentication, access key, HTTPS and the Origin and Host allowlists are read when the server starts. Restart it after changing them.
 
