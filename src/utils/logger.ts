@@ -76,23 +76,22 @@ export class Logger {
       ...(data !== undefined && { data: this.redactUnknown(data) }),
     };
 
-    const json = JSON.stringify(entry);
-
-    // stdio MCP transports require stdout to carry only JSON-RPC frames.
-    // Route every level through stderr so swapping transport doesn't corrupt the stream.
+    // The developer console shows only warnings and errors unless debug
+    // mode is on, as the Obsidian plugin guidelines ask (#557); `info`
+    // still reaches the sink (`debug.log`). `debug` and `info` use
+    // `console.debug`, which the console hides at its default level.
     switch (level) {
       case 'debug':
       case 'info':
-        // eslint-disable-next-line no-console
-        console.error(json);
+        if (this.options.debugMode) {
+          console.debug(JSON.stringify(entry));
+        }
         break;
       case 'warn':
-        // eslint-disable-next-line no-console
-        console.warn(json);
+        console.warn(JSON.stringify(entry));
         break;
       case 'error':
-        // eslint-disable-next-line no-console
-        console.error(json);
+        console.error(JSON.stringify(entry));
         break;
     }
 

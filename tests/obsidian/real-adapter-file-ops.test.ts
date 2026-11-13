@@ -112,15 +112,6 @@ describe('RealObsidianAdapter deletes go through fileManager.trashFile (#405)', 
     expect(vault.delete).not.toHaveBeenCalled();
   });
 
-  it('falls back to vault.trash(file, true) when fileManager.trashFile is missing (Obsidian < 1.6.6)', async () => {
-    const file = makeFile('a.md');
-    const { app, vault } = makeApp([file]);
-    (app as unknown as { fileManager: unknown }).fileManager = {};
-    await new RealObsidianAdapter(app).deleteFile('a.md');
-    expect(vault.trash).toHaveBeenCalledWith(file, true);
-    expect(vault.delete).not.toHaveBeenCalled();
-  });
-
   it('deleteFolder still refuses a non-empty folder without recursive', async () => {
     const folder = makeFolder('drafts', [makeFile('drafts/a.md')]);
     const { app, fileManager } = makeApp([folder]);

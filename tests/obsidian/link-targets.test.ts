@@ -4,6 +4,7 @@ import { CallToolResult } from '@modelcontextprotocol/server';
 import { RealObsidianAdapter, type ObsidianAdapter } from '../../src/obsidian/adapter';
 import { MockObsidianAdapter } from '../helpers/mock-adapter';
 import { resolveLinkpath } from '../helpers/link-resolver';
+import { mockFileSystemAdapter } from '../__mocks__/obsidian';
 import { createAspectHandlers, splitLinkSubpath } from '../../src/tools/vault/aspect';
 
 /** Resolved link targets in vault_get_aspect (#485). */
@@ -163,7 +164,7 @@ describe('vault_get_aspect link targets, real adapter', () => {
     const app = new App();
     (app as unknown as { vault: unknown }).vault = {
       configDir: '.obsidian',
-      adapter: { basePath: '/vault' },
+      adapter: mockFileSystemAdapter('/vault'),
       getAbstractFileByPath: (path: string): TFile | null => files.get(path) ?? null,
     };
     (app as unknown as { metadataCache: unknown }).metadataCache = {

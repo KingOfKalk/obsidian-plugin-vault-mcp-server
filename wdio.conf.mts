@@ -5,9 +5,7 @@ import * as path from 'node:path';
  * plugin and starts this config under `xvfb-run`.
  *
  * Obsidian is pinned so results do not change with an Obsidian update.
- * The default is 1.5.3: the manifest's minAppVersion is 1.5.0, but 1.5.0
- * to 1.5.2 were Insider (beta) builds that need an Obsidian account to
- * download, and 1.5.3 is the first public release at or above it.
+ * The default is the manifest's minAppVersion, 1.15.0 (#557).
  * OBSIDIAN_VERSION / OBSIDIAN_INSTALLER run the suite against another
  * version (CI also runs a pinned current version, see ci.yml).
  */
@@ -19,9 +17,9 @@ export const config: WebdriverIO.Config = {
   capabilities: [
     {
       browserName: 'obsidian',
-      browserVersion: process.env.OBSIDIAN_VERSION || '1.5.3',
+      browserVersion: process.env.OBSIDIAN_VERSION || '1.15.0',
       'wdio:obsidianOptions': {
-        installerVersion: process.env.OBSIDIAN_INSTALLER || '1.5.3',
+        installerVersion: process.env.OBSIDIAN_INSTALLER || '1.15.0',
         // Dataview is installed but starts disabled; plugin-tools.e2e.ts
         // switches it on and off (#469). Pinned like Obsidian itself.
         plugins: ['.', { repo: 'blacksmithgu/obsidian-dataview', version: '0.5.68', enabled: false }],

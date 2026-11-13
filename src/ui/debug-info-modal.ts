@@ -52,12 +52,17 @@ export class DebugInfoModal extends Modal {
       this.close();
     });
 
-    collectDebugInfo(this.plugin)
-      .then((bundle) => {
-        textarea.value = bundle;
-        copyBtn.disabled = false;
-      })
-      .catch(reportError('collect debug info', this.plugin.logger));
+    void this.showBundle(textarea, copyBtn);
+  }
+
+  /** Fill the textarea with the debug bundle and enable Copy. */
+  private async showBundle(textarea: HTMLTextAreaElement, copyBtn: HTMLButtonElement): Promise<void> {
+    try {
+      textarea.value = await collectDebugInfo(this.plugin);
+      copyBtn.disabled = false;
+    } catch (err) {
+      reportError('collect debug info', this.plugin.logger)(err);
+    }
   }
 
   onClose(): void {

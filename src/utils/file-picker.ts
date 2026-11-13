@@ -24,7 +24,10 @@ interface ElectronModule {
 type RequireFn = (module: string) => unknown;
 
 function resolveDialog(): ElectronDialog | null {
-  const req = (globalThis as { require?: RequireFn }).require;
+  // Obsidian's desktop window has Node's `require` (#557: `window`, not
+  // `globalThis`). There is no window in the unit tests.
+  if (typeof window === 'undefined') return null;
+  const req = (window as Window & { require?: RequireFn }).require;
   if (typeof req !== 'function') return null;
 
   const fromElectron = tryRequire<ElectronModule>(req, 'electron');

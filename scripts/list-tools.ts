@@ -84,7 +84,6 @@ async function main(): Promise<void> {
     );
   }
 
-  // eslint-disable-next-line no-console
   console.log(
     `Wrote ${outDir}/tools.generated.md and ${String(rows.length)} per-module pages under ${modulesDir}`,
   );
@@ -92,7 +91,6 @@ async function main(): Promise<void> {
 
 if (import.meta.url === `file://${argv[1]}`) {
   main().catch((err: unknown) => {
-    // eslint-disable-next-line no-console
     console.error(err);
     process.exit(1);
   });

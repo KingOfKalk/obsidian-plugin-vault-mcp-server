@@ -15,7 +15,7 @@ describe('Logger', () => {
     });
 
     it('should log debug messages when debug mode is on', () => {
-      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const spy = vi.spyOn(console, 'debug').mockImplementation(() => {});
       logger.debug('test debug message');
       expect(spy).toHaveBeenCalledTimes(1);
       const entry: LogEntry = JSON.parse(spy.mock.calls[0][0] as string) as LogEntry;
@@ -25,7 +25,7 @@ describe('Logger', () => {
     });
 
     it('should log info messages', () => {
-      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const spy = vi.spyOn(console, 'debug').mockImplementation(() => {});
       logger.info('test info');
       expect(spy).toHaveBeenCalledTimes(1);
       const entry: LogEntry = JSON.parse(spy.mock.calls[0][0] as string) as LogEntry;
@@ -49,7 +49,7 @@ describe('Logger', () => {
     });
 
     it('should include a timestamp in ISO format', () => {
-      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const spy = vi.spyOn(console, 'debug').mockImplementation(() => {});
       logger.info('timestamp test');
       const entry: LogEntry = JSON.parse(spy.mock.calls[0][0] as string) as LogEntry;
       expect(() => new Date(entry.timestamp)).not.toThrow();
@@ -57,14 +57,14 @@ describe('Logger', () => {
     });
 
     it('should include optional data when provided', () => {
-      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const spy = vi.spyOn(console, 'debug').mockImplementation(() => {});
       logger.info('with data', { foo: 'bar' });
       const entry = JSON.parse(spy.mock.calls[0][0] as string) as LogEntry;
       expect(entry.data).toEqual({ foo: 'bar' });
     });
 
     it('should not include data key when data is not provided', () => {
-      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const spy = vi.spyOn(console, 'debug').mockImplementation(() => {});
       logger.info('no data');
       const entry = JSON.parse(spy.mock.calls[0][0] as string) as LogEntry;
       expect(entry).not.toHaveProperty('data');
@@ -82,10 +82,22 @@ describe('Logger', () => {
       expect(spy).not.toHaveBeenCalled();
     });
 
-    it('should still log info messages', () => {
-      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      logger.info('this should appear');
-      expect(spy).toHaveBeenCalledTimes(1);
+    it('keeps info messages out of the console (#557)', () => {
+      const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      logger.info('only in debug.log');
+      expect(debugSpy).not.toHaveBeenCalled();
+      expect(errSpy).not.toHaveBeenCalled();
+      expect(logSpy).not.toHaveBeenCalled();
+    });
+
+    it('still sends info messages to the sink (debug.log)', () => {
+      const sink = vi.fn();
+      vi.spyOn(console, 'debug').mockImplementation(() => {});
+      createLogger('m', { debugMode: false, accessKey, sink }).info('kept');
+      expect(sink).toHaveBeenCalledTimes(1);
+      expect(sink.mock.calls[0][0]).toContain('INFO');
     });
 
     it('should still log warn messages', () => {
@@ -101,9 +113,10 @@ describe('Logger', () => {
     });
   });
 
-  describe('stdio transport compatibility', () => {
-    it('routes debug and info to console.error, never console.log', () => {
+  describe('console methods (#557)', () => {
+    it('in debug mode sends debug and info to console.debug, never console.log', () => {
       const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
       const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
@@ -114,8 +127,27 @@ describe('Logger', () => {
       l.error('e');
 
       expect(logSpy).not.toHaveBeenCalled();
-      expect(errSpy).toHaveBeenCalledTimes(3); // debug + info + error
+      expect(debugSpy).toHaveBeenCalledTimes(2); // debug + info
       expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(errSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('without debug mode prints only warn and error', () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const l = createLogger('m', { debugMode: false, accessKey: '' });
+      l.debug('d');
+      l.info('i');
+      l.warn('w');
+      l.error('e');
+
+      expect(logSpy).not.toHaveBeenCalled();
+      expect(debugSpy).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(errSpy).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -125,7 +157,7 @@ describe('Logger', () => {
     });
 
     it('should redact access key in message strings', () => {
-      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const spy = vi.spyOn(console, 'debug').mockImplementation(() => {});
       logger.info(`Authorization header: Bearer ${accessKey}`);
       const entry: LogEntry = JSON.parse(spy.mock.calls[0][0] as string) as LogEntry;
       expect(entry.message).not.toContain(accessKey);
@@ -133,7 +165,7 @@ describe('Logger', () => {
     });
 
     it('should redact access key in data strings', () => {
-      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const spy = vi.spyOn(console, 'debug').mockImplementation(() => {});
       logger.info('request', { header: `Bearer ${accessKey}` });
       const entry = JSON.parse(spy.mock.calls[0][0] as string) as LogEntry;
       const data = entry.data as Record<string, string>;
@@ -142,7 +174,7 @@ describe('Logger', () => {
     });
 
     it('should redact access key in nested data objects', () => {
-      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const spy = vi.spyOn(console, 'debug').mockImplementation(() => {});
       logger.info('nested', { req: { auth: accessKey } });
       const entry = JSON.parse(spy.mock.calls[0][0] as string) as LogEntry;
       const data = entry.data as Record<string, Record<string, string>>;
@@ -150,7 +182,7 @@ describe('Logger', () => {
     });
 
     it('should redact access key in arrays', () => {
-      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const spy = vi.spyOn(console, 'debug').mockImplementation(() => {});
       logger.info('array', [accessKey, 'safe']);
       const entry = JSON.parse(spy.mock.calls[0][0] as string) as LogEntry;
       const data = entry.data as string[];
@@ -160,14 +192,14 @@ describe('Logger', () => {
 
     it('should not redact when access key is empty', () => {
       const emptyLogger = createLogger('test', { debugMode: true, accessKey: '' });
-      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const spy = vi.spyOn(console, 'debug').mockImplementation(() => {});
       emptyLogger.info('no redaction needed');
       const entry: LogEntry = JSON.parse(spy.mock.calls[0][0] as string) as LogEntry;
       expect(entry.message).toBe('no redaction needed');
     });
 
     it('should handle non-string, non-object data without redaction', () => {
-      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const spy = vi.spyOn(console, 'debug').mockImplementation(() => {});
       logger.info('number data', 42);
       const entry = JSON.parse(spy.mock.calls[0][0] as string) as LogEntry;
       expect(entry.data).toBe(42);
@@ -309,7 +341,7 @@ describe('Logger', () => {
   describe('updateOptions', () => {
     it('should update debug mode dynamically', () => {
       logger = createLogger('test', { debugMode: false, accessKey: '' });
-      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const spy = vi.spyOn(console, 'debug').mockImplementation(() => {});
 
       logger.debug('suppressed');
       expect(spy).not.toHaveBeenCalled();

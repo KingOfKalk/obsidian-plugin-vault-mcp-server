@@ -28,16 +28,14 @@ export function renderHttpsSection(
         btn
           .setIcon('refresh-cw')
           .setTooltip(t('tooltip_regenerate_cert'))
-          .onClick(() => {
-            plugin
-              .regenerateTlsCertificate()
-              .then(() => {
-                new Notice(t('notice_tls_regenerated'));
-                refresh();
-              })
-              .catch(
-                reportError('regenerate TLS certificate', plugin.logger),
-              );
+          .onClick(async () => {
+            try {
+              await plugin.regenerateTlsCertificate();
+              new Notice(t('notice_tls_regenerated'));
+              refresh();
+            } catch (err) {
+              reportError('regenerate TLS certificate', plugin.logger)(err);
+            }
           }),
       );
   }

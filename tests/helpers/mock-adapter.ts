@@ -592,7 +592,7 @@ export class MockObsidianAdapter implements ObsidianAdapter {
     const lines = this.editorContent.split('\n');
     const from = this.selection.from;
     const to = this.selection.to;
-    let text = '';
+    let text: string;
     if (from.line === to.line) {
       text = lines[from.line].slice(from.ch, to.ch);
     } else {

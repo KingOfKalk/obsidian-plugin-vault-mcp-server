@@ -25,7 +25,8 @@ export interface MockElement {
     tag?: string,
     opts?: { text?: string; cls?: string; attr?: Record<string, string> },
   ) => MockElement;
-  createDiv: (opts?: { cls?: string }) => MockElement;
+  createDiv: (opts?: { text?: string; cls?: string; attr?: Record<string, string> }) => MockElement;
+  createSpan: (opts?: { text?: string; cls?: string; attr?: Record<string, string> }) => MockElement;
 }
 
 function mockEl(): MockElement {
@@ -64,17 +65,8 @@ function mockEl(): MockElement {
       };
       return child;
     },
-    createDiv: (opts): MockElement => {
-      const child = mockEl();
-      child.tagName = 'div';
-      if (opts?.cls) child.className = opts.cls;
-      el.children.push(child);
-      child.remove = (): void => {
-        const idx = el.children.indexOf(child);
-        if (idx >= 0) el.children.splice(idx, 1);
-      };
-      return child;
-    },
+    createDiv: (opts): MockElement => el.createEl('div', opts),
+    createSpan: (opts): MockElement => el.createEl('span', opts),
   };
   return el;
 }
@@ -89,6 +81,18 @@ export function mockElement(): MockElement {
  * cycle, so the plugin reports it as the Obsidian version.
  */
 export const apiVersion = '1.8.9';
+
+let mockLanguage = 'en';
+
+/** Obsidian's `getLanguage()` (since 1.8.7): the app language, default `en`. */
+export function getLanguage(): string {
+  return mockLanguage;
+}
+
+/** Test helper: the value `getLanguage()` returns. */
+export function setMockLanguage(language: string): void {
+  mockLanguage = language;
+}
 
 export interface MockManifest {
   id: string;
@@ -401,6 +405,43 @@ export class Vault {
   }
 }
 
+/** A view in a leaf; `leaf` is the leaf it is shown in. */
+export abstract class View {
+  leaf: unknown = null;
+  abstract getViewType(): string;
+}
+
+/** A view that shows a file (Markdown, canvas, PDF, image, …). */
+export abstract class FileView extends View {
+  file: TFile | null = null;
+}
+
+/** The desktop vault adapter; `getBasePath()` is the vault's absolute path. */
+export class FileSystemAdapter {
+  basePath = '/tmp/vault';
+  getBasePath(): string {
+    return this.basePath;
+  }
+}
+
+/**
+ * Test helper: a `FileSystemAdapter` for `basePath`. Typed loosely because
+ * tests see Obsidian's real typings, whose constructor differs.
+ */
+export function mockFileSystemAdapter(basePath: string): unknown {
+  return Object.assign(new FileSystemAdapter(), { basePath });
+}
+
+/**
+ * Obsidian's `normalizePath()`: one `/` between segments, no leading or
+ * trailing slash (`/` for the root), non-breaking spaces as spaces, NFC.
+ */
+export function normalizePath(path: string): string {
+  let result = path.replace(/([\\/])+/g, '/').replace(/(^\/+|\/+$)/g, '');
+  if (result === '') result = '/';
+  return result.replace(/[\u00A0\u202F]/g, ' ').normalize('NFC');
+}
+
 export class App {
   vault: Vault = new Vault();
   workspace: Record<string, unknown> = {};
@@ -519,7 +560,8 @@ export interface MockApp {
 export function mockVaultAdapter(
   overrides: Partial<MockVaultAdapter> = {},
 ): MockVaultAdapter {
-  return {
+  // A FileSystemAdapter, as on desktop, so `getBasePath()` works (#557).
+  return Object.assign(new FileSystemAdapter(), {
     basePath: '/tmp/vault',
     exists: (): Promise<boolean> => Promise.resolve(false),
     read: (): Promise<string> => Promise.resolve(''),
@@ -527,7 +569,7 @@ export function mockVaultAdapter(
     append: (): Promise<void> => Promise.resolve(),
     stat: (): Promise<null> => Promise.resolve(null),
     ...overrides,
-  };
+  });
 }
 
 export function mockVault(overrides: Partial<MockVault> = {}): MockVault {

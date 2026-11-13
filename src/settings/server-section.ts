@@ -66,13 +66,13 @@ export function renderServerStatusSection(
       btn
         .setIcon('refresh-cw')
         .setTooltip(t('tooltip_restart_server'))
-        .onClick(() => {
-          plugin
-            .restartServer()
-            .then(() => {
-              refresh();
-            })
-            .catch(reportError('restart server', plugin.logger));
+        .onClick(async () => {
+          try {
+            await plugin.restartServer();
+            refresh();
+          } catch (err) {
+            reportError('restart server', plugin.logger)(err);
+          }
         }),
     );
   }
@@ -81,18 +81,13 @@ export function renderServerStatusSection(
     toggle
       .setValue(isRunning)
       .setTooltip(isRunning ? t('tooltip_stop_server') : t('tooltip_start_server'))
-      .onChange((value) => {
-        const action = value ? plugin.startServer() : plugin.stopServer();
-        action
-          .then(() => {
-            refresh();
-          })
-          .catch(
-            reportError(
-              value ? 'start server' : 'stop server',
-              plugin.logger,
-            ),
-          );
+      .onChange(async (value) => {
+        try {
+          await (value ? plugin.startServer() : plugin.stopServer());
+          refresh();
+        } catch (err) {
+          reportError(value ? 'start server' : 'stop server', plugin.logger)(err);
+        }
       }),
   );
 }
@@ -251,14 +246,14 @@ export function renderServerSettingsSection(
         btn
           .setIcon('refresh-cw')
           .setTooltip(t('tooltip_generate'))
-          .onClick(() => {
+          .onClick(async () => {
             plugin.settings.accessKey = generateAccessKey();
-            plugin
-              .saveSettings()
-              .then(() => {
-                refresh();
-              })
-              .catch(reportError('save settings', plugin.logger));
+            try {
+              await plugin.saveSettings();
+              refresh();
+            } catch (err) {
+              reportError('save settings', plugin.logger)(err);
+            }
           }),
       );
   }

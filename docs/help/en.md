@@ -1399,7 +1399,9 @@ immediately.
 ### Where can I see what the server is doing?
 
 - Turn on **Debug mode** for live request/response logging in the developer
-  console (`Ctrl+Shift+I`).
+  console (`Ctrl+Shift+I`). These lines are at the console's **Verbose**
+  level, which it hides by default. Without Debug mode the console only shows
+  warnings and errors.
 - The persistent log is at
   `<vault>/.obsidian/plugins/vault-mcp-server/debug.log`.
 - Use **Copy debug info** to grab a sanitized bundle for bug reports.

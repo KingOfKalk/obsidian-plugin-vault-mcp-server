@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import { NodeStreamableHTTPServerTransport } from '@modelcontextprotocol/node';
 import { McpServer, isInitializeRequest } from '@modelcontextprotocol/server';
 import { Logger } from '../utils/logger';
+import { sleep, startInterval, type StopTimer } from '../utils/timers';
 import { authenticateRequest, sendAuthError, sendRateLimitError } from './auth';
 import { applyCorsHeaders, handlePreflight, CorsOptions, DEFAULT_CORS_OPTIONS } from './cors';
 import { FailureRateLimiter, normalizeIp } from './rate-limiter';
@@ -96,7 +97,7 @@ export class HttpMcpServer {
   private options: HttpServerOptions;
   private _connectedClients = 0;
   private sessions = new Map<string, Session>();
-  private sweepTimer: ReturnType<typeof setInterval> | null = null;
+  private stopSweep: StopTimer | null = null;
   private clock: () => number;
   private rateLimiter: FailureRateLimiter;
   private stopping: Promise<void> | null = null;
@@ -208,6 +209,7 @@ export class HttpMcpServer {
         if (this.clock() + delay > deadline) {
           throw new Error(
             `Port ${String(this.options.port)} is already in use. Choose a different port in settings.`,
+            { cause: error },
           );
         }
         if (!warned) {
@@ -216,7 +218,7 @@ export class HttpMcpServer {
             `Port ${String(this.options.port)} is in use, retrying for up to ${String(timeout)}ms`,
           );
         }
-        await new Promise<void>((resolve) => setTimeout(resolve, delay));
+        await sleep(delay);
       }
     }
   }
@@ -246,12 +248,13 @@ export class HttpMcpServer {
     if (interval <= 0) {
       return;
     }
-    this.sweepTimer = setInterval(() => {
-      this.sweepIdleSessions();
-    }, interval);
-    if (typeof this.sweepTimer.unref === 'function') {
-      this.sweepTimer.unref();
-    }
+    this.stopSweep = startInterval(
+      () => {
+        this.sweepIdleSessions();
+      },
+      interval,
+      { unref: true },
+    );
   }
 
   /**
@@ -532,9 +535,9 @@ export class HttpMcpServer {
   private async doStop(httpServer: Server): Promise<void> {
     this.logger.info('Stopping MCP server...');
 
-    if (this.sweepTimer) {
-      clearInterval(this.sweepTimer);
-      this.sweepTimer = null;
+    if (this.stopSweep) {
+      this.stopSweep();
+      this.stopSweep = null;
     }
 
     // Stop listening first, synchronously: this frees the port for a new

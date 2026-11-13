@@ -1,4 +1,4 @@
-import type { App } from 'obsidian';
+import { apiVersion, type App } from 'obsidian';
 import type { McpPluginSettings } from '../types';
 import type { ModuleRegistration } from '../registry/types';
 import { readLogFile } from './log-file';
@@ -21,7 +21,7 @@ interface ServerSnapshot {
 }
 
 export interface DebugInfoPluginRef {
-  app: App & { appVersion?: string };
+  app: App;
   manifest: { id: string; version: string };
   settings: McpPluginSettings;
   httpServer: ServerSnapshot | null;
@@ -49,7 +49,9 @@ function section(title: string, body: string): string {
 }
 
 function renderEnvironment(plugin: DebugInfoPluginRef): string {
-  const obsidianVersion = plugin.app.appVersion ?? 'unknown';
+  // `apiVersion` follows the app's release cycle and, unlike
+  // `app.appVersion`, is public API (#557).
+  const obsidianVersion = apiVersion;
   const lines = [
     `Plugin: ${plugin.manifest.id} ${plugin.manifest.version}`,
     `Obsidian: ${obsidianVersion}`,

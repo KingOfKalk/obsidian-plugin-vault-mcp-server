@@ -12,10 +12,19 @@ export function copyWithNotice(
   scope: string,
   logger: Logger,
 ): void {
-  navigator.clipboard
-    .writeText(text)
-    .then(() => {
-      new Notice(notice);
-    })
-    .catch(reportError(scope, logger));
+  void writeWithNotice(text, notice, scope, logger);
+}
+
+async function writeWithNotice(
+  text: string,
+  notice: string,
+  scope: string,
+  logger: Logger,
+): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+    new Notice(notice);
+  } catch (err) {
+    reportError(scope, logger)(err);
+  }
 }

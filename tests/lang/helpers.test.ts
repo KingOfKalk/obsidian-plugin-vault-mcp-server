@@ -2,26 +2,11 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import { t } from '../../src/lang/helpers';
 import en from '../../src/lang/locale/en';
 import de from '../../src/lang/locale/de';
+import { setMockLanguage } from '../__mocks__/obsidian';
 
-interface WindowWithStorage {
-  localStorage: { getItem: (key: string) => string | null };
-}
-
-function setLanguage(lang: string | null): void {
-  const win: WindowWithStorage = {
-    localStorage: {
-      getItem: (key: string): string | null =>
-        key === 'language' ? lang : null,
-    },
-  };
-  Object.defineProperty(globalThis, 'window', {
-    value: win,
-    configurable: true,
-  });
-}
-
-function clearWindow(): void {
-  delete (globalThis as unknown as { window?: unknown }).window;
+/** The app language as Obsidian's `getLanguage()` reports it (#557). */
+function setLanguage(lang: string): void {
+  setMockLanguage(lang);
 }
 
 describe('t()', () => {
@@ -34,7 +19,7 @@ describe('t()', () => {
   });
 
   afterEach(() => {
-    clearWindow();
+    setMockLanguage('en');
   });
 
   afterAll(() => {
@@ -50,16 +35,6 @@ describe('t()', () => {
     it('returns the German string when language is "de"', () => {
       setLanguage('de');
       expect(t('setting_status_name')).toBe(de.setting_status_name);
-    });
-
-    it('falls back to English when window is undefined (SSR / tests)', () => {
-      clearWindow();
-      expect(t('setting_port_name')).toBe(en.setting_port_name);
-    });
-
-    it('falls back to English when language is not set', () => {
-      setLanguage(null);
-      expect(t('setting_port_name')).toBe(en.setting_port_name);
     });
 
     it('does not log an error when using a registered locale', () => {
@@ -92,6 +67,14 @@ describe('t()', () => {
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining('fr'),
       );
+    });
+
+    it('logs an unknown locale only once, not on every lookup (#557)', () => {
+      setLanguage('pt-BR');
+      t('setting_port_name');
+      t('setting_status_name');
+      t('setting_port_name');
+      expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
     });
   });
 
