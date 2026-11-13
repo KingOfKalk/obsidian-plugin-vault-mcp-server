@@ -107,7 +107,7 @@ const de: Partial<Record<keyof typeof en, string>> = {
   warning_non_loopback_host:
     'Warnung: Mindestens ein Host liegt außerhalb von Loopback. Das vergrößert die Angriffsfläche — nur aktivieren, wenn du DNS-Rebind-Risiken verstehst.',
   setting_debug_name: 'Debug-Modus',
-  setting_debug_desc: 'Ausführliches Protokollieren von MCP-Anfragen und -Antworten',
+  setting_debug_desc: 'Protokolliert Methode und URL jeder Anfrage sowie Sitzungs- und Tool-Ereignisse',
 
   // MCP client configuration section
   heading_mcp_client_config: 'MCP-Client-Konfiguration',
