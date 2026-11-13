@@ -18,6 +18,14 @@ describe('vault_rename updateTitle (#520)', () => {
     expect(parsed.updateTitle).toBe(false);
   });
 
+  it.each(['a/b.md', 'a\\b.md', 'a\0b.md'])('the schema rejects newName %j (#557)', (newName) => {
+    const result = z.object(renameFileSchema).safeParse({ path: 'a.md', newName });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0].message).toBe(
+      'newName must not contain path separators or null bytes',
+    );
+  });
+
   it('leaves the heading alone and adds no field without the flag', async () => {
     adapter.addFile('notes/Draft.md', '# Draft\n\nBody');
     const result = await handlers.renameFile({ path: 'notes/Draft.md', newName: 'Final.md' });

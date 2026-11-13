@@ -173,10 +173,8 @@ export const renameFileSchema = {
     .string()
     .min(1)
     .max(255)
-    .regex(
-      /^[^/\\\x00]+$/,
-      'newName must not contain path separators or null bytes',
-    )
+    .regex(/^[^/\\]+$/, 'newName must not contain path separators or null bytes')
+    .refine((name) => !name.includes('\0'), 'newName must not contain path separators or null bytes')
     .describe(
       'New name of the last path segment, extension included ("final.md", not "final"); the folder stays the same. No / or \\.',
     ),

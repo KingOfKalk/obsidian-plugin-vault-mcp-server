@@ -8,14 +8,23 @@ interface WindowLike {
 }
 
 describe('pickFile', () => {
-  const originalRequire = (globalThis as unknown as WindowLike).require;
+  // Obsidian's window, where the picker finds Node's `require` (#557).
+  let win: WindowLike;
 
   beforeEach(() => {
-    (globalThis as unknown as WindowLike).require = undefined;
+    win = {};
+    vi.stubGlobal('window', win);
   });
 
   afterEach(() => {
-    (globalThis as unknown as WindowLike).require = originalRequire;
+    vi.unstubAllGlobals();
+  });
+
+  it('returns null outside Obsidian, where there is no window', async () => {
+    vi.unstubAllGlobals();
+    expect(typeof window).toBe('undefined');
+    const result = await pickFile({ title: 't', filters: [] });
+    expect(result).toBeNull();
   });
 
   it('returns the first selected path when the user picks a file', async () => {
@@ -23,7 +32,7 @@ describe('pickFile', () => {
       canceled: false,
       filePaths: ['/tmp/my.crt'],
     });
-    (globalThis as unknown as WindowLike).require = (m: string): unknown => {
+    win.require = (m: string): unknown => {
       if (m === 'electron') {
         return { remote: { dialog: { showOpenDialog } } };
       }
@@ -44,7 +53,7 @@ describe('pickFile', () => {
   });
 
   it('returns null when the user cancels the dialog', async () => {
-    (globalThis as unknown as WindowLike).require = (m: string): unknown => {
+    win.require = (m: string): unknown => {
       if (m === 'electron') {
         return {
           remote: {
@@ -64,13 +73,13 @@ describe('pickFile', () => {
   });
 
   it('returns null when Electron is not available', async () => {
-    (globalThis as unknown as WindowLike).require = undefined;
+    win.require = undefined;
     const result = await pickFile({ title: 't', filters: [] });
     expect(result).toBeNull();
   });
 
   it('returns null when the dialog resolves without filePaths', async () => {
-    (globalThis as unknown as WindowLike).require = (m: string): unknown => {
+    win.require = (m: string): unknown => {
       if (m === 'electron') {
         return {
           remote: {

@@ -274,7 +274,8 @@ function validateFrontmatterChange(setKeys: string[], removeKeys: string[]): voi
   }
 }
 
-const RENAME_TARGET_PATTERN =/^[^/\\\x00]+$/;
+/** No path separator; null bytes are checked apart (no control character in a regex, #557). */
+const RENAME_TARGET_PATTERN = /^[^/\\]+$/;
 
 /**
  * The files a rename of `path` moves, for counting the links to them: every
@@ -332,7 +333,8 @@ function isValidRenameTarget(value: unknown): value is string {
     value.length > 0 &&
     value.length <= 255 &&
     value.trim().length > 0 &&
-    RENAME_TARGET_PATTERN.test(value)
+    RENAME_TARGET_PATTERN.test(value) &&
+    !value.includes('\0')
   );
 }
 

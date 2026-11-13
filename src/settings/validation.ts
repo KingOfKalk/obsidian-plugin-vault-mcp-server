@@ -22,7 +22,7 @@ export function createValidationError(
         errorEl.textContent = message;
         return;
       }
-      errorEl = setting.descEl.createEl('div', {
+      errorEl = setting.descEl.createDiv({
         cls: 'mcp-settings-error',
         text: message,
       });

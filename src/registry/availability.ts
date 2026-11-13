@@ -1,4 +1,5 @@
 import type { ModuleRegistry } from './module-registry';
+import { startInterval } from '../utils/timers';
 
 /**
  * How often the plugin re-checks tool availability (#469). Obsidian has no
@@ -18,10 +19,7 @@ export function startAvailabilityPolling(
   intervalMs: number = AVAILABILITY_POLL_MS,
 ): () => void {
   registry.refreshAvailability();
-  const timer = setInterval(() => {
+  return startInterval(() => {
     registry.refreshAvailability();
   }, intervalMs);
-  return (): void => {
-    clearInterval(timer);
-  };
 }

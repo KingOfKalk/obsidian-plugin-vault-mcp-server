@@ -330,7 +330,7 @@ export default class McpPlugin extends Plugin {
       if (isRunning) {
         this.statusBarItem.setText(`MCP :${String(this.settings.port)}`);
       } else if (failure) {
-        this.statusBarItem.createEl('span', {
+        this.statusBarItem.createSpan({
           cls: 'mcp-statusbar-error',
           text: `MCP :${String(failure.port)}`,
         });

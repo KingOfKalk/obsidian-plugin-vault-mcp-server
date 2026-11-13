@@ -8,13 +8,23 @@ class QuietLogger extends Logger {
   override info(): void {}
 }
 
+/**
+ * Fake timers on a stubbed `window`: the polling uses the window's timers
+ * in Obsidian (#557), and Vitest does not fake the `node:timers` fallback.
+ */
+function useFakeWindowTimers(): void {
+  vi.useFakeTimers();
+  vi.stubGlobal('window', globalThis);
+}
+
 afterEach(() => {
+  vi.unstubAllGlobals();
   vi.useRealTimers();
 });
 
 describe('startAvailabilityPolling (#469)', () => {
   it('checks once right away and then every interval until stopped', () => {
-    vi.useFakeTimers();
+    useFakeWindowTimers();
     const registry = new ModuleRegistry(new QuietLogger('test', { debugMode: false, accessKey: '' }));
     const refresh = vi.spyOn(registry, 'refreshAvailability');
 
@@ -29,7 +39,7 @@ describe('startAvailabilityPolling (#469)', () => {
   });
 
   it('defaults to a few seconds', () => {
-    vi.useFakeTimers();
+    useFakeWindowTimers();
     const registry = new ModuleRegistry(new QuietLogger('test', { debugMode: false, accessKey: '' }));
     const refresh = vi.spyOn(registry, 'refreshAvailability');
     const stop = startAvailabilityPolling(registry);

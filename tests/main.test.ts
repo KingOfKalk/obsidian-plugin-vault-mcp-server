@@ -480,7 +480,10 @@ describe('McpPlugin module defaults and plugin tools (#469)', () => {
   });
 
   it('polls tool availability while loaded and stops on unload', async () => {
+    // The polling uses the window's timers in Obsidian (#557); Vitest does
+    // not fake the `node:timers` fallback used without a window.
     vi.useFakeTimers();
+    vi.stubGlobal('window', globalThis);
     try {
       const plugin = createPlugin(null);
       await plugin.onload();
@@ -492,6 +495,7 @@ describe('McpPlugin module defaults and plugin tools (#469)', () => {
       vi.advanceTimersByTime(10_000);
       expect(refresh).not.toHaveBeenCalled();
     } finally {
+      vi.unstubAllGlobals();
       vi.useRealTimers();
     }
   });

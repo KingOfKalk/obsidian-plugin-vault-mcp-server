@@ -230,7 +230,11 @@ describe('Server restart after a plugin update (#518)', () => {
         bindRetryDelayMs: 20,
         bindRetryTimeoutMs: 100,
       });
-      await expect(server.start()).rejects.toThrow(/already in use/);
+      // The last EADDRINUSE stays attached as `cause` (#557).
+      await expect(server.start()).rejects.toMatchObject({
+        message: expect.stringMatching(/already in use/) as unknown,
+        cause: { code: 'EADDRINUSE' },
+      });
       expect(server.isRunning).toBe(false);
     } finally {
       await new Promise<void>((r) => blocker.close(() => r()));
