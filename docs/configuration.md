@@ -43,6 +43,7 @@ toggle plus restart button. Not a persisted setting.
 ### Access key (`accessKey`)
 - **Default**: generated at first load. When `authEnabled` is true and the key is empty, the plugin stores 32 random bytes as a 43-character base64url string.
 - **Description**: Bearer token for authenticating MCP clients. The server will not start without an access key configured.
+- **Storage**: Not in `data.json`: the key is kept in Obsidian's secret storage (`app.secretStorage`, id `vault-mcp-server-access-key`), per device and not synced with the vault. An older install's key is moved there unchanged on the first load. If secret storage is not available, the key stays in `data.json` as before. See [Where the access key is stored](security.md#where-the-access-key-is-stored).
 - **Generate**: Select the "Generate" button in settings to create a new key in the same format (32 random bytes, 43 base64url characters)
 - **When visible**: `authEnabled === true`
 
@@ -193,4 +194,4 @@ the only Extras module ships `extras_get_date`.
 
 ## Settings Persistence
 
-All settings are stored in Obsidian's plugin `data.json` file. Settings include a schema version for automatic migration between plugin versions.
+All settings are stored in Obsidian's plugin `data.json` file, except the access key, which is kept in Obsidian's secret storage (with `data.json` as the fallback, see [Access key](#access-key-accesskey)). Settings include a schema version for automatic migration between plugin versions.

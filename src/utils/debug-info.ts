@@ -1,6 +1,7 @@
 import { apiVersion, type App } from 'obsidian';
 import type { McpPluginSettings } from '../types';
 import type { ModuleRegistration } from '../registry/types';
+import type { AccessKeyLocation } from '../settings/access-key-store';
 import { readLogFile } from './log-file';
 
 /**
@@ -24,6 +25,8 @@ export interface DebugInfoPluginRef {
   app: App;
   manifest: { id: string; version: string };
   settings: McpPluginSettings;
+  /** Where the access key is persisted (#560). */
+  accessKeyLocation?: AccessKeyLocation;
   httpServer: ServerSnapshot | null;
   registry: { getModules: () => ModuleRegistration[] };
 }
@@ -34,7 +37,7 @@ export async function collectDebugInfo(
   const sections: string[] = [
     section('Environment', renderEnvironment(plugin)),
     section('Server', renderServer(plugin)),
-    section('Settings (redacted)', renderSettings(plugin.settings)),
+    section('Settings (redacted)', renderSettings(plugin.settings, plugin.accessKeyLocation)),
     section('Modules', renderModules(plugin.registry.getModules())),
     section(
       `Recent log (last ${String(RECENT_LOG_LINES)} lines)`,
@@ -77,12 +80,16 @@ function renderServer(plugin: DebugInfoPluginRef): string {
   return lines.join('\n');
 }
 
-function renderSettings(settings: McpPluginSettings): string {
+function renderSettings(
+  settings: McpPluginSettings,
+  accessKeyLocation: AccessKeyLocation | undefined,
+): string {
   const lines = [
     `schemaVersion: ${String(settings.schemaVersion)}`,
     `serverAddress: ${settings.serverAddress}`,
     `port: ${String(settings.port)}`,
     `accessKey: ${settings.accessKey.length > 0 ? '<set>' : '<empty>'}`,
+    ...(accessKeyLocation ? [`accessKeyStorage: ${accessKeyLocation}`] : []),
     `httpsEnabled: ${String(settings.httpsEnabled)}`,
     `tlsCertificate: ${settings.tlsCertificate ? '<present>' : '<absent>'}`,
     `debugMode: ${String(settings.debugMode)}`,

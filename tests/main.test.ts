@@ -16,7 +16,13 @@ import type { App, PluginManifest } from 'obsidian';
 import McpPlugin from '../src/main';
 import { generateSelfSignedCert } from '../src/server/tls';
 import type { TlsCertificateData } from '../src/types';
-import { mockApp, type MockApp, type MockManifest } from './__mocks__/obsidian';
+import {
+  mockApp,
+  mockSecretStorage,
+  type MockApp,
+  type MockManifest,
+} from './__mocks__/obsidian';
+import { ACCESS_KEY_SECRET_ID } from '../src/settings/access-key-store';
 
 interface TestPlugin extends McpPlugin {
   loadData: () => Promise<Record<string, unknown> | null>;
@@ -28,8 +34,10 @@ interface MutablePluginFields {
   manifest: MockManifest;
 }
 
-function createPlugin(persisted: Record<string, unknown> | null): TestPlugin {
-  const app = mockApp();
+function createPlugin(
+  persisted: Record<string, unknown> | null,
+  app: MockApp = mockApp(),
+): TestPlugin {
   const manifest: MockManifest = { id: 'vault-mcp-server', version: '0.0.0' };
   const plugin = new McpPlugin(
     app as unknown as App,
@@ -596,6 +604,117 @@ describe('McpPlugin refuses to run without auth outside loopback (#558)', () => 
     const [message] = noticeSpy.mock.calls[0] as [string];
     expect(message).toContain('Vault MCP Server');
     expect(message).toContain('127.0.0.1');
+    plugin.onunload();
+  });
+});
+
+describe('McpPlugin keeps the access key in SecretStorage (#560, #563)', () => {
+  const persistedWithKey = (accessKey: string): Record<string, unknown> => ({
+    schemaVersion: 13,
+    serverAddress: '127.0.0.1',
+    port: 28741,
+    authEnabled: true,
+    accessKey,
+    autoStart: false,
+    seenInsecureWarning: true,
+    moduleStates: {},
+  });
+
+  /** Every object passed to saveData, i.e. every data.json write. */
+  function writes(plugin: TestPlugin): Record<string, unknown>[] {
+    return vi.mocked(plugin.saveData).mock.calls.map(([data]) => data as Record<string, unknown>);
+  }
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('moves an existing key from data.json to secret storage, unchanged', async () => {
+    const app = mockApp();
+    const plugin = createPlugin(persistedWithKey('existing-key'), app);
+
+    await plugin.onload();
+
+    expect(plugin.settings.accessKey).toBe('existing-key');
+    expect(app.secretStorage?.secrets.get(ACCESS_KEY_SECRET_ID)).toBe('existing-key');
+    const saved = writes(plugin);
+    expect(saved.length).toBeGreaterThan(0);
+    expect(saved.at(-1)).not.toHaveProperty('accessKey');
+    expect(saved.at(-1)).toMatchObject({ port: 28741, authEnabled: true });
+    expect(plugin.accessKeyLocation).toBe('secret-storage');
+    plugin.onunload();
+  });
+
+  it('generates the key of a fresh install straight into secret storage', async () => {
+    const app = mockApp();
+    const plugin = createPlugin(null, app);
+
+    await plugin.onload();
+
+    expect(plugin.settings.accessKey).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(app.secretStorage?.secrets.get(ACCESS_KEY_SECRET_ID)).toBe(plugin.settings.accessKey);
+    for (const data of writes(plugin)) {
+      expect(data).not.toHaveProperty('accessKey');
+    }
+    plugin.onunload();
+  });
+
+  it('loads the key from secret storage on the next load (reload)', async () => {
+    const app = mockApp({ secretStorage: mockSecretStorage({ [ACCESS_KEY_SECRET_ID]: 'stored-key' }) });
+    const withoutKey = persistedWithKey('');
+    delete withoutKey.accessKey;
+    const plugin = createPlugin(withoutKey, app);
+
+    await plugin.onload();
+
+    expect(plugin.settings.accessKey).toBe('stored-key');
+    expect(plugin.saveData).not.toHaveBeenCalled();
+    plugin.onunload();
+  });
+
+  it('writes a regenerated key to secret storage, not to data.json', async () => {
+    const app = mockApp();
+    const plugin = createPlugin(persistedWithKey('existing-key'), app);
+    await plugin.onload();
+
+    plugin.settings.accessKey = 'regenerated-key';
+    await plugin.saveSettings();
+
+    expect(app.secretStorage?.secrets.get(ACCESS_KEY_SECRET_ID)).toBe('regenerated-key');
+    expect(writes(plugin).at(-1)).not.toHaveProperty('accessKey');
+    plugin.onunload();
+  });
+
+  it('keeps the key in data.json when SecretStorage is unavailable, and warns once', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const app = mockApp({ secretStorage: undefined });
+    const plugin = createPlugin(persistedWithKey('existing-key'), app);
+
+    await plugin.onload();
+    plugin.settings.accessKey = 'regenerated-key';
+    await plugin.saveSettings();
+
+    expect(plugin.settings.accessKey).toBe('regenerated-key');
+    expect(writes(plugin).at(-1)).toMatchObject({ accessKey: 'regenerated-key' });
+    expect(plugin.accessKeyLocation).toBe('data-json');
+    const fallbackWarnings = warn.mock.calls.filter(([line]) =>
+      String(line).includes('SecretStorage'),
+    );
+    expect(fallbackWarnings).toHaveLength(1);
+    plugin.onunload();
+  });
+
+  it('redacts a key generated after load in the log (#563)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const plugin = createPlugin(persistedWithKey('existing-key'));
+    await plugin.onload();
+
+    plugin.settings.accessKey = 'key-generated-later';
+    plugin.logger.warn('header: Bearer key-generated-later');
+
+    const line = String(warn.mock.calls.at(-1)?.[0]);
+    expect(line).not.toContain('key-generated-later');
+    expect(line).toContain('[REDACTED]');
     plugin.onunload();
   });
 });

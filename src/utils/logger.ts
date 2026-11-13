@@ -10,7 +10,12 @@ export interface LogEntry {
 
 interface LoggerOptions {
   debugMode: boolean;
-  accessKey: string;
+  /**
+   * The access key to redact, or a getter for it. Pass a getter so a key
+   * generated or changed after the logger was created is redacted too
+   * (#563); it is read on every log call.
+   */
+  accessKey: string | (() => string);
   /**
    * Optional plain-text sink invoked once per emitted log line, after
    * level gating and access-key redaction. Used to persist log output
@@ -105,10 +110,12 @@ export class Logger {
   }
 
   private redact(value: string): string {
-    if (!this.options.accessKey || this.options.accessKey.length === 0) {
+    const { accessKey } = this.options;
+    const key = typeof accessKey === 'function' ? accessKey() : accessKey;
+    if (!key || key.length === 0) {
       return value;
     }
-    return value.split(this.options.accessKey).join('[REDACTED]');
+    return value.split(key).join('[REDACTED]');
   }
 
   /**

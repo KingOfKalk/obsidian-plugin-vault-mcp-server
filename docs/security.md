@@ -29,7 +29,17 @@ Any client that gets past authentication can use every tool you enabled: read, c
 - **Keep it secret.** The key gives full access to every enabled tool. The **MCP client configuration** snippet in the settings contains it.
 - **Don't commit it.** In a committed Claude Code `.mcp.json`, reference an environment variable instead (`"Authorization": "Bearer ${OBSIDIAN_MCP_TOKEN}"`); see the [manual](help/en.md#keep-the-access-key-out-of-git).
 - **Rotate it** if you suspect it leaked: **Generate**, restart the server, update your clients.
-- **Stored in plain text** in the plugin's `data.json` (see [Data on disk](#data-on-disk)). Planned: the key moves to Obsidian's secret storage ([#560](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/560)).
+- **Stored in Obsidian's secret storage**, not in `data.json` (see [Where the access key is stored](#where-the-access-key-is-stored)).
+
+### Where the access key is stored
+
+- **Secret storage.** The plugin keeps the key in Obsidian's secret storage (`app.secretStorage`, Obsidian 1.11.4 and later) under the id `vault-mcp-server-access-key`. Obsidian keeps it outside the vault folder, in its local storage for this vault, [encrypted at rest since 1.11.5](https://obsidian.md/changelog/2026-01-15-desktop-v1.11.5/) ([Obsidian docs: Store secrets](https://docs.obsidian.md/plugins/guides/secret-storage)).
+- **Upgrade from an older version.** On the first load, the plugin moves the key from `data.json` to secret storage unchanged and removes it from `data.json`. Connected clients keep working. If secret storage already holds a key for this vault, that key stays and the one in `data.json` is removed.
+- **One key per device.** Secret storage is not part of the vault folder, so Obsidian Sync, other sync tools and backups of the vault do not copy the key. On another device, or after restoring the vault from a backup, the plugin generates a new key on its first load there; configure each device's clients with that device's key. Update the plugin on every device that shares the vault: a version before secret storage finds no key in the synced `data.json` and generates a new one.
+- **Fallback.** If secret storage is not available or fails, the key stays in `data.json` in plain text, as in earlier versions, and the plugin logs a warning once. It tries secret storage again at the next load. **Copy debug info** shows where the key is (`accessKeyStorage`).
+- **Removing the plugin** leaves the key in secret storage; Obsidian has no API for plugins to delete a secret. Without the plugin, no server accepts it.
+- **Other plugins** in the same vault can read secret storage by id, as they can read `data.json`. Secret storage protects the key from copies of the vault folder, not from code running in Obsidian.
+- The cached self-signed certificate's private key is still in `data.json` (see [Data on disk](#data-on-disk)).
 
 ## DNS rebinding protection (Origin and Host)
 
@@ -99,7 +109,7 @@ Every path a client passes to a tool, prompt or resource is checked so it stays 
 - The plugin logs to the developer console and to `debug.log` in its folder. Without **Debug mode**, the levels info, warning and error are logged; with it, debug as well.
 - **What `debug.log` holds:** server start and stop, module registration, errors (which can name notes), failed logins (the reason only), rate-limited addresses, and requests rejected by the Origin and Host check with the client's IP address, method, path, Origin and Host. **Debug mode** adds the method and URL of every request, session ids as sessions open and close, and tool and prompt registration. Request and response bodies are not logged; a tool call with invalid arguments logs the field names and the validation messages.
 - `debug.log` is rotated when it grows past 1 MiB (the last 512 KiB are kept). **Clear log** in the settings empties it.
-- **The access key** is not written to the log: no request header other than `Origin` and `Host` is logged. As a second guard, the logger replaces the access key with `[REDACTED]` in every message and logged value. It uses the key the plugin had when it loaded; a key you generate later is covered after Obsidian reloads the plugin.
+- **The access key** is not written to the log: no request header other than `Origin` and `Host` is logged. As a second guard, the logger replaces the current access key with `[REDACTED]` in every message and logged value, including a key you generate or type after the plugin loaded.
 - **Copy debug info** shows the environment, server status, a few settings (the access key and certificate only as set or not set), the module states and the last 200 lines of `debug.log`, and copies them to the clipboard. Nothing is sent anywhere.
 
 ## Data on disk
@@ -108,11 +118,12 @@ Both files are in the plugin's folder in the vault's config folder (`<vault>/.ob
 
 | File | Contents |
 | --- | --- |
-| `data.json` | All settings, in plain text: the access key, the cached self-signed certificate with its private key, the paths of your own certificate and key, the allowlists |
+| `data.json` | All settings except the access key, in plain text: the cached self-signed certificate with its private key, the paths of your own certificate and key, the allowlists. The access key only if secret storage is not available ([fallback](#where-the-access-key-is-stored)) |
 | `debug.log` | The log described above |
 
-- MCP clients cannot read or write them (config folder, see [Path checks](#path-checks)).
-- Anything that syncs or backs up the whole vault folder copies them, including the access key and the private key. Exclude the plugin's folder from shared or public copies of the vault, and generate a new key and certificate if a copy leaked.
+- The access key is in Obsidian's secret storage, outside the vault folder (see [Where the access key is stored](#where-the-access-key-is-stored)).
+- MCP clients cannot read or write these files (config folder, see [Path checks](#path-checks)).
+- Anything that syncs or backs up the whole vault folder copies them, including the certificate's private key. Exclude the plugin's folder from shared or public copies of the vault, and regenerate the certificate (and the key, if it was in `data.json`) if a copy leaked.
 
 ## Recommendations
 

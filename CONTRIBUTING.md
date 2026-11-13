@@ -87,6 +87,8 @@ No public API lists plugins, runs a command by id or reads the core plugins' opt
 
 Public API used instead of internals since #557: `workspace.getActiveViewOfType(View)` and `FileView.file` (not `workspace.activeLeaf` or `view.file` on any view), `TFile.stat` (not `vault.adapter.stat`), `FileSystemAdapter.getBasePath()` (not `adapter.basePath`), `apiVersion` (not `app.appVersion`), `getLanguage()` (not `localStorage.language`), `fileManager.trashFile()` without the `vault.trash` fallback, `Vault.process` for `vault_update`, and `normalizePath()` on every path the adapter passes to the Vault API.
 
+`app.secretStorage` (public since 1.11.4) holds the access key (#560, `src/settings/access-key-store.ts`). It is typed optional where it is read, every call is in `try`/`catch`, and the fallback is the key in `data.json`. Never write the access key to `data.json` directly: `saveSettings()` decides where it goes.
+
 ## Adding a New Tool Module
 
 1. Create a new directory under `src/tools/<module-name>/`

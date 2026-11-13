@@ -190,6 +190,41 @@ describe('Logger', () => {
       expect(data[1]).toBe('safe');
     });
 
+    it('redacts the current key when the key is passed as a getter (#563)', () => {
+      let current = '';
+      const live = createLogger('test', { debugMode: true, accessKey: () => current });
+      const spy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+
+      // A key generated or changed after the logger was created.
+      current = 'key-generated-after-load';
+      live.info(`Bearer ${current}`, { header: current });
+
+      const entry = JSON.parse(spy.mock.calls[0][0] as string) as LogEntry;
+      expect(entry.message).toBe('Bearer [REDACTED]');
+      expect(entry.data).toEqual({ header: '[REDACTED]' });
+    });
+
+    it('stops redacting a replaced key once the getter returns the new one (#563)', () => {
+      let current = 'old-key-11111';
+      const live = createLogger('test', { debugMode: true, accessKey: () => current });
+      const spy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+
+      current = 'new-key-22222';
+      live.info('old-key-11111 new-key-22222');
+
+      const entry = JSON.parse(spy.mock.calls[0][0] as string) as LogEntry;
+      expect(entry.message).toBe('old-key-11111 [REDACTED]');
+    });
+
+    it('redacts a key set later through updateOptions', () => {
+      const l = createLogger('test', { debugMode: true, accessKey: '' });
+      l.updateOptions({ accessKey: 'updated-key-33333' });
+      const spy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      l.info('updated-key-33333');
+      const entry = JSON.parse(spy.mock.calls[0][0] as string) as LogEntry;
+      expect(entry.message).toBe('[REDACTED]');
+    });
+
     it('should not redact when access key is empty', () => {
       const emptyLogger = createLogger('test', { debugMode: true, accessKey: '' });
       const spy = vi.spyOn(console, 'debug').mockImplementation(() => {});
