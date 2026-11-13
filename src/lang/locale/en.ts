@@ -106,7 +106,7 @@ const en = {
   warning_non_loopback_host:
     'Warning: one or more hosts point outside loopback. This widens the attack surface — only do this if you understand DNS-rebind risks.',
   setting_debug_name: 'Debug mode',
-  setting_debug_desc: 'Enable verbose logging of MCP requests and responses',
+  setting_debug_desc: 'Log the method and URL of each request plus session and tool events',
 
   // Settings — MCP client configuration section
   heading_mcp_client_config: 'MCP client configuration',
