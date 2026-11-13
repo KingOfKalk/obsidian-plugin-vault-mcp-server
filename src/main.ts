@@ -5,7 +5,12 @@ import { ModuleRegistry } from './registry/module-registry';
 import { startAvailabilityPolling } from './registry/availability';
 import { createMcpServer } from './server/mcp-server';
 import { HttpMcpServer } from './server/http-server';
-import { generateSelfSignedCert } from './server/tls';
+import {
+  CERT_RENEWAL_THRESHOLD_DAYS,
+  checkCertificateExpiry,
+  generateSelfSignedCert,
+  needsRenewal,
+} from './server/tls';
 import { insecureBindRefusal, type InsecureBindRefusal } from './server/bind-guard';
 import { CustomTlsError, loadAndValidateCustomTls } from './server/custom-tls';
 import { RealObsidianAdapter, ObsidianAdapter } from './obsidian/adapter';
@@ -303,9 +308,26 @@ export default class McpPlugin extends Plugin {
           !customTlsCertPath ? 'cert_not_readable' : 'key_not_readable',
         );
       }
-      return loadAndValidateCustomTls(customTlsCertPath, customTlsKeyPath);
+      const custom = await loadAndValidateCustomTls(customTlsCertPath, customTlsKeyPath);
+      this.warnIfCustomCertExpiring(custom.cert);
+      return custom;
     }
     return this.ensureTlsCertificate();
+  }
+
+  /**
+   * Your own certificate is never replaced (#564): warn when it expires
+   * within the renewal threshold. An expired one never gets here,
+   * `loadAndValidateCustomTls` refuses it and the server does not start.
+   */
+  private warnIfCustomCertExpiring(certPem: string): void {
+    const expiry = checkCertificateExpiry(certPem);
+    if (expiry.state !== 'expiring' || !expiry.notAfter) return;
+    const date = expiry.notAfter.toISOString().slice(0, 10);
+    this.logger.warn(
+      `Custom TLS certificate expires on ${date} (within ${CERT_RENEWAL_THRESHOLD_DAYS} days); replace it before then`,
+    );
+    new Notice(t('notice_custom_tls_expiring', { date }), 15000);
   }
 
   private formatTlsError(error: unknown): string {
@@ -316,10 +338,29 @@ export default class McpPlugin extends Plugin {
   }
 
   private async ensureTlsCertificate(): Promise<TlsCertificateData> {
-    if (this.settings.tlsCertificate) {
-      return this.settings.tlsCertificate;
+    const cached = this.settings.tlsCertificate;
+    if (!cached) {
+      this.logger.info('Generating self-signed TLS certificate');
+      return this.generateAndStoreTlsCertificate();
     }
-    this.logger.info('Generating self-signed TLS certificate');
+    // Renew the cached self-signed certificate before it expires (#564).
+    const expiry = checkCertificateExpiry(cached.cert);
+    if (!needsRenewal(expiry)) {
+      return cached;
+    }
+    const reason =
+      expiry.state === 'unparsable'
+        ? 'could not be read'
+        : expiry.state === 'expired'
+          ? 'has expired'
+          : `expires within ${CERT_RENEWAL_THRESHOLD_DAYS} days`;
+    this.logger.warn(`Self-signed TLS certificate ${reason}; generating a new one`);
+    const cert = await this.generateAndStoreTlsCertificate();
+    new Notice(t('notice_tls_certificate_renewed'), 15000);
+    return cert;
+  }
+
+  private async generateAndStoreTlsCertificate(): Promise<TlsCertificateData> {
     const cert = await generateSelfSignedCert({
       hosts: [this.settings.serverAddress],
     });

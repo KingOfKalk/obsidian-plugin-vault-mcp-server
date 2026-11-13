@@ -47,12 +47,14 @@ const de: Partial<Record<keyof typeof en, string>> = {
     'MCP über HTTPS mit einem lokal erzeugten selbstsignierten Zertifikat ausliefern. Clients müssen dem Zertifikat vertrauen (oder die Zertifikatsprüfung deaktivieren). Neustart erforderlich.',
   setting_tls_cert_name: 'TLS-Zertifikat',
   setting_tls_cert_desc_present:
-    'Ein selbstsigniertes Zertifikat ist gecacht. Neu erzeugen, um es zu ersetzen (z. B. nach Änderung der Serveradresse).',
+    'Ein selbstsigniertes Zertifikat ist gecacht. Es wird beim Serverstart erneuert, sobald es in {days} Tagen oder früher abläuft. Neu erzeugen, um es sofort zu ersetzen (z. B. nach Änderung der Serveradresse).',
   setting_tls_cert_desc_absent:
     'Noch kein Zertifikat gecacht — beim nächsten Serverstart wird eines erzeugt.',
   tooltip_regenerate_cert: 'Zertifikat neu erzeugen',
   notice_tls_regenerated:
     'TLS-Zertifikat neu erzeugt. Starte den Server neu, damit es aktiv wird.',
+  notice_tls_certificate_renewed:
+    'Das selbstsignierte TLS-Zertifikat lief bald ab, war abgelaufen oder nicht lesbar und wurde erneuert. MCP-Clients müssen dem neuen Zertifikat vertrauen.',
   setting_custom_tls_toggle_name: 'Eigenes Zertifikat verwenden',
   setting_custom_tls_toggle_desc:
     'Eigenes TLS-Zertifikat und privaten Schlüssel statt des erzeugten, selbstsignierten Zertifikats verwenden. Die Dateien werden bei jedem Serverstart von der Festplatte gelesen.',
@@ -79,6 +81,8 @@ const de: Partial<Record<keyof typeof en, string>> = {
     'Das Zertifikat ist bereits abgelaufen.',
   notice_custom_tls_server_refused:
     'MCP-Server nicht gestartet — das eigene Zertifikat ist ungültig: {message}',
+  notice_custom_tls_expiring:
+    'Dein TLS-Zertifikat läuft am {date} ab. Ersetze es vorher; mit einem abgelaufenen Zertifikat startet der Server nicht.',
   setting_autostart_name: 'Beim Start automatisch starten',
   setting_autostart_desc: 'MCP-Server automatisch starten, wenn Obsidian gestartet wird',
   setting_resources_enabled_name: 'Vault-Dateien als MCP-Ressourcen freigeben',
@@ -107,7 +111,7 @@ const de: Partial<Record<keyof typeof en, string>> = {
   warning_non_loopback_host:
     'Warnung: Mindestens ein Host liegt außerhalb von Loopback. Das vergrößert die Angriffsfläche — nur aktivieren, wenn du DNS-Rebind-Risiken verstehst.',
   setting_debug_name: 'Debug-Modus',
-  setting_debug_desc: 'Ausführliches Protokollieren von MCP-Anfragen und -Antworten',
+  setting_debug_desc: 'Protokolliert Methode und URL jeder Anfrage sowie Sitzungs- und Tool-Ereignisse',
 
   // MCP client configuration section
   heading_mcp_client_config: 'MCP-Client-Konfiguration',

@@ -72,14 +72,17 @@ HTTPS is off by default. Turn it on under **HTTPS**; the server then speaks only
 ### Self-signed certificate (default with HTTPS)
 
 - Generated on the first HTTPS start: RSA-2048 key, SHA-256 signature, valid for 365 days, for `localhost`, `127.0.0.1`, `::1` and the configured server address.
-- Cached in `data.json` together with its private key. It is not renewed automatically: after 365 days, or after changing the server address, use **Regenerate certificate** and restart the server.
-- Clients must trust it explicitly (for example `curl --cacert`, or the `ca` option / `NODE_EXTRA_CA_CERTS` for Node clients); a public CA cannot verify it. A regenerated certificate must be trusted again.
+- Cached in `data.json` together with its private key.
+- **Renewed automatically.** At every server start (also with **Auto-start on launch**), the plugin reads the cached certificate's expiry date. If it expires within 30 days, has expired or cannot be read, the plugin generates a new certificate and key, saves them in `data.json`, logs a warning and shows a notice that MCP clients must trust the new certificate.
+- After changing the server address, use **Regenerate certificate** and restart the server; the cached certificate is not renewed for a new address.
+- Clients must trust it explicitly (for example `curl --cacert`, or the `ca` option / `NODE_EXTRA_CA_CERTS` for Node clients); a public CA cannot verify it. A regenerated or renewed certificate must be trusted again.
 
 ### Bring your own certificate
 
 - **Bring your own certificate** uses a certificate and private key in PEM format that you pick in the system file dialog. The plugin stores the two absolute paths in `data.json`, not the files' contents.
 - Both files are read from disk at every server start. These are the only files outside the vault the plugin reads; it never writes outside the vault.
 - Before starting, the plugin checks that the key and the certificate parse, that the key belongs to the certificate and that the certificate has not expired. If a check fails, the server does not start and a notice says why.
+- **Never replaced.** The plugin does not renew or change your own certificate. If it expires within 30 days, the server still starts, and the plugin logs a warning and shows a notice with the expiry date. Once it has expired, the server does not start until you pick a valid certificate.
 
 ## What connected clients can do
 

@@ -1,6 +1,21 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  beforeAll,
+  afterAll,
+  type MockInstance,
+} from 'vitest';
+import { X509Certificate } from 'node:crypto';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { App, PluginManifest } from 'obsidian';
 import McpPlugin from '../src/main';
+import { generateSelfSignedCert } from '../src/server/tls';
+import type { TlsCertificateData } from '../src/types';
 import {
   mockApp,
   mockSecretStorage,
@@ -700,6 +715,174 @@ describe('McpPlugin keeps the access key in SecretStorage (#560, #563)', () => {
     const line = String(warn.mock.calls.at(-1)?.[0]);
     expect(line).not.toContain('key-generated-later');
     expect(line).toContain('[REDACTED]');
+    plugin.onunload();
+  });
+});
+
+describe('McpPlugin renews the self-signed certificate before it expires (#564)', () => {
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  let workDir: string;
+  let freshCert: TlsCertificateData;
+  let expiringCert: TlsCertificateData;
+  let expiredCert: TlsCertificateData;
+
+  beforeAll(async () => {
+    workDir = await mkdtemp(join(tmpdir(), 'cert-renewal-'));
+    freshCert = await generateSelfSignedCert({ validityDays: 365 });
+    expiringCert = await generateSelfSignedCert({ validityDays: 10 });
+    expiredCert = await generateSelfSignedCert({ validityDays: 0 });
+    // Make sure "now" is strictly past the 0-day certificate's notAfter.
+    await new Promise((r) => setTimeout(r, 20));
+  });
+
+  afterAll(async () => {
+    await rm(workDir, { recursive: true, force: true });
+  });
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function httpsSettings(overrides: Record<string, unknown>): Record<string, unknown> {
+    return {
+      schemaVersion: 13,
+      serverAddress: '127.0.0.1',
+      port: 28741,
+      accessKey: 'configured-key',
+      httpsEnabled: true,
+      tlsCertificate: null,
+      useCustomTls: false,
+      customTlsCertPath: null,
+      customTlsKeyPath: null,
+      debugMode: false,
+      autoStart: false,
+      authEnabled: true,
+      iAcceptInsecureMode: false,
+      seenInsecureWarning: true,
+      moduleStates: {},
+      ...overrides,
+    };
+  }
+
+  async function startWith(
+    overrides: Record<string, unknown>,
+  ): Promise<{ plugin: TestPlugin; notices: string[]; bindSpy: MockInstance }> {
+    const obsidian = await import('obsidian');
+    const { HttpMcpServer } = await import('../src/server/http-server');
+    const plugin = createPlugin(httpsSettings(overrides));
+    await plugin.onload();
+    const bindSpy = vi.spyOn(HttpMcpServer.prototype, 'start').mockResolvedValue(undefined);
+    vi.spyOn(HttpMcpServer.prototype, 'isRunning', 'get').mockReturnValue(true);
+    const noticeSpy = vi.spyOn(obsidian, 'Notice');
+    vi.mocked(plugin.saveData).mockClear();
+    await plugin.startServer();
+    const notices = noticeSpy.mock.calls.map((call) => (call as [string])[0]);
+    return { plugin, notices, bindSpy };
+  }
+
+  function lastSavedCertificate(plugin: TestPlugin): unknown {
+    const calls = vi.mocked(plugin.saveData).mock.calls;
+    if (calls.length === 0) return undefined;
+    const saved = calls[calls.length - 1][0] as { tlsCertificate?: unknown };
+    return saved.tlsCertificate;
+  }
+
+  function daysLeft(cert: string): number {
+    return (new Date(new X509Certificate(cert).validTo).getTime() - Date.now()) / DAY_MS;
+  }
+
+  it('keeps a cached certificate that is still valid for more than 30 days', async () => {
+    const { plugin, notices, bindSpy } = await startWith({ tlsCertificate: freshCert });
+
+    expect(plugin.settings.tlsCertificate).toEqual(freshCert);
+    expect(plugin.saveData).not.toHaveBeenCalled();
+    expect(notices.some((n) => n.includes('renewed'))).toBe(false);
+    expect(bindSpy).toHaveBeenCalled();
+    plugin.onunload();
+  });
+
+  it.each([
+    ['expires within 30 days', (): TlsCertificateData => expiringCert],
+    ['has expired', (): TlsCertificateData => expiredCert],
+    ['does not parse', (): TlsCertificateData => ({ cert: 'NOT A PEM', key: 'NOT A KEY' })],
+  ])('regenerates, persists and announces a cached certificate that %s', async (_label, cached) => {
+    const old = cached();
+    const { plugin, notices, bindSpy } = await startWith({ tlsCertificate: old });
+
+    const renewed = plugin.settings.tlsCertificate;
+    expect(renewed).not.toBeNull();
+    expect(renewed?.cert).not.toBe(old.cert);
+    expect(renewed?.key).not.toBe(old.key);
+    expect(daysLeft(renewed?.cert ?? '')).toBeGreaterThan(364);
+    expect(lastSavedCertificate(plugin)).toEqual(renewed);
+    expect(notices.some((n) => n.includes('renewed') && n.includes('trust'))).toBe(true);
+    expect(bindSpy).toHaveBeenCalled();
+    plugin.onunload();
+  });
+
+  it('does not show the renewal notice when it generates the first certificate', async () => {
+    const { plugin, notices } = await startWith({ tlsCertificate: null });
+
+    expect(plugin.settings.tlsCertificate).not.toBeNull();
+    expect(notices.some((n) => n.includes('renewed'))).toBe(false);
+    plugin.onunload();
+  });
+
+  async function writeCustomPair(
+    prefix: string,
+    pair: TlsCertificateData,
+  ): Promise<{ customTlsCertPath: string; customTlsKeyPath: string }> {
+    const customTlsCertPath = join(workDir, `${prefix}.crt`);
+    const customTlsKeyPath = join(workDir, `${prefix}.key`);
+    await writeFile(customTlsCertPath, pair.cert, 'utf8');
+    await writeFile(customTlsKeyPath, pair.key, 'utf8');
+    return { customTlsCertPath, customTlsKeyPath };
+  }
+
+  it('never replaces your own certificate that expires within 30 days, but warns', async () => {
+    const paths = await writeCustomPair('custom-expiring', expiringCert);
+    const { plugin, notices, bindSpy } = await startWith({
+      useCustomTls: true,
+      ...paths,
+      // An expiring cached self-signed certificate must stay untouched too:
+      // with your own certificate, the self-signed one is not used.
+      tlsCertificate: expiringCert,
+    });
+
+    expect(await readFile(paths.customTlsCertPath, 'utf8')).toBe(expiringCert.cert);
+    expect(await readFile(paths.customTlsKeyPath, 'utf8')).toBe(expiringCert.key);
+    expect(plugin.settings.customTlsCertPath).toBe(paths.customTlsCertPath);
+    expect(plugin.settings.customTlsKeyPath).toBe(paths.customTlsKeyPath);
+    expect(plugin.settings.tlsCertificate).toEqual(expiringCert);
+    expect(plugin.saveData).not.toHaveBeenCalled();
+    expect(notices.some((n) => n.includes('renewed'))).toBe(false);
+    expect(notices.some((n) => n.includes('expires'))).toBe(true);
+    expect(bindSpy).toHaveBeenCalled();
+    plugin.onunload();
+  });
+
+  it('never replaces your own expired certificate; the server refuses to start', async () => {
+    const paths = await writeCustomPair('custom-expired', expiredCert);
+    const { plugin, notices, bindSpy } = await startWith({
+      useCustomTls: true,
+      ...paths,
+      tlsCertificate: null,
+    });
+
+    expect(await readFile(paths.customTlsCertPath, 'utf8')).toBe(expiredCert.cert);
+    expect(plugin.settings.tlsCertificate).toBeNull();
+    expect(plugin.saveData).not.toHaveBeenCalled();
+    expect(notices.some((n) => n.includes('expiry'))).toBe(true);
+    expect(bindSpy).not.toHaveBeenCalled();
+    plugin.onunload();
+  });
+
+  it('does not warn about your own certificate while it is valid for more than 30 days', async () => {
+    const paths = await writeCustomPair('custom-fresh', freshCert);
+    const { plugin, notices, bindSpy } = await startWith({ useCustomTls: true, ...paths });
+
+    expect(notices.some((n) => n.includes('expires'))).toBe(false);
+    expect(bindSpy).toHaveBeenCalled();
     plugin.onunload();
   });
 });

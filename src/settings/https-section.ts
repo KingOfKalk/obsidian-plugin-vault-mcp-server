@@ -1,6 +1,7 @@
 import { Notice, Setting } from 'obsidian';
 import type McpPlugin from '../main';
 import { t } from '../lang/helpers';
+import { CERT_RENEWAL_THRESHOLD_DAYS } from '../server/tls';
 import { reportError } from '../utils/report-error';
 import { renderTlsSection } from './tls-section';
 import { bindToggle } from './bind-toggle';
@@ -21,7 +22,7 @@ export function renderHttpsSection(
       .setName(t('setting_tls_cert_name'))
       .setDesc(
         hasCert
-          ? t('setting_tls_cert_desc_present')
+          ? t('setting_tls_cert_desc_present', { days: CERT_RENEWAL_THRESHOLD_DAYS })
           : t('setting_tls_cert_desc_absent'),
       )
       .addExtraButton((btn) =>
