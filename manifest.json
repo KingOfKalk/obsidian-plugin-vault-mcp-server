@@ -3,7 +3,8 @@
   "name": "Vault MCP Server",
   "version": "5.2.2",
   "minAppVersion": "1.5.0",
-  "description": "Exposes your vault as a Model Context Protocol server for AI assistants.",
+  "description": "Expose your vault as a Model Context Protocol (MCP) server for AI assistants.",
   "author": "KingOfKalk",
+  "authorUrl": "https://github.com/KingOfKalk",
   "isDesktopOnly": true
 }
