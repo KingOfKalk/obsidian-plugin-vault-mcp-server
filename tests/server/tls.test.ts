@@ -1,6 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { X509Certificate, createPrivateKey } from 'crypto';
-import { generateSelfSignedCert } from '../../src/server/tls';
+import {
+  CERT_RENEWAL_THRESHOLD_DAYS,
+  checkCertificateExpiry,
+  generateSelfSignedCert,
+  needsRenewal,
+} from '../../src/server/tls';
 
 describe('TLS certificate generation', () => {
   it('returns PEM-encoded cert and private key', async () => {
@@ -115,5 +120,66 @@ describe('TLS certificate generation', () => {
     const span = (notAfter - notBefore) / (1000 * 60 * 60 * 24);
     expect(span).toBeGreaterThan(29);
     expect(span).toBeLessThan(31);
+  });
+});
+
+describe('checkCertificateExpiry', () => {
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  let cert: string;
+  let notAfter: number;
+
+  beforeAll(async () => {
+    ({ cert } = await generateSelfSignedCert({ validityDays: 365 }));
+    notAfter = new Date(new X509Certificate(cert).validTo).getTime();
+  });
+
+  it('uses a 30-day renewal threshold', () => {
+    expect(CERT_RENEWAL_THRESHOLD_DAYS).toBe(30);
+  });
+
+  it('reports a fresh certificate as valid', () => {
+    const result = checkCertificateExpiry(cert);
+    expect(result.state).toBe('valid');
+    expect(result.notAfter?.getTime()).toBe(notAfter);
+    expect(result.daysLeft).toBeGreaterThanOrEqual(364);
+  });
+
+  it('reports a certificate that expires within the threshold as expiring', () => {
+    const now = new Date(notAfter - 10 * DAY_MS);
+    const result = checkCertificateExpiry(cert, now);
+    expect(result.state).toBe('expiring');
+    expect(result.daysLeft).toBe(10);
+  });
+
+  it('counts exactly the threshold as expiring and one day more as valid', () => {
+    expect(
+      checkCertificateExpiry(cert, new Date(notAfter - CERT_RENEWAL_THRESHOLD_DAYS * DAY_MS))
+        .state,
+    ).toBe('expiring');
+    expect(
+      checkCertificateExpiry(
+        cert,
+        new Date(notAfter - (CERT_RENEWAL_THRESHOLD_DAYS + 1) * DAY_MS),
+      ).state,
+    ).toBe('valid');
+  });
+
+  it('reports a certificate past its expiry as expired', () => {
+    expect(checkCertificateExpiry(cert, new Date(notAfter)).state).toBe('expired');
+    const result = checkCertificateExpiry(cert, new Date(notAfter + 5 * DAY_MS));
+    expect(result.state).toBe('expired');
+    expect(result.daysLeft).toBeLessThan(0);
+  });
+
+  it('reports a certificate that does not parse as unparsable', () => {
+    expect(checkCertificateExpiry('NOT A PEM').state).toBe('unparsable');
+    expect(checkCertificateExpiry('').state).toBe('unparsable');
+  });
+
+  it('flags every state except valid for renewal', () => {
+    expect(needsRenewal(checkCertificateExpiry(cert))).toBe(false);
+    expect(needsRenewal(checkCertificateExpiry(cert, new Date(notAfter - DAY_MS)))).toBe(true);
+    expect(needsRenewal(checkCertificateExpiry(cert, new Date(notAfter + DAY_MS)))).toBe(true);
+    expect(needsRenewal(checkCertificateExpiry('NOT A PEM'))).toBe(true);
   });
 });

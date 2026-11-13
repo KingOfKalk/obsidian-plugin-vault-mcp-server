@@ -54,6 +54,7 @@ toggle plus restart button. Not a persisted setting.
 ### TLS certificate (`tlsCertificate`)
 - **Default**: `null`
 - **Description**: Cached self-signed certificate and private key (PEM) used when HTTPS is enabled. Generated automatically; regenerated on demand via the settings UI. Included in `data.json` — treat it like the access key.
+- **Renewal**: At every server start, a cached certificate that expires within 30 days (`CERT_RENEWAL_THRESHOLD_DAYS`), has expired or does not parse is replaced by a new one, saved, and announced with a notice; clients must trust the new certificate. A custom certificate (`useCustomTls`) is never replaced; it gets a warning notice and log entry when it expires within 30 days.
 - **When visible**: `httpsEnabled === true && useCustomTls === false`
 
 ### Bring your own certificate (`useCustomTls`)
