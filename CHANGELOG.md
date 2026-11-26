@@ -4,6 +4,14 @@
 > were renamed from `vX.Y.Z` (and `obsidian-mcp-v1.1.0`) to `X.Y.Z`; old links
 > containing `v` no longer resolve.
 
+## [5.3.1](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/5.3.0...5.3.1) (2026-11-26)
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** Bump the dev-deps group with 4 updates ([#573](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/573)) ([8bbc891](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/8bbc8910fe30d56bb38263ad33d4052a487aa0c7))
+* **deps-dev:** Bump the dev-deps group with 4 updates ([#575](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/issues/575)) ([72c9c9e](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/commit/72c9c9efdf4ab6389df07d1fafff6a68f0a3bae0))
+
 ## [5.3.0](https://github.com/KingOfKalk/obsidian-plugin-vault-mcp-server/compare/5.2.2...5.3.0) (2026-11-13)
 
 
